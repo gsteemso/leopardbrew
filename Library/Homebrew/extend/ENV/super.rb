@@ -322,7 +322,7 @@ module Superenv
     when "clang"
       cccfg_add 'x'
       cccfg_add 'g'
-    when GNU_GXX11_REGEXP
+    when GNU_CXX11_REGEXP
       cccfg_add 'x'
     else
       raise "The selected compiler doesn't support C++11: #{homebrew_cc}"
