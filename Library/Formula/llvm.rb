@@ -1,22 +1,3 @@
-class CodesignRequirement < Requirement
-  include FileUtils
-  fatal true
-
-  satisfy(:build_env => false) do
-    mktemp do
-      touch "llvm_check.txt"
-      quiet_system "/usr/bin/codesign", "-s", "lldb_codesign", "--dryrun", "llvm_check.txt"
-    end
-  end
-
-  def message
-    <<-EOS.undent
-      lldb_codesign identity must be available to build with LLDB.
-      See: https://llvm.org/svn/llvm-project/lldb/trunk/docs/code-signing.txt
-    EOS
-  end
-end
-
 class Llvm < Formula
   desc "llvm (Low Level Virtual Machine): a next-gen compiler infrastructure"
   homepage "http://llvm.org/"
@@ -87,12 +68,14 @@ class Llvm < Formula
   option "with-clang", "Build Clang support library"
   option "with-lld", "Build LLD linker"
   option "with-lldb", "Build LLDB debugger"
+  option "with-python", "Build Python bindings against Homebrew Python" unless MacOS.version <= :snow_leopard
   option "with-rtti", "Build with C++ RTTI"
-  option "with-python", "Build Python bindings against Homebrew Python"
   option "without-assertions", "Speeds up LLVM, but provides less debug information"
 
   deprecated_option "rtti" => "with-rtti"
   deprecated_option "disable-assertions" => "without-assertions"
+
+  depends_on MinimumGccRequirement => '4.7'
 
   if MacOS.version <= :snow_leopard
     depends_on :python
@@ -101,23 +84,30 @@ class Llvm < Formula
   end
   depends_on "cmake" => :build
 
-  if build.with? "lldb"
-    depends_on "swig"
-    depends_on CodesignRequirement
-  end
+  depends_on "swig" if build.with? "lldb"
 
-  keg_only :provided_by_osx
+  keg_only :provided_by_osx if MacOS.version > :leopard
 
   # Apple's libstdc++ is too old to build LLVM
   fails_with :gcc
   fails_with :llvm
 
   def install
+    args = %w[
+      -DLLVM_OPTIMIZED_TABLEGEN=On
+    ]
+
     # Apple's libstdc++ is too old to build LLVM
     ENV.libcxx if ENV.compiler == :clang
+    if build.universal?
+      ENV.permit_arch_flags
+      args << "-DCMAKE_OSX_ARCHITECTURES=#{Hardware::CPU.universal_archs.as_cmake_arch_flags}"
+    end
 
-    if build.with?("lldb") && build.without?("clang")
-      raise "Building LLDB needs Clang support library."
+    if build.with? "lldb"
+      raise "Building LLDB needs Clang support library." if build.without?("clang")
+      (buildpath/"tools/lldb").install resource("lldb")
+      args << '-DLLDB_USE_SYSTEM_DEBUGSERVER=ON'
     end
 
     if build.with? "clang"
@@ -127,11 +117,6 @@ class Llvm < Formula
     end
 
     (buildpath/"tools/lld").install resource("lld") if build.with? "lld"
-    (buildpath/"tools/lldb").install resource("lldb") if build.with? "lldb"
-
-    args = %w[
-      -DLLVM_OPTIMIZED_TABLEGEN=On
-    ]
 
     args << "-DLLVM_ENABLE_RTTI=On" if build.with? "rtti"
 
@@ -139,11 +124,6 @@ class Llvm < Formula
       args << "-DLLVM_ENABLE_ASSERTIONS=On"
     else
       args << "-DCMAKE_CXX_FLAGS_RELEASE='-DNDEBUG'"
-    end
-
-    if build.universal?
-      ENV.permit_arch_flags
-      args << "-DCMAKE_OSX_ARCHITECTURES=#{Hardware::CPU.universal_archs.as_cmake_arch_flags}"
     end
 
     mktemp do
