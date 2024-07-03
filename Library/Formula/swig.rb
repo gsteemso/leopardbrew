@@ -1,26 +1,44 @@
+require 'compilers'
+
 class Swig < Formula
   desc "Generate scripting interfaces to C/C++ code"
   homepage "http://www.swig.org/"
-  url "http://prdownloads.sourceforge.net/swig/swig-4.1.1.tar.gz"
-  sha256 "2af08aced8fcd65cdb5cc62426768914bedc735b1c250325203716f78e39ac9b"
+  url "https://github.com/swig/swig/archive/refs/tags/v4.2.1.tar.gz"
+  sha256 "8895878b9215612e73611203dc8f5232c626e4d07ffc4532922f375518f067ca"
 
   option :universal
 
-  depends_on "pcre2"
+  depends_on 'bison' => :build
 
-  bottle do
-    sha256 "a707faa9f324e299535d6850747e5ac4e4201aa8226bc4205b521fe7f97da034" => :tiger_altivec
-  end
+  depends_on "pcre2"
+  depends_on 'ruby'
+
+  # it will configure itself for these things if they are present, which requires that they appear
+  # in the $PATH during the build; so, only require them if they're already installed
+  depends_on 'boost'   if Formula['boost'].installed?
+  depends_on 'guile'   if Formula['guile'].installed?
+  depends_on 'lua'     if Formula['lua'].installed?
+  depends_on 'lua51'   if Formula['lua51'].installed?
+  depends_on 'perl'    if Formula['perl'].installed?
+  depends_on 'python'  if Formula['python'].installed?
+  depends_on 'python3' if Formula['python3'].installed?
+  depends_on 'tcl-tk'  if Formula['tcl-tk'].installed?
 
   def install
     ENV.universal_binary if build.universal?
-    system "./configure", "--disable-dependency-tracking",
-                          "--prefix=#{prefix}"
+    system './autogen.sh'
+    args = [
+      "--prefix=#{prefix}",
+      "--disable-dependency-tracking"
+    ]
+    args << '-disable-cpp11-testing' if ENV.compiler !~ CompilerConstants::GNU_CXX11_REGEXP
+    system "./configure", *args
     system "make"
     system "make", "install"
   end
 
   test do
+    ENV.universal_binary if build.universal?
     (testpath/"test.c").write <<-EOS.undent
       int add(int x, int y)
       {
