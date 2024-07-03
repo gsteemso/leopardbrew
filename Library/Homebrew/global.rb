@@ -42,9 +42,9 @@ HOMEBREW_USER_AGENT_CURL = ENV['HOMEBREW_USER_AGENT_CURL']
 # Optional user‐defined values:
 HOMEBREW_GITHUB_API_TOKEN = ENV['HOMEBREW_GITHUB_API_TOKEN']
                             # For unthrottled access to Github repositories
-HOMEBREW_LOGS = Pathname.new(ENV['HOMEBREW_LOGS'] or '~/Library/Logs/Homebrew/').expand_path
+HOMEBREW_LOGS = Pathname.new(ENV.fetch 'HOMEBREW_LOGS', '~/Library/Logs/Homebrew/').expand_path
                 # Where build, postinstall, and test logs of formulæ are written to
-HOMEBREW_TEMP = Pathname.new(ENV['HOMEBREW_TEMP'] or '/tmp')
+HOMEBREW_TEMP = Pathname.new(ENV.fetch 'HOMEBREW_TEMP', '/tmp')
                 # Where temporary folders for building and testing formulæ are created
 
 ARGV.extend(HomebrewArgvExtension)
