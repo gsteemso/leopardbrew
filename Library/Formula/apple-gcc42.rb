@@ -38,7 +38,19 @@ class AppleGcc42 < Formula
     bin.install *Dir['build/dst/usr/bin/*']
     include.install 'build/dst/usr/include/gcc' if MacOS.version < :leopard
     lib.install 'build/dst/usr/lib/gcc'
+    if MacOS.version > :tiger
+      # delete broken symlinks
+      rm lib/'gcc/i686-apple-darwin9/4.2.1/include/ppc_intrinsics.h'
+      rm lib/'gcc/i686-apple-darwin9/4.2.1/include/stdint.h'
+      rm lib/'gcc/powerpc-apple-darwin9/4.2.1/include/ppc_intrinsics.h'
+      rm lib/'gcc/powerpc-apple-darwin9/4.2.1/include/stdint.h'
+    end
     libexec.install 'build/dst/usr/libexec/gcc'
+    # delete broken symlinks
+    rm libexec/'libexec/gcc/i686-apple-darwin9/4.2.1/as'
+    rm libexec/'libexec/gcc/i686-apple-darwin9/4.2.1/ld'
+    rm libexec/'libexec/gcc/powerpc-apple-darwin9/4.2.1/as'
+    rm libexec/'libexec/gcc/powerpc-apple-darwin9/4.2.1/ld'
     man.install 'build/dst/usr/share/man/man1'
   end
 
