@@ -118,6 +118,7 @@ class Resource
     if fn.file?
       ohai "Verifying #{fn.basename} checksum" if ARGV.verbose?
       fn.verify_checksum(checksum)
+      ohai "Checksum matches" if ARGV.verbose?
     end
   rescue ChecksumMissingError
     opoo "Cannot verify integrity of #{fn.basename}"
