@@ -104,6 +104,8 @@ END_OF_PATCH
       `uname -r`.chomp
     end
 
+    version_suffix = version.to_s.slice(/\d/)
+
     # GCC will suffer build errors if forced to use a particular linker.
     ENV.delete "LD"
 
@@ -146,8 +148,6 @@ END_OF_PATCH
       languages << "jit" if build.with? "jit"
     end
 
-    version_suffix = version.to_s.slice(/\d/)
-
     args = [
       "--build=#{arch}-apple-darwin#{osmajor}",
       "--prefix=#{prefix}",
@@ -184,7 +184,7 @@ END_OF_PATCH
     # files prior to comparison during bootstrap (broken by Xcode 6.3 – OS X
     # Mavericks and later).
     build_config = 'bootstrap-debug'  # like "bootstrap" but supposedly faster, and tests more
-    build_config.join ' bootstrap-debug-lib' if build.with? 'check'
+    build_config += ' bootstrap-debug-lib' if build.with? 'check'
     args << "--with-build-config=#{build_config}"
 
     args << "--disable-nls" if build.without? "nls"
@@ -218,11 +218,7 @@ END_OF_PATCH
       else
         system "make", "bootstrap"
       end
-      ENV.deparallelize do
-        ENV.cccfg_remove 'O'
-        system 'make', 'check'
-        ENV.cccfg_add 'O'
-      end if build.with? 'check'
+      ENV.deparallelize { system 'make', 'check' } if build.with? 'check'
       system "make", "install"
     end
     # Handle conflicts between GCC formulae.
@@ -230,9 +226,7 @@ END_OF_PATCH
     # - (Since GCC 4.9 java properties are properly sandboxed.)
     # - Rename man7.
     Dir.glob(man7/'*.7') { |file| add_suffix(file, version_suffix) }
-    # - As shipped, the info pages conflict when install-info is run because they are not processed
-    #   based solely on filenames.  To fix this, the directory‐menu items in each file need to be
-    #   `inreplace`d with versioned names _in addition_ to versioning the filenames.
+    # - Info:  edit internal menu entries and rename
     Dir.glob(info/'*.info') do |file|
       inreplace file, nil, nil do |s|
         in_the_zone = false
