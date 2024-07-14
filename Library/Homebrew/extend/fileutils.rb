@@ -104,7 +104,7 @@ module FileUtils
       _make = Formula["make"].opt_bin/"make"
       _make = _make.exist? ? _make.to_s : Formula["make"].opt_bin/"gmake".to_s
     else
-      abort "Your system’s Make program is too old.  Please install the “make” package."
+      abort "Your system’s Make program is too old.  Please `brew install make`."
     end
     system _make, *args
   end
