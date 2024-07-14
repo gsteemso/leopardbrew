@@ -24,7 +24,7 @@ class BerkeleyDb4 < Formula
       ENV.permit_arch_flags if superenv?
       ENV.un_m64 if Hardware::CPU.family == :g5_64
       archs = Hardware::CPU.universal_archs
-      stashdir = 'arch-stashes'
+      stashdir = buildpath/'arch-stashes'
       the_binaries = %w[
         bin/db_archive
         bin/db_checkpoint
@@ -47,15 +47,15 @@ class BerkeleyDb4 < Formula
       ]
     else
       archs = [MacOS.preferred_arch]
-    end
+    end # universal?
 
     archs.each do |arch|
       if build.universal?
         case arch
           when :i386, :ppc then ENV.m32
-          when :x86_64, :ppc64 then ENV.m64
+          when :ppc64, :x86_64 then ENV.m64
         end
-      end
+      end # universal?
 
       # “debug” is already disabled
       # per the package instructions, “docdir” is supposed to not have a leading “--”
@@ -70,7 +70,7 @@ class BerkeleyDb4 < Formula
         system "make", "install"
         if build.universal?
           system 'make', 'clean'
-          Merge.prep(prefix, buildpath/"arch-stashes/bin-#{arch}", the_binaries)
+          Merge.prep(prefix, stashdir/"bin-#{arch}", the_binaries)
           # undo architecture-specific tweaks before next run
           case arch
             when :i386, :ppc then ENV.un_m32
@@ -86,11 +86,26 @@ class BerkeleyDb4 < Formula
   test do
     system bin/'db_stat', '-V'
   end # test
-end
+end # BerkeleyDb4
 
 class Merge
   class << self
     include FileUtils
+
+    # The destination is expected to be a Pathname object.
+    # The source is just a string.
+    def cp_mkp(source, destination)
+      if destination.exists?
+        if destination.is_directory?
+          cp source, destination
+        else
+          raise "File exists at destination:  #{destination}"
+        end
+      else
+        mkdir_p destination.parent unless destination.parent.exists?
+        cp source, destination
+      end # destination exists?
+    end # cp_mkp
 
     # The keg_prefix and stash_root are expected to be Pathname objects.
     # The list members are just strings.
@@ -98,8 +113,7 @@ class Merge
       list.each do |item|
         source = keg_prefix/item
         dest = stash_root/item
-        mkpath dest.parent
-        cp source, dest
+        cp_mkp source, dest
       end # each binary
     end # prep
 
