@@ -7,8 +7,7 @@ std_trap = trap("INT") { exit! 130 } # no backtrace thanks
 $:.unshift("#{ENV['HOMEBREW_LIBRARY']}/Homebrew")
 
 require 'global'  # a Homebrew library
-# `global.rb` in turn [require]s `config.rb`, which imports all of our important environment
-# variables as Ruby constants
+# among other things, it imports all of our important environment variables as Ruby constants
 
 case ARGV.first
 when '-V', '--version'
