@@ -28,8 +28,7 @@ class Libssh2 < Formula
   option :universal
   option "with-libressl", "build with LibreSSL instead of OpenSSL"
 
-  depends_on "openssl3" => :recommended
-  depends_on "libressl" => :optional
+  depends_on (build.with?('libressl') ? 'libressl' : 'openssl3')
   depends_on "zlib"
 
   def install
