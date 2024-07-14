@@ -1,8 +1,8 @@
 class Openssl3 < Formula
   desc "Cryptography and SSL/TLS Toolkit"
   homepage "https://openssl.org/"
-  url "https://openssl.org/source/openssl-3.2.2.tar.gz"
-  sha256 "197149c18d9e9f292c43f0400acaba12e5f52cacfe050f3d199277ea738ec2e7"
+  url "https://openssl.org/source/openssl-3.3.1.tar.gz"
+  sha256 "777cd596284c883375a2a7a11bf5d2786fc5413255efab20c50d6ffe6d020b7e"
   license "Apache-2.0"
 
   option :universal
@@ -38,7 +38,20 @@ class Openssl3 < Formula
       ENV.permit_arch_flags if superenv?
       ENV.un_m64 if Hardware::CPU.family == :g5_64
       archs = Hardware::CPU.universal_archs
-      dirs = []
+      stashdir = 'arch-stashes'
+      the_binaries = %w[
+        bin/openssl
+        lib/engines-3/capi.dylib
+        lib/engines-3/loader_attic.dylib
+        lib/engines-3/padlock.dylib
+        lib/libcrypto.3.dylib
+        lib/libcrypto.a
+        lib/libssl.3.dylib
+        lib/libssl.a
+      ]
+      the_headers = %w[
+        openssl/configuration.h
+      ]
     else
       archs = [MacOS.preferred_arch]
     end
@@ -47,17 +60,24 @@ class Openssl3 < Formula
 
     archs.each do |arch|
       if build.universal?
-        ENV.append_to_cflags "-arch #{arch}"
-        dir = "stash-#{arch}"
-        mkdir dir
-        dirs << dir
+        case arch
+          when :i386, :ppc then ENV.m32
+          when :x86_64, :ppc64 then ENV.m64
+        end
       end
 
       configure_args = [
         "--prefix=#{prefix}",
         "--openssldir=#{openssldir}",
-        arg_format(arch)
+        arg_format(arch),
+        'no-atexit',  # maybe this will stop the segfaults?
+        'no-legacy',  # for no apparent reason, the legacy provider fails `make test`
+#       'sctp',  # can't do SCTP because Mac OS 10.4–10.5 don’t have the system headers etc. for it
+        'enable-trace',
+        'zlib-dynamic'
       ]
+      configure_args << 'enable-brotli-dynamic' if Formula['brotli'].installed?
+      configure_args << 'enable-zstd-dynamic' if Formula['zstd'].installed?
       # the assembly routines don’t work right on Tiger or on 32‐bit PowerPC G5
       is_32b_G5 = (arch == :ppc and (Hardware::CPU.family == :g5 or Hardware::CPU.family == :g5_64))
       configure_args << "no-asm" if (MacOS.version < :leopard or is_32b_G5)
@@ -65,20 +85,25 @@ class Openssl3 < Formula
       configure_args << "no-async" if MacOS.version < :leopard
 
       system "perl", "./Configure", *configure_args
-      ENV.deparallelize do
-        system "make"
-        system "make", "install", "MANDIR=#{man}", "MANSUFFIX=ssl"
-        system "make", "test" if build.with? 'tests'
-      end
+      system "make"
+      system "make", "test" if build.with? 'tests'
+      system "make", "install", "MANSUFFIX=ssl"
 
       if build.universal?
         system 'make', 'clean'
-        Merge.scour_keg(prefix, dir)
-        # undo architecture-specific tweak before next run
-        ENV.remove_from_cflags "-arch #{arch}"
+        Merge.prep(prefix, buildpath/"arch-stashes/bin-#{arch}", the_binaries)
+        Merge.prep(include, buildpath/"arch-stashes/h-#{arch}", the_headers)
+        # undo architecture-specific tweaks before next run
+        case arch
+          when :i386, :ppc then ENV.un_m32
+          when :ppc64, :x86_64 then ENV.un_m64
+        end # case arch
       end # universal?
     end # archs.each
-    Merge.mach_o(prefix, dirs) if build.universal?
+    if build.universal?
+      Merge.mach_o(prefix, stashdir, archs)
+      Merge.c_headers(include, stashdir, archs)
+    end # universal?
   end # install
 
   def openssldir
@@ -92,10 +117,13 @@ class Openssl3 < Formula
 
   def caveats
     <<-EOS.undent
-      A CA file has been bootstrapped using certificates from the system
-      keychain. To add additional certificates, place .pem files in
-        #{openssldir}/certs
+      OpenSSL3 configures itself to allow any or all of Zlib, Brotli, & ZStandard
+      (“zstd”) compression, if their formulæ are already brewed at the time.  If you
+      install them afterwards, OpenSSL3 will not know about them.
 
+      A CA file is provided by the `curl-ca-bundle` formula.  To add certificates to
+      it, place .pem files in
+        #{openssldir}/certs
       and run
         #{opt_bin}/c_rehash
     EOS
@@ -118,74 +146,122 @@ class Openssl3 < Formula
 end # Openssl3
 
 class Merge
-  module Pathname_extension
-    def is_bare_mach_o?
-      # header word 0, magic signature:
-      #   MH_MAGIC    = 'feedface' – value with lowest‐order bit clear
-      #   MH_MAGIC_64 = 'feedfacf' – same value with lowest‐order bit set
-      # low‐order 24 bits of header word 1, CPU type:  7 is x86, 12 is ARM, 18 is PPC
-      # header word 3, file type:  no types higher than 10 are defined
-      # header word 5, net size of load commands, is far smaller than the filesize
-      if (self.file? and self.size >= 28 and mach_header = self.binread(24).unpack('N6'))
-        raise('Fat binary found where bare Mach-O file expected') if mach_header[0] == 0xcafebabe
-        ((mach_header[0] & 0xfffffffe) == 0xfeedface and
-          [7, 12, 18].detect { |item| (mach_header[1] & 0x00ffffff) == item } and
-          mach_header[3] < 11 and
-          mach_header[5] < self.size)
-      else
-        false
-      end
-    end unless method_defined?(:is_bare_mach_o?)
-  end # Pathname_extension
-
   class << self
     include FileUtils
 
-    def scour_keg(keg_prefix, stash, sub_path = '')
-      # don’t suffer a double slash when sub_path is null:
-      s_p = (sub_path == '' ? '' : sub_path + '/')
-      Dir["#{keg_prefix}/#{s_p}*"].each do |f|
-        pn = Pathname(f).extend(Pathname_extension)
-        spb = s_p + pn.basename
-        if pn.directory?
-          Dir.mkdir "#{stash}/#{spb}"
-          scour_keg(keg_prefix, stash, spb)
-        # the number of things that look like Mach-O files but aren’t is horrifying, so test
-        elsif ((not pn.symlink?) and pn.is_bare_mach_o?)
-          cp pn, "#{stash}/#{spb}"
-        end
-      end
-    end # scour_keg
+    # The keg_prefix and stash_root are expected to be Pathname objects.
+    # The list members are just strings.
+    def prep(keg_prefix, stash_root, list)
+      list.each do |item|
+        source = keg_prefix/item
+        dest = stash_root/item
+        mkpath dest.parent
+        cp source, dest
+      end # each binary
+    end # prep
 
-    def mach_o(install_prefix, arch_dirs, sub_path = '')
+    def c_headers(include_dir, stash_root, archs, sub_path = '')
+      # Architecture-specific <header>.<extension> files need to be surgically combined and were
+      # stashed for this purpose.  The differences are relatively minor and can be “#if defined ()”
+      # together.  We make the simplifying assumption that the architecture-dependent headers in
+      # question are present on all architectures.
+      #
+      # Don’t suffer a double slash when sub_path is null:
+      s_p = (sub_path == '' ? '' : sub_path + '/')
+      Dir["#{stash_root}/h-#{archs[0]}/#{s_p}*"].each do |basis_file|
+        spb = s_p + File.basename(basis_file)
+        if File.directory?(basis_file)
+          c_headers(include_dir, stash_root, archs, spb)
+        else
+          diffpoints = {}  # Keyed by line number in the basis file.  Each value is an array of
+                           # three‐element hashes; containing the arch, the hunk’s displacement
+                           # (number of basis‐file lines it replaces), and an array of its lines.
+          archs[1..-1].each do |a|
+            raw_diffs = `diff --minimal --unified=0 #{basis_file} #{stash_root}/h-#{a}/#{spb}`
+            next unless raw_diffs
+            # The unified diff output begins with two lines identifying the source files, which are
+            # followed by a series of hunk records, each describing one difference that was found.
+            # Each hunk record begins with a line that looks like:
+            # @@ -line_number,length_in_lines +line_number,length_in_lines @@
+            diff_hunks = raw_diffs.lines[2..-1].join('').split(/(?=^@@)/)
+            diff_hunks.each do |d|
+              # lexical sorting of numbers requires that they all be the same length
+              base_linenumber_string = ('00000' + d.match(/\A@@ -(\d+)/)[1])[-6..-1]
+              unless diffpoints.has_key?(base_linenumber_string)
+                diffpoints[base_linenumber_string] = []
+              end
+              length_match = d.match(/\A@@ -\d+,(\d+)/)
+              # if the hunk length is 1, the comma and second number are not present
+              length_match = (length_match == nil ? 1 : length_match[1].to_i)
+              line_group = []
+              # we want the lines that are either unchanged between files or only found in the non‐
+              # basis file; and to shave off the leading ‘+’ or ‘ ’
+              d.lines { |line| line_group << line[1..-1] if line =~ /^[+ ]/ }
+              diffpoints[base_linenumber_string] << {
+                :arch => a,
+                :displacement => length_match,
+                :hunk_lines => line_group
+              }
+            end # each diff hunk |d|
+          end # each arch |a|
+          # Ideally, the logic would account for overlapping and/or different-displacement hunks at
+          # this point; but since most packages do not seem to generate such in the first place, it
+          # can wait.  That said, packages exist (e.g. both Python 2 and Python 3) which can and do
+          # generate quad fat binaries, so it can’t be ignored forever.
+          basis_lines = []
+          File.open(basis_file, 'r') { |text| basis_lines = text.read.lines[0..-1] }
+          # Bear in mind that the line-array indices are one less than the line numbers.
+          #
+          # Start with the last diff point so the insertions don’t screw up our line numbering:
+          diffpoints.keys.sort.reverse.each do |index_string|
+            diff_start = index_string.to_i - 1
+            diff_end = index_string.to_i + diffpoints[index_string][0][:displacement] - 2
+            adjusted_lines = [
+              "\#if defined (__#{archs[0]}__)\n",
+              basis_lines[diff_start..diff_end],
+              *(diffpoints[index_string].map { |dp|
+                  [ "\#elif defined (__#{dp[:arch]}__)\n", *(dp[:hunk_lines]) ]
+                }),
+              "\#endif\n"
+            ]
+            basis_lines[diff_start..diff_end] = adjusted_lines
+          end # each key |index_string|
+          File.new("#{include_dir}/#{spb}", 'w').syswrite(basis_lines.join(''))
+        end # if not a directory
+      end # each |basis_file|
+    end # c_headers
+
+    # The keg_prefix is expected to be a Pathname object.  The rest are just strings.
+    def mach_o(keg_prefix, stash_root, archs, sub_path = '')
       # don’t suffer a double slash when sub_path is null:
       s_p = (sub_path == '' ? '' : sub_path + '/')
       # generate a full list of files, even if some are not present on all architectures; bear in
       # mind that the current _directory_ may not even exist on all archs
       basename_list = []
+      arch_dirs = archs.map {|a| "bin-#{a}"}
       arch_dir_list = arch_dirs.join(',')
-      Dir["{#{arch_dir_list}}/#{s_p}*"].map { |f|
+      Dir["#{stash_root}/{#{arch_dir_list}}/#{s_p}*"].map { |f|
         File.basename(f)
-      }.each do |b|
+      }.each { |b|
         basename_list << b unless basename_list.count(b) > 0
-      end
+      }
       basename_list.each do |b|
         spb = s_p + b
-        the_arch_dir = arch_dirs.detect { |ad| File.exist?("#{ad}/#{spb}") }
-        pn = Pathname("#{the_arch_dir}/#{spb}")
+        the_arch_dir = arch_dirs.detect { |ad| File.exist?("#{stash_root}/#{ad}/#{spb}") }
+        pn = Pathname("#{stash_root}/#{the_arch_dir}/#{spb}")
         if pn.directory?
-          mach_o(install_prefix, arch_dirs, spb)
+          mach_o(keg_prefix, stash_root, archs, spb)
         else
-          arch_files = Dir["{#{arch_dir_list}}/#{spb}"]
+          arch_files = Dir["#{stash_root}/{#{arch_dir_list}}/#{spb}"]
           if arch_files.length > 1
-            system 'lipo', '-create', *arch_files, '-output', install_prefix/spb
+            system 'lipo', '-create', *arch_files, '-output', keg_prefix/spb
           else
             # presumably there's a reason this only exists for one architecture, so no error;
             # the same rationale would apply if it only existed in, say, two out of three
-            cp arch_files.first, install_prefix/spb
+            cp arch_files.first, keg_prefix/spb
           end # if > 1 file?
         end # if directory?
-      end # basename_list.each
+      end # each basename |b|
     end # mach_o
   end # << self
 end # Merge
