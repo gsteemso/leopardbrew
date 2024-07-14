@@ -1,6 +1,6 @@
 class Curl < Formula
   desc "Get a file from an HTTP, HTTPS or FTP server"
-  homepage "https://curl.haxx.se/"
+  homepage "https://curl.se/"
   url "https://curl.se/download/curl-8.8.0.tar.xz"
   sha256 "0f58bb95fc330c8a46eeb3df5701b0d90c9d9bfcc42bd1cd08791d12551d4400"
 
@@ -43,10 +43,16 @@ class Curl < Formula
 
   def install
     if build.universal?
+      ENV.permit_arch_flags if superenv?
       ENV.un_m64 if Hardware::CPU.family == :g5_64
       archs = Hardware::CPU.universal_archs
-      mkdir 'arch-stashes'
-      dirs = []
+      stashdir = Pathname.new('arch-stashes')
+      the_binaries = %w[
+        bin/curl
+        lib/libcurl.4.dylib
+        lib/libcurl.a
+      ]
+      script_to_fix = 'bin/curl-config'
     else
       archs = [MacOS.preferred_arch]
     end
@@ -63,25 +69,25 @@ class Curl < Formula
     #   --enable-smtp, --enable-socketpair, --enable-symbol-hiding*, --enable-telnet, --enable-tftp,
     #   --enable-threaded-resolver, --enable-tls-srp*, --enable-unix-sockets, --enable-verbose,
     #   --disable-warnings, --disable-werror
-    # options that don't, or don’t always, work for Tigerbrew:
+    # options that don't, or don’t always, work for ’brewing:
     #   --enable-ech :  LibreSSL doesn’t do it and OpenSSL isn’t being picked up
-    #   --with-openssl-quic (would also provide HTTP/3) :  LibreSSL doesn’t do it
+    #   --with-openssl-quic (would also provide HTTP/3) :  Ditto
     #   --with-secure-transport :  no Tiger version, many from Leopard on are obsolete, & cURL
     #                              misses some features when using it instead of, e.g., OpenSSL
-    #   --enable-symbol-hiding :  Apple GCC does not comply
     #   --enable-tls-srp :  LibreSSL does not have the API, but it’s automatic on OpenSSL
     # options not listed above, as they need packages:
     #   --with-ngtcp2 plus --with-nghttp3
     #     OR --with-msh3
     #     OR --with-quiche
     #   --enable-websockets
-    args = %W[
-      --prefix=#{prefix}
-      --disable-dependency-tracking
-      --enable-mqtt
-      --with-ca-fallback
-      --with-gssapi
-      --with-zlib=#{Formula["zlib"].opt_prefix}
+    args = [
+      "--prefix=#{prefix}",
+      '--disable-dependency-tracking',
+      '--enable-mqtt',
+      '--enable-symbol-hiding',  # Apple GCC does not comply
+      '--with-ca-fallback',
+      '--with-gssapi',
+      "--with-zlib=#{Formula["zlib"].opt_prefix}"
     ]
 
     # cURL has a new firm desire to find ssl with PKG_CONFIG_PATH instead of using
@@ -90,17 +96,14 @@ class Curl < Formula
     if build.with? 'gnutls'
       ENV.prepend_path 'PKG_CONFIG_PATH', "#{Formula['gnutls'].opt_lib}/pkgconfig"
       args << "--with-gnutls=#{Formula['gnutls'].opt_prefix}"
-      args << "--with-ca-bundle=#{etc}/gnutls/cert.pem"
     end
     if build.with? "libressl"
       ENV.prepend_path "PKG_CONFIG_PATH", "#{Formula["libressl"].opt_lib}/pkgconfig"
       args << "--with-openssl=#{Formula["libressl"].opt_prefix}"
-      args << "--with-ca-bundle=#{etc}/libressl/cert.pem"
     elsif build.with? 'openssl3'
       ENV.prepend_path "PKG_CONFIG_PATH", "#{Formula["openssl3"].opt_lib}/pkgconfig"
       args << "--with-openssl=#{Formula["openssl3"].opt_prefix}"
       args << '--enable-openssl-auto-load-config'
-      args << "--with-ca-bundle=#{etc}/openssl@3/cert.pem"
     elsif build.without? 'gnutls'
       args << '--without-ssl'
     end
@@ -151,15 +154,12 @@ class Curl < Formula
     # breaking any software that relies on curl, e.g. git
     args << "--with-ca-bundle=#{HOMEBREW_PREFIX}/share/ca-bundle.crt"
 
-    bitness_stash = ENV['HOMEBREW_PREFER_64_BIT']
     archs.each do |arch|
       if build.universal?
         case arch
-          when :i386, :ppc then ENV.delete 'HOMEBREW_PREFER_64_BIT'
-          when :x86_64, :ppc64 then ENV['HOMEBREW_PREFER_64_BIT'] = '1'
+          when :i386, :ppc then ENV.m32
+          when :ppc64, :x86_64 then ENV.m64
         end
-        ENV.setup_build_environment(self)
-        mkdir "arch-stashes/#{arch}-bin"
       end
 
       ENV.deparallelize do
@@ -171,24 +171,28 @@ class Curl < Formula
       libexec.install "scripts/mk-ca-bundle.pl" if File.exists? 'scripts/mk-ca-bundle.pl'
       if build.universal?
         system 'make', 'clean'
-        Merge.scour_keg(prefix, "arch-stashes/#{arch}-bin")
+        Merge.prep(prefix, stashdir/"bin-#{arch}", the_binaries)
+        Merge.cp_p prefix/script_to_fix, stashdir/"script-#{arch}/#{script_to_fix}"
+        # undo architecture-specific tweaks before next run
+        case arch
+          when :i386, :ppc then ENV.un_m32
+          when :ppc64, :x86_64 then ENV.un_m64
+        end # case arch
       end # universal?
     end # archs.each
-
     if build.universal?
-      Merge.mach_o(prefix, 'arch-stashes', archs)
-      # undo architecture-specific tweak
-      ENV['HOMEBREW_PREFER_64_BIT'] = bitness_stash
-      ENV.setup_build_environment(self)
+      Merge.mach_o(prefix, stashdir, archs)
+      archs.extend ArchitectureListExtension
+      inreplace stashdir/"script-#{archs.first}/#{script_to_fix}", "-arch #{archs.first}", archs.as_arch_flags
+      bin.install stashdir/"script-#{archs.first}/#{script_to_fix}"
     end # universal?
   end # install
 
   def caveats
     <<-_.undent
-      cURL will be built with the ability to use Brotli compression, if that formula
-      is already installed when cURL is brewed.  (The Brotli formula cannot be
-      automatically brewed as a cURL dependency because it depends on CMake, which
-      depends back on cURL.)
+      cURL is built with the ability to use Brotli compression, if that formula is
+      already installed when cURL is brewed.  (Brotli cannot be automatically brewed
+      as a cURL dependency because it depends on CMake, which depends back on cURL.)
     _
   end # caveats
 
@@ -212,53 +216,42 @@ class Curl < Formula
 end # Curl
 
 class Merge
-  module Pathname_extension
-    def is_bare_mach_o?
-      # header word 0, magic signature:
-      #   MH_MAGIC    = 'feedface' – value with lowest‐order bit clear
-      #   MH_MAGIC_64 = 'feedfacf' – same value with lowest‐order bit set
-      # low‐order 24 bits of header word 1, CPU type:  7 is x86, 12 is ARM, 18 is PPC
-      # header word 3, file type:  no types higher than 10 are defined
-      # header word 5, net size of load commands, is far smaller than the filesize
-      if (self.file? and self.size >= 28 and mach_header = self.binread(24).unpack('N6'))
-        raise('Fat binary found where bare Mach-O file expected') if mach_header[0] == 0xcafebabe
-        ((mach_header[0] & 0xfffffffe) == 0xfeedface and
-          [7, 12, 18].detect { |item| (mach_header[1] & 0x00ffffff) == item } and
-          mach_header[3] < 11 and
-          mach_header[5] < self.size)
-      else
-        false
-      end
-    end unless method_defined?(:is_bare_mach_o?)
-  end # Pathname_extension
-
   class << self
     include FileUtils
 
-    def scour_keg(keg_prefix, stash, sub_path = '')
-      # don’t suffer a double slash when sub_path is null:
-      s_p = (sub_path == '' ? '' : sub_path + '/')
-      Dir["#{keg_prefix}/#{s_p}*"].each do |f|
-        pn = Pathname(f).extend(Pathname_extension)
-        spb = s_p + pn.basename
-        if pn.directory?
-          Dir.mkdir "#{stash}/#{spb}"
-          scour_keg(keg_prefix, stash, spb)
-        # the number of things that look like Mach-O files but aren’t is horrifying, so test
-        elsif ((not pn.symlink?) and pn.is_bare_mach_o?)
-          cp pn, "#{stash}/#{spb}"
+    # source can be any old stringy thing, but destination is expected to be a Pathname
+    def cp_p(source, destination)
+      if destination.exists?
+        if destination.is_directory?
+          cp source, destination
+        else
+          raise "File exists at destination:  #{destination}"
         end
+      else
+        mkdir_p destination.parent unless destination.parent.exists?
+        cp source, destination
       end
-    end # scour_keg
+    end
 
-    # install_prefix expects a Pathname object, not just a string
-    def mach_o(install_prefix, stash_root, archs, sub_path = '')
+    # The keg_prefix and stash_root are expected to be Pathname objects.
+    # The list members are just strings.
+    def prep(keg_prefix, stash_root, list)
+      list.each do |item|
+        source = keg_prefix/item
+        dest = stash_root/item
+        mkpath dest.parent
+        cp source, dest
+      end # each binary
+    end # prep
+
+    # The keg_prefix is expected to be a Pathname object.  The rest are just strings.
+    def mach_o(keg_prefix, stash_root, archs, sub_path = '')
       # don’t suffer a double slash when sub_path is null:
       s_p = (sub_path == '' ? '' : sub_path + '/')
       # generate a full list of files, even if some are not present on all architectures; bear in
       # mind that the current _directory_ may not even exist on all archs
       basename_list = []
-      arch_dirs = archs.map {|a| "#{a}-bin"}
+      arch_dirs = archs.map {|a| "bin-#{a}"}
       arch_dir_list = arch_dirs.join(',')
       Dir["#{stash_root}/{#{arch_dir_list}}/#{s_p}*"].map { |f|
         File.basename(f)
@@ -270,15 +263,15 @@ class Merge
         the_arch_dir = arch_dirs.detect { |ad| File.exist?("#{stash_root}/#{ad}/#{spb}") }
         pn = Pathname("#{stash_root}/#{the_arch_dir}/#{spb}")
         if pn.directory?
-          mach_o(install_prefix, stash_root, archs, spb)
+          mach_o(keg_prefix, stash_root, archs, spb)
         else
           arch_files = Dir["#{stash_root}/{#{arch_dir_list}}/#{spb}"]
           if arch_files.length > 1
-            system 'lipo', '-create', *arch_files, '-output', install_prefix/spb
+            system 'lipo', '-create', *arch_files, '-output', keg_prefix/spb
           else
             # presumably there's a reason this only exists for one architecture, so no error;
             # the same rationale would apply if it only existed in, say, two out of three
-            cp arch_files.first, install_prefix/spb
+            cp arch_files.first, keg_prefix/spb
           end # if > 1 file?
         end # if directory?
       end # each basename |b|
