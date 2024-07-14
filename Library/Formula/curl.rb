@@ -69,6 +69,7 @@ class Curl < Formula
     #   --enable-smtp, --enable-socketpair, --enable-symbol-hiding*, --enable-telnet, --enable-tftp,
     #   --enable-threaded-resolver, --enable-tls-srp*, --enable-unix-sockets, --enable-verbose,
     #   --disable-warnings, --disable-werror
+    #   * these are really _enabled_ by default, but only when possible.
     # options that don't, or don’t always, work for ’brewing:
     #   --enable-ech :  LibreSSL doesn’t do it and OpenSSL isn’t being picked up
     #   --with-openssl-quic (would also provide HTTP/3) :  Ditto
@@ -84,7 +85,7 @@ class Curl < Formula
       "--prefix=#{prefix}",
       '--disable-dependency-tracking',
       '--enable-mqtt',
-      '--enable-symbol-hiding',  # Apple GCC does not comply
+      '--enable-symbol-hiding',  # Apple GCC does not comply; request anyway because some others do
       '--with-ca-fallback',
       '--with-gssapi',
       "--with-zlib=#{Formula["zlib"].opt_prefix}"
@@ -172,7 +173,7 @@ class Curl < Formula
       if build.universal?
         system 'make', 'clean'
         Merge.prep(prefix, stashdir/"bin-#{arch}", the_binaries)
-        Merge.cp_p prefix/script_to_fix, stashdir/"script-#{arch}/#{script_to_fix}"
+        Merge.cp_mkp prefix/script_to_fix, stashdir/"script-#{arch}/#{script_to_fix}"
         # undo architecture-specific tweaks before next run
         case arch
           when :i386, :ppc then ENV.un_m32
@@ -220,7 +221,7 @@ class Merge
     include FileUtils
 
     # source can be any old stringy thing, but destination is expected to be a Pathname
-    def cp_p(source, destination)
+    def cp_mkp(source, destination)
       if destination.exists?
         if destination.is_directory?
           cp source, destination
@@ -239,8 +240,7 @@ class Merge
       list.each do |item|
         source = keg_prefix/item
         dest = stash_root/item
-        mkpath dest.parent
-        cp source, dest
+        cp_mkp source, dest
       end # each binary
     end # prep
 
