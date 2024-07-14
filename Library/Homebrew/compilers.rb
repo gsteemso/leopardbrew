@@ -2,7 +2,10 @@
 module CompilerConstants
   GNU_GCC_VERSIONS = %w[4.3 4.4 4.5 4.6 4.7 4.8 4.9 5 6 7]
   GNU_GCC_REGEXP = /^gcc-(4\.[3-9]|[5-7])$/
-  GNU_CXX11_REGEXP = /^gcc-(4\.[7-9]|[5-7])$/
+  GNU_CXX11_REGEXP = /^gcc-(4\.[89]|[5-7])$/
+  GNU_CXX14_REGEXP = /^gcc-([5-7])$/
+  CLANG_CXX11_MIN = '3.3'
+  CLANG_CXX14_MIN = '5'
   COMPILER_SYMBOL_MAP = {
     "gcc-4.0"  => :gcc_4_0,
     "gcc-4.2"  => :gcc,
@@ -68,7 +71,8 @@ class CompilerFailure
       create(:gcc => "4.3"),
       create(:gcc => "4.4"),
       create(:gcc => "4.5"),
-      create(:gcc => "4.6")
+      create(:gcc => "4.6"),
+      create(:gcc => "4.7")  # the very last features of C++11 were not stable until GCC 4.8.1
     ],
     :openmp => [
       create(:clang),
