@@ -206,7 +206,7 @@ class Cmd
     cflag_args.concat(optflags)
     cflag_args.concat(archflags)
     cflag_args << "-std=#{@arg0}" if @arg0 =~ /c[89]9/
-    cflag_args.concat(ENV.fetch('LBREW_FORCE_FLAGS', '').split ' ')
+    cflag_args.concat(ENV.fetch('BREW_FORCE_FLAGS', '').split ' ')
     cflag_args
   end
 
