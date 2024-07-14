@@ -13,7 +13,7 @@ class Libxml2 < Formula
   end
 
   option :universal
-  option '--with-python', 'Build with Python 2.7 language bindings'
+  option 'with-python', 'Build with Python 2.7 language bindings'
 
   depends_on 'python' => :optional
   depends_on 'python3' if build.with? 'python'
