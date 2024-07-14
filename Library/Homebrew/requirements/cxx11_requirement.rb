@@ -13,5 +13,5 @@ class Cxx11Requirement < Requirement
     _
   end
 
-  satisfy { ENV.cc =~ GNU_CXX11_REGEXP }
+  satisfy { ENV.supports_cxx11? }
 end

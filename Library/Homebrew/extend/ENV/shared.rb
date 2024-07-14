@@ -181,6 +181,14 @@ module SharedEnvExtension
     end
   end
 
+  def supports_cxx11?
+    cc =~ GNU_CXX11_REGEXP or cc =~ /clang/
+  end
+
+  def supports_cxx14?
+    cc =~ GNU_CXX14_REGEXP
+  end
+
   # Snow Leopard defines an NCURSES value the opposite of most distros.
   # See: https://bugs.python.org/issue6848
   # Currently only used by aalib in core.
