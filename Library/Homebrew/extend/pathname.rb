@@ -12,6 +12,8 @@ class Pathname
   # @private
   BOTTLE_EXTNAME_RX = /(\.[a-z0-9_]+\.bottle\.(\d+\.)?tar\.gz)$/
 
+  alias_method :exists?, :exist? unless method_defined? :exists?
+
   # Moves a file from the original location to the {Pathname}'s.
   def install(*sources)
     sources.each do |src|
