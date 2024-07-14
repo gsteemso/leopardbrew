@@ -1,9 +1,9 @@
 class Gsasl < Formula
   desc "Simple Authentication and Security Layer library command-line interface"
   homepage "https://www.gnu.org/software/gsasl/"
-  url "http://ftpmirror.gnu.org/gsasl/gsasl-1.8.0.tar.gz"
-  mirror "https://ftp.gnu.org/gsasl/gsasl-1.8.0.tar.gz"
-  sha256 "310262d1ded082d1ceefc52d6dad265c1decae8d84e12b5947d9b1dd193191e5"
+  url 'http://ftpmirror.gnu.org/gsasl/gsasl-2.2.1.tar.gz'
+  mirror 'https://ftp.gnu.org/gsasl/gsasl-2.2.1.tar.gz'
+  sha256 'd45b562e13bd13b9fc20b372f4b53269740cf6279f836f09ce11b9d32bcee075'
 
   option :universal
 
