@@ -16,12 +16,19 @@ begin
 
   trap("INT", old_trap)
 
+  normal_path = ENV['PATH']
+
+  # this sets up all the stuff for universal and 64-bit builds, but also replaces the $PATH with
+  # the restricted one we use to mnake sure all our tools are where they ought to be
   formula = ARGV.formulae.first
   formula.build = BuildOptions.new(Tab.for_formula(formula).used_options, formula.options)
   formula.extend(Homebrew::Assertions)
-
   ENV.activate_extensions!
   ENV.setup_build_environment(formula)
+
+  path_parts = ENV['PATH'].split(':') + normal_path.split(':')
+  ENV['PATH'] = path_parts.uniq.join(':')
+
   # enable argument refurbishment
   # (this lets the optimization flags be noticed; otherwise, 64‐bit and universal builds fail)
   ENV.cccfg_add 'O' if superenv?
