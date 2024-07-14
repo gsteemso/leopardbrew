@@ -1,21 +1,9 @@
-class TigerOnly < Requirement
-  def message; <<-EOS.undent
-    gcc-4.2 is only provided for Tiger, as build 5577 is officially available
-    with Xcode starting from Leopard.
-    EOS
-  end
-  def satisfied?; MacOS.version == :tiger; end
-  def fatal?; true; end
-end
-
 class AppleGcc42 < Formula
   desc 'the last Apple version of the GNU Compiler Collection for OS X'
   homepage 'http://https://opensource.apple.com/releases/'
   url 'https://github.com/apple-oss-distributions/gcc/archive/refs/tags/gcc-5666.3.tar.gz'
   version '4.2.1-5666.3'
   sha256 '2e9889ce0136f5a33298cf7cce5247d31a5fb1856e6f301423bde4a81a5e7ea6'
-
-  depends_on TigerOnly
 
   depends_on 'gmp'
   depends_on 'mpfr'
