@@ -3,7 +3,8 @@ HOMEBREW_VERSION="0.9.5"
 odie() {
   if [[ -t 2 ]] # check whether stderr is a tty.
   then
-    echo -ne "\033[4;31mError\033[0m: " >&2 # highlight Error with underline and red color
+    echo -ne "\033[4;31mError\033[0m: " >&2
+    # highlight “Error” with underline and red color
   else
     echo -n "Error: " >&2
   fi
@@ -16,10 +17,6 @@ odie() {
   exit 1
 }
 
-# safe_cd() {
-#   cd "$@" >/dev/null || odie "Error: failed to cd to $*!"
-# }
-
 brew() {
   "$HOMEBREW_BREW_FILE" "$@"
 }
@@ -30,8 +27,8 @@ then
   export LC_ALL="en_US.UTF-8"
 fi
 
-# Where we store built products.  [prefix]/Cellar if it exists (/usr/local/Cellar,
-# by default) -- otherwise [repository]/Cellar.
+# Where we store built products.  [prefix]/Cellar if it exists ([prefix] is
+# “/usr/local” by default) -- otherwise defaults to [repository]/Cellar.
 if [[ -d "$HOMEBREW_PREFIX/Cellar" ]]
 then
   HOMEBREW_CELLAR="$HOMEBREW_PREFIX/Cellar"
@@ -44,6 +41,8 @@ case "$*" in
   --cellar) echo "$HOMEBREW_CELLAR"; exit 0 ;;
   --repository|--repo) echo "$HOMEBREW_REPOSITORY"; exit 0 ;;
 esac
+# note – if ARGV also contains anything else, the relevant `brew` subcommand is
+# executed instead of one of these shortcuts
 
 if [[ "$HOMEBREW_PREFIX" = "/" || "$HOMEBREW_PREFIX" = "/usr" ]]
 then
@@ -71,9 +70,7 @@ then
   # This is i386 even on x86_64 machines
   [[ "$HOMEBREW_PROCESSOR" = "i386" ]] && HOMEBREW_PROCESSOR="Intel"
   HOMEBREW_OSX_VERSION="$(/usr/bin/sw_vers -productVersion)"
-  HOMEBREW_OS_VERSION="Mac OS X $HOMEBREW_OSX_VERSION"
-
-  HOMEBREW_OSX_VERSION_NUMERIC="$(printf "%02d%02d%02d" $(echo "${HOMEBREW_OSX_VERSION//./ }"))"
+  HOMEBREW_OS_VERSION="Mac OS $HOMEBREW_OSX_VERSION"
 else
   HOMEBREW_PROCESSOR="$(uname -m)"
   HOMEBREW_PRODUCT="${HOMEBREW_SYSTEM}brew"
@@ -90,7 +87,7 @@ then
 fi
 
 # We want to ensure that newer Intel Macs use our Ruby/curl, too
-export HOMEBREW_FORCE_VENDOR_RUBY="1"
+HOMEBREW_FORCE_VENDOR_RUBY="1"
 
 # Declared in bin/brew
 export HOMEBREW_BREW_FILE
@@ -98,15 +95,16 @@ export HOMEBREW_LIBRARY
 export HOMEBREW_PREFIX
 export HOMEBREW_REPOSITORY
 
-# Declared in brew.sh
+# Declared here in brew.sh
 export HOMEBREW_CACHE
 export HOMEBREW_CELLAR
-export HOMEBREW_CURL
+export HOMEBREW_CURL  # ← may be updated by `vendor-curl.sh` (sourced below)
 export HOMEBREW_OS_VERSION
 export HOMEBREW_OSX_VERSION
+# HOMEBREW_RUBY_PATH is also exported from `ruby.sh` (sourced below)
 export HOMEBREW_SYSTEM
 export HOMEBREW_USER_AGENT
-export HOMEBREW_USER_AGENT_CURL
+export HOMEBREW_USER_AGENT_CURL  # ← may be updated below
 export HOMEBREW_VERSION
 
 if [[ -n "$HOMEBREW_OSX" ]]
@@ -205,7 +203,7 @@ fi
 
 if [[ -n "$HOMEBREW_BASH_COMMAND" ]]
 then
-  # source rather than executing directly to ensure the entire file is read into
+  # source rather than executing directly to ensure the whole file is read into
   # memory before it is run. This makes running a Bash script behave more like
   # a Ruby script and avoids hard-to-debug issues if the Bash script is updated
   # at the same time as being run.
