@@ -22,14 +22,10 @@ class CAres < Formula
       ENV.permit_arch_flags if superenv?
       ENV.un_m64 if Hardware::CPU.family == :g5_64
       archs = Hardware::CPU.universal_archs
-      stashdir = 'arch-stashes'
-      the_binaries = %w[
-        lib/libcares.2.dylib
-        lib/libcares.a
-      ]
+      stashdir = buildpath/'arch-stashes'
     else
       archs = [MacOS.preferred_arch]
-    end
+    end # universal?
 
     archs.each do |arch|
       if build.universal?
@@ -37,7 +33,7 @@ class CAres < Formula
           when :i386, :ppc then ENV.m32
           when :ppc64, :x86_64 then ENV.m64
         end
-      end
+      end # universal?
 
       system "./configure", "--prefix=#{prefix}",
                             "--disable-dependency-tracking",
@@ -49,7 +45,7 @@ class CAres < Formula
 
       if build.universal?
         system 'make', 'clean'
-        Merge.prep(prefix, buildpath/"#{stashdir}/bin-#{arch}", the_binaries)
+        Merge.scour_keg(prefix, stashdir/"bin-#{arch}")
         # undo architecture-specific tweaks before next run
         case arch
           when :i386, :ppc then ENV.un_m32
@@ -80,19 +76,46 @@ class CAres < Formula
 end # CAres
 
 class Merge
+  module Pathname_extension
+    def is_bare_mach_o?
+      # header word 0, magic signature:
+      #   MH_MAGIC    = 'feedface' – value with lowest‐order bit clear
+      #   MH_MAGIC_64 = 'feedfacf' – same value with lowest‐order bit set
+      # low‐order 24 bits of header word 1, CPU type:  7 is x86, 12 is ARM, 18 is PPC
+      # header word 3, file type:  no types higher than 10 are defined
+      # header word 5, net size of load commands, is far smaller than the filesize
+      if (self.file? and self.size >= 28 and mach_header = self.binread(24).unpack('N6'))
+        raise('Fat binary found where bare Mach-O file expected') if mach_header[0] == 0xcafebabe
+        ((mach_header[0] & 0xfffffffe) == 0xfeedface and
+          [7, 12, 18].detect { |item| (mach_header[1] & 0x00ffffff) == item } and
+          mach_header[3] < 11 and
+          mach_header[5] < self.size)
+      else
+        false
+      end
+    end unless method_defined?(:is_bare_mach_o?)
+  end # Pathname_extension
+
   class << self
     include FileUtils
 
-    # The keg_prefix and stash_root are expected to be Pathname objects.
-    # The list members are just strings.
-    def prep(keg_prefix, stash_root, list)
-      list.each do |item|
-        source = keg_prefix/item
-        dest = stash_root/item
-        mkpath dest.parent
-        cp source, dest
-      end # each binary
-    end # prep
+    # The stash_root is expected to be a Pathname object.
+    # The keg_prefix and the sub_path are just strings.
+    def scour_keg(keg_prefix, stash_root, sub_path = '')
+      # don’t suffer a double slash when sub_path is null:
+      s_p = (sub_path == '' ? '' : sub_path + '/')
+      Dir["#{keg_prefix}/#{s_p}*"].each do |f|
+        pn = Pathname(f).extend(Pathname_extension)
+        spb = s_p + pn.basename
+        if pn.directory?
+          Dir.mkdir stash_root/spb
+          scour_keg(keg_prefix, stash_root, spb)
+        # the number of things that look like Mach-O files but aren’t is horrifying, so test
+        elsif ((not pn.symlink?) and pn.is_bare_mach_o?)
+          cp pn, stash_root/spb
+        end # what is pn?
+      end # each pathname
+    end # scour_keg
 
     # The keg_prefix is expected to be a Pathname object.  The rest are just strings.
     def mach_o(keg_prefix, stash_root, archs, sub_path = '')
