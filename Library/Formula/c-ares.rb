@@ -27,6 +27,12 @@ class CAres < Formula
       archs = [MacOS.preferred_arch]
     end # universal?
 
+    args = [
+      "--prefix=#{prefix}",
+      '--disable-dependency-tracking',
+      '--enable-symbol-hiding'
+    ]
+
     archs.each do |arch|
       if build.universal?
         case arch
@@ -35,9 +41,7 @@ class CAres < Formula
         end
       end # universal?
 
-      system "./configure", "--prefix=#{prefix}",
-                            "--disable-dependency-tracking",
-                            '--enable-symbol-hiding'
+      system "./configure", *args
       system "make"
       # running the unit tests requires both C++11 and `googletest`, which seems a lot more trouble
       # than it’s probably worth
@@ -104,11 +108,12 @@ class Merge
     def scour_keg(keg_prefix, stash_root, sub_path = '')
       # don’t suffer a double slash when sub_path is null:
       s_p = (sub_path == '' ? '' : sub_path + '/')
+      stash_p = stash_root/s_p
+      mkdir_p stash_p unless stash_p.directory?
       Dir["#{keg_prefix}/#{s_p}*"].each do |f|
         pn = Pathname(f).extend(Pathname_extension)
         spb = s_p + pn.basename
         if pn.directory?
-          Dir.mkdir stash_root/spb
           scour_keg(keg_prefix, stash_root, spb)
         # the number of things that look like Mach-O files but aren’t is horrifying, so test
         elsif ((not pn.symlink?) and pn.is_bare_mach_o?)
