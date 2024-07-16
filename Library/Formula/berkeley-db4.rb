@@ -49,6 +49,14 @@ class BerkeleyDb4 < Formula
       archs = [MacOS.preferred_arch]
     end # universal?
 
+    # “debug” is already disabled
+    # per the package instructions, “docdir” is supposed to not have a leading “--”
+    args = [
+      "--prefix=#{prefix}",
+      "docdir=#{doc}",
+      '--enable-cxx'
+    ]
+
     archs.each do |arch|
       if build.universal?
         case arch
@@ -56,12 +64,6 @@ class BerkeleyDb4 < Formula
           when :ppc64, :x86_64 then ENV.m64
         end
       end # universal?
-
-      # “debug” is already disabled
-      # per the package instructions, “docdir” is supposed to not have a leading “--”
-      args = ["--prefix=#{prefix}",
-              "docdir=#{doc}",
-              "--enable-cxx"]
 
       # BerkeleyDB requires you to build everything from a build subdirectory
       cd 'build_unix' do
