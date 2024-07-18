@@ -9,6 +9,8 @@ class Expect < Formula
     sha256 "57f38ef443814e8bb793a58c351126852a5ddbe2f8ff3d873635c1e8775524c8" => :tiger_altivec
   end
 
+  option :universal
+
   depends_on "tcl-tk"
 
   conflicts_with "ircd-hybrid", because: "both install an `mkpasswd` binary"
@@ -26,6 +28,8 @@ class Expect < Formula
 
   def install
     ENV.enable_warnings if ENV.compiler == :gcc_4_0
+    ENV.universal_binary if build.universal?
+
     tcltk = Formula["tcl-tk"]
     args = %W[
       --prefix=#{prefix}
