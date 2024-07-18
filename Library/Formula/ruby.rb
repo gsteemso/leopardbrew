@@ -130,10 +130,10 @@ class Ruby < Formula
         s.gsub! 'prepare "extension objects", vendorarchlibdir', ""
       end
 
-      system "make"
-      system "make", "install"
+      make
+      make 'install'
       if build.universal?
-        system 'make', 'clean'
+        make 'clean'
         Merge.scour_keg(prefix, stashdir/"bin-#{arch}")
         Merge.prep(prefix, stashdir/"bin-#{arch}", the_binaries)
         Merge.prep(include, stashdir/"h-#{arch}", the_headers)
