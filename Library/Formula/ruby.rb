@@ -1,28 +1,31 @@
 class Ruby < Formula
-  desc "Powerful, clean, object-oriented scripting language"
-  homepage "https://www.ruby-lang.org/"
-  url "https://cache.ruby-lang.org/pub/ruby/3.3/ruby-3.3.3.tar.xz"
-  sha256 "83c0995388399c9555bad87e70af069755b5a9d84bbaa74aa22d1e37ff70fc1e"
+  desc 'Powerful, clean, object-oriented scripting language'
+  homepage 'https://www.ruby-lang.org/'
+  url 'https://cache.ruby-lang.org/pub/ruby/3.3/ruby-3.3.4.tar.xz'
+  sha256 '1caaee9a5a6befef54bab67da68ace8d985e4fb59cd17ce23c28d9ab04f4ddad'
 
-  head do
-    url "https://github.com/ruby/ruby.git"
-    depends_on "autoconf" => :build
-  end
+  # HEAD requires Ruby 3.0 and is therefore no longer an option
 
   option :universal
-  option "with-suffix", "Suffix commands with “33”"
-  option "with-doc", "Install documentation"
-  option "with-tcltk", "Install with Tcl/Tk support"
+  option 'with-doc',    'Install documentation'
+  option 'with-suffix', 'Suffix commands with “-3.3”'
+  option 'with-tcltk',  'Install with Tcl/Tk support'
 
+  depends_on 'make'       => :build  # `Make` pre‐v.4 is supposedly a bit lacking for parallel builds
   depends_on 'pkg-config' => :build
+
   depends_on 'libyaml'
   depends_on 'openssl3'
-  depends_on 'readline' => :recommended
-  depends_on 'gdbm' => :optional
-  depends_on 'gmp' => :optional
-  depends_on 'libffi' => :optional
+
+  depends_on 'gmp'      => :recommended  # to accelerate BigNum operations
+  depends_on 'libffi'   => :recommended  # to build fiddle
+  depends_on 'readline' => :recommended  # mentioned as a library dependency, but not listed as one
+
   depends_on :x11 if build.with? 'tcltk'
 
+  # - MAP_ANON was later aliased as MAP_ANONYMOUS for compatibility reasons (3 patches)
+  # - HAVE_DECL_ATOMIC_SIGNAL_FENCE is not defined, but the ifdef’d code it fences off is compiled
+  #   anyway, WTF? (1 patch)
   patch :DATA if MacOS.version < :snow_leopard
 
   def install
@@ -30,14 +33,16 @@ class Ruby < Formula
       ENV.permit_arch_flags if superenv?
       ENV.un_m64 if Hardware::CPU.family == :g5_64
       archs = Hardware::CPU.universal_archs
-      mkdir 'arch-stashes'
-      dirs = []
+      stashdir = buildpath/'arch-stashes'
+      the_binaries = %w[
+      ]
+      the_headers = %w[
+      ]
     else
       archs = [MacOS.preferred_arch]
-    end
+    end # universal?
 
-    # mcontext types had a member named `ss` instead of `__ss`
-    # prior to Leopard; see
+    # mcontext types had a member named `ss` instead of `__ss` prior to Leopard; see
     # https://github.com/mistydemeo/tigerbrew/issues/473
     if Hardware::CPU.intel? && MacOS.version < :leopard
       inreplace "signal.c" do |s|
@@ -47,7 +52,6 @@ class Ruby < Formula
         s.gsub! "__esp", "esp"
         s.gsub! "__ebp", "ebp"
       end
-
       inreplace "vm_dump.c" do |s|
         s.gsub! /uc_mcontext->__(ss)\.__(r\w\w)/,
                 "uc_mcontext->\1.\2"
@@ -59,12 +63,11 @@ class Ruby < Formula
       end
     end
 
-    system "autoconf" if build.head?
-
     args = [
       "--prefix=#{prefix}",
       '--disable-silent-rules',
       '--enable-debug-env',  # this enables an environment variable, not a debug build
+      '--enable-load-relative',
       '--enable-mkmf-verbose',
       '--enable-shared',
       '--with-mantype=man',
@@ -72,21 +75,21 @@ class Ruby < Formula
       "--with-vendordir=#{HOMEBREW_PREFIX}/lib/ruby/vendor_ruby"
     ]
 
-    args << "--program-suffix=33" if build.with? "suffix"
-    args << "--with-out-ext=tk" if build.without? "tcltk"
-    args << "--disable-install-doc" if build.without? "doc"
-    args << "--disable-dtrace" unless MacOS::CLT.installed?
-    args << "--without-gmp" if build.without? "gmp"
+    args << '--program-suffix=-3.3' if build.with? 'suffix'
+    args << '--with-out-ext=tk' if build.without? 'tcltk'
+    args << '--disable-install-doc' if build.without? 'doc'
+    args << '--disable-dtrace' unless MacOS::CLT.installed?
+    args << '--without-gmp' if build.without? 'gmp'
 
     # see https://bugs.ruby-lang.org/issues/10272
-    args << "--with-setjmp-type=setjmp" if MacOS.version == :lion
+    args << '--with-setjmp-type=setjmp' if MacOS.version == :lion
 
     paths = [
-      Formula["libyaml"].opt_prefix,
-      Formula["openssl3"].opt_prefix
+      Formula['libyaml'].opt_prefix,
+      Formula['openssl3'].opt_prefix
     ]
 
-    %w[readline gdbm gmp libffi].each do |dep|
+    %w[gmp libffi readline].each do |dep|
       paths << Formula[dep].opt_prefix if build.with? dep
     end
 
@@ -96,10 +99,9 @@ class Ruby < Formula
       if build.universal?
         case arch
           when :i386, :ppc then ENV.m32
-          when :x86_64, :ppc64 then ENV.m64
+          when :ppc64, :x86_64 then ENV.m64
         end
-        mkdir "arch-stashes/#{arch}-bin"
-      end
+      end # universal?
 
       args << "--with-arch=#{arch}"  # in theory this supports building fat binaries directly; in
                                      # practice, it fails when it gets to the coroutines
@@ -132,24 +134,20 @@ class Ruby < Formula
       system "make", "install"
       if build.universal?
         system 'make', 'clean'
-        Merge.scour_keg(prefix, "arch-stashes/#{arch}-bin")
-        # these headers are architecture-dependent; when installing :universal, these copies will
-        # be used in merging them all together
-        #   .ext/include/ppc64-darwin9.0/ruby/config.h
-        #   (...)
-        mkdir "arch-stashes/#{arch}-h"
-#        cp include/'<header>', "arch-stashes/#{arch}-h/<header>"
+        Merge.scour_keg(prefix, stashdir/"bin-#{arch}")
+        Merge.prep(prefix, stashdir/"bin-#{arch}", the_binaries)
+        Merge.prep(include, stashdir/"h-#{arch}", the_headers)
         # undo architecture-specific tweaks before next run
         case arch
           when :i386, :ppc then ENV.un_m32
-          when :x86_64, :ppc64 then ENV.un_m64
+          when :ppc64, :x86_64 then ENV.un_m64
         end # case arch
       end # universal?
     end # archs.each
 
     if build.universal?
-      Merge.mach_o(prefix, 'arch-stashes', archs)
-      Merge.c_headers(include, 'arch-stashes', archs)
+      Merge.mach_o(prefix, stashdir, archs)
+      Merge.c_headers(include, stashdir, archs)
     end # universal?
   end # install
 
@@ -265,20 +263,48 @@ class Merge
   class << self
     include FileUtils
 
-    def scour_keg(keg_prefix, stash, sub_path = '')
+    # The destination is expected to be a Pathname object.
+    # The source is just a string.
+    def cp_mkp(source, destination)
+      if destination.exists?
+        if destination.is_directory?
+          cp source, destination
+        else
+          raise "File exists at destination:  #{destination}"
+        end
+      else
+        mkdir_p destination.parent unless destination.parent.exists?
+        cp source, destination
+      end # destination exists?
+    end # cp_mkp
+
+    # The keg_prefix and stash_root are expected to be Pathname objects.
+    # The list members are just strings.
+    def prep(keg_prefix, stash_root, list)
+      list.each do |item|
+        source = keg_prefix/item
+        dest = stash_root/item
+        cp_mkp source, dest
+      end # each binary
+    end # prep
+
+    # The stash_root is expected to be a Pathname object.
+    # The keg_prefix and the sub_path are just strings.
+    def scour_keg(keg_prefix, stash_root, sub_path = '')
       # don’t suffer a double slash when sub_path is null:
       s_p = (sub_path == '' ? '' : sub_path + '/')
+      stash_p = stash_root/s_p
+      mkdir_p stash_p unless stash_p.directory?
       Dir["#{keg_prefix}/#{s_p}*"].each do |f|
         pn = Pathname(f).extend(Pathname_extension)
         spb = s_p + pn.basename
         if pn.directory?
-          Dir.mkdir "#{stash}/#{spb}"
-          scour_keg(keg_prefix, stash, spb)
+          scour_keg(keg_prefix, stash_root, spb)
         # the number of things that look like Mach-O files but aren’t is horrifying, so test
         elsif ((not pn.symlink?) and pn.is_bare_mach_o?)
-          cp pn, "#{stash}/#{spb}"
-        end
-      end
+          cp pn, stash_root/spb
+        end # what is pn?
+      end # each pathname
     end # scour_keg
 
     def c_headers(include_dir, stash_root, archs, sub_path = '')
@@ -289,7 +315,7 @@ class Merge
       #
       # Don’t suffer a double slash when sub_path is null:
       s_p = (sub_path == '' ? '' : sub_path + '/')
-      Dir["#{stash_root}/#{archs[0]}-h/#{s_p}*"].each do |basis_file|
+      Dir["#{stash_root}/h-#{archs[0]}/#{s_p}*"].each do |basis_file|
         spb = s_p + File.basename(basis_file)
         if File.directory?(basis_file)
           c_headers(include_dir, stash_root, archs, spb)
@@ -298,7 +324,7 @@ class Merge
                            # three‐element hashes; containing the arch, the hunk’s displacement
                            # (number of basis‐file lines it replaces), and an array of its lines.
           archs[1..-1].each do |a|
-            raw_diffs = `diff --minimal --unified=0 #{basis_file} #{stash_root}/#{a}-h/#{spb}`
+            raw_diffs = `diff --minimal --unified=0 #{basis_file} #{stash_root}/h-#{a}/#{spb}`
             next unless raw_diffs
             # The unified diff output begins with two lines identifying the source files, which are
             # followed by a series of hunk records, each describing one difference that was found.
@@ -352,14 +378,14 @@ class Merge
       end # each |basis_file|
     end # c_headers
 
-    # install_prefix expects a Pathname object, not just a string
-    def mach_o(install_prefix, stash_root, archs, sub_path = '')
+    # The keg_prefix is expected to be a Pathname object.  The rest are just strings.
+    def mach_o(keg_prefix, stash_root, archs, sub_path = '')
       # don’t suffer a double slash when sub_path is null:
       s_p = (sub_path == '' ? '' : sub_path + '/')
       # generate a full list of files, even if some are not present on all architectures; bear in
       # mind that the current _directory_ may not even exist on all archs
       basename_list = []
-      arch_dirs = archs.map {|a| "#{a}-bin"}
+      arch_dirs = archs.map {|a| "bin-#{a}"}
       arch_dir_list = arch_dirs.join(',')
       Dir["#{stash_root}/{#{arch_dir_list}}/#{s_p}*"].map { |f|
         File.basename(f)
@@ -371,15 +397,15 @@ class Merge
         the_arch_dir = arch_dirs.detect { |ad| File.exist?("#{stash_root}/#{ad}/#{spb}") }
         pn = Pathname("#{stash_root}/#{the_arch_dir}/#{spb}")
         if pn.directory?
-          mach_o(install_prefix, stash_root, archs, spb)
+          mach_o(keg_prefix, stash_root, archs, spb)
         else
           arch_files = Dir["#{stash_root}/{#{arch_dir_list}}/#{spb}"]
           if arch_files.length > 1
-            system 'lipo', '-create', *arch_files, '-output', install_prefix/spb
+            system 'lipo', '-create', *arch_files, '-output', keg_prefix/spb
           else
             # presumably there's a reason this only exists for one architecture, so no error;
             # the same rationale would apply if it only existed in, say, two out of three
-            cp arch_files.first, install_prefix/spb
+            cp arch_files.first, keg_prefix/spb
           end # if > 1 file?
         end # if directory?
       end # each basename |b|
@@ -388,8 +414,8 @@ class Merge
 end # Merge
 
 __END__
---- old/io_buffer.c	2024-06-30 18:15:25.000000000 -0700
-+++ new/io_buffer.c	2024-06-30 18:16:54.000000000 -0700
+--- old/io_buffer.c  2024-06-30 18:15:25.000000000 -0700
++++ new/io_buffer.c  2024-06-30 18:16:54.000000000 -0700
 @@ -28,10 +28,12 @@
  size_t RUBY_IO_BUFFER_PAGE_SIZE;
  size_t RUBY_IO_BUFFER_DEFAULT_SIZE;
@@ -405,8 +431,8 @@ __END__
  #endif
  
  enum {
---- old/shape.c	2024-06-30 19:16:02.000000000 -0700
-+++ new/shape.c	2024-06-30 19:20:28.000000000 -0700
+--- old/shape.c  2024-06-30 19:16:02.000000000 -0700
++++ new/shape.c  2024-06-30 19:20:28.000000000 -0700
 @@ -14,6 +14,9 @@
  
  #ifndef _WIN32
@@ -417,8 +443,8 @@ __END__
  #endif
  
  #ifndef SHAPE_DEBUG
---- old/thread_pthread_mn.c	2024-06-30 19:16:38.000000000 -0700
-+++ new/thread_pthread_mn.c	2024-06-30 19:21:48.000000000 -0700
+--- old/thread_pthread_mn.c  2024-06-30 19:16:38.000000000 -0700
++++ new/thread_pthread_mn.c  2024-06-30 19:21:48.000000000 -0700
 @@ -166,6 +166,9 @@
  static rb_nativethread_lock_t nt_machine_stack_lock = RB_NATIVETHREAD_LOCK_INIT;
  
@@ -429,3 +455,18 @@ __END__
  
  // vm_stack_size + machine_stack_size + 1 * (guard page size)
  static inline size_t
+--- old/vm_insnhelper.c  2024-07-14 21:39:48.000000000 -0700
++++ new/vm_insnhelper.c  2024-07-14 21:52:36.000000000 -0700
+@@ -396,9 +396,9 @@
+     This is a no-op in all cases we've looked at (https://godbolt.org/z/3oxd1446K), but should guarantee it for all
+     future/untested compilers/platforms. */
+ 
+-    #ifdef HAVE_DECL_ATOMIC_SIGNAL_FENCE
+-    atomic_signal_fence(memory_order_seq_cst);
+-    #endif
++//    #ifdef HAVE_DECL_ATOMIC_SIGNAL_FENCE
++//    atomic_signal_fence(memory_order_seq_cst);
++//    #endif
+ 
+     ec->cfp = cfp;
+ 
