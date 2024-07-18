@@ -4,7 +4,6 @@ class Gcc6 < Formula
   url "http://ftpmirror.gnu.org/gcc/gcc-6.5.0/gcc-6.5.0.tar.xz"
   mirror "https://ftp.gnu.org/gnu/gcc/gcc-6.5.0/gcc-6.5.0.tar.xz"
   sha256 "7ef1796ce497e89479183702635b14bb7a46b53249209a5e0f999bebf4740945"
-  revision 1
 
   bottle do
     sha256 "6da49d211cf0ffbda15193d77b1ad3a9a269639bc9793a93d86688f7a71e01a5" => :tiger_altivec
