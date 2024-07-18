@@ -46,7 +46,7 @@ class Curl < Formula
       ENV.permit_arch_flags if superenv?
       ENV.un_m64 if Hardware::CPU.family == :g5_64
       archs = Hardware::CPU.universal_archs
-      stashdir = Pathname.new('arch-stashes')
+      stashdir = buildpath/'arch-stashes'
       the_binaries = %w[
         bin/curl
         lib/libcurl.4.dylib
@@ -55,7 +55,7 @@ class Curl < Formula
       script_to_fix = 'bin/curl-config'
     else
       archs = [MacOS.preferred_arch]
-    end
+    end # universal?
 
     # the defaults:
     #   --enable-alt-svc, --enable-bindlocal, --enable-cookies, --disable-curldebug,
@@ -161,7 +161,7 @@ class Curl < Formula
           when :i386, :ppc then ENV.m32
           when :ppc64, :x86_64 then ENV.m64
         end
-      end
+      end # universal?
 
       ENV.deparallelize do
         system "./configure", *args
@@ -170,6 +170,7 @@ class Curl < Formula
         system "make", "install", "-C", "scripts"
       end # deparallelize
       libexec.install "scripts/mk-ca-bundle.pl" if File.exists? 'scripts/mk-ca-bundle.pl'
+
       if build.universal?
         system 'make', 'clean'
         Merge.prep(prefix, stashdir/"bin-#{arch}", the_binaries)
@@ -181,6 +182,7 @@ class Curl < Formula
         end # case arch
       end # universal?
     end # archs.each
+
     if build.universal?
       Merge.mach_o(prefix, stashdir, archs)
       archs.extend ArchitectureListExtension
@@ -220,7 +222,8 @@ class Merge
   class << self
     include FileUtils
 
-    # source can be any old stringy thing, but destination is expected to be a Pathname
+    # The destination is expected to be a Pathname object.
+    # The source is just a string.
     def cp_mkp(source, destination)
       if destination.exists?
         if destination.is_directory?
@@ -231,8 +234,8 @@ class Merge
       else
         mkdir_p destination.parent unless destination.parent.exists?
         cp source, destination
-      end
-    end
+      end # destination exists?
+    end # cp_mkp
 
     # The keg_prefix and stash_root are expected to be Pathname objects.
     # The list members are just strings.
