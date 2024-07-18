@@ -21,7 +21,6 @@ class Gcc < Formula
 
   desc "GNU compiler collection"
   homepage "https://gcc.gnu.org"
-  # audit --strict complained about these URLs
   url "http://ftpmirror.gnu.org/gcc/gcc-7.5.0/gcc-7.5.0.tar.xz"
   mirror "https://ftp.gnu.org/gnu/gcc/gcc-7.5.0/gcc-7.5.0.tar.xz"
   sha256 "b81946e7f01f90528a1f7352ab08cc602b9ccc05d4e44da4bd501c5a189ee661"
