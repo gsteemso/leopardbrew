@@ -88,6 +88,8 @@ class Hardware
       else
         :core
       end
+    elsif Hardware::CPU.ppc?
+      :g3
     else
       Hardware::CPU.family
     end

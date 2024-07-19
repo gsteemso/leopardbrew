@@ -2,14 +2,20 @@ require "mach"
 
 module MacCPUs
   OPTIMIZATION_FLAGS = {
-    :penryn => "-march=core2 -msse4.1",
-    :core2 => "-march=core2",
-    :core => "-march=prescott",
     :g3 => "-mcpu=750",
     :g4 => "-mcpu=7400",
     :g4e => "-mcpu=7450",
     :g5 => "-mcpu=970",
     :g5_64 => "-mcpu=970 -arch ppc64"
+    :core => "-march=prescott",
+    :core2 => "-march=core2",
+    :penryn => "-march=core2 -msse4.1",
+    :nehalem => "-march=core2 -msse4.2",
+    :arrandale => "-march=core2 -msse4.2",
+    :sandybridge => "-march=core2 -msse4.2",
+    :ivybridge => "-march=core2 -msse4.2",
+    :haswell => "-march=core2 -msse4.2",
+    :broadwell => "-march=core2 -msse4.2",
   }.freeze
   def optimization_flags
     OPTIMIZATION_FLAGS
@@ -39,7 +45,7 @@ module MacCPUs
         :penryn
       when 0x6b5a4cd2 # Nehalem
         :nehalem
-      when 0x573B5EEC # Arrandale
+      when 0x573B5EEC # Arrandale  (on Wikipedia see under “Westmere”)
         :arrandale
       when 0x5490B78C # Sandy Bridge
         :sandybridge
@@ -67,6 +73,8 @@ module MacCPUs
       else
         :dunno
       end
+    else
+      :dunno
     end
   end
 
