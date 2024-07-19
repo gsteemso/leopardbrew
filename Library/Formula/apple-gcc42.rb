@@ -10,89 +10,6 @@ class AppleGcc42 < Formula
 
   keg_only :provided_by_osx if MacOS.version > :tiger and MacOS.version < :lion
 
-  @switch_to <<-End_of_To
-#!/bin/bash
-shopt -s nullglob  # allows ignoring nonexistent combinations from patterns
-
-Man1_Pfx=/usr/share/man/man1/
-Opt_Pfx="$(brew --prefix)/opt/apple-gcc42/"
-
-Short_Names=(c++ cpp g++ gcc gcov)
-Targets=(${Opt_Pfx}{bin,share/man/man1}/{i686,powerpc}-apple-darwin*-{cpp,g{++,cc}}-4.2.1{,.1})
-Dir_Targets=(${Opt_Pfx}lib{,exec}/gcc/{i686,powerpc}-apple-darwin*/4.2.1)
-
-for Name in "${Short_Names[@]}" ; do
-  # these were always symlinks; no need to rename anything
-  sudo ln -fs "${Opt_Pfx}bin/${Name}-4.2" "/usr/bin/$Name"
-
-  V_Nm="${Name}-4.2.1"  # the .1 is not part of the version, it is the man section
-  Link="${Man1_Pfx}${Name}.1"
-  # sanity check
-  if [ -L "$Link" -a $(readlink -n "$Link") != "$V_Nm" ] ; then sudo ln -fs "$V_Nm" "$Link" ; fi
-  # actual work
-  Link="${Man1_Pfx}${V_Nm}"
-  if [ -f "$Link" -a ! -L "$Link" ] ; then sudo mv "$Link" "${Link%.1}.5577.1" ; fi
-  sudo ln -fs "${Opt_Pfx}${Link#/usr/}" "$Link"
-done
-
-for Target in "${Targets[@]}" ; do
-  Link="/usr/${Target#${Opt_Pfx}}"
-  Tail="${Link##*2.1}" ; Nose="${Link%${Tail}}"
-  if [ -f "$Link" -a ! -L "$Link" ] ; then sudo mv "$Link" "${Nose}.5577${Tail}" ; fi
-  sudo ln -fs "$Target" "$Link"
-done
-
-for Target in "${Dir_Targets[@]}" ; do
-  Link="/usr/${Target#${Opt_Pfx}}"
-  if [ -L "$Link" ] ; then sudo rm -f "$Link"
-  elif [ -d "$Link" ] ; then sudo mv "$Link" "${Link}.5577"
-  fi
-  sudo ln -fs "$Target" "$Link"
-done
-End_of_To
-
-  @switch_from <<-End_of_From
-#!/bin/bash
-shopt -s nullglob  # allows ignoring nonexistent combinations from patterns
-
-Short_Names=(c++ cpp g++ gcc gcov)
-Long_Targets=(/usr/{bin,share/man/man1}/{i686,powerpc}-apple-darwin*-g{++,cc}-4.2.1.5577{,.1})
-Delete_Links=(/usr/{bin,share/man/man1}/{i686,powerpc}-apple-darwin*-cpp-4.2.1{,.1})
-Dir_Links=(/usr/lib{,exec}/gcc/{i686,powerpc}-apple-darwin*/4.2.1)
-Disembrew_Script=/usr/local/bin/to-brewed-gcc42
-
-Bin_Pfx=/usr/bin/
-Man1_Pfx=/usr/share/man/man1/
-
-for Name in "${Short_Names[@]}" ; do
-  Link="${Bin_Pfx}$Name"
-  if [ -L "$Link" -o ! -e "$Link" ] ; then sudo ln -fs "${Name}-4.2" "$Link" ; fi
-
-  V_Nm="${Name}-4.2.1"  # the .1 is not part of the version, it is the man section
-  Link="${Man1_Pfx}${Name}.1"
-  # sanity check
-  if [ -L "$Link" ] && [ "$(readlink -n "$Link")" != "$V_Nm" ] ; then sudo ln -fs "$V_Nm" "$Link" ; fi
-  # actual work
-  Link="${Man1_Pfx}$V_Nm"
-  if [ -L "$Link" -o ! -e "$Link" ] ; then sudo ln -fs "${V_Nm%.1}.5577.1" "$Link" ; fi
-done
-
-for Target in "${Long_Targets[@]}" ; do
-  Tail="${Target##*5577}" ; Nose="${Target%${Tail}}" ; Link="${Nose%.5577}${Tail}"
-  if [ -L "$Link" -o ! -e "$Link" ] ; then sudo ln -fs "$Target" "$Link" ; fi
-done
-
-for Link in "${Delete_Links[@]}" ; do if [ -L "$Link" ] ; then sudo rm -f "$Link" ; fi ; done
-
-for Link in "${Dir_Links[@]}" ; do
-  if [ -L "$Link" ] ; then sudo rm -f "$Link" ; fi
-  # these have to remain separate or else the symlink gets put inside the symlinked directory!
-  if [ ! -e "$Link" ] ; then sudo ln -fs "${Link##*/}.5577" "$Link" ; fi
-done
-
-if [ ! -e /Users/Shared/Brewery/Cellar/apple-gcc42 ] ; then rm -f "$Disembrew_Script" ; fi
-End_of_From
-
   def install
     args = [
       'RC_OS=macos',
@@ -127,7 +44,7 @@ End_of_From
     rm libexec/'libexec/gcc/powerpc-apple-darwin9/4.2.1/as'
     rm libexec/'libexec/gcc/powerpc-apple-darwin9/4.2.1/ld'
     man.install 'build/dst/usr/share/man/man1'
-  end
+  end # install
 
   def post_install
     system bin/'to-brewed-gcc42'
@@ -171,7 +88,7 @@ End_of_From
       point to anything any more, making your compiler unuseable!  If this occurs,
       you must run the `to-stock-gcc42` command to put your system back in order.
     _
-  end
+  end # caveats
 
   test do
     (testpath/'hello-c.c').write <<-EOS.undent
@@ -184,5 +101,95 @@ End_of_From
     EOS
     system bin/'gcc-4.2', '-o', 'hello-c', 'hello-c.c'
     assert_equal "Hello, world!\n", `./hello-c`
-  end
+  end # test
+
+  @switch_to = '#!/bin/bash
+shopt -s nullglob  # allows ignoring nonexistent combinations from patterns
+
+Bin_Pfx=/usr/bin/
+Man1_Pfx=/usr/share/man/man1/
+Opt_Pfx="$(brew --prefix)/opt/apple-gcc42/"
+
+Short_Names=(c++ cpp g++ gcc gcov)
+Targets=(${Opt_Pfx}{bin,share/man/man1}/{i686,powerpc}-apple-darwin*-{cpp,g{++,cc}}-4.2.1{,.1})
+Dir_Targets=(${Opt_Pfx}lib{,exec}/gcc/{i686,powerpc}-apple-darwin*/4.2.1)
+
+for Name in "${Short_Names[@]}" ; do
+  V_Nm="${Name}-4.2.1.5577"
+  Sh_V_Nm="${Name}-4.2"
+
+  Link="${Bin_Pfx}${Name}"  # sanity check – ensures, e.g., that `gcc` doesn’t get you `gcc-4.0`
+  if [ -L "$Link" -a $(readlink -n "$Link") != "$Sh_V_Nm" ] ; then sudo ln -fs "$Sh_V_Nm" "$Link" ; fi
+  Link="${Bin_Pfx}${Sh_V_Nm}"  # actual work
+  if [ -f "$Link" -a ! -L "$Link" ] ; then sudo mv "$Link" "${Link}.1.5577" ; fi
+  sudo ln -fs "${Opt_Pfx}${Link#/usr/}" "$Link"
+
+  Link="${Man1_Pfx}${Name}.1"  # for sanity checks – ensure, e.g., that `man gcc` ↛ `man gcc-4.0`
+  if [ -e "${Link}.gz" ] ; then gunzip "${Link}.gz" ; fi  # compressed manpages mess this up
+  if [ -L "$Link" -a $(readlink -n "$Link") != "${Sh_V_Nm}.1" ] ; then sudo ln -fs "${Sh_V_Nm}.1" "$Link" ; fi
+  Link="${Man1_Pfx}${Sh_V_Nm}.1"  # actual work
+  if [ -f "$Link" -a ! -L "$Link" ] ; then sudo mv "$Link" "${Link}.5577.1" ; fi
+  sudo ln -fs "${Opt_Pfx}${Link#/usr/}" "$Link"
+done
+
+for Target in "${Targets[@]}" ; do
+  Link="/usr/${Target#${Opt_Pfx}}"
+  Tail="${Link##*2.1}" ; Nose="${Link%${Tail}}"
+  if [ -f "$Link" -a ! -L "$Link" ] ; then sudo mv "$Link" "${Nose}.5577${Tail}" ; fi
+  sudo ln -fs "$Target" "$Link"
+done
+
+for Target in "${Dir_Targets[@]}" ; do
+  Link="/usr/${Target#${Opt_Pfx}}"
+  if [ -L "$Link" ] ; then sudo rm -f "$Link"
+  elif [ -d "$Link" ] ; then sudo mv "$Link" "${Link}.5577"
+  fi
+  sudo ln -fs "$Target" "$Link"
+done
+'
+
+  @switch_from = '#!/bin/bash
+shopt -s nullglob  # allows ignoring nonexistent combinations from patterns
+
+Short_Names=(c++ cpp g++ gcc gcov)
+Long_Targets=(/usr/{bin,share/man/man1}/{i686,powerpc}-apple-darwin*-g{++,cc}-4.2.1.5577{,.1})
+Delete_Links=(/usr/{bin,share/man/man1}/{i686,powerpc}-apple-darwin*-cpp-4.2.1{,.1})
+Dir_Links=(/usr/lib{,exec}/gcc/{i686,powerpc}-apple-darwin*/4.2.1)
+Disembrew_Script=/usr/local/bin/to-brewed-gcc42
+
+Bin_Pfx=/usr/bin/
+Man1_Pfx=/usr/share/man/man1/
+
+for Name in "${Short_Names[@]}" ; do
+  V_Nm="${Name}-4.2.1.5577"
+  Sh_V_Nm="${Name}-4.2"
+
+  Link="${Bin_Pfx}${Name}"  # sanity check – ensures, e.g., that `gcc` doesn’t get you `gcc-4.0`
+  if [ -L "$Link" -a "$(readlink -n "$Link")" != "$Sh_V_Nm" ] || [ ! -e "$Link" ]
+  then sudo ln -fs "$Sh_V_Nm" "$Link" ; fi
+  Link="${Bin_Pfx}${Sh_V_Nm}"  # actual work
+  if [ -L "$Link" -o ! -e "$Link" ] ; then sudo ln -fs "$V_Nm" "$Link" ; fi
+
+  Link="${Man1_Pfx}${Name}.1"  # sanity check – ensures, e.g., that `man gcc` ↛ `man gcc-4.0`
+  if [ -L "$Link" -a "$(readlink -n "$Link")" != "${Sh_V_Nm}.1" ] || [ ! -e "$Link" ]
+  then sudo ln -fs "${Sh_V_Nm}.1" "$Link" ; fi
+  Link="${Man1_Pfx}${Sh_V_Nm}.1"  # actual work
+  if [ -L "$Link" -o ! -e "$Link" ] ; then sudo ln -fs "${V_Nm}.1" "$Link" ; fi
+done
+
+for Target in "${Long_Targets[@]}" ; do
+  Tail="${Target##*5577}" ; Nose="${Target%${Tail}}" ; Link="${Nose%.5577}${Tail}"
+  if [ -L "$Link" -o ! -e "$Link" ] ; then sudo ln -fs "${Target##*/}" "$Link" ; fi
+done
+
+for Link in "${Delete_Links[@]}" ; do if [ -L "$Link" ] ; then sudo rm -f "$Link" ; fi ; done
+
+for Link in "${Dir_Links[@]}" ; do
+  if [ -L "$Link" ] ; then sudo rm -f "$Link" ; fi
+  # these have to remain separate or else the symlink gets put inside the symlinked directory!
+  if [ ! -e "$Link" ] ; then sudo ln -fs "${Link##*/}.5577" "$Link" ; fi
+done
+
+if [ ! -e /Users/Shared/Brewery/Cellar/apple-gcc42 ] ; then rm -f "$Disembrew_Script" ; fi
+'
 end
