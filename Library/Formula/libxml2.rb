@@ -47,8 +47,7 @@ class Libxml2 < Formula
     inreplace ['Makefile', 'python/Makefile'], '-lpython2.7', '-undefined dynamic_lookup'
     system "make"
     system "make", "check" if (build.without?('python') or
-                               ((not build.universal?) and (not Tab.for_name('python').universal?)) or
-                               (build.universal? and Tab.for_name('python').universal?) )
+                               (build.universal? == Tab.for_name('python').universal?) )
     system "make", "install"
 
     if build.with? "python"
