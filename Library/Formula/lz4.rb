@@ -2,7 +2,7 @@ class Lz4 < Formula
   desc "Lossless compression algorithm"
   homepage "https://lz4.github.io/lz4"
   url "https://github.com/lz4/lz4/archive/refs/tags/v1.9.3.tar.gz"
-  version "r193"
+  version "1.9.3"
   sha256 "030644df4611007ff7dc962d981f390361e6c97a34e5cbc393ddfbe019ffe2c1"
   head "https://github.com/lz4/lz4.git"
 
@@ -10,6 +10,8 @@ class Lz4 < Formula
     cellar :any
     sha256 "39bf410fcfb57c7a9f50e124cd0f457f62a90ef819eecb64d47361de55bb81af" => :tiger_altivec
   end
+
+  option :universal
 
   # -dynamiclib needs to be stated for a shared object to be generated.
   # https://github.com/lz4/lz4/pull/1220/files
@@ -20,6 +22,8 @@ class Lz4 < Formula
 
   def install
     ENV.enable_warnings if ENV.compiler == :gcc_4_0
+    ENV.universal_binary if build.universal?
+
     system "make", "install", "PREFIX=#{prefix}"
   end
 
