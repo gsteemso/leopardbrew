@@ -6,6 +6,10 @@ class Libidn2 < Formula
   sha256 '4c21a791b610b9519b9d0e12b8097bf2f359b12f8dd92647611a929e6bfd7d64'
   license any_of: ['GPL-2.0-or-later', 'LGPL-3.0-or-later']
 
+  bottle do
+    sha256 "eefd238f08db025045214510e64a3a0c9d075cf8cb0d3aef1ae72ad29e591d61" => :tiger_altivec
+  end
+
   head do
     url 'https://gitlab.com/libidn/libidn2.git', branch: 'master'
 
