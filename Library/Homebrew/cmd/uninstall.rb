@@ -10,6 +10,7 @@ module Homebrew
       ARGV.kegs.each do |keg|
         keg.lock do
           puts "Uninstalling #{keg}... (#{keg.abv})"
+          Formulary.from_rack(keg.rack).uninstall
           keg.unlink
           keg.uninstall
           rack = keg.rack
@@ -30,6 +31,7 @@ module Homebrew
 
         if rack.directory?
           puts "Uninstalling #{name}... (#{rack.abv})"
+          Formulary.from_rack(keg.rack).uninstall
           rack.subdirs.each do |d|
             keg = Keg.new(d)
             keg.unlink

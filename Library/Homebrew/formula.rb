@@ -1235,6 +1235,11 @@ class Formula
   def install
   end
 
+  # This method must be likewise overridden, in such {Formula} subclasses as need to carry out some
+  # action before an installed formula can be safely removed.
+  def uninstall
+  end
+
   protected
 
   def setup_test_home(home)
