@@ -6,7 +6,7 @@ module MacCPUs
     :g4 => "-mcpu=7400",
     :g4e => "-mcpu=7450",
     :g5 => "-mcpu=970",
-    :g5_64 => "-mcpu=970 -arch ppc64"
+    :g5_64 => "-mcpu=970 -arch ppc64",
     :core => "-march=prescott",
     :core2 => "-march=core2",
     :penryn => "-march=core2 -msse4.1",
@@ -15,7 +15,7 @@ module MacCPUs
     :sandybridge => "-march=core2 -msse4.2",
     :ivybridge => "-march=core2 -msse4.2",
     :haswell => "-march=core2 -msse4.2",
-    :broadwell => "-march=core2 -msse4.2",
+    :broadwell => "-march=core2 -msse4.2"
   }.freeze
   def optimization_flags
     OPTIMIZATION_FLAGS
