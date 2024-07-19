@@ -4,6 +4,11 @@ class Curl < Formula
   url "https://curl.se/download/curl-8.8.0.tar.xz"
   sha256 "0f58bb95fc330c8a46eeb3df5701b0d90c9d9bfcc42bd1cd08791d12551d4400"
 
+  bottle do
+    cellar :any
+    sha256 "d798c40a4bf32610d49cf5339bd60b9e40db82172bb7b6b895a7e2f1d8ca9807" => :tiger_altivec
+  end
+
   keg_only :provided_by_osx
 
   option :universal
@@ -15,7 +20,7 @@ class Curl < Formula
   option "with-rtmpdump",    "Add RTMP (streaming Flash)"
   option 'with-zstd',        'Add ZStandard compression'
   option 'without-gsasl',    'Omit SASL SCRAM authentication'
-  option 'without-openssl3', 'Omit OpenSSL security (GnuTLS and/or LibreSSL recommended)'
+  option 'without-ssl',      'Omit LibreSSL/OpenSSL security (GnuTLS recommended)'
 
   deprecated_option "with-ares"   => "with-more-dns"
   deprecated_option "with-c-ares" => "with-more-dns"
@@ -34,7 +39,7 @@ class Curl < Formula
   depends_on 'zstd'     => :optional
 
   depends_on "gsasl"    => :recommended
-  depends_on "openssl3" => :recommended
+  depends_on "openssl3" if build.with?('ssl') and build.without? 'libressl'
 
   depends_on "libnghttp2"
   depends_on "zlib"
@@ -101,7 +106,7 @@ class Curl < Formula
     if build.with? "libressl"
       ENV.prepend_path "PKG_CONFIG_PATH", "#{Formula["libressl"].opt_lib}/pkgconfig"
       args << "--with-openssl=#{Formula["libressl"].opt_prefix}"
-    elsif build.with? 'openssl3'
+    elsif build.with? 'ssl'
       ENV.prepend_path "PKG_CONFIG_PATH", "#{Formula["openssl3"].opt_lib}/pkgconfig"
       args << "--with-openssl=#{Formula["openssl3"].opt_prefix}"
       args << '--enable-openssl-auto-load-config'
