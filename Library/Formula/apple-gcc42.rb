@@ -24,10 +24,6 @@ class AppleGcc42 < Formula
     system 'gnumake', 'install', *args
     doc.install *Dir['build/dst/Developer/Documentation/DocSets/com.apple.ADC_Reference_Library.DeveloperTools.docset/Contents/Resources/Documents/documentation/DeveloperTools/gcc-4.2.1/*']
     bin.install *Dir['build/dst/usr/bin/*']
-    if MacOS.version > :tiger and MacOS.version < :lion
-      (bin/'to-brewed-gcc42').binwrite @switch_to
-      (bin/'to-stock-gcc42').binwrite @switch_from
-    end
     include.install 'build/dst/usr/include/gcc' if MacOS.version < :leopard
     lib.install 'build/dst/usr/lib/gcc'
     if MacOS.version > :tiger
@@ -44,16 +40,20 @@ class AppleGcc42 < Formula
     rm libexec/'libexec/gcc/powerpc-apple-darwin9/4.2.1/as'
     rm libexec/'libexec/gcc/powerpc-apple-darwin9/4.2.1/ld'
     man.install 'build/dst/usr/share/man/man1'
+    if MacOS.version > :tiger and MacOS.version < :lion
+      (bin/'to-brewed-gcc42').binwrite @switch_to
+      (bin/'to-stock-gcc42').binwrite @switch_from
+      (HOMEBREW_PREFIX/'bin').install_symlink Dir[bin/'to-*-gcc42']
+    end
   end # install
 
-  def post_install
+  def insinuate
     system bin/'to-brewed-gcc42'
   end if MacOS.version > :tiger and MacOS.version < :lion
 
-  def uninstall
+  def uninsinuate
     system bin/'to-stock-gcc42'
-    # This command deletes `to-brewed-gcc42` if the `apple-gcc42` rack is gone.  Note that it
-    # doesn’t touch `to-stock-gcc42`, just in case.
+    # This command also deletes `to-*-gcc42` if the `apple-gcc42` rack is gone.
   rescue
     onoe <<-_.undent
       Something went wrong when un‐symlinking the brewed GCC from your system.  Your
@@ -155,7 +155,7 @@ Short_Names=(c++ cpp g++ gcc gcov)
 Long_Targets=(/usr/{bin,share/man/man1}/{i686,powerpc}-apple-darwin*-g{++,cc}-4.2.1.5577{,.1})
 Delete_Links=(/usr/{bin,share/man/man1}/{i686,powerpc}-apple-darwin*-cpp-4.2.1{,.1})
 Dir_Links=(/usr/lib{,exec}/gcc/{i686,powerpc}-apple-darwin*/4.2.1)
-Disembrew_Script=/usr/local/bin/to-brewed-gcc42
+Disembrew_Scripts=(/usr/local/bin/to-*-gcc42)
 
 Bin_Pfx=/usr/bin/
 Man1_Pfx=/usr/share/man/man1/
@@ -190,6 +190,8 @@ for Link in "${Dir_Links[@]}" ; do
   if [ ! -e "$Link" ] ; then sudo ln -fs "${Link##*/}.5577" "$Link" ; fi
 done
 
-if [ ! -e /Users/Shared/Brewery/Cellar/apple-gcc42 ] ; then rm -f "$Disembrew_Script" ; fi
+if [ ! -e /Users/Shared/Brewery/Cellar/apple-gcc42 ] ; then
+  for Script in "${Disembrew_Scripts[@]}" ; do rm -f "$Script" ; done
+fi
 '
 end
