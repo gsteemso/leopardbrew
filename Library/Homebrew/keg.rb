@@ -103,10 +103,10 @@ class Keg
     @opt_record = HOMEBREW_PREFIX.join("opt", name)
   end
 
-  def fname
-    opoo "Keg#fname is a deprecated alias for Keg#name and will be removed soon"
-    name
-  end
+#  def fname
+#    opoo "Keg#fname is a deprecated alias for Keg#name and will be removed soon"
+#    name
+#  end
 
   def to_s
     path.to_s
@@ -215,6 +215,7 @@ class Keg
     end
 
     unless mode.dry_run
+      Formulary.from_rack(path.parent).uninsinuate
       remove_linked_keg_record if linked?
       dirs.reverse_each(&:rmdir_if_possible)
     end
@@ -346,6 +347,7 @@ class Keg
     unless mode.dry_run
       make_relative_symlink(linked_keg_record, path, mode)
       optlink(mode)
+      Formulary.from_rack(path.parent).insinuate
     end
   rescue LinkError
     unlink
