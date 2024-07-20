@@ -2,10 +2,10 @@ class Keg
   PREFIX_PLACEHOLDER = "@@HOMEBREW_PREFIX@@".freeze
   CELLAR_PLACEHOLDER = "@@HOMEBREW_CELLAR@@".freeze
 
-  def fix_install_names(options = {})
+  def fix_install_names
     mach_o_files.each do |file|
       file.ensure_writable do
-        change_dylib_id(dylib_id_for(file, options), file) if file.dylib?
+        change_dylib_id(dylib_id_for(file), file) if file.dylib?
 
         each_install_name_for(file) do |bad_name|
           # Don't fix absolute paths unless they are rooted in the build directory
@@ -27,11 +27,11 @@ class Keg
     end
   end
 
-  def relocate_install_names(old_prefix, new_prefix, old_cellar, new_cellar, options = {})
+  def relocate_install_names(old_prefix, new_prefix, old_cellar, new_cellar)
     mach_o_files.each do |file|
       file.ensure_writable do
         if file.dylib?
-          id = dylib_id_for(file, options).sub(old_prefix, new_prefix)
+          id = dylib_id_for(file).sub(old_prefix, new_prefix)
           change_dylib_id(id, file)
         end
 
@@ -148,18 +148,15 @@ class Keg
     dylibs.each(&block)
   end
 
-  def dylib_id_for(file, options)
-    # The new dylib ID should have the same basename as the old dylib ID, not
-    # the basename of the file itself.
+  def dylib_id_for(file) #, options)
+    # The new dylib ID needs the same basename as the old dylib ID, not that of the file itself.
     basename = File.basename(file.dylib_id)
     relative_dirname = file.dirname.relative_path_from(path)
-    shortpath = HOMEBREW_PREFIX.join(relative_dirname, basename)
-
-    if shortpath.exist? && !options[:keg_only]
-      shortpath.to_s
-    else
-      opt_record.join(relative_dirname, basename).to_s
-    end
+    # Shorter paths are a great idea in principle, but they’re only valid while a keg is linked,
+    # which it isn’t while being replaced.  The reïnstallation process _must_ be able to keep a
+    # brewed formula in service during its replacement, or it becomes impossible to reïnstall
+    # anything used during brewing).
+    opt_record.join(relative_dirname, basename).to_s
   end
 
   def find_dylib(name)
