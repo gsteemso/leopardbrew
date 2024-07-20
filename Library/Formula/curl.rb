@@ -12,18 +12,17 @@ class Curl < Formula
   keg_only :provided_by_osx
 
   option :universal
-  option "with-completions", "Add fish and zsh command-line completions"
-  option 'with-gnutls',      'Add GnuTLS security, independent of OpenSSL or LibreSSL'
-  option "with-libressl",    "Use LibreSSL security instead of OpenSSL"
-  option "with-libssh2",     "Add scp and sFTP access"
+  option 'with-gnutls',      'Add GnuTLS security, independent of OpenSSL/LibreSSL'
+  option 'with-libressl',    'Use LibreSSL security instead of OpenSSL'
+  option 'with-libssh2',     'Add scp and sFTP access'
   option 'with-more-dns',    'Add asynchronous, internationalized, public‐suffix‐aware DNS'
-  option "with-rtmpdump",    "Add RTMP (streaming Flash)"
+  option 'with-rtmpdump',    'Add RTMP (streaming Flash)'
   option 'with-zstd',        'Add ZStandard compression'
   option 'without-gsasl',    'Omit SASL SCRAM authentication'
   option 'without-ssl',      'Omit LibreSSL/OpenSSL security (GnuTLS recommended)'
 
-  deprecated_option "with-ares"   => "with-more-dns"
-  deprecated_option "with-c-ares" => "with-more-dns"
+  deprecated_option "with-ares"   => 'with-more-dns'
+  deprecated_option 'with-c-ares' => 'with-more-dns'
   deprecated_option "with-rtmp"   => "with-rtmpdump"
   deprecated_option "with-ssh"    => "with-libssh2"
 
@@ -32,8 +31,8 @@ class Curl < Formula
   depends_on "libssh2"  => :optional
   if build.with? 'more-dns'
     depends_on "c-ares"
-    depends_on "libidn2"  # libPSL also depends on this
-    depends_on "libpsl"
+    depends_on 'libidn2'  # libPSL also depends on this
+    depends_on 'libpsl'
   end
   depends_on "rtmpdump" => :optional
   depends_on 'zstd'     => :optional
@@ -94,6 +93,8 @@ class Curl < Formula
       '--with-ca-fallback',
       '--with-gssapi',
       "--with-zlib=#{Formula["zlib"].opt_prefix}"
+      "--with-fish-functions-dir=#{fish_completion}"
+      "--with-zsh-functions-dir=#{zsh_completion}"
     ]
 
     # cURL has a new firm desire to find ssl with PKG_CONFIG_PATH instead of using
@@ -120,13 +121,6 @@ class Curl < Formula
       args << "--with-brotli=#{Formula['brotli'].opt_prefix}"
     else
       args << '--without-brotli'
-    end
-
-    if build.with? 'completions'
-      args << "--with-fish-functions-dir=#{fish_completion}"
-      args << "--with-zsh-functions-dir=#{zsh_completion}"
-    else
-      args << '--without-fish-functions-dir' << '--without-zsh-functions-dir'
     end
 
     if build.with? 'libssh2'
@@ -199,8 +193,8 @@ class Curl < Formula
   def caveats
     <<-_.undent
       cURL is built with the ability to use Brotli compression, if that formula is
-      already installed when cURL is brewed.  (Brotli cannot be automatically brewed
-      as a cURL dependency because it depends on CMake, which depends back on cURL.)
+      already installed when cURL is brewed.  (Brotli can’t be auto‐brewed as a cURL
+      dependency because it depends on CMake, which depends back on cURL.)
     _
   end # caveats
 
