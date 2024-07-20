@@ -1,154 +1,184 @@
 class Gettext < Formula
   desc "GNU internationalization (i18n) and localization (l10n) library"
   homepage "https://www.gnu.org/software/gettext/"
-  # audit --strict complained about this URL.
   url "http://ftpmirror.gnu.org/gettext/gettext-0.22.5.tar.lz"
   mirror "https://ftp.gnu.org/gnu/gettext/gettext-0.22.5.tar.lz"
-  # Fetching the LZIPped version of this package, rather than the XZ-compressed one, allows xz to
-  # have NLS (internationalization) support without forming a dependency loop.
+  # Fetching the LZIPped version of this package, rather than the XZ-compressed one, allows {xz} to
+  # use NLS (internationalization) without forming a dependency loop.  It’s also much smaller.
   sha256 "caa44aed29c9b4900f1a401d68f6599a328a3744569484dc95f62081e80ad6cb"
-  # switched to the LZip’d version because it’s a lot smaller
 
   unless MacOS.version <= :leopard  # what Mac OS version would be correct here?
-    keg_only :shadowed_by_osx, "OS X provides the BSD gettext library and some software gets confused if both are in the library path."
+    keg_only :shadowed_by_osx, "OS X has the BSD gettext library; some software is confused if both are in the library path"
   end
 
   option :universal
+  option 'without-tests', 'Skip the self‐testing (not recommended for a first install)'
   # former option to leave out the examples is no longer available in `configure`
 
-  # Fix lang-python-* failures when in a traditional French locale
+  # Fix lang-python-* failures when in a traditional French locale.
   # https://git.savannah.gnu.org/gitweb/?p=gettext.git;a=patch;h=3c7e67be7d4dab9df362ab19f4f5fa3b9ca0836b
-  # Skip the gnulib tests as they have their own set of problems which has nothing to do with what's being built.
+  # Also, skip the gnulib tests as they have their own set of problems, with nothing to do with
+  # what’s being built.
   patch :p0, :DATA
 
   def install
-    ENV.libxml2
-
     if build.universal?
       ENV.permit_arch_flags if superenv?
       ENV.un_m64 if Hardware::CPU.family == :g5_64
       archs = Hardware::CPU.universal_archs
-      dirs = []
+      stashdir = buildpath/'arch-stashes'
+      the_binaries = %w[
+        bin/envsubst
+        bin/gettext
+        bin/msgattrib
+        bin/msgcat
+        bin/msgcmp
+        bin/msgcomm
+        bin/msgconv
+        bin/msgen
+        bin/msgexec
+        bin/msgfilter
+        bin/msgfmt
+        bin/msggrep
+        bin/msginit
+        bin/msgmerge
+        bin/msgunfmt
+        bin/msguniq
+        bin/ngettext
+        bin/recode-sr-latin
+        bin/xgettext
+        lib/gettext/cldr-plurals
+        lib/gettext/hostname
+        lib/gettext/urlget
+        lib/libasprintf.0.dylib
+        lib/libasprintf.a
+        lib/libgettextlib-0.22.5.dylib
+        lib/libgettextlib.a
+        lib/libgettextpo.0.dylib
+        lib/libgettextpo.a
+        lib/libgettextsrc-0.22.5.dylib
+        lib/libgettextsrc.a
+        lib/libintl.8.dylib
+        lib/libintl.a
+        lib/libtextstyle.0.dylib
+        lib/libtextstyle.a
+      ]
     else
       archs = [MacOS.preferred_arch]
-    end
+    end # universal?
+
+    args = [
+      "--prefix=#{prefix}",
+      '--disable-dependency-tracking',
+      '--disable-silent-rules',
+      '--disable-debug',
+      '--with-included-gettext',
+      '--with-included-libunistring',
+      '--with-included-libxml',
+      '--with-emacs',
+      "--with-lispdir=#{share}/emacs/site-lisp/gettext",
+      '--disable-java',
+      '--disable-csharp',
+      '--without-git', # Don't use VCS systems to create these archives
+      '--without-cvs', #
+      '--without-xz'
+    ]
 
     archs.each do |arch|
       if build.universal?
-        ENV.append_to_cflags "-arch #{arch}"
-        dir = "stash-#{arch}"
-        mkdir dir
-        dirs << dir
-      end
+        case arch
+          when :i386, :ppc then ENV.m32
+          when :ppc64, :x86_64 then ENV.m64
+        end
+      end # universal?
 
-    system "./configure", "--disable-dependency-tracking",
-                          "--disable-silent-rules",
-                          "--disable-debug",
-                          "--prefix=#{prefix}",
-                          "--with-included-gettext",
-                          "--with-included-libunistring",
-                          "--with-emacs",
-                          "--with-lispdir=#{share}/emacs/site-lisp/gettext",
-                          "--disable-java",
-                          "--disable-csharp",
-                          # Don't use VCS systems to create these archives
-                          "--without-git",
-                          "--without-cvs",
-                          "--without-xz"
+      system "./configure", *args
       system 'make'
-      system 'make', 'check'
+      system 'make', 'check' if build.with? 'tests'
       # install doesn't support multiple make jobs
       ENV.deparallelize do
         system 'make', 'install'
       end
-
       if build.universal?
         system 'make', 'clean'
-        Merge.scour_keg(prefix, dir)
-        # undo architecture-specific tweak before next run
-        ENV.remove_from_cflags "-arch #{arch}"
+        Merge.prep(prefix, stashdir/"bin-#{arch}", the_binaries)
+        # undo architecture-specific tweaks before next run
+        case arch
+          when :i386, :ppc then ENV.un_m32
+          when :ppc64, :x86_64 then ENV.un_m64
+        end # case arch
       end # universal?
-    end # archs.each
-
-    Merge.mach_o(prefix, dirs) if build.universal?
+    end # each |arch|
+    Merge.binaries(prefix, stashdir, archs) if build.universal?
   end # install
 
   test do
     system "#{bin}/gettext", '--version'
     system "#{bin}/gettext", '--help'
-  end
-end
+  end # test
+end # Gettext
 
 class Merge
-  module Pathname_extension
-    def is_bare_mach_o?
-      # header word 0, magic signature:
-      #   MH_MAGIC    = 'feedface' – value with lowest‐order bit clear
-      #   MH_MAGIC_64 = 'feedfacf' – same value with lowest‐order bit set
-      # low‐order 24 bits of header word 1, CPU type:  7 is x86, 12 is ARM, 18 is PPC
-      # header word 3, file type:  no types higher than 10 are defined
-      # header word 5, net size of load commands, is far smaller than the filesize
-      if (self.file? and self.size >= 28 and mach_header = self.binread(24).unpack('N6'))
-        raise('Fat binary found where bare Mach-O file expected') if mach_header[0] == 0xcafebabe
-        ((mach_header[0] & 0xfffffffe) == 0xfeedface and
-          [7, 12, 18].detect { |item| (mach_header[1] & 0x00ffffff) == item } and
-          mach_header[3] < 11 and
-          mach_header[5] < self.size)
-      else
-        false
-      end
-    end unless method_defined?(:is_bare_mach_o?)
-  end # Pathname_extension
-
   class << self
     include FileUtils
 
-    def scour_keg(keg_prefix, stash, sub_path = '')
-      # don’t suffer a double slash when sub_path is null:
-      s_p = (sub_path == '' ? '' : sub_path + '/')
-      Dir["#{keg_prefix}/#{s_p}*"].each do |f|
-        pn = Pathname(f).extend(Pathname_extension)
-        spb = s_p + pn.basename
-        if pn.directory?
-          Dir.mkdir "#{stash}/#{spb}"
-          scour_keg(keg_prefix, stash, spb)
-        # the number of things that look like Mach-O files but aren’t is horrifying, so test
-        elsif ((not pn.symlink?) and pn.is_bare_mach_o?)
-          cp pn, "#{stash}/#{spb}"
-        end
-      end
-    end # scour_keg
+    # The destination is expected to be a Pathname object.
+    # The source is just a string.
+    def cp_mkp(source, destination)
+      if destination.exists?
+        if destination.is_directory?
+          cp source, destination
+        else
+          raise "File exists at destination:  #{destination}"
+        end # directory?
+      else
+        mkdir_p destination.parent unless destination.parent.exists?
+        cp source, destination
+      end # destination exists?
+    end # Merge.cp_mkp
 
-    def mach_o(install_prefix, arch_dirs, sub_path = '')
+    # The keg_prefix and stash_root are expected to be Pathname objects.
+    # The list members are just strings.
+    def prep(keg_prefix, stash_root, list)
+      list.each do |item|
+        source = keg_prefix/item
+        dest = stash_root/item
+        cp_mkp source, dest
+      end # each binary
+    end # Merge.prep
+
+    # The keg_prefix is expected to be a Pathname object.  The rest are just strings.
+    def binaries(keg_prefix, stash_root, archs, sub_path = '')
       # don’t suffer a double slash when sub_path is null:
       s_p = (sub_path == '' ? '' : sub_path + '/')
       # generate a full list of files, even if some are not present on all architectures; bear in
       # mind that the current _directory_ may not even exist on all archs
       basename_list = []
+      arch_dirs = archs.map {|a| "bin-#{a}"}
       arch_dir_list = arch_dirs.join(',')
-      Dir["{#{arch_dir_list}}/#{s_p}*"].map { |f|
+      Dir["#{stash_root}/{#{arch_dir_list}}/#{s_p}*"].map { |f|
         File.basename(f)
-      }.each do |b|
+      }.each { |b|
         basename_list << b unless basename_list.count(b) > 0
-      end
+      }
       basename_list.each do |b|
         spb = s_p + b
-        the_arch_dir = arch_dirs.detect { |ad| File.exist?("#{ad}/#{spb}") }
-        pn = Pathname("#{the_arch_dir}/#{spb}")
+        the_arch_dir = arch_dirs.detect { |ad| File.exist?("#{stash_root}/#{ad}/#{spb}") }
+        pn = Pathname("#{stash_root}/#{the_arch_dir}/#{spb}")
         if pn.directory?
-          mach_o(install_prefix, arch_dirs, spb)
+          binaries(keg_prefix, stash_root, archs, spb)
         else
-          arch_files = Dir["{#{arch_dir_list}}/#{spb}"]
+          arch_files = Dir["#{stash_root}/{#{arch_dir_list}}/#{spb}"]
           if arch_files.length > 1
-            system 'lipo', '-create', *arch_files, '-output', install_prefix/spb
+            system 'lipo', '-create', *arch_files, '-output', keg_prefix/spb
           else
             # presumably there's a reason this only exists for one architecture, so no error;
             # the same rationale would apply if it only existed in, say, two out of three
-            cp arch_files.first, install_prefix/spb
+            cp arch_files.first, keg_prefix/spb
           end # if > 1 file?
         end # if directory?
-      end # basename_list.each
-    end # mach_o
+      end # each basename |b|
+    end # Merge.binaries
   end # << self
 end # Merge
 
