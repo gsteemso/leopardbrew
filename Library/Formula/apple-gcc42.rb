@@ -104,6 +104,8 @@ class AppleGcc42 < Formula
   end # test
 
   @switch_to = '#!/bin/bash
+#### This switches GCC 4.2.1 from the stock build 5577 to the brewed build 5666.3 ####
+#### For use with Leopardbrew on Mac OS 10.5–6 (no others shipped with GCC 4.2.1) ####
 shopt -s nullglob  # allows ignoring nonexistent combinations from patterns
 
 Bin_Pfx=/usr/bin/
@@ -149,6 +151,8 @@ done
 '
 
   @switch_from = '#!/bin/bash
+#### This switches GCC 4.2.1 from the brewed build 5666.3 back to the stock build 5577 ####
+#### For use with Leopardbrew on Mac OS 10.5 / 10.6 (no others shipped with GCC 4.2.1) ####
 shopt -s nullglob  # allows ignoring nonexistent combinations from patterns
 
 Short_Names=(c++ cpp g++ gcc gcov)
