@@ -103,10 +103,10 @@ module Homebrew
         ohai "Searching taps..."
         puts_columns(search_taps(query))
 
-        # If they haven't updated in 48 hours (172800 seconds), that
+        # If they haven't updated in a week (604800 seconds), that
         # might explain the error
         master = HOMEBREW_REPOSITORY/".git/refs/heads/master"
-        if master.exist? && (Time.now.to_i - File.mtime(master).to_i) > 172800
+        if master.exist? && (Time.now.to_i - File.mtime(master).to_i) > 604800
           ohai "You haven't updated Homebrew in a while."
           puts <<-EOS.undent
             A formula for #{e.name} might have been added recently.
@@ -140,7 +140,7 @@ module Homebrew
     unless MacOS.macports_or_fink.empty?
       opoo "It appears you have MacPorts or Fink installed."
       puts "Software installed with other package managers causes known problems for"
-      puts "Tigerbrew. If a formula fails to build, uninstall MacPorts/Fink and try again."
+      puts "’brewing. If a formula fails to build, uninstall MacPorts/Fink and try again."
     end
   end
 
@@ -177,7 +177,7 @@ module Homebrew
     fi.debug               = ARGV.debug?
     fi.prelude
     fi.install
-    fi.finish
+    fi.finish  # this calls Formula#insinuate for us
   rescue FormulaInstallationAlreadyAttemptedError
     # We already attempted to install f as part of the dependency tree of
     # another formula. In that case, don't generate an error, just move on.
