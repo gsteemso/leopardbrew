@@ -6,12 +6,12 @@ class Gdbm < Formula
   sha256 '695e9827fdf763513f133910bc7e6cfdb9187943a4fec943e57449723d2b8dbf'
 
   option :universal
-  option 'without-libgdbm-compat', 'Omit the libgdbm_compat compatibility layer, providing UNIX-like dbm/ndbm interfaces'
+  option 'without-libgdbm-compat', 'Omit the libgdbm_compat library, which provides old‐style dbm/ndbm interfaces'
 
   depends_on 'coreutils'
   depends_on 'readline'
 
-  keg_only :provided_by_osx if build.with? 'libgdbm-compat'
+  keg_only :provided_by_osx  # technically untrue if built without libgdbm-compat
 
   # the “t_wordwrap” test has a ridiculous oversight where they omitted one of its dependency
   # libraries from the Makefile, causing it to not build
