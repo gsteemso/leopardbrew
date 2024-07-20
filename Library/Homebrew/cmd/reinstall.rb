@@ -1,4 +1,4 @@
-require "formula_installer"
+require 'formula_installer'
 
 module Homebrew
   def reinstall
@@ -9,7 +9,7 @@ module Homebrew
 
   def reinstall_formula(f)
     tab = Tab.for_formula(f)
-    options = tab.used_options | f.build.used_options
+    options = puree_options(tab.used_options, f)
 
     notice  = "Reinstalling #{f.full_name}"
     notice += " with #{options * ", "}" unless options.empty?
@@ -29,7 +29,7 @@ module Homebrew
     fi.debug               = ARGV.debug?
     fi.prelude
     fi.install
-    fi.finish
+    fi.finish  # this calls Formula#insinuate for us
   rescue FormulaInstallationAlreadyAttemptedError
     # next
   rescue Exception
@@ -39,16 +39,60 @@ module Homebrew
     backup_path(keg).rmtree if backup_path(keg).exist?
   end
 
+  def puree_options(opts, formula)
+    anti_opts = Options.new
+    ARGV.flags_only.each do |flag|
+      case flag
+      when /^--with-(.+)$/
+        if formula.option_defined?(flag)
+          opts |= flag
+        elsif opts.include?(anti_flag = "--without-#{$1}") or 
+          anti_opts |= anti_flag
+        else
+          whinge_re_unrecognized(flag)
+        end # --with-xxxx?
+      when /^--without-(.+)$/
+        if formula.option_defined?(flag)
+          opts |= flag
+        elsif opts.include?(anti_flag = "--with-#{$1}")
+          anti_opts |= anti_flag
+        else
+          whinge_re_unrecognized(flag)
+        end # --without-xxxx?
+      when /^--single-arch$/
+        anti_opts |= '--universal'
+      when /^--stable$/
+        anti_opts |= ['--HEAD', '--devel']
+      when /^--devel$/
+        anti_opts |= '--HEAD'
+      else
+        if formula.option_defined?(flag)
+          opts |= flag
+        else
+          whinge_re_unrecognized(flag)
+        end # other option?
+      end # case
+    end # each effective flag
+    opts - anti_opts
+  end
+
+  def whinge_re_unrecognized(flag)
+    puts "Ignoring unrecognized option:  #{flag}"
+  end
+
   def backup(keg)
-    keg.unlink
+    keg.unlink  # this calls Formula#uninsinuate for us
     keg.rename backup_path(keg)
+    keg.optlink # this allows reïnstalling things that the build system depends upon
   end
 
   def restore_backup(keg, formula)
     path = backup_path(keg)
     if path.directory?
       path.rename keg
+      keg.optlink  # restore original optlink
       keg.link unless formula.keg_only?
+      formula.insinuate
     end
   end
 
