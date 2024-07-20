@@ -152,8 +152,8 @@ class FormulaInstaller
     if formula.linked_keg.directory?
       # some other version is already installed *and* linked
       raise CannotInstallFormulaError, <<-EOS.undent
-        #{formula.name}-#{formula.linked_keg.resolved_path.basename} already installed
-        To install this version, first `brew unlink #{formula.name}'
+        #{formula.name}-#{formula.linked_keg.resolved_path.basename} is already installed.
+        To install this version, first “brew unlink #{formula.name}”.
       EOS
     end
 
@@ -449,6 +449,8 @@ class FormulaInstaller
         post_install
       end
     end
+
+    formula.insinuate
 
     caveats
 

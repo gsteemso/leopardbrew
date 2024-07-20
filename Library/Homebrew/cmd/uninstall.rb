@@ -10,19 +10,20 @@ module Homebrew
       ARGV.kegs.each do |keg|
         keg.lock do
           puts "Uninstalling #{keg}... (#{keg.abv})"
-          Formulary.from_rack(keg.rack).uninstall
-          keg.unlink
-          keg.uninstall
+          keg.unlink     # this calls Formula#uninsinuate for us
+          keg.uninstall  # this also deletes the whole rack, if it’s empty
           rack = keg.rack
           rm_pin rack
 
           if rack.directory?
             versions = rack.subdirs.map(&:basename)
-            verb = versions.length == 1 ? "is" : "are"
+            verb = versions.length == 1 ? 'is' : 'are'
             puts "#{keg.name} #{versions.join(", ")} #{verb} still installed."
             puts "Remove them all with `brew uninstall --force #{keg.name}`."
-          end
-        end
+          else
+            Formulary.from_rack(rack).uninsinuate  # need to call it one last time after the rack
+          end                                      # is gone, so any helper scripts can delete
+        end                                        # themselves
       end
     else
       ARGV.named.each do |name|
@@ -31,14 +32,14 @@ module Homebrew
 
         if rack.directory?
           puts "Uninstalling #{name}... (#{rack.abv})"
-          Formulary.from_rack(keg.rack).uninstall
           rack.subdirs.each do |d|
             keg = Keg.new(d)
-            keg.unlink
-            keg.uninstall
+            keg.unlink     # this calls Formula#uninsinuate for us
+            keg.uninstall  # this also deletes the whole rack, if it’s empty
           end
         end
-
+        Formulary.from_rack(rack).uninsinuate  # need to call it one last time after the rack is
+                                               # gone, so any helper scripts can delete themselves
         rm_pin rack
       end
     end

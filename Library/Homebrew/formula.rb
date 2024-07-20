@@ -1235,10 +1235,14 @@ class Formula
   def install
   end
 
-  # This method must be likewise overridden, in such {Formula} subclasses as need to carry out some
-  # action before an installed formula can be safely removed.
-  def uninstall
-  end
+  # These methods must be likewise overridden, in such formulæ as need to carry out some action
+  # to very deeply integrate with the system upon installation, and then to remove that integration
+  # before formula uninstallation is safe.  THESE METHODS MUST BE IDEMPOTENT!  It is entirely
+  # possible for them to be called more than once without their counterpart being called in between,
+  # in which case they must not make a mess!
+  def insinuate ; end
+
+  def uninsinuate ; end
 
   protected
 
