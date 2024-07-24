@@ -3,7 +3,6 @@
 class Rtmpdump < Formula
   desc "Tool and library for downloading RTMP streaming media"
   homepage "https://rtmpdump.mplayerhq.hu"
-  version "2.6"
   head "git://git.ffmpeg.org/rtmpdump"
 
   option :universal
