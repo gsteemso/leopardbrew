@@ -177,7 +177,8 @@ module Homebrew
     fi.debug               = ARGV.debug?
     fi.prelude
     fi.install
-    fi.finish  # this calls Formula#insinuate for us
+    fi.finish
+    fi.insinuate
   rescue FormulaInstallationAlreadyAttemptedError
     # We already attempted to install f as part of the dependency tree of
     # another formula. In that case, don't generate an error, just move on.

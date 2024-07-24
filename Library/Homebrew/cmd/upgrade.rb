@@ -77,6 +77,8 @@ module Homebrew
       f.unpin
       f.pin
     end
+
+    fi.insinuate
   rescue FormulaInstallationAlreadyAttemptedError
     # We already attempted to upgrade f as part of the dependency tree of
     # another formula. In that case, don't generate an error, just move on.

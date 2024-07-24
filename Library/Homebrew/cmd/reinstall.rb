@@ -4,8 +4,17 @@ module Homebrew
   def reinstall
     FormulaInstaller.prevent_build_flags unless MacOS.has_apple_developer_tools?
 
-    ARGV.resolved_formulae.each { |f| reinstall_formula(f) }
-  end
+    ARGV.resolved_formulae.each do |f|
+      if f.installed?
+        reinstall_formula(f)
+      else
+        opoo <<-_.undent
+          The formula #{f.name} could not be reinstalled because it was not installed
+          in the first place.  Use “brew install #{f.name}” instead.
+        _
+      end
+    end
+  end # reinstall
 
   def reinstall_formula(f)
     tab = Tab.for_formula(f)
@@ -15,10 +24,11 @@ module Homebrew
     notice += " with #{options * ", "}" unless options.empty?
     oh1 notice
 
-    if f.opt_prefix.directory?
-      keg = Keg.new(f.opt_prefix.resolved_path)
-      backup keg
-    end
+    keg = (f.opt_prefix.directory? ? Keg.new(f.opt_prefix.resolved_path) : f.greatest_installed_keg)
+    raise NoSuchKegError unless keg
+    proper_name = keg.to_s
+    keg.unlink if (was_linked = keg.linked?)
+    ignore_interrupts { keg.rename "#{keg}.reinstall" }
 
     fi = FormulaInstaller.new(f)
     fi.options             = options
@@ -29,15 +39,19 @@ module Homebrew
     fi.debug               = ARGV.debug?
     fi.prelude
     fi.install
-    fi.finish  # this calls Formula#insinuate for us
+    fi.finish
+    fi.insinuate
   rescue FormulaInstallationAlreadyAttemptedError
     # next
   rescue Exception
-    ignore_interrupts { restore_backup(keg, f) }
+    if keg
+      ignore_interrupts { keg.rename proper_name }
+      keg.link if was_linked
+    end
     raise
   else
-    backup_path(keg).rmtree if backup_path(keg).exist?
-  end
+    keg.root.rmtree if keg.exists?
+  end # reinstall_formula
 
   def puree_options(opts, formula)
     anti_opts = Options.new
@@ -59,12 +73,14 @@ module Homebrew
         else
           whinge_re_unrecognized(flag)
         end # --without-xxxx?
-      when /^--single-arch$/
+      when '--single-arch'
         anti_opts |= '--universal'
-      when /^--stable$/
+      when '--stable'
         anti_opts |= ['--HEAD', '--devel']
-      when /^--devel$/
+      when '--devel'
         anti_opts |= '--HEAD'
+      when '--HEAD'
+        anti_opts |= '--devel'
       else
         if formula.option_defined?(flag)
           opts |= flag
@@ -74,29 +90,9 @@ module Homebrew
       end # case
     end # each effective flag
     opts - anti_opts
-  end
+  end # puree_options
 
   def whinge_re_unrecognized(flag)
     puts "Ignoring unrecognized option:  #{flag}"
   end
-
-  def backup(keg)
-    keg.unlink  # this calls Formula#uninsinuate for us
-    keg.rename backup_path(keg)
-    keg.optlink # this allows reïnstalling things that the build system depends upon
-  end
-
-  def restore_backup(keg, formula)
-    path = backup_path(keg)
-    if path.directory?
-      path.rename keg
-      keg.optlink  # restore original optlink
-      keg.link unless formula.keg_only?
-      formula.insinuate
-    end
-  end
-
-  def backup_path(path)
-    Pathname.new "#{path}.reinstall"
-  end
-end
+end # Homebrew

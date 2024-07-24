@@ -6,11 +6,11 @@ module Homebrew
   def uninstall
     raise KegUnspecifiedError if ARGV.named.empty?
 
-    if !ARGV.force?
+    unless ARGV.force?
       ARGV.kegs.each do |keg|
         keg.lock do
           puts "Uninstalling #{keg}... (#{keg.abv})"
-          keg.unlink     # this calls Formula#uninsinuate for us
+          keg.unlink
           keg.uninstall  # this also deletes the whole rack, if it’s empty
           rack = keg.rack
           rm_pin rack
@@ -21,9 +21,9 @@ module Homebrew
             puts "#{keg.name} #{versions.join(", ")} #{verb} still installed."
             puts "Remove them all with `brew uninstall --force #{keg.name}`."
           else
-            Formulary.from_rack(rack).uninsinuate  # need to call it one last time after the rack
-          end                                      # is gone, so any helper scripts can delete
-        end                                        # themselves
+            Formulary.from_rack(rack).uninsinuate  # call this only after the rack is gone, so any
+          end                                      # helper scripts can delete themselves
+        end
       end
     else
       ARGV.named.each do |name|
@@ -34,12 +34,12 @@ module Homebrew
           puts "Uninstalling #{name}... (#{rack.abv})"
           rack.subdirs.each do |d|
             keg = Keg.new(d)
-            keg.unlink     # this calls Formula#uninsinuate for us
-            keg.uninstall  # this also deletes the whole rack, if it’s empty
+            keg.unlink
+            keg.uninstall  # this also deletes the whole rack when it’s empty
           end
         end
-        Formulary.from_rack(rack).uninsinuate  # need to call it one last time after the rack is
-                                               # gone, so any helper scripts can delete themselves
+        Formulary.from_rack(rack).uninsinuate  # call this only after the rack is gone, so any
+                                               # helper scripts can delete themselves
         rm_pin rack
       end
     end
