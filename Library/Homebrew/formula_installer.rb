@@ -29,7 +29,7 @@ class FormulaInstaller
   end
 
   attr_reader :formula
-  attr_accessor :options
+  attr_accessor :options, :old_keg
   mode_attr_accessor :show_summary_heading, :show_header
   mode_attr_accessor :build_from_source, :build_bottle, :force_bottle
   mode_attr_accessor :ignore_deps, :only_deps, :interactive, :git
@@ -49,6 +49,7 @@ class FormulaInstaller
     @quieter = false
     @debug = false
     @options = Options.new
+    @old_keg = formula.greatest_installed_keg
 
     @@attempted ||= Set.new
 
@@ -262,12 +263,14 @@ class FormulaInstaller
   end
 
   def check_requirements(req_map)
-    fatals = []
+    fatals = req_map.dup
 
-    req_map.each_pair do |dependent, reqs|
+    fatals.each_pair do |dependent, reqs|
       reqs.each do |req|
-        puts "#{dependent}: #{req.message}"
-        fatals << req if req.fatal?
+        unless req.fatal?
+          fatals[dependent].delete(req)
+          fatals.delete(dependent) if fatals[dependent] == []
+        end
       end
     end
 
@@ -388,9 +391,9 @@ class FormulaInstaller
     end
 
     if df.installed?
-      installed_keg = Keg.new(df.prefix)
-      tmp_keg = Pathname.new("#{installed_keg}.tmp")
-      installed_keg.rename(tmp_keg)
+      keg_usual_path = df.prefix
+      installed_keg = Keg.new(keg_usual_path)
+      installed_keg.rename("#{keg_usual_path}.tmp")
     end
 
     fi = DependencyInstaller.new(df)
@@ -406,12 +409,14 @@ class FormulaInstaller
     fi.finish
   rescue Exception
     ignore_interrupts do
-      tmp_keg.rename(installed_keg) if tmp_keg && !installed_keg.directory?
+      installed_keg.rename(keg_usual_path) if installed_keg and not keg_usual_path.directory?
       linked_keg.link if linked_keg
     end
     raise
   else
-    ignore_interrupts { tmp_keg.rmtree if tmp_keg && tmp_keg.directory? }
+    ignore_interrupts do
+      installed_keg.root.rmtree if installed_keg and installed_keg.directory?
+    end
   end
 
   def caveats
@@ -435,6 +440,7 @@ class FormulaInstaller
     install_plist
 
     keg = Keg.new(formula.prefix)
+    old_keg.unlink if old_keg
     link(keg)
 
     unless @poured_bottle && formula.bottle_specification.skip_relocation?
@@ -449,8 +455,6 @@ class FormulaInstaller
         post_install
       end
     end
-
-    formula.insinuate
 
     caveats
 
@@ -532,13 +536,14 @@ class FormulaInstaller
     ENV['HOMEBREW_ERROR_PIPE'] = write.to_i.to_s
 
     args = %W[
-      nice #{RUBY_PATH}
+      #{RUBY_PATH}
       -W0
       -I #{HOMEBREW_LOAD_PATH}
       --
       #{HOMEBREW_LIBRARY_PATH}/build.rb
       #{formula.path}
     ].concat(build_argv)
+    args.unshift('nice', BREW_NICE_LEVEL) if BREW_NICE_LEVEL
 
     # Ruby 2.0+ sets close-on-exec on all file descriptors except for
     # 0, 1, and 2 by default, so we have to specify that we want the pipe
@@ -754,6 +759,16 @@ class FormulaInstaller
     audit_check_output(check_PATH(formula.bin))
     audit_check_output(check_PATH(formula.sbin))
     super
+  end
+
+  def insinuate
+    installing_bash = false
+    @@attempted.each do |f|
+      next unless f.installed?
+      next if (installing_bash ||= (f.name == 'bash'))
+      f.insinuate
+    end
+    Formula['bash'].insinuate if installing_bash
   end
 
   private

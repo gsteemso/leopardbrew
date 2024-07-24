@@ -151,11 +151,16 @@ end
 
 class UnsatisfiedRequirements < RuntimeError
   def initialize(reqs)
+    lines = []
     if reqs.length == 1
-      super "An unsatisfied requirement failed this build."
+      lines << "An unsatisfied requirement failed this build:"
     else
-      super "Unsatisfied requirements failed this build."
+      lines << "Unsatisfied requirements failed this build:"
     end
+    reqs.each_pair do |dependent, reqset|
+      reqset.each { |req| lines << "#{dependent}:  #{req.message}" }
+    end
+    super lines.join("\n")
   end
 end
 
@@ -182,7 +187,7 @@ class FormulaConflictError < RuntimeError
     message << <<-EOS.undent
       Please `brew unlink #{conflicts.map(&:name)*" "}` before continuing.
 
-      Unlinking removes a formula's symlinks from #{HOMEBREW_PREFIX}. You can
+      Unlinking removes a formula’s symlinks from #{HOMEBREW_PREFIX}. You can
       link the formula again after the install finishes. You can --force this
       install, but the build may fail or cause obscure side-effects in the
       resulting software.
