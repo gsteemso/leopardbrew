@@ -104,7 +104,7 @@ class Perl < Formula
       end # universal?
     end # each |arch|
 
-    Merge.mach_o(prefix, stashdir, archs) if build.universal?
+    Merge.binaries(prefix, stashdir, archs) if build.universal?
   end # install
 
   def caveats
@@ -169,9 +169,10 @@ class Merge
           cp pn, stash_root/spb
         end # what is pn?
       end # each pathname
-    end # scour_keg
+    end # Merge.scour_keg
 
-    def mach_o(install_prefix, arch_dirs, sub_path = '')
+    # The keg_prefix is expected to be a Pathname object.  The rest are just strings.
+    def binaries(keg_prefix, stash_root, archs, sub_path = '')
       # don’t suffer a double slash when sub_path is null:
       s_p = (sub_path == '' ? '' : sub_path + '/')
       # generate a full list of files, even if some are not present on all architectures; bear in
@@ -189,7 +190,7 @@ class Merge
         the_arch_dir = arch_dirs.detect { |ad| File.exist?("#{stash_root}/#{ad}/#{spb}") }
         pn = Pathname("#{stash_root}/#{the_arch_dir}/#{spb}")
         if pn.directory?
-          mach_o(keg_prefix, stash_root, archs, spb)
+          binaries(keg_prefix, stash_root, archs, spb)
         else
           arch_files = Dir["#{stash_root}/{#{arch_dir_list}}/#{spb}"]
           if arch_files.length > 1
@@ -201,7 +202,7 @@ class Merge
           end # if > 1 file?
         end # if directory?
       end # each basename |b|
-    end # mach_o
+    end # Merge.binaries
   end # << self
 end # Merge
 
