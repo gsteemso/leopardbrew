@@ -41,28 +41,22 @@ class AppleGcc42 < Formula
     rm libexec/'libexec/gcc/powerpc-apple-darwin9/4.2.1/ld'
     man.install 'build/dst/usr/share/man/man1'
     if MacOS.version > :tiger and MacOS.version < :lion
-      (bin/'to-brewed-gcc42').binwrite @switch_to
-      (bin/'to-stock-gcc42').binwrite @switch_from
-      (HOMEBREW_PREFIX/'bin').install_symlink Dir[bin/'to-*-gcc42']
+      to = bin/'to-brewed-gcc42'
+      fro = bin/'to-stock-gcc42'
+      to.binwrite switch_to
+      fro.binwrite switch_from
+      chmod 0755, [to, fro]
+      (HOMEBREW_PREFIX/'bin').install_symlink [to, fro]
     end
   end # install
 
   def insinuate
-    system bin/'to-brewed-gcc42'
+    system bin/'to-brewed-gcc42' if (bin/'to-brewed-gcc42').exists?
   end if MacOS.version > :tiger and MacOS.version < :lion
 
   def uninsinuate
-    system bin/'to-stock-gcc42'
+    system bin/'to-stock-gcc42' if (bin/'to-stock-gcc42').exists?
     # This command also deletes `to-*-gcc42` if the `apple-gcc42` rack is gone.
-  rescue
-    onoe <<-_.undent
-      Something went wrong when un‐symlinking the brewed GCC from your system.  Your
-      stock GCC may have become unreachable without using the “-4.2.1.5577” suffixes.
-      To repair it manually, you will have to use the “find” command to search for
-      broken symlinks under the /usr heirarchy.  The only way to automate that is to
-      write a small shell command to your hard drive and then use that shell command
-      as a parameter to the `find` command’s `-exec` primary.
-    _
   end if MacOS.version > :tiger and MacOS.version < :lion
 
   def caveats
@@ -103,99 +97,103 @@ class AppleGcc42 < Formula
     assert_equal "Hello, world!\n", `./hello-c`
   end # test
 
-  @switch_to = '#!/bin/bash
-#### This switches GCC 4.2.1 from the stock build 5577 to the brewed build 5666.3 ####
-#### For use with Leopardbrew on Mac OS 10.5–6 (no others shipped with GCC 4.2.1) ####
-shopt -s nullglob  # allows ignoring nonexistent combinations from patterns
+  def switch_to; <<-_.undent
+    #!/bin/bash
+    #### This switches GCC 4.2.1 from the stock build 5577 to the brewed build 5666.3 ####
+    #### For use with Leopardbrew on Mac OS 10.5–6 (no others shipped with GCC 4.2.1) ####
+    shopt -s nullglob  # allows ignoring nonexistent combinations from patterns
 
-Bin_Pfx=/usr/bin/
-Man1_Pfx=/usr/share/man/man1/
-Opt_Pfx="$(brew --prefix)/opt/apple-gcc42/"
+    Bin_Pfx=/usr/bin/
+    Man1_Pfx=/usr/share/man/man1/
+    Opt_Pfx="$(brew --prefix)/opt/apple-gcc42/"
 
-Short_Names=(c++ cpp g++ gcc gcov)
-Targets=(${Opt_Pfx}{bin,share/man/man1}/{i686,powerpc}-apple-darwin*-{cpp,g{++,cc}}-4.2.1{,.1})
-Dir_Targets=(${Opt_Pfx}lib{,exec}/gcc/{i686,powerpc}-apple-darwin*/4.2.1)
+    Short_Names=(c++ cpp g++ gcc gcov)
+    Targets=(${Opt_Pfx}{bin,share/man/man1}/{i686,powerpc}-apple-darwin*-{cpp,g{++,cc}}-4.2.1{,.1})
+    Dir_Targets=(${Opt_Pfx}lib{,exec}/gcc/{i686,powerpc}-apple-darwin*/4.2.1)
 
-for Name in "${Short_Names[@]}" ; do
-  V_Nm="${Name}-4.2.1.5577"
-  Sh_V_Nm="${Name}-4.2"
+    for Name in "${Short_Names[@]}" ; do
+      V_Nm="${Name}-4.2.1.5577"
+      Sh_V_Nm="${Name}-4.2"
 
-  Link="${Bin_Pfx}${Name}"  # sanity check – ensures, e.g., that `gcc` doesn’t get you `gcc-4.0`
-  if [ -L "$Link" -a $(readlink -n "$Link") != "$Sh_V_Nm" ] ; then sudo ln -fs "$Sh_V_Nm" "$Link" ; fi
-  Link="${Bin_Pfx}${Sh_V_Nm}"  # actual work
-  if [ -f "$Link" -a ! -L "$Link" ] ; then sudo mv "$Link" "${Link}.1.5577" ; fi
-  sudo ln -fs "${Opt_Pfx}${Link#/usr/}" "$Link"
+      Link="${Bin_Pfx}${Name}"  # sanity check – ensures, e.g., that `gcc` doesn’t get you `gcc-4.0`
+      if [ -L "$Link" -a $(readlink -n "$Link") != "$Sh_V_Nm" ] ; then sudo ln -fs "$Sh_V_Nm" "$Link" ; fi
+      Link="${Bin_Pfx}${Sh_V_Nm}"  # actual work
+      if [ -f "$Link" -a ! -L "$Link" ] ; then sudo mv "$Link" "${Link}.1.5577" ; fi
+      sudo ln -fs "${Opt_Pfx}${Link#/usr/}" "$Link"
 
-  Link="${Man1_Pfx}${Name}.1"  # for sanity checks – ensure, e.g., that `man gcc` ↛ `man gcc-4.0`
-  if [ -e "${Link}.gz" ] ; then gunzip "${Link}.gz" ; fi  # compressed manpages mess this up
-  if [ -L "$Link" -a $(readlink -n "$Link") != "${Sh_V_Nm}.1" ] ; then sudo ln -fs "${Sh_V_Nm}.1" "$Link" ; fi
-  Link="${Man1_Pfx}${Sh_V_Nm}.1"  # actual work
-  if [ -f "$Link" -a ! -L "$Link" ] ; then sudo mv "$Link" "${Link}.5577.1" ; fi
-  sudo ln -fs "${Opt_Pfx}${Link#/usr/}" "$Link"
-done
+      Link="${Man1_Pfx}${Name}.1"  # for sanity checks – ensure, e.g., that `man gcc` ↛ `man gcc-4.0`
+      if [ -e "${Link}.gz" ] ; then gunzip "${Link}.gz" ; fi  # compressed manpages mess this up
+      if [ -L "$Link" -a $(readlink -n "$Link") != "${Sh_V_Nm}.1" ] ; then sudo ln -fs "${Sh_V_Nm}.1" "$Link" ; fi
+      Link="${Man1_Pfx}${Sh_V_Nm}.1"  # actual work
+      if [ -f "$Link" -a ! -L "$Link" ] ; then sudo mv "$Link" "${Link}.5577.1" ; fi
+      sudo ln -fs "${Opt_Pfx}${Link#/usr/}" "$Link"
+    done
 
-for Target in "${Targets[@]}" ; do
-  Link="/usr/${Target#${Opt_Pfx}}"
-  Tail="${Link##*2.1}" ; Nose="${Link%${Tail}}"
-  if [ -f "$Link" -a ! -L "$Link" ] ; then sudo mv "$Link" "${Nose}.5577${Tail}" ; fi
-  sudo ln -fs "$Target" "$Link"
-done
+    for Target in "${Targets[@]}" ; do
+      Link="/usr/${Target#${Opt_Pfx}}"
+      Tail="${Link##*2.1}" ; Nose="${Link%${Tail}}"
+      if [ -f "$Link" -a ! -L "$Link" ] ; then sudo mv "$Link" "${Nose}.5577${Tail}" ; fi
+      sudo ln -fs "$Target" "$Link"
+    done
 
-for Target in "${Dir_Targets[@]}" ; do
-  Link="/usr/${Target#${Opt_Pfx}}"
-  if [ -L "$Link" ] ; then sudo rm -f "$Link"
-  elif [ -d "$Link" ] ; then sudo mv "$Link" "${Link}.5577"
-  fi
-  sudo ln -fs "$Target" "$Link"
-done
-'
+    for Target in "${Dir_Targets[@]}" ; do
+      Link="/usr/${Target#${Opt_Pfx}}"
+      if [ -L "$Link" ] ; then sudo rm -f "$Link"
+      elif [ -d "$Link" ] ; then sudo mv "$Link" "${Link}.5577"
+      fi
+      sudo ln -fs "$Target" "$Link"
+    done
+    _
+  end # switch_to
 
-  @switch_from = '#!/bin/bash
-#### This switches GCC 4.2.1 from the brewed build 5666.3 back to the stock build 5577 ####
-#### For use with Leopardbrew on Mac OS 10.5 / 10.6 (no others shipped with GCC 4.2.1) ####
-shopt -s nullglob  # allows ignoring nonexistent combinations from patterns
+  def switch_from; <<-_.undent
+    #!/bin/bash
+    #### This switches GCC 4.2.1 from the brewed build 5666.3 back to the stock build 5577 ####
+    #### For use with Leopardbrew on Mac OS 10.5 / 10.6 (no others shipped with GCC 4.2.1) ####
+    shopt -s nullglob  # allows ignoring nonexistent combinations from patterns
 
-Short_Names=(c++ cpp g++ gcc gcov)
-Long_Targets=(/usr/{bin,share/man/man1}/{i686,powerpc}-apple-darwin*-g{++,cc}-4.2.1.5577{,.1})
-Delete_Links=(/usr/{bin,share/man/man1}/{i686,powerpc}-apple-darwin*-cpp-4.2.1{,.1})
-Dir_Links=(/usr/lib{,exec}/gcc/{i686,powerpc}-apple-darwin*/4.2.1)
-Disembrew_Scripts=(/usr/local/bin/to-*-gcc42)
+    Short_Names=(c++ cpp g++ gcc gcov)
+    Long_Targets=(/usr/{bin,share/man/man1}/{i686,powerpc}-apple-darwin*-g{++,cc}-4.2.1.5577{,.1})
+    Delete_Links=(/usr/{bin,share/man/man1}/{i686,powerpc}-apple-darwin*-cpp-4.2.1{,.1})
+    Dir_Links=(/usr/lib{,exec}/gcc/{i686,powerpc}-apple-darwin*/4.2.1)
+    Disembrew_Scripts=($(brew --prefix)/bin/to-*-gcc42)
 
-Bin_Pfx=/usr/bin/
-Man1_Pfx=/usr/share/man/man1/
+    Bin_Pfx=/usr/bin/
+    Man1_Pfx=/usr/share/man/man1/
 
-for Name in "${Short_Names[@]}" ; do
-  V_Nm="${Name}-4.2.1.5577"
-  Sh_V_Nm="${Name}-4.2"
+    for Name in "${Short_Names[@]}" ; do
+      V_Nm="${Name}-4.2.1.5577"
+      Sh_V_Nm="${Name}-4.2"
 
-  Link="${Bin_Pfx}${Name}"  # sanity check – ensures, e.g., that `gcc` doesn’t get you `gcc-4.0`
-  if [ -L "$Link" -a "$(readlink -n "$Link")" != "$Sh_V_Nm" ] || [ ! -e "$Link" ]
-  then sudo ln -fs "$Sh_V_Nm" "$Link" ; fi
-  Link="${Bin_Pfx}${Sh_V_Nm}"  # actual work
-  if [ -L "$Link" -o ! -e "$Link" ] ; then sudo ln -fs "$V_Nm" "$Link" ; fi
+      Link="${Bin_Pfx}${Name}"  # sanity check – ensures, e.g., that `gcc` doesn’t get you `gcc-4.0`
+      if [ -L "$Link" -a "$(readlink -n "$Link")" != "$Sh_V_Nm" ] || [ ! -e "$Link" ]
+      then sudo ln -fs "$Sh_V_Nm" "$Link" ; fi
+      Link="${Bin_Pfx}${Sh_V_Nm}"  # actual work
+      if [ -L "$Link" -o ! -e "$Link" ] ; then sudo ln -fs "$V_Nm" "$Link" ; fi
 
-  Link="${Man1_Pfx}${Name}.1"  # sanity check – ensures, e.g., that `man gcc` ↛ `man gcc-4.0`
-  if [ -L "$Link" -a "$(readlink -n "$Link")" != "${Sh_V_Nm}.1" ] || [ ! -e "$Link" ]
-  then sudo ln -fs "${Sh_V_Nm}.1" "$Link" ; fi
-  Link="${Man1_Pfx}${Sh_V_Nm}.1"  # actual work
-  if [ -L "$Link" -o ! -e "$Link" ] ; then sudo ln -fs "${V_Nm}.1" "$Link" ; fi
-done
+      Link="${Man1_Pfx}${Name}.1"  # sanity check – ensures, e.g., that `man gcc` ↛ `man gcc-4.0`
+      if [ -L "$Link" -a "$(readlink -n "$Link")" != "${Sh_V_Nm}.1" ] || [ ! -e "$Link" ]
+      then sudo ln -fs "${Sh_V_Nm}.1" "$Link" ; fi
+      Link="${Man1_Pfx}${Sh_V_Nm}.1"  # actual work
+      if [ -L "$Link" -o ! -e "$Link" ] ; then sudo ln -fs "${V_Nm}.1" "$Link" ; fi
+    done
 
-for Target in "${Long_Targets[@]}" ; do
-  Tail="${Target##*5577}" ; Nose="${Target%${Tail}}" ; Link="${Nose%.5577}${Tail}"
-  if [ -L "$Link" -o ! -e "$Link" ] ; then sudo ln -fs "${Target##*/}" "$Link" ; fi
-done
+    for Target in "${Long_Targets[@]}" ; do
+      Tail="${Target##*5577}" ; Nose="${Target%${Tail}}" ; Link="${Nose%.5577}${Tail}"
+      if [ -L "$Link" -o ! -e "$Link" ] ; then sudo ln -fs "${Target##*/}" "$Link" ; fi
+    done
 
-for Link in "${Delete_Links[@]}" ; do if [ -L "$Link" ] ; then sudo rm -f "$Link" ; fi ; done
+    for Link in "${Delete_Links[@]}" ; do if [ -L "$Link" ] ; then sudo rm -f "$Link" ; fi ; done
 
-for Link in "${Dir_Links[@]}" ; do
-  if [ -L "$Link" ] ; then sudo rm -f "$Link" ; fi
-  # these have to remain separate or else the symlink gets put inside the symlinked directory!
-  if [ ! -e "$Link" ] ; then sudo ln -fs "${Link##*/}.5577" "$Link" ; fi
-done
+    for Link in "${Dir_Links[@]}" ; do
+      if [ -L "$Link" ] ; then sudo rm -f "$Link" ; fi
+      # these have to remain separate or else the symlink gets put inside the symlinked directory!
+      if [ ! -e "$Link" ] ; then sudo ln -fs "${Link##*/}.5577" "$Link" ; fi
+    done
 
-if [ ! -e /Users/Shared/Brewery/Cellar/apple-gcc42 ] ; then
-  for Script in "${Disembrew_Scripts[@]}" ; do rm -f "$Script" ; done
-fi
-'
-end
+    if [ ! -e "$(brew --cellar)/apple-gcc42" ] ; then
+      for Script in "${Disembrew_Scripts[@]}" ; do rm -f "$Script" ; done
+    fi
+    _
+  end # switch_from
+end # AppleGcc42
