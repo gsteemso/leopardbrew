@@ -360,11 +360,11 @@ class Formula
   end
 
   # If this {Formula} is installed.
-  # This is actually just a check for if the {#installed_prefix} directory
-  # exists and is not empty.
+  # Specifically, checks that the latest version is installed.
   # @private
   def installed?
-    (dir = installed_prefix).directory? && dir.children.length > 0
+    require 'tab'
+    (dir = installed_prefix).directory? and (dir/Tab::FILENAME).file?
   end
 
   # If at least one version of {Formula} is installed.
@@ -372,6 +372,22 @@ class Formula
   def any_version_installed?
     require "tab"
     rack.directory? && rack.subdirs.any? { |keg| (keg/Tab::FILENAME).file? }
+  end
+
+  # Returns HEAD (if present), or else the greatest version number among kegs in this rack.
+  def greatest_installed_keg
+    require 'tab'
+    highest_seen = ''
+    if rack.directory?
+      rack.subdirs.each do |keg|
+        if (keg/Tab::FILENAME).file?
+          candidate = keg.basename
+          if candidate == 'HEAD' then highest_seen = 'HEAD'; break; end
+          highest_seen = candidate if candidate.to_s > highest_seen.to_s
+        end
+      end
+    end
+    (highest_seen != '') ? Keg.new(rack/highest_seen) : nil
   end
 
   # @private
