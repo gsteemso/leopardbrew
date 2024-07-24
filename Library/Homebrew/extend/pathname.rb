@@ -12,7 +12,17 @@ class Pathname
   # @private
   BOTTLE_EXTNAME_RX = /(\.[a-z0-9_]+\.bottle\.(\d+\.)?tar\.gz)$/
 
-  alias_method :exists?, :exist? unless method_defined? :exists?
+  # The various File::CONSTANTs do not necessarily exist.  These equivalents can be used freely
+  # without your code continuously needing to test for definedness.
+  # @private
+  %w[ APPEND  DIRECT  FNM_CASEFOLD  FNM_NOESCAPE  LOCK_EX  LOCK_UN  NOFOLLOW  RDONLY  SYNC
+      BINARY  DSYNC   FNM_DOTMATCH  FNM_PATHNAME  LOCK_NB  NOATIME  NONBLOCK  RDWR    TRUNC
+      CREAT   EXCL    FNM_EXTGLOB   FNM_SYSCASE   LOCK_SH  NOCTTY   NULL      RSYNC   WRONLY
+  ].each do |const|
+    const_set("O_#{const}".to_sym, (File::Constants.const_defined?(const) ? eval("File::#{const}") : 0).to_i)
+  end
+
+  alias :exists? :exist? unless method_defined? :exists?
 
   # Moves a file from the original location to the {Pathname}'s.
   def install(*sources)
@@ -97,7 +107,8 @@ class Pathname
 
   # this function does not exist in Leopard stock Ruby 1.8.6
   def binwrite(datum, offset = 0)
-    self.open('r+b') do |f|
+    (d = dirname).mkpath unless d.exists?
+    open(O_BINARY|O_CREAT|O_RDWR) do |f|
       f.pos = offset
       f.write(datum)
     end
@@ -105,7 +116,7 @@ class Pathname
 
   # this function does not exist in Leopard stock Ruby 1.8.6
   def binread(length = self.size, offset = 0)
-    self.open('rb') do |f|
+    open(O_BINARY|O_RDONLY) do |f|
       f.pos = offset
       f.read(length)
     end
