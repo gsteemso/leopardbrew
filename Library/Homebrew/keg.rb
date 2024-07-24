@@ -116,6 +116,10 @@ class Keg
     path.parent
   end
 
+  def root
+    path
+  end
+
   if Pathname.method_defined?(:to_path)
     alias_method :to_path, :to_s
   else
@@ -146,6 +150,7 @@ class Keg
   def exist?
     path.exist?
   end
+  alias :exists? :exist?
 
   def /(other)
     path / other
@@ -155,8 +160,12 @@ class Keg
     path.join(*args)
   end
 
-  def rename(*args)
-    path.rename(*args)
+  def rename(new_name)
+    unlink if was_linked = linked?
+    path.rename new_name            # rename the physical directory
+    @path = Pathname.new new_name   # change our record of the name
+    optlink                         # always regenerate the optlink
+    link if was_linked
   end
 
   def linked?
@@ -215,7 +224,6 @@ class Keg
     end
 
     unless mode.dry_run
-      Formulary.from_rack(path.parent).uninsinuate
       remove_linked_keg_record if linked?
       dirs.reverse_each(&:rmdir_if_possible)
     end
@@ -347,7 +355,6 @@ class Keg
     unless mode.dry_run
       make_relative_symlink(linked_keg_record, path, mode)
       optlink(mode)
-      Formulary.from_rack(path.parent).insinuate
     end
   rescue LinkError
     unlink
