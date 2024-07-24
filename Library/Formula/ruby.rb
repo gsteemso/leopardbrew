@@ -1,48 +1,57 @@
 class Ruby < Formula
-  desc 'Powerful, clean, object-oriented scripting language'
-  homepage 'https://www.ruby-lang.org/'
-  url 'https://cache.ruby-lang.org/pub/ruby/3.3/ruby-3.3.4.tar.xz'
-  sha256 '1caaee9a5a6befef54bab67da68ace8d985e4fb59cd17ce23c28d9ab04f4ddad'
+  desc "Powerful, clean, object-oriented scripting language"
+  homepage "https://www.ruby-lang.org/"
+  url "https://cache.ruby-lang.org/pub/ruby/2.4/ruby-2.4.1.tar.bz2"
+  sha256 "ccfb2d0a61e2a9c374d51e099b0d833b09241ee78fc17e1fe38e3b282160237c"
+  revision 1
 
-  # HEAD requires Ruby 3.0 and is therefore no longer an option
+  bottle do
+  end
+
+  head do
+    url "http://svn.ruby-lang.org/repos/ruby/trunk/"
+    depends_on "autoconf" => :build
+  end
 
   option :universal
-  option 'with-doc',    'Install documentation'
-  option 'with-suffix', 'Suffix commands with “-3.3”'
-  option 'with-tcltk',  'Install with Tcl/Tk support'
+  option "with-suffix", "Suffix commands with '24'"
+  option "with-doc", "Install documentation"
+  option "with-tcltk", "Install with Tcl/Tk support"
 
-  depends_on 'make'       => :build  # `Make` pre‐v.4 is supposedly a bit lacking for parallel builds
-  depends_on 'pkg-config' => :build
+  depends_on "pkg-config" => :build
+  depends_on "readline" => :recommended
+  depends_on "gdbm" => :optional
+  depends_on "gmp" => :optional
+  depends_on "libffi" => :optional
+  depends_on "libyaml"
+  depends_on "openssl"
+  depends_on :x11 if build.with? "tcltk"
 
-  depends_on 'libyaml'
-  depends_on 'openssl3'
+  if true# MacOS.version <= :leopard
+    # fix for https://bugs.ruby-lang.org/issues/11054
+    patch do
+      url "https://github.com/ruby/ruby/commit/1c80c388d5bd48018c419a2ea3ed9f7b7514dfa3.patch?full_index=1"
+      sha256 "8ba0a24a36702d2cbc94aa73cb6f0b11793348b0158c11c8608e073c71601bb5"
+    end
 
-  depends_on 'gmp'      => :recommended  # to accelerate BigNum operations
-  depends_on 'libffi'   => :recommended  # to build fiddle
-  depends_on 'readline' => :recommended  # mentioned as a library dependency, but not listed as one
+    # fix for https://bugs.ruby-lang.org/issues/13247
+    patch do
+      url "https://github.com/ruby/ruby/commit/9e1a9858c84142e32b1bc51b23fa06a025f98b46.patch?full_index=1"
+      sha256 "300f13461385804ddfb314d9b0880bb47ad4f53f48209681d193a800418c31e6"
+    end
 
-  depends_on :x11 if build.with? 'tcltk'
+    # fix for ext/fiddle/libffi-3.2.1/src/x86/win32.S
+    # based on https://github.com/macports/macports-ports/blob/8964c98f0e33e4aaabc851d8b684f4c709edceef/devel/libffi/files/PR-44170.patch
+    patch :DATA
+  end
 
-  # - MAP_ANON was later aliased as MAP_ANONYMOUS for compatibility reasons (3 patches)
-  # - HAVE_DECL_ATOMIC_SIGNAL_FENCE is not defined, but the ifdef’d code it fences off is compiled
-  #   anyway, WTF? (1 patch)
-  patch :DATA if MacOS.version < :snow_leopard
+  # fails_with :llvm do
+  #   build 2326
+  # end
 
   def install
-    if build.universal?
-      ENV.permit_arch_flags if superenv?
-      ENV.un_m64 if Hardware::CPU.family == :g5_64
-      archs = Hardware::CPU.universal_archs
-      stashdir = buildpath/'arch-stashes'
-      the_binaries = %w[
-      ]
-      the_headers = %w[
-      ]
-    else
-      archs = [MacOS.preferred_arch]
-    end # universal?
-
-    # mcontext types had a member named `ss` instead of `__ss` prior to Leopard; see
+    # mcontext types had a member named `ss` instead of `__ss`
+    # prior to Leopard; see
     # https://github.com/mistydemeo/tigerbrew/issues/473
     if Hardware::CPU.intel? && MacOS.version < :leopard
       inreplace "signal.c" do |s|
@@ -52,6 +61,7 @@ class Ruby < Formula
         s.gsub! "__esp", "esp"
         s.gsub! "__ebp", "ebp"
       end
+
       inreplace "vm_dump.c" do |s|
         s.gsub! /uc_mcontext->__(ss)\.__(r\w\w)/,
                 "uc_mcontext->\1.\2"
@@ -63,93 +73,57 @@ class Ruby < Formula
       end
     end
 
-    args = [
-      "--prefix=#{prefix}",
-      '--disable-silent-rules',
-      '--enable-debug-env',  # this enables an environment variable, not a debug build
-      '--enable-load-relative',
-      '--enable-mkmf-verbose',
-      '--enable-shared',
-      '--with-mantype=man',
-      "--with-sitedir=#{HOMEBREW_PREFIX}/lib/ruby/site_ruby",
-      "--with-vendordir=#{HOMEBREW_PREFIX}/lib/ruby/vendor_ruby"
+    system "autoconf" if build.head?
+
+    args = %W[
+      --prefix=#{prefix} --enable-shared --disable-silent-rules
+      --with-sitedir=#{HOMEBREW_PREFIX}/lib/ruby/site_ruby
+      --with-vendordir=#{HOMEBREW_PREFIX}/lib/ruby/vendor_ruby
     ]
 
-    args << '--program-suffix=-3.3' if build.with? 'suffix'
-    args << '--with-out-ext=tk' if build.without? 'tcltk'
-    args << '--disable-install-doc' if build.without? 'doc'
-    args << '--disable-dtrace' unless MacOS::CLT.installed?
-    args << '--without-gmp' if build.without? 'gmp'
+    if build.universal?
+      ENV.universal_binary
+      args << "--with-arch=#{Hardware::CPU.universal_archs.join(",")}"
+    end
 
-    # see https://bugs.ruby-lang.org/issues/10272
-    args << '--with-setjmp-type=setjmp' if MacOS.version == :lion
+    args << "--program-suffix=24" if build.with? "suffix"
+    args << "--with-out-ext=tk" if build.without? "tcltk"
+    args << "--disable-install-doc" if build.without? "doc"
+    args << "--disable-dtrace" unless MacOS::CLT.installed?
+    args << "--without-gmp" if build.without? "gmp"
+
+    # Reported upstream: https://bugs.ruby-lang.org/issues/10272
+    args << "--with-setjmp-type=setjmp" if MacOS.version == :lion
 
     paths = [
-      Formula['libyaml'].opt_prefix,
-      Formula['openssl3'].opt_prefix
+      Formula["libyaml"].opt_prefix,
+      Formula["openssl"].opt_prefix
     ]
 
-    %w[gmp libffi readline].each do |dep|
+    %w[readline gdbm gmp libffi].each do |dep|
       paths << Formula[dep].opt_prefix if build.with? dep
     end
 
     args << "--with-opt-dir=#{paths.join(":")}"
 
-    archs.each do |arch|
-      if build.universal?
-        case arch
-          when :i386, :ppc then ENV.m32
-          when :ppc64, :x86_64 then ENV.m64
-        end
-      end # universal?
+    system "./configure", *args
 
-      args << "--with-arch=#{arch}"  # in theory this supports building fat binaries directly; in
-                                     # practice, it fails when it gets to the coroutines
-      # specifically, for some reason `configure` thinks the endianness is “universal”!
-      case arch
-        when :ppc then args.concat %w[ac_cv_c_bigendian=yes --with-coroutine=ppc]
-        when :ppc64 then args.concat %w[ac_cv_c_bigendian=yes --with-coroutine=ppc64]
-        when :i386 then args.concat %w[ac_cv_c_bigendian=no --with-coroutine=x86]
-        when :x86_64 then args.concat %w[ac_cv_c_bigendian=no --with-coroutine=amd64]
-      end
+    # Ruby has been configured to look in the HOMEBREW_PREFIX for the
+    # sitedir and vendordir directories; however we don't actually want to create
+    # them during the install.
+    #
+    # These directories are empty on install; sitedir is used for non-rubygems
+    # third party libraries, and vendordir is used for packager-provided libraries.
+    inreplace "tool/rbinstall.rb" do |s|
+      s.gsub! 'prepare "extension scripts", sitelibdir', ""
+      s.gsub! 'prepare "extension scripts", vendorlibdir', ""
+      s.gsub! 'prepare "extension objects", sitearchlibdir', ""
+      s.gsub! 'prepare "extension objects", vendorarchlibdir', ""
+    end
 
-      args << 'ac_cv_func_fcopyfile=no' if MacOS.version < :snow_leopard
-
-      system "./configure", *args
-
-      # Ruby has been configured to look in the HOMEBREW_PREFIX for the
-      # sitedir and vendordir directories; however we don't actually want to create
-      # them during the install.
-      #
-      # These directories are empty on install; sitedir is used for non-rubygems
-      # third party libraries, and vendordir is used for packager-provided libraries.
-      inreplace "tool/rbinstall.rb" do |s|
-        s.gsub! 'prepare "extension scripts", sitelibdir', ""
-        s.gsub! 'prepare "extension scripts", vendorlibdir', ""
-        s.gsub! 'prepare "extension objects", sitearchlibdir', ""
-        s.gsub! 'prepare "extension objects", vendorarchlibdir', ""
-      end
-
-      make
-      make 'install'
-      if build.universal?
-        make 'clean'
-        Merge.scour_keg(prefix, stashdir/"bin-#{arch}")
-        Merge.prep(prefix, stashdir/"bin-#{arch}", the_binaries)
-        Merge.prep(include, stashdir/"h-#{arch}", the_headers)
-        # undo architecture-specific tweaks before next run
-        case arch
-          when :i386, :ppc then ENV.un_m32
-          when :ppc64, :x86_64 then ENV.un_m64
-        end # case arch
-      end # universal?
-    end # archs.each
-
-    if build.universal?
-      Merge.mach_o(prefix, stashdir, archs)
-      Merge.c_headers(include, stashdir, archs)
-    end # universal?
-  end # install
+    system "make"
+    system "make", "install"
+  end
 
   def post_install
     # Customize rubygems to look/install in the global gem directory
@@ -161,10 +135,10 @@ class Ruby < Formula
     # Create the sitedir and vendordir that were skipped during install
     mkdir_p `#{bin}/ruby -e 'require "rbconfig"; print RbConfig::CONFIG["sitearchdir"]'`
     mkdir_p `#{bin}/ruby -e 'require "rbconfig"; print RbConfig::CONFIG["vendorarchdir"]'`
-  end # post_install
+  end
 
   def abi_version
-    "3.3.0"
+    "2.2.0"
   end
 
   def rubygems_config; <<-EOS.undent
@@ -226,247 +200,97 @@ class Ruby < Formula
       end
 
       def self.ruby
-        "#{opt_bin}/ruby#{"33" if build.with? "suffix"}"
+        "#{opt_bin}/ruby#{"24" if build.with? "suffix"}"
       end
     end
     EOS
-  end # rubygems_config
+  end
 
   test do
     output = `#{bin}/ruby -e "puts 'hello'"`
     assert_equal "hello\n", output
     assert_equal 0, $?.exitstatus
-  end # test
-end # Ruby
-
-class Merge
-  module Pathname_extension
-    def is_bare_mach_o?
-      # header word 0, magic signature:
-      #   MH_MAGIC    = 'feedface' – value with lowest‐order bit clear
-      #   MH_MAGIC_64 = 'feedfacf' – same value with lowest‐order bit set
-      # low‐order 24 bits of header word 1, CPU type:  7 is x86, 12 is ARM, 18 is PPC
-      # header word 3, file type:  no types higher than 10 are defined
-      # header word 5, net size of load commands, is far smaller than the filesize
-      if (self.file? and self.size >= 28 and mach_header = self.binread(24).unpack('N6'))
-        raise('Fat binary found where bare Mach-O file expected') if mach_header[0] == 0xcafebabe
-        ((mach_header[0] & 0xfffffffe) == 0xfeedface and
-          [7, 12, 18].detect { |item| (mach_header[1] & 0x00ffffff) == item } and
-          mach_header[3] < 11 and
-          mach_header[5] < self.size)
-      else
-        false
-      end
-    end unless method_defined?(:is_bare_mach_o?)
-  end # Pathname_extension
-
-  class << self
-    include FileUtils
-
-    # The destination is expected to be a Pathname object.
-    # The source is just a string.
-    def cp_mkp(source, destination)
-      if destination.exists?
-        if destination.is_directory?
-          cp source, destination
-        else
-          raise "File exists at destination:  #{destination}"
-        end
-      else
-        mkdir_p destination.parent unless destination.parent.exists?
-        cp source, destination
-      end # destination exists?
-    end # cp_mkp
-
-    # The keg_prefix and stash_root are expected to be Pathname objects.
-    # The list members are just strings.
-    def prep(keg_prefix, stash_root, list)
-      list.each do |item|
-        source = keg_prefix/item
-        dest = stash_root/item
-        cp_mkp source, dest
-      end # each binary
-    end # prep
-
-    # The stash_root is expected to be a Pathname object.
-    # The keg_prefix and the sub_path are just strings.
-    def scour_keg(keg_prefix, stash_root, sub_path = '')
-      # don’t suffer a double slash when sub_path is null:
-      s_p = (sub_path == '' ? '' : sub_path + '/')
-      stash_p = stash_root/s_p
-      mkdir_p stash_p unless stash_p.directory?
-      Dir["#{keg_prefix}/#{s_p}*"].each do |f|
-        pn = Pathname(f).extend(Pathname_extension)
-        spb = s_p + pn.basename
-        if pn.directory?
-          scour_keg(keg_prefix, stash_root, spb)
-        # the number of things that look like Mach-O files but aren’t is horrifying, so test
-        elsif ((not pn.symlink?) and pn.is_bare_mach_o?)
-          cp pn, stash_root/spb
-        end # what is pn?
-      end # each pathname
-    end # scour_keg
-
-    def c_headers(include_dir, stash_root, archs, sub_path = '')
-      # Architecture-specific <header>.<extension> files need to be surgically combined and were
-      # stashed for this purpose.  The differences are relatively minor and can be “#if defined ()”
-      # together.  We make the simplifying assumption that the architecture-dependent headers in
-      # question are present on all architectures.
-      #
-      # Don’t suffer a double slash when sub_path is null:
-      s_p = (sub_path == '' ? '' : sub_path + '/')
-      Dir["#{stash_root}/h-#{archs[0]}/#{s_p}*"].each do |basis_file|
-        spb = s_p + File.basename(basis_file)
-        if File.directory?(basis_file)
-          c_headers(include_dir, stash_root, archs, spb)
-        else
-          diffpoints = {}  # Keyed by line number in the basis file.  Each value is an array of
-                           # three‐element hashes; containing the arch, the hunk’s displacement
-                           # (number of basis‐file lines it replaces), and an array of its lines.
-          archs[1..-1].each do |a|
-            raw_diffs = `diff --minimal --unified=0 #{basis_file} #{stash_root}/h-#{a}/#{spb}`
-            next unless raw_diffs
-            # The unified diff output begins with two lines identifying the source files, which are
-            # followed by a series of hunk records, each describing one difference that was found.
-            # Each hunk record begins with a line that looks like:
-            # @@ -line_number,length_in_lines +line_number,length_in_lines @@
-            diff_hunks = raw_diffs.lines[2..-1].join('').split(/(?=^@@)/)
-            diff_hunks.each do |d|
-              # lexical sorting of numbers requires that they all be the same length
-              base_linenumber_string = ('00000' + d.match(/\A@@ -(\d+)/)[1])[-6..-1]
-              unless diffpoints.has_key?(base_linenumber_string)
-                diffpoints[base_linenumber_string] = []
-              end
-              length_match = d.match(/\A@@ -\d+,(\d+)/)
-              # if the hunk length is 1, the comma and second number are not present
-              length_match = (length_match == nil ? 1 : length_match[1].to_i)
-              line_group = []
-              # we want the lines that are either unchanged between files or only found in the non‐
-              # basis file; and to shave off the leading ‘+’ or ‘ ’
-              d.lines { |line| line_group << line[1..-1] if line =~ /^[+ ]/ }
-              diffpoints[base_linenumber_string] << {
-                :arch => a,
-                :displacement => length_match,
-                :hunk_lines => line_group
-              }
-            end # each diff hunk |d|
-          end # each arch |a|
-          # Ideally, the logic would account for overlapping and/or different-displacement hunks at
-          # this point; but since most packages do not seem to generate such in the first place, it
-          # can wait.  That said, packages exist (e.g. both Python 2 and Python 3) which can and do
-          # generate quad fat binaries, so it can’t be ignored forever.
-          basis_lines = []
-          File.open(basis_file, 'r') { |text| basis_lines = text.read.lines[0..-1] }
-          # Bear in mind that the line-array indices are one less than the line numbers.
-          #
-          # Start with the last diff point so the insertions don’t screw up our line numbering:
-          diffpoints.keys.sort.reverse.each do |index_string|
-            diff_start = index_string.to_i - 1
-            diff_end = index_string.to_i + diffpoints[index_string][0][:displacement] - 2
-            adjusted_lines = [
-              "\#if defined (__#{archs[0]}__)\n",
-              basis_lines[diff_start..diff_end],
-              *(diffpoints[index_string].map { |dp|
-                  [ "\#elif defined (__#{dp[:arch]}__)\n", *(dp[:hunk_lines]) ]
-                }),
-              "\#endif\n"
-            ]
-            basis_lines[diff_start..diff_end] = adjusted_lines
-          end # each key |index_string|
-          File.new("#{include_dir}/#{spb}", 'w').syswrite(basis_lines.join(''))
-        end # if not a directory
-      end # each |basis_file|
-    end # c_headers
-
-    # The keg_prefix is expected to be a Pathname object.  The rest are just strings.
-    def mach_o(keg_prefix, stash_root, archs, sub_path = '')
-      # don’t suffer a double slash when sub_path is null:
-      s_p = (sub_path == '' ? '' : sub_path + '/')
-      # generate a full list of files, even if some are not present on all architectures; bear in
-      # mind that the current _directory_ may not even exist on all archs
-      basename_list = []
-      arch_dirs = archs.map {|a| "bin-#{a}"}
-      arch_dir_list = arch_dirs.join(',')
-      Dir["#{stash_root}/{#{arch_dir_list}}/#{s_p}*"].map { |f|
-        File.basename(f)
-      }.each { |b|
-        basename_list << b unless basename_list.count(b) > 0
-      }
-      basename_list.each do |b|
-        spb = s_p + b
-        the_arch_dir = arch_dirs.detect { |ad| File.exist?("#{stash_root}/#{ad}/#{spb}") }
-        pn = Pathname("#{stash_root}/#{the_arch_dir}/#{spb}")
-        if pn.directory?
-          mach_o(keg_prefix, stash_root, archs, spb)
-        else
-          arch_files = Dir["#{stash_root}/{#{arch_dir_list}}/#{spb}"]
-          if arch_files.length > 1
-            system 'lipo', '-create', *arch_files, '-output', keg_prefix/spb
-          else
-            # presumably there's a reason this only exists for one architecture, so no error;
-            # the same rationale would apply if it only existed in, say, two out of three
-            cp arch_files.first, keg_prefix/spb
-          end # if > 1 file?
-        end # if directory?
-      end # each basename |b|
-    end # mach_o
-  end # << self
-end # Merge
-
+  end
+end
 __END__
---- old/io_buffer.c  2024-06-30 18:15:25.000000000 -0700
-+++ new/io_buffer.c  2024-06-30 18:16:54.000000000 -0700
-@@ -28,10 +28,12 @@
- size_t RUBY_IO_BUFFER_PAGE_SIZE;
- size_t RUBY_IO_BUFFER_DEFAULT_SIZE;
+--- a/ext/fiddle/libffi-3.2.1/src/x86/win32.S	2017-04-04 11:14:27.000000000 +0200
++++ b/ext/fiddle/libffi-3.2.1/src/x86/win32.S	2017-04-04 11:16:20.000000000 +0200
+@@ -528,7 +528,7 @@
+         .text
+  
+         # This assumes we are using gas.
+-        .balign 16
++        .p2align 4
+ FFI_HIDDEN(ffi_call_win32)
+         .globl	USCORE_SYMBOL(ffi_call_win32)
+ #if defined(X86_WIN32) && !defined(__OS2__)
+@@ -711,7 +711,7 @@
+         popl %ebp
+         ret
+ .ffi_call_win32_end:
+-        .balign 16
++        .p2align 4
+ FFI_HIDDEN(ffi_closure_THISCALL)
+         .globl	USCORE_SYMBOL(ffi_closure_THISCALL)
+ #if defined(X86_WIN32) && !defined(__OS2__)
+@@ -724,7 +724,7 @@
+         push	%ecx
+         jmp	.ffi_closure_STDCALL_internal
  
--#ifdef _WIN32
--#else
-+#ifndef _WIN32
- #include <unistd.h>
- #include <sys/mman.h>
-+#ifndef MAP_ANONYMOUS
-+#define MAP_ANONYMOUS MAP_ANON
+-        .balign 16
++        .p2align 4
+ FFI_HIDDEN(ffi_closure_FASTCALL)
+         .globl	USCORE_SYMBOL(ffi_closure_FASTCALL)
+ #if defined(X86_WIN32) && !defined(__OS2__)
+@@ -753,7 +753,7 @@
+ 
+ .LFE1:
+         # This assumes we are using gas.
+-        .balign 16
++        .p2align 4
+ FFI_HIDDEN(ffi_closure_SYSV)
+ #if defined(X86_WIN32)
+         .globl	USCORE_SYMBOL(ffi_closure_SYSV)
+@@ -897,7 +897,7 @@
+ #define RAW_CLOSURE_USER_DATA_OFFSET (RAW_CLOSURE_FUN_OFFSET + 4)
+ 
+ #ifdef X86_WIN32
+-        .balign 16
++        .p2align 4
+ FFI_HIDDEN(ffi_closure_raw_THISCALL)
+         .globl	USCORE_SYMBOL(ffi_closure_raw_THISCALL)
+ #if defined(X86_WIN32) && !defined(__OS2__)
+@@ -916,7 +916,7 @@
+ #endif /* X86_WIN32 */
+ 
+         # This assumes we are using gas.
+-        .balign 16
++        .p2align 4
+ #if defined(X86_WIN32)
+         .globl	USCORE_SYMBOL(ffi_closure_raw_SYSV)
+ #if defined(X86_WIN32) && !defined(__OS2__)
+@@ -1039,7 +1039,7 @@
+ #endif /* !FFI_NO_RAW_API */
+ 
+         # This assumes we are using gas.
+-        .balign	16
++        .p2align 4
+ FFI_HIDDEN(ffi_closure_STDCALL)
+         .globl	USCORE_SYMBOL(ffi_closure_STDCALL)
+ #if defined(X86_WIN32) && !defined(__OS2__)
+@@ -1184,7 +1184,6 @@
+ 
+ #if defined(X86_WIN32) && !defined(__OS2__)
+         .section	.eh_frame,"w"
+-#endif
+ .Lframe1:
+ .LSCIE1:
+         .long	.LECIE1-.LASCIE1  /* Length of Common Information Entry */
+@@ -1343,6 +1342,7 @@
+         /* End of DW_CFA_xxx CFI instructions.  */
+         .align 4
+ .LEFDE5:
 +#endif
- #endif
  
- enum {
---- old/shape.c  2024-06-30 19:16:02.000000000 -0700
-+++ new/shape.c  2024-06-30 19:20:28.000000000 -0700
-@@ -14,6 +14,9 @@
- 
- #ifndef _WIN32
- #include <sys/mman.h>
-+#ifndef MAP_ANONYMOUS
-+#define MAP_ANONYMOUS MAP_ANON
-+#endif
- #endif
- 
- #ifndef SHAPE_DEBUG
---- old/thread_pthread_mn.c  2024-06-30 19:16:38.000000000 -0700
-+++ new/thread_pthread_mn.c  2024-06-30 19:21:48.000000000 -0700
-@@ -166,6 +166,9 @@
- static rb_nativethread_lock_t nt_machine_stack_lock = RB_NATIVETHREAD_LOCK_INIT;
- 
- #include <sys/mman.h>
-+#ifndef MAP_ANONYMOUS
-+#define MAP_ANONYMOUS MAP_ANON
-+#endif
- 
- // vm_stack_size + machine_stack_size + 1 * (guard page size)
- static inline size_t
---- old/vm_insnhelper.c  2024-07-14 21:39:48.000000000 -0700
-+++ new/vm_insnhelper.c  2024-07-14 21:52:36.000000000 -0700
-@@ -396,9 +396,9 @@
-     This is a no-op in all cases we've looked at (https://godbolt.org/z/3oxd1446K), but should guarantee it for all
-     future/untested compilers/platforms. */
- 
--    #ifdef HAVE_DECL_ATOMIC_SIGNAL_FENCE
--    atomic_signal_fence(memory_order_seq_cst);
--    #endif
-+//    #ifdef HAVE_DECL_ATOMIC_SIGNAL_FENCE
-+//    atomic_signal_fence(memory_order_seq_cst);
-+//    #endif
- 
-     ec->cfp = cfp;
+ #endif /* !_MSC_VER */
  
