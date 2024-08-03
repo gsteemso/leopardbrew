@@ -40,7 +40,6 @@ CPU_TYPES = {
   '00000011' => 'RS6000',
   '00000012' => 'PPC',
   '01000012' => 'PPC64',
-  '000000ff' => 'RISC-V'
 }.freeze
 
 PPC_SUBTYPES = {
