@@ -360,11 +360,11 @@ class Formula
   end
 
   # If this {Formula} is installed.
-  # Specifically, checks that the latest version is installed.
+  # Specifically, checks that the instance’s version is installed.
   # @private
   def installed?
     require 'tab'
-    (dir = installed_prefix).directory? and (dir/Tab::FILENAME).file?
+    (dir = prefix).directory? and (dir/Tab::FILENAME).file?
   end
 
   # If at least one version of {Formula} is installed.
