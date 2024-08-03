@@ -24,7 +24,7 @@ module Homebrew
     notice += " with #{options * ", "}" unless options.empty?
     oh1 notice
 
-    keg = (f.opt_prefix.directory? ? Keg.new(f.opt_prefix.resolved_path) : f.greatest_installed_keg)
+    keg = Keg.new(tab.tabfile.parent)
     raise NoSuchKegError unless keg
     proper_name = keg.to_s
     keg.unlink if (was_linked = keg.linked?)
@@ -50,49 +50,59 @@ module Homebrew
     end
     raise
   else
-    keg.root.rmtree if keg.exists?
+    # delete the old version if both are present and they are not the same
+    keg.root.rmtree if f.prefix.exists? and keg.exists? and keg.root != f.prefix
   end # reinstall_formula
 
-  def puree_options(opts, formula)
+  def puree_options(use_opts, formula)
+    def whinge_re_unrecognized(flag)
+      puts "Ignoring unrecognized option:  #{flag}"
+      if flag[-1] == '='
+        alt = flag.chop
+        puts "did you mean #{alt}?" if formula.option_defined?(alt)
+      end
+    end # whinge_re_unrecognized
+
     anti_opts = Options.new
     ARGV.flags_only.each do |flag|
-      case flag
-      when /^--with-(.+)$/
-        if formula.option_defined?(flag)
-          opts |= flag
-        elsif opts.include?(anti_flag = "--without-#{$1}") or 
-          anti_opts |= anti_flag
-        else
-          whinge_re_unrecognized(flag)
-        end # --with-xxxx?
-      when /^--without-(.+)$/
-        if formula.option_defined?(flag)
-          opts |= flag
-        elsif opts.include?(anti_flag = "--with-#{$1}")
-          anti_opts |= anti_flag
-        else
-          whinge_re_unrecognized(flag)
-        end # --without-xxxx?
-      when '--single-arch'
-        anti_opts |= '--universal'
-      when '--stable'
-        anti_opts |= ['--HEAD', '--devel']
-      when '--devel'
-        anti_opts |= '--HEAD'
-      when '--HEAD'
-        anti_opts |= '--devel'
+      flag =~ /^--([^=]+=?)(.+)?$/
+      o = Option.new($1)
+      unrecognized = false
+      if formula.option_defined?(o)
+        use_opts |= [o]
       else
-        if formula.option_defined?(flag)
-          opts |= flag
+        case o.flag
+        when /^--with-(.+)$/
+          if formula.option_defined?(inverse = "without-#{$1}")
+            anti_opts |= [Option.new(inverse)]
+          else
+            unrecognized = true
+          end # --with-xxxx?
+        when /^--without-(.+)$/
+          if formula.option_defined?(inverse = "with-#{$1}")
+            anti_opts |= [Option.new(inverse)]
+          else
+            unrecognized = true
+          end # --without-xxxx?
+        when '--single-arch'
+          anti_opts |= [Option.new('universal')]
+        when '--stable'
+          anti_opts |= [Option.new('HEAD'), Option.new('devel')]
+        when '--devel'
+          anti_opts |= [Option.new('HEAD')]
+        when '--HEAD'
+          anti_opts |= [Option.new('devel')]
         else
-          whinge_re_unrecognized(flag)
-        end # other option?
-      end # case
-    end # each effective flag
-    opts - anti_opts
+          flag =~ /^--un-([^=]+=?)(.+)?$/
+          if use_opts.include?($1)
+            anti_opts |= [Option.new($1)]
+          else
+            unrecognized = true
+          end # un-option?
+        end # case
+        whinge_re_unrecognized(o.flag) if unrecognized
+      end # option is defined?
+    end # each ARGV flag
+    use_opts - anti_opts
   end # puree_options
-
-  def whinge_re_unrecognized(flag)
-    puts "Ignoring unrecognized option:  #{flag}"
-  end
 end # Homebrew
