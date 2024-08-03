@@ -28,7 +28,6 @@ module Homebrew
         end
         puts_columns full_names
       else
-        ENV["CLICOLOR"] = nil
         # need to exclude --flags, because they choke `ls`
         exec "ls", *(ARGV.options_only - ARGV.flags_only), HOMEBREW_CELLAR
       end
@@ -68,10 +67,10 @@ module Homebrew
     dirs.delete "etc"
     dirs.delete "var"
 
-    args = dirs + %w[-type f (]
+    args = dirs + ['-type' 'f' '(']
     args.concat UNBREWED_EXCLUDE_FILES.flat_map { |f| %W[! -name #{f}] }
     args.concat UNBREWED_EXCLUDE_PATHS.flat_map { |d| %W[! -path #{d}] }
-    args.concat %w[)]
+    args << ')'
 
     cd HOMEBREW_PREFIX
     exec "find", *args
