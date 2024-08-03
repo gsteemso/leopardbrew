@@ -87,7 +87,7 @@ module Superenv
     # On 10.8 and newer, these flags will also be present:
     # s - apply fix for sed's Unicode support
     # a - apply fix for apr-1-config path
-  end
+  end # setup_build_environment
 
   private
 
@@ -138,7 +138,7 @@ module Superenv
     end
 
     paths.to_path_s
-  end
+  end # determine_path
 
   def determine_pkg_config_path
     paths  = deps.map { |d| "#{d.opt_lib}/pkgconfig" }
@@ -157,16 +157,16 @@ module Superenv
     paths << "#{HOMEBREW_PREFIX}/share/aclocal"
     paths << "#{MacOS::X11.share}/aclocal" if x11?
     paths.to_path_s
-  end
+  end # determine_aclocal_path
 
   def determine_m4
     m4 = Formula['m4']
     if m4.installed?
       m4.opt_bin/'m4'
     else
-      MacOS.locate("m4") if deps.any? { |d| d.name == "autoconf" }
+      MacOS.locate("m4")
     end
-  end
+  end # determine_m4
 
   def determine_isystem_paths
     paths = []
@@ -176,7 +176,7 @@ module Superenv
     paths << MacOS::X11.include.to_s << "#{MacOS::X11.include}/freetype2" if x11?
     paths << "#{effective_sysroot}/System/Library/Frameworks/OpenGL.framework/Versions/Current/Headers"
     paths.to_path_s
-  end
+  end # determine_isystem_paths
 
   def determine_include_paths
     keg_only_deps.map { |d| d.opt_include.to_s }.to_path_s
@@ -188,7 +188,7 @@ module Superenv
     paths << MacOS::X11.lib.to_s if x11?
     paths << "#{effective_sysroot}/System/Library/Frameworks/OpenGL.framework/Versions/Current/Libraries"
     paths.to_path_s
-  end
+  end # determine_library_paths
 
   def determine_cmake_prefix_path
     paths = keg_only_deps.map { |d| d.opt_prefix.to_s }
@@ -210,7 +210,7 @@ module Superenv
     paths << MacOS::X11.lib.to_s if x11?
     paths << "#{effective_sysroot}/System/Library/Frameworks/OpenGL.framework/Versions/Current/Libraries"
     paths.to_path_s
-  end
+  end # determine_cmake_library_path
 
   def determine_cmake_frameworks_path
     paths = deps.map { |d| d.opt_frameworks.to_s }
@@ -224,7 +224,7 @@ module Superenv
     else
       j
     end
-  end
+  end # determine_make_jobs
 
   def determine_optflags
     if ARGV.build_bottle?
@@ -250,7 +250,7 @@ module Superenv
       end
       Hardware::CPU.optimization_flags.fetch(hw_family)
     end
-  end
+  end # determine_optflags
 
   def determine_cccfg
     s = ""
@@ -259,7 +259,7 @@ module Superenv
     # Fix issue with >= 10.8 apr-1-config having broken paths
     s << "a" if MacOS.version >= :mountain_lion
     s
-  end
+  end # determine_cccfg
 
   public
 
@@ -287,7 +287,7 @@ module Superenv
         "-Xarch_#{Hardware::CPU.arch_32_bit} \\0"
       )
     end
-  end
+  end # universal_binary
 
   def permit_arch_flags
     cccfg_add 'K'
@@ -325,9 +325,9 @@ module Superenv
     when GNU_CXX11_REGEXP
       cccfg_add 'x'
     else
-      raise "The selected compiler doesn't support C++11: #{homebrew_cc}"
+      raise "The selected compiler doesn't support C++11:  #{homebrew_cc}"
     end
-  end
+  end # cxx11
 
   def libcxx
     cccfg_add 'g' if compiler == :clang
@@ -361,7 +361,7 @@ module Superenv
   noops.concat %w[gcc_4_0_1 minimal_optimization no_optimization enable_warnings]
 
   noops.each { |m| alias_method m, :noop }
-end
+end # module Superenv
 
 class Array
   def to_path_s
