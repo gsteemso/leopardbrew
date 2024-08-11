@@ -35,7 +35,7 @@ HOMEBREW_LIBRARY        = Pathname.new(ENV['HOMEBREW_LIBRARY'])
   HOMEBREW_LOAD_PATH    =   HOMEBREW_LIBRARY_PATH
                             # The path to our libraries /when invoking Ruby/.  Is sometimes set to
                             # a custom value during unit testing of Homebrew itself.
-# PINDIR                =   HOMEBREW_LIBRARY/'PinnedKegs'           # found in `formula_pin.rb`
+  PINDIR                =   HOMEBREW_LIBRARY/'PinnedKegs'           # see `formula_pin.rb`
 HOMEBREW_PREFIX         = Pathname.new(ENV['HOMEBREW_PREFIX'])      # Where we link under
 HOMEBREW_REPOSITORY     = Pathname.new(ENV['HOMEBREW_REPOSITORY'])  # Where .git is found
 HOMEBREW_RUBY_PATH      = Pathname.new(ENV['HOMEBREW_RUBY_PATH'])   # To our internal Ruby binary
@@ -75,6 +75,8 @@ OS_VERSION                  = ENV['HOMEBREW_OS_VERSION']
                   )
     end
 RUBY_BIN = RUBY_PATH.dirname  # the directory the system Ruby interpreter lives in
+    gtar = HOMEBREW_PREFIX/'opt/gnu-tar/bin/gtar'
+TAR_BIN = (gtar.executable? ? gtar : '/usr/bin/tar')
 
 # Optional user‐defined values:
 BREW_NICE_LEVEL     = ENV['HOMEBREW_NICE_LEVEL']                # Do we `nice` our build process?

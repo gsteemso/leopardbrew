@@ -1,8 +1,6 @@
 require "keg"
 
 class FormulaPin
-  PINDIR = Pathname.new("#{HOMEBREW_LIBRARY}/PinnedKegs")
-
   def initialize(f)
     @f = f
   end
