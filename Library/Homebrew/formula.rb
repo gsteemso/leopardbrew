@@ -379,9 +379,9 @@ class Formula
     require 'tab'
     highest_seen = ''
     if rack.directory?
-      rack.subdirs.each do |keg|
-        if (keg/Tab::FILENAME).file?
-          candidate = keg.basename
+      rack.subdirs.each do |kegpath|
+        if (kegpath/Tab::FILENAME).file?
+          candidate = kegpath.basename
           if candidate == 'HEAD' then highest_seen = 'HEAD'; break; end
           highest_seen = candidate if candidate.to_s > highest_seen.to_s
         end
@@ -397,7 +397,7 @@ class Formula
     Pathname.new("#{HOMEBREW_LIBRARY}/LinkedKegs/#{name}")
   end
 
-  # The latest prefix for this formula. Checks for {#head}, then {#devel}
+  # The latest prefix for this formula. Checks for {#head}, then {#devel},
   # and then {#stable}'s {#prefix}
   # @private
   def installed_prefix
@@ -412,8 +412,7 @@ class Formula
     end
   end
 
-  # The currently installed version for this formula. Will raise an exception
-  # if the formula is not installed.
+  # The current version for this formula. Will raise an exception if the formula is not installed.
   # @private
   def installed_version
     Keg.new(installed_prefix).version
