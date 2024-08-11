@@ -17,7 +17,7 @@ class Dxa < Formula
   test do
     (testpath/'foo.o65').write [0, 0, 0x20, 0xd2, 0xff].pack 'C*'
     false
-    code = system_output "#{bin}/dxa", '--routine', '0000', 'foo.o65'
+    code = `#{bin}/dxa --routine 0000 foo.o65`
     expected = <<-_.undent
       l3 = $3
       \t.word $0000
