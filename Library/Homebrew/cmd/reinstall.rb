@@ -9,7 +9,7 @@ module Homebrew
         reinstall_formula(f)
       else
         opoo <<-_.undent
-          The formula #{f.name} could not be reinstalled because it was not installed
+          The formula #{f.name} could not be reinstalled because this version was not installed
           in the first place.  Use “brew install #{f.name}” instead.
         _
       end
@@ -41,6 +41,8 @@ module Homebrew
     fi.install
     fi.finish
     fi.insinuate
+    # delete the old version if both are present and they are not the same
+    keg.root.rmtree if f.prefix.exists? and keg.exists? and keg.root != f.prefix
   rescue FormulaInstallationAlreadyAttemptedError
     # next
   rescue Exception
@@ -49,9 +51,6 @@ module Homebrew
       keg.link if was_linked
     end
     raise
-  else
-    # delete the old version if both are present and they are not the same
-    keg.root.rmtree if f.prefix.exists? and keg.exists? and keg.root != f.prefix
   end # reinstall_formula
 
   def puree_options(use_opts, formula)
