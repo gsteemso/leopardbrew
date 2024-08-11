@@ -27,6 +27,7 @@ module Homebrew
     def shell_output(cmd, result = 0)
       ohai cmd
       output = `#{cmd}`
+      puts output if ARGV.verbose?
       assert_equal result, $?.exitstatus
       output
     end
@@ -40,6 +41,7 @@ module Homebrew
         pipe.close_write
         pipe.read
       end
+      puts output if ARGV.verbose?
       assert_equal result, $?.exitstatus unless result.nil?
       output
     end
