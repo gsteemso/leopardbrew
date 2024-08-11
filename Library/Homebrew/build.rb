@@ -110,6 +110,8 @@ class Build
         system "git", "init"
         system "git", "add", "-A"
       end
+
+      formula.prefix.mkpath
       if ARGV.interactive?
         ohai "Entering interactive mode"
         puts "Type `exit' to return and finalize the installation"
@@ -123,17 +125,15 @@ class Build
 
         interactive_shell(formula)
       else
-        formula.prefix.mkpath
-
         formula.install
-
-        stdlibs = detect_stdlibs(ENV.compiler)
-        Tab.create(formula, ENV.compiler, stdlibs.first, formula.build).write
-
-        # Find and link metafiles
-        formula.prefix.install_metafiles Pathname.pwd
-        formula.prefix.install_metafiles formula.libexec if formula.libexec.exist?
       end
+
+      stdlibs = detect_stdlibs(ENV.compiler)
+      Tab.create(formula, ENV.compiler, stdlibs.first, formula.build).write
+
+      # Find and link metafiles
+      formula.prefix.install_metafiles Pathname.pwd
+      formula.prefix.install_metafiles formula.libexec if formula.libexec.exist?
     end
   end
 
