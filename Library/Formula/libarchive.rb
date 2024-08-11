@@ -52,7 +52,7 @@ class Libarchive < Formula
                           "--without-nettle",
                           "--without-xml2",
                           "--without-expat",
-                          "ac_cv_header_sys_queue_h=no" # Use the up to date copy provided to obtain STAILQ_FOREACH
+                          "ac_cv_header_sys_queue_h=no" # Use its up‐to‐date copy to obtain STAILQ_FOREACH
       system 'make'
       system "make", "install"
 
@@ -65,8 +65,9 @@ class Libarchive < Formula
           when :ppc64, :x86_64 then ENV.un_m64
         end # case arch
       end # universal?
-    end # archs.each
-    Merge.mach_o(prefix, stashdir, archs) if build.universal?
+    end # each |arch|
+
+    Merge.binaries(prefix, stashdir, archs) if build.universal?
   end # install
 
   test do
@@ -108,12 +109,12 @@ class Merge
           cp source, destination
         else
           raise "File exists at destination:  #{destination}"
-        end
+        end # directory?
       else
         mkdir_p destination.parent unless destination.parent.exists?
         cp source, destination
       end # destination exists?
-    end # cp_mkp
+    end # Merge.cp_mkp
 
     # The keg_prefix and stash_root are expected to be Pathname objects.
     # The list members are just strings.
@@ -123,10 +124,10 @@ class Merge
         dest = stash_root/item
         cp_mkp source, dest
       end # each binary
-    end # prep
+    end # Merge.prep
 
     # The keg_prefix is expected to be a Pathname object.  The rest are just strings.
-    def mach_o(keg_prefix, stash_root, archs, sub_path = '')
+    def binaries(keg_prefix, stash_root, archs, sub_path = '')
       # don’t suffer a double slash when sub_path is null:
       s_p = (sub_path == '' ? '' : sub_path + '/')
       # generate a full list of files, even if some are not present on all architectures; bear in
@@ -144,7 +145,7 @@ class Merge
         the_arch_dir = arch_dirs.detect { |ad| File.exist?("#{stash_root}/#{ad}/#{spb}") }
         pn = Pathname("#{stash_root}/#{the_arch_dir}/#{spb}")
         if pn.directory?
-          mach_o(keg_prefix, stash_root, archs, spb)
+          binaries(keg_prefix, stash_root, archs, spb)
         else
           arch_files = Dir["#{stash_root}/{#{arch_dir_list}}/#{spb}"]
           if arch_files.length > 1
@@ -156,6 +157,6 @@ class Merge
           end # if > 1 file?
         end # if directory?
       end # each basename |b|
-    end # mach_o
+    end # Merge.binaries
   end # << self
 end # Merge
