@@ -146,6 +146,7 @@ class Cmd
       /^-O[0-9zs]?$/, "-fast", "-no-cpp-precomp",
       "-pedantic", "-pedantic-errors", "-Wno-long-double",
       "-Wno-unused-but-set-variable"
+      # silently discard
     when "-Wno-unneeded-internal-declaration"
       refurb_arg_parts << arg if tool =~ /clang/
     when "-fopenmp", "-lgomp", "-mno-fused-madd", "-fforce-addr", "-fno-defer-pop",
@@ -157,7 +158,8 @@ class Cmd
       "-fuse-linker-plugin"
       # clang doesn't support these flags
       refurb_arg_parts << arg unless tool =~ /^clang/
-    when "-Wno-deprecated-register", "-Wno-implicit-fallthrough", '-Wvla'
+    when "-Wno-deprecated-register", /^-Wno-error=.+/, '-Wno-format-truncation',
+      '-Wno-implicit-fallthrough', '-Wvla'
       # older gccs don't support these flags
       refurb_arg_parts << arg unless tool =~ /^g..-4.[02]/
     when /^-W[alp],/, /^-Wno-/
