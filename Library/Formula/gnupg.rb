@@ -1,44 +1,57 @@
 class Gnupg < Formula
-  desc "GNU Pretty Good Privacy (PGP) package"
-  homepage "https://www.gnupg.org/"
-  url "ftp://ftp.gnupg.org/gcrypt/gnupg/gnupg-1.4.23.tar.bz2"
-  mirror "https://www.gnupg.org/ftp/gcrypt/gnupg/gnupg-1.4.23.tar.bz2"
-  mirror "https://www.mirrorservice.org/sites/ftp.gnupg.org/gcrypt/gnupg/gnupg-1.4.23.tar.bz2"
-  sha256 "c9462f17e651b6507848c08c430c791287cd75491f8b5a8b50c6ed46b12678ba"
+  desc 'GNU Privacy Guard:  A free PGP replacement'
+  homepage 'https://www.gnupg.org/'
+  url 'https://www.gnupg.org/ftp/gcrypt/gnupg/gnupg-2.4.5.tar.bz2'
+  mirror 'https://www.mirrorservice.org/sites/www.gnupg.org/ftp/gcrypt/gnupg/gnupg-2.4.5.tar.bz2'
+  sha256 'f68f7d75d06cb1635c336d34d844af97436c3f64ea14bcb7c869782f96f44277'
 
-  bottle do
-    sha256 "fd396c1c07756a84e164e07e9770ddf5c6593dfdec9c0838ca52791f13ba112c" => :tiger_altivec
-  end
-
+  # /usr/bin/ld: multiple definitions of symbol _memrchr
+  # https://github.com/mistydemeo/tigerbrew/issues/107
+  depends_on :ld64
+  depends_on "libgpg-error"
+  depends_on "libgcrypt"
+  depends_on "libksba"
+  depends_on "libassuan"
+  depends_on "pinentry"
+  depends_on "npth"
   depends_on "curl" if MacOS.version <= :mavericks
+  depends_on "dirmngr" => :recommended
+  depends_on "libusb-compat" => :recommended
+  depends_on "readline" => :optional
 
   def install
-    system "./configure", "--disable-dependency-tracking",
-                          "--disable-silent-rules",
-                          "--prefix=#{prefix}",
-                          "--disable-asm"
+    # It is no longer necessary or useful to package GnuPG 1, so GnuPG 2 and gpg-agent no longer
+    # need to be separated.
+    (var/"run").mkpath
+
+    ENV.append "LDFLAGS", "-lresolv"
+
+    ENV["gl_cv_absolute_stdint_h"] = "#{MacOS.sdk_path}/usr/include/stdint.h"
+
+    args = %W[
+      --prefix=#{prefix}
+      --disable-dependency-tracking
+      --sbindir=#{bin}
+      --enable-symcryptrun
+    ]
+
+    if build.with? "readline"
+      args << "--with-readline=#{Formula["readline"].opt_prefix}"
+    end
+
+    system "./configure", *args
     system "make"
     system "make", "check"
-
-    # we need to create these directories because the install target has the
-    # dependency order wrong
-    [bin, libexec/"gnupg"].each(&:mkpath)
     system "make", "install"
   end
 
-  test do
-    (testpath/"gen-key-script").write <<-EOS.undent
-      Key-Type: RSA
-      Key-Length: 4096
-      Subkey-Type: RSA
-      Subkey-Length: 4096
-      Name-Real: Homebrew Test
-      Name-Email: test@example.com
-      Expire-Date: 0
+  def caveats; <<-EOS.undent
+      Remember to add "use-standard-socket" to your ~/.gnupg/gpg-agent.conf
+      file.
     EOS
-    system bin/"gpg", "--batch", "--gen-key", "gen-key-script"
-    (testpath/"test.txt").write ("Hello World!")
-    system bin/"gpg", "--armor", "--sign", "test.txt"
-    system bin/"gpg", "--verify", "test.txt.asc"
+  end
+
+  test do
+    system "#{bin}/gpgconf"
   end
 end

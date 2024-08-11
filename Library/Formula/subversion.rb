@@ -9,15 +9,16 @@ class Subversion < Formula
     sha256 "e2805b0c925cfbc666042419b699a9136e19e4e19e3d55241e1f1bf7d83e4dfa" => :tiger_altivec
   end
 
-  deprecated_option "java" => "with-java"
-  deprecated_option "perl" => "with-perl"
-  deprecated_option "ruby" => "with-ruby"
+  deprecated_option "java"           => "with-java"
+  deprecated_option "perl"           => "with-perl"
+  deprecated_option "ruby"           => "with-ruby"
+  deprecated_option 'with-gpg-agent' => 'with-gnupg'
 
   option :universal
-  option "with-java", "Build Java bindings"
-  option "with-perl", "Build Perl bindings"
-  option "with-ruby", "Build Ruby bindings"
-  option "with-gpg-agent", "Build with support for GPG Agent"
+  option "with-java",  "Build Java bindings"
+  option "with-perl",  "Build Perl bindings"
+  option "with-ruby",  "Build Ruby bindings"
+  option 'with-gnupg', 'Build with support for GnuPG'
 
   resource "serf" do
     url "https://www.apache.org/dist/serf/serf-1.3.10.tar.bz2", :using => :curl
@@ -51,7 +52,7 @@ class Subversion < Formula
   depends_on "openssl"
 
   # Other optional dependencies
-  depends_on "gpg-agent" => :optional
+  depends_on 'gnupg' => :optional
   depends_on :java => :optional
 
   if build.with?("perl") || build.with?("ruby")
@@ -136,7 +137,7 @@ class Subversion < Formula
             "--with-utf8proc=internal"]
 
     args << "--enable-javahl" << "--without-jikes" if build.with? "java"
-    args << "--without-gpg-agent" if build.without? "gpg-agent"
+    args << "--without-gpg-agent" if build.without? "gnupg"
 
     if MacOS.version > :leopard && MacOS::CLT.installed?
       args << "--with-apr=/usr"
