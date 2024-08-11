@@ -11,10 +11,13 @@ class Gdbm < Formula
   depends_on 'coreutils'
   depends_on 'readline'
 
+  depends_on 'autoconf' => :build
+  depends_on 'automake' => :build
+  depends_on 'm4'       => :build
+
   keg_only :provided_by_osx  # technically untrue if built without libgdbm-compat
 
-  # the “t_wordwrap” test has a ridiculous oversight where they omitted one of its dependency
-  # libraries from the Makefile, causing it to not build
+  # A libintl dependency was missing from the test Makefile.  Patch from upstream.
   patch :DATA
 
   def install
@@ -42,23 +45,14 @@ class Gdbm < Formula
 end
 
 __END__
---- old/tests/Makefile.in	2024-07-15 22:08:03.000000000 -0700
-+++ new/tests/Makefile.in	2024-07-15 22:09:43.000000000 -0700
-@@ -214,7 +214,7 @@
- t_dumpload_DEPENDENCIES = ../src/libgdbm.la
- t_wordwrap_SOURCES = t_wordwrap.c
- t_wordwrap_OBJECTS = t_wordwrap.$(OBJEXT)
--t_wordwrap_DEPENDENCIES = ../tools/libgdbmapp.a
-+t_wordwrap_DEPENDENCIES = ../src/libgdbm.la ../tools/libgdbmapp.a
- AM_V_P = $(am__v_P_@AM_V@)
- am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
- am__v_P_0 = false
-@@ -550,7 +550,7 @@
+--- a/tests/Makefile.am
++++ b/tests/Makefile.am
+@@ -142,6 +142,6 @@ dtdump_LDADD = ../src/libgdbm.la ../compat/libgdbm_compat.la
  dtfetch_LDADD = ../src/libgdbm.la ../compat/libgdbm_compat.la
  dtdel_LDADD = ../src/libgdbm.la ../compat/libgdbm_compat.la
  d_creat_ce_LDADD = ../src/libgdbm.la ../compat/libgdbm_compat.la
 -t_wordwrap_LDADD = ../tools/libgdbmapp.a
-+t_wordwrap_LDADD = ../src/libgdbm.la ../tools/libgdbmapp.a
++t_wordwrap_LDADD = ../tools/libgdbmapp.a @LTLIBINTL@
+ 
  SUBDIRS = gdbmtool
- all: all-recursive
  
