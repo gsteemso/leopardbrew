@@ -17,6 +17,7 @@ module Homebrew
       keg.lock do
         print "Unlinking #{keg}... "
         puts if ARGV.verbose?
+        Formulary.from_rack(keg.rack).uninsinuate
         puts "#{keg.unlink(mode)} symlinks removed"
       end
     end
