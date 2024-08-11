@@ -76,7 +76,7 @@ OS_VERSION                  = ENV['HOMEBREW_OS_VERSION']
     end
 RUBY_BIN = RUBY_PATH.dirname  # the directory the system Ruby interpreter lives in
     gtar = HOMEBREW_PREFIX/'opt/gnu-tar/bin/gtar'
-TAR_BIN = (gtar.executable? ? gtar : '/usr/bin/tar')
+TAR_BIN = (gtar.executable? ? gtar : which('tar'))
 
 # Optional user‐defined values:
 BREW_NICE_LEVEL     = ENV['HOMEBREW_NICE_LEVEL']                # Do we `nice` our build process?
