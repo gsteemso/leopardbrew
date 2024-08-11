@@ -14,11 +14,11 @@ class Sdl2 < Formula
   end
 
   head do
-    url "http://hg.libsdl.org/SDL", :using => :hg
+    url 'https://github.com/libsdl-org/SDL.git'
 
     depends_on "autoconf" => :build
     depends_on "automake" => :build
-    depends_on "libtool" => :build
+    depends_on "libtool"  => :build
   end
 
   option :universal
@@ -41,10 +41,13 @@ class Sdl2 < Formula
 
     system "./autogen.sh" if build.head?
 
-    args = %W[--prefix=#{prefix}]
+    args = %W[
+      --prefix=#{prefix}
+      --disable-dependency-tracking
+      --without-x
+    ]
     # LLVM-based compilers choke on the assembly code packaged with SDL.
     args << "--disable-assembly" if ENV.compiler == :llvm || (ENV.compiler == :clang && MacOS.clang_build_version < 421)
-    args << "--without-x"
     args << "--disable-haptic" << "--disable-joystick" if MacOS.version <= :snow_leopard
 
     system "./configure", *args
