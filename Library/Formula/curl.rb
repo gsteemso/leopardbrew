@@ -46,6 +46,9 @@ class Curl < Formula
   depends_on "pkg-config" => :build
 
   def install
+    if build.with? 'libressl' and build.without? 'ssl'
+      raise '“--with-libressl” and “--without-ssl” are mutually exclusive.  Pick one.'
+    end
     if build.universal?
       ENV.permit_arch_flags if superenv?
       ENV.un_m64 if Hardware::CPU.family == :g5_64
@@ -92,8 +95,8 @@ class Curl < Formula
       '--enable-symbol-hiding',  # Apple GCC does not comply; request anyway because some others do
       '--with-ca-fallback',
       '--with-gssapi',
-      "--with-zlib=#{Formula["zlib"].opt_prefix}"
-      "--with-fish-functions-dir=#{fish_completion}"
+      "--with-zlib=#{Formula["zlib"].opt_prefix}",
+      "--with-fish-functions-dir=#{fish_completion}",
       "--with-zsh-functions-dir=#{zsh_completion}"
     ]
 
@@ -180,10 +183,10 @@ class Curl < Formula
           when :ppc64, :x86_64 then ENV.un_m64
         end # case arch
       end # universal?
-    end # archs.each
+    end # each |arch|
 
     if build.universal?
-      Merge.mach_o(prefix, stashdir, archs)
+      Merge.binaries(prefix, stashdir, archs)
       archs.extend ArchitectureListExtension
       inreplace stashdir/"script-#{archs.first}/#{script_to_fix}", "-arch #{archs.first}", archs.as_arch_flags
       bin.install stashdir/"script-#{archs.first}/#{script_to_fix}"
@@ -229,12 +232,12 @@ class Merge
           cp source, destination
         else
           raise "File exists at destination:  #{destination}"
-        end
+        end # directory?
       else
         mkdir_p destination.parent unless destination.parent.exists?
         cp source, destination
       end # destination exists?
-    end # cp_mkp
+    end # Merge.cp_mkp
 
     # The keg_prefix and stash_root are expected to be Pathname objects.
     # The list members are just strings.
@@ -244,10 +247,10 @@ class Merge
         dest = stash_root/item
         cp_mkp source, dest
       end # each binary
-    end # prep
+    end # Merge.prep
 
     # The keg_prefix is expected to be a Pathname object.  The rest are just strings.
-    def mach_o(keg_prefix, stash_root, archs, sub_path = '')
+    def binaries(keg_prefix, stash_root, archs, sub_path = '')
       # don’t suffer a double slash when sub_path is null:
       s_p = (sub_path == '' ? '' : sub_path + '/')
       # generate a full list of files, even if some are not present on all architectures; bear in
@@ -265,7 +268,7 @@ class Merge
         the_arch_dir = arch_dirs.detect { |ad| File.exist?("#{stash_root}/#{ad}/#{spb}") }
         pn = Pathname("#{stash_root}/#{the_arch_dir}/#{spb}")
         if pn.directory?
-          mach_o(keg_prefix, stash_root, archs, spb)
+          binaries(keg_prefix, stash_root, archs, spb)
         else
           arch_files = Dir["#{stash_root}/{#{arch_dir_list}}/#{spb}"]
           if arch_files.length > 1
@@ -277,6 +280,6 @@ class Merge
           end # if > 1 file?
         end # if directory?
       end # each basename |b|
-    end # mach_o
+    end # Merge.binaries
   end # << self
 end # Merge
