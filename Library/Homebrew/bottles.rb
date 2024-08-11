@@ -39,12 +39,12 @@ def bottle_tag
 end
 
 def bottle_receipt_path(bottle_file)
-  Utils.popen_read("/usr/bin/tar", "-tzf", bottle_file, "*/*/INSTALL_RECEIPT.json").chomp
+  Utils.popen_read(TAR_BIN, "-tzf", bottle_file, "*/*/INSTALL_RECEIPT.json").chomp
 end
 
 def bottle_resolve_formula_names(bottle_file)
   receipt_file_path = bottle_receipt_path bottle_file
-  receipt_file = Utils.popen_read("tar", "-xOzf", bottle_file, receipt_file_path)
+  receipt_file = Utils.popen_read(TAR_BIN, "-xOzf", bottle_file, receipt_file_path)
   name = receipt_file_path.split("/").first
   tap = Tab.from_file_content(receipt_file, "#{bottle_file}/#{receipt_file_path}").tap
 

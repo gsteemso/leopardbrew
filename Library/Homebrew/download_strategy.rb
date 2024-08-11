@@ -183,10 +183,10 @@ class AbstractFileDownloadStrategy < AbstractDownloadStrategy
       with_system_path { quiet_safe_system "unzip", { :quiet_flag => "-qq" }, cached_location }
       chdir
     when :gzip
-      safe_system '/usr/bin/tar', 'xzf', @tarball_path
+      safe_system TAR_BIN, '-xzf', @tarball_path
       chdir
     when :bzip2
-      safe_system '/usr/bin/tar', 'xjf', @tarball_path
+      safe_system TAR_BIN, '-xjf', @tarball_path
       chdir
     when :gzip_only
       with_system_path { buffered_write("gunzip") }
@@ -194,7 +194,7 @@ class AbstractFileDownloadStrategy < AbstractDownloadStrategy
       with_system_path { buffered_write("bunzip2") }
     when :gzip, :bzip2, :compress, :tar
       # Assume these are also tarred
-      with_system_path { safe_system "tar", "xf", cached_location }
+      with_system_path { safe_system TAR_BIN, '-xf', cached_location }
       chdir
     when :xz
       with_system_path { pipe_to_tar(xzpath) }
@@ -226,9 +226,9 @@ class AbstractFileDownloadStrategy < AbstractDownloadStrategy
   end
 
   def pipe_to_tar(tool)
-    Utils.popen_read(tool, "-dc", cached_location.to_s) do |rd|
-      Utils.popen_write("tar", "xf", "-") do |wr|
-        buf = ""
+    Utils.popen_read(tool, '-dc', cached_location.to_s) do |rd|
+      Utils.popen_write(TAR_BIN, '-xif', '-') do |wr|
+        buf = ''
         wr.write(buf) while rd.read(16384, buf)
       end
     end
@@ -473,29 +473,39 @@ class S3DownloadStrategy < CurlDownloadStrategy
 end
 
 class SubversionDownloadStrategy < VCSDownloadStrategy
+  attr_reader :svn_cmd
+
   def initialize(name, resource)
     super
+    svnf = Formula['subversion']
+    if svnf.installed?
+      @svn_cmd = svnf.bin/'svn'
+    elsif `svn --version` =~ /version (\d+)\.(\d+)/ and $1.to_i > 1 or $1.to_i == 1 and $2.to_i > 10
+      @svn_cmd = which('svn')                              # “10” is arbitrary, what should this be?
+    else
+      raise 'Your stock subversion client is obsolete.  Brew the `subversion` formula.'
+    end
     @url = @url.sub("svn+http://", "")
   end
 
   def fetch
-    clear_cache unless @url.chomp("/") == repo_url || quiet_system("svn", "switch", @url, cached_location)
+    clear_cache unless @url.chomp("/") == repo_url || quiet_system(svn_cmd, "switch", @url, cached_location)
     super
   end
 
   def stage
     super
-    quiet_safe_system "svn", "export", "--force", cached_location, Dir.pwd
+    quiet_safe_system svn_cmd, "export", "--force", cached_location, Dir.pwd
   end
 
   private
 
   def repo_url
-    Utils.popen_read("svn", "info", cached_location.to_s).strip[/^URL: (.+)$/, 1]
+    Utils.popen_read(svn_cmd, "info", cached_location.to_s).strip[/^URL: (.+)$/, 1]
   end
 
   def get_externals
-    Utils.popen_read("svn", "propget", "svn:externals", @url).chomp.each_line do |line|
+    Utils.popen_read(svn_cmd, "propget", "svn:externals", @url).chomp.each_line do |line|
       name, url = line.split(/\s+/)
       yield name, url
     end
@@ -506,7 +516,7 @@ class SubversionDownloadStrategy < VCSDownloadStrategy
     # This saves on bandwidth and will have a similar effect to verifying the
     # cache as it will make any changes to get the right revision.
     svncommand = target.directory? ? "up" : "checkout"
-    args = ["svn", svncommand]
+    args = [svn_cmd, svncommand]
     args << url unless target.directory?
     args << target
     args << "-r" << revision if revision

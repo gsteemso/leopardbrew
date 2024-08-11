@@ -189,7 +189,7 @@ module Homebrew
         cd cellar do
           # Use gzip, faster to compress than bzip2, faster to uncompress than bzip2
           # or an uncompressed tarball (and more bandwidth friendly).
-          safe_system "tar", "czf", bottle_path, "#{f.name}/#{f.pkg_version}"
+          safe_system TAR_BIN, "czf", bottle_path, "#{f.name}/#{f.pkg_version}"
         end
 
         if bottle_path.size > 1*1024*1024
