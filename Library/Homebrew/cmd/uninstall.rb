@@ -6,29 +6,32 @@ module Homebrew
   def uninstall
     raise KegUnspecifiedError if ARGV.named.empty?
 
-    unless ARGV.force?
+    unless ARGV.force? # remove active version only
       ARGV.kegs.each do |keg|
         keg.lock do
           puts "Uninstalling #{keg}... (#{keg.abv})"
           keg.unlink
           keg.uninstall  # this also deletes the whole rack, if it’s empty
           rack = keg.rack
-          rm_pin rack
+          f = Formulary.from_rack(rack)
+          f.unpin rescue nil
 
           if rack.directory?
+            f.greatest_installed_keg.optlink
             versions = rack.subdirs.map(&:basename)
             verb = versions.length == 1 ? 'is' : 'are'
             puts "#{keg.name} #{versions.join(", ")} #{verb} still installed."
             puts "Remove them all with `brew uninstall --force #{keg.name}`."
           else
-            Formulary.from_rack(rack).uninsinuate  # call this only after the rack is gone, so any
-          end                                      # helper scripts can delete themselves
+            f.uninsinuate  # call this only after the rack is gone, so any helper scripts can
+          end              # delete themselves
         end
       end
-    else
+    else # --force in effect; remove all versions
       ARGV.named.each do |name|
         rack = Formulary.to_rack(name)
         name = rack.basename
+        f = Formulary.from_rack(rack)
 
         if rack.directory?
           puts "Uninstalling #{name}... (#{rack.abv})"
@@ -40,9 +43,9 @@ module Homebrew
         end
         Formulary.from_rack(rack).uninsinuate  # call this only after the rack is gone, so any
                                                # helper scripts can delete themselves
-        rm_pin rack
+        f.unpin rescue nil
       end
-    end
+    end # --force?
   rescue MultipleVersionsInstalledError => e
     ofail e
     puts "Use `brew uninstall --force #{e.name}` to remove all versions."
@@ -52,9 +55,5 @@ module Homebrew
     HOMEBREW_CELLAR.children.each do |rack|
       rack.unlink if rack.symlink? && !rack.resolved_path_exists?
     end
-  end
-
-  def rm_pin(rack)
-    Formulary.from_rack(rack).unpin rescue nil
-  end
-end
+  end # uninstall
+end # Homebrew
