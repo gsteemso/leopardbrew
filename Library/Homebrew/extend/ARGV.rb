@@ -113,6 +113,25 @@ module HomebrewArgvExtension
     end
   end
 
+  def versioned_kegs
+    require 'keg'
+    require 'formulary'
+    require 'tab'
+    @kegs ||= downcased_unique_named.collect { |name|
+      rack = Formulary.to_rack(name)
+
+      dirs = rack.directory? ? rack.subdirs : []
+
+      raise NoSuchKegError.new(rack.basename) if dirs.empty?
+
+      kegs = []
+      dirs.each do |d|
+        kegs << Keg.new(d) if File.exists?("#{d}/#{Tab::FILENAME}")
+      end
+      kegs
+    }.flatten
+  end # versioned_kegs
+
   # self documenting perhaps?
   def include?(arg)
     @n=index arg
