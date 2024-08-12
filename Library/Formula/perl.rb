@@ -1,29 +1,31 @@
 class Perl < Formula
-  desc "Highly capable, feature-rich programming language"
-  homepage "https://www.perl.org/"
+  desc 'Highly capable, feature-rich programming language'
+  homepage 'https://www.perl.org/'
   url 'https://www.cpan.org/src/5.0/perl-5.40.0.tar.xz'
   sha256 'd5325300ad267624cb0b7d512cfdfcd74fa7fe00c455c5b51a6bd53e5e199ef9'
 
-  head "https://perl5.git.perl.org/perl.git", :branch => "blead"
+  head 'https://perl5.git.perl.org/perl.git', :branch => 'blead'
+
+  devel do
+    url 'https://www.cpan.org/src/5.0/perl-5.41.2.tar.xz'
+    sha256 '34673976db2c4432f498dca2c3df82587ca37d7a2c2ba9407d4e4f3854a51ea6'
+  end
 
   keg_only :provided_by_osx,
-    "OS X ships Perl and overriding that can cause unintended issues"
+    'OS X ships Perl and overriding that can cause unintended issues'
 
   bottle do
-    sha256 "0743dbdaa87cc72cc5f206ade56c68d4f5e2ebacad8f047872b8c3827bfa724c" => :tiger_altivec
+    sha256 '0743dbdaa87cc72cc5f206ade56c68d4f5e2ebacad8f047872b8c3827bfa724c' => :tiger_altivec
   end
 
   option :universal
-  option "with-dtrace", "Build with DTrace probes" if MacOS.version >= :leopard
-  option "with-tests", "Run the build-test suite"
+  option 'with-dtrace', 'Build with DTrace probes' if MacOS.version >= :leopard
+  option 'with-tests', 'Run the build-test suite'
 
-  # Unbreak Perl build on legacy Darwin systems
-  # see https://github.com/Perl/perl5/pull/21023
-  # lib/ExtUtils/MM_Darwin.pm: Unbreak Perl build
-  # see https://github.com/Perl-Toolchain-Gang/ExtUtils-MakeMaker/pull/444/files
-  # t/04-xs-rpath-darwin.t: Need Darwin 9 minimum
+  # t/04-xs-rpath-darwin.t:  Need Darwin 9 minimum
   # see https://github.com/Perl-Toolchain-Gang/ExtUtils-MakeMaker/pull/446
-  # (undocumented) Dummy library build needs to match Perl build, especially on 64-bit
+  #
+  # (same, undocumented) Dummy library build needs to match Perl build, especially on 64-bit
   patch :DATA
 
   def install
@@ -63,6 +65,8 @@ class Perl < Formula
       -Dusenm
       -Dusethreads
     ]
+    args << '-Dusedevel' if build.devel?
+    args << '-Dusedtrace' if build.with? 'dtrace'
 
     archs.each do |arch|
       case arch
@@ -70,28 +74,24 @@ class Perl < Formula
         when :ppc64, :x86_64 then bitness = 64; ENV.m64
       end
 
-      conditional_args = %W[
+      arch_args = %W[
         -Acppflags=-m#{bitness}
       ]
-      conditional_args << '-Duse64bitall' if bitness == 64
-      conditional_args << "-Dusedtrace" if build.with? "dtrace"
-      conditional_args << "-Dusedevel" if build.head?
+      arch_args << '-Duse64bitall' if bitness == 64
 
-      system "./Configure", *args, *conditional_args
-      system "make"
-      if build.with?("tests") || build.bottle?
-        # - Set CFLAGS for the tests, so that the patch I added to make a dummy library be built
-        #   with the same bitness as perl will definitely work.
+      system './Configure', *args, *arch_args
+      system 'make'
+      if build.with?('tests') || build.bottle?
         # - The tests produce one known failure on ppc64, but when nothing else goes wrong, we
         #   don't want the whole build to fail; so ignore errors.  On any other architecture, we
         #   still want errors to be fatal.
         if arch == :ppc64
-          oblivious_system 'make', 'test', 'CFLAGS=-m64'
+          oblivious_system 'make', 'test'
         else
-          system 'make', 'test', "CFLAGS=-m#{bitness}"
+          system 'make', 'test'
         end
       end
-      system "make", "install"
+      system 'make', 'install'
 
       if build.universal?
         ENV.deparallelize { system 'make', 'distclean' }
@@ -123,29 +123,35 @@ class Perl < Formula
   end # caveats
 
   test do
-    (testpath/"test.pl").write "print 'Perl is not an acronym, but JAPH is a Perl acronym!';"
-    system "#{bin}/perl", "test.pl"
+    (testpath/'test.pl').write "print 'Perl is not an acronym, but JAPH is a Perl acronym!';"
+    system "#{bin}/perl", 'test.pl'
   end # test
 end # Perl
 
 class Merge
   module Pathname_extension
     def is_bare_mach_o?
-      # header word 0, magic signature:
-      #   MH_MAGIC    = 'feedface' – value with lowest‐order bit clear
-      #   MH_MAGIC_64 = 'feedfacf' – same value with lowest‐order bit set
-      # low‐order 24 bits of header word 1, CPU type:  7 is x86, 12 is ARM, 18 is PPC
-      # header word 3, file type:  no types higher than 10 are defined
-      # header word 5, net size of load commands, is far smaller than the filesize
-      if (self.file? and self.size >= 28 and mach_header = self.binread(24).unpack('N6'))
-        raise('Fat binary found where bare Mach-O file expected') if mach_header[0] == 0xcafebabe
-        ((mach_header[0] & 0xfffffffe) == 0xfeedface and
-          [7, 12, 18].detect { |item| (mach_header[1] & 0x00ffffff) == item } and
-          mach_header[3] < 11 and
-          mach_header[5] < self.size)
-      else
-        false
-      end
+      def got_valid_mach_o_header?(words)
+        # header word 0, magic signature:
+        #   MH_MAGIC    = 'feedface' – value with lowest‐order bit clear
+        #   MH_MAGIC_64 = 'feedfacf' – same value with lowest‐order bit set
+        # low‐order 24 bits of header word 1, CPU type:  7 is x86, 12 is ARM, 18 is PPC
+        # header word 3, file type:  no types higher than 10 are defined
+        # header word 5, net size of load commands, is far smaller than the filesize
+        raise('Fat binary found where bare Mach-O file expected') if words[0] == 0xcafebabe
+        ((words[0] & 0xfffffffe == 0xfeedface) and
+          [7, 12, 18].detect { |item| words[1] & 0x00ffffff == item } and
+          words[3] < 11 and
+          words[5] < self.size)
+      end # got_valid_mach_o_header?
+      self.file? and (not self.symlink?) and
+        (self.size >= 28 and
+          got_valid_mach_o_header?(self.binread(24).unpack('N6'))) or
+        (self.binread(8) == "!<arch>\x0a" and self.size >= 72 and
+          (self.binread(16, 8) !~ %r|^#1/\d+|   and
+            got_valid_mach_o_header?(self.binread(24, 68).unpack('N6'))) or
+          (self.binread(16, 8) =~ %r|^#1/(\d+)| and
+            got_valid_mach_o_header?(self.binread(24, 68+($1.to_i)).unpack('N6'))))
     end unless method_defined?(:is_bare_mach_o?)
   end # Pathname_extension
 
@@ -203,54 +209,11 @@ class Merge
         end # if directory?
       end # each basename |b|
     end # Merge.binaries
+
   end # << self
 end # Merge
 
 __END__
---- old/cpan/ExtUtils-MakeMaker/lib/ExtUtils/MM_Darwin.pm   2023-03-02 11:53:45.000000000 +0000
-+++ new/cpan/ExtUtils-MakeMaker/lib/ExtUtils/MM_Darwin.pm   2023-05-21 05:13:48.000000000 +0100
-@@ -46,29 +46,4 @@
-     $self->SUPER::init_dist(@_);
- }
- 
--=head3 cflags
--
--Over-ride Apple's automatic setting of -Werror
--
--=cut
--
--sub cflags {
--    my($self,$libperl)=@_;
--    return $self->{CFLAGS} if $self->{CFLAGS};
--    return '' unless $self->needs_linking();
--
--    my $base = $self->SUPER::cflags($libperl);
--
--    foreach (split /\n/, $base) {
--        /^(\S*)\s*=\s*(\S*)$/ and $self->{$1} = $2;
--    };
--    $self->{CCFLAGS} .= " -Wno-error=implicit-function-declaration";
--
--    return $self->{CFLAGS} = qq{
--CCFLAGS = $self->{CCFLAGS}
--OPTIMIZE = $self->{OPTIMIZE}
--PERLTYPE = $self->{PERLTYPE}
--};
--}
--
- 1;
---- old/dist/ExtUtils-CBuilder/lib/ExtUtils/CBuilder/Platform/darwin.pm   2023-03-02 11:53:46.000000000 +0000
-+++ new/dist/ExtUtils-CBuilder/lib/ExtUtils/CBuilder/Platform/darwin.pm   2023-05-21 05:18:00.000000000 +0100
-@@ -20,9 +20,6 @@
-   local $cf->{ccflags} = $cf->{ccflags};
-   $cf->{ccflags} =~ s/-flat_namespace//;
- 
--  # XCode 12 makes this fatal, breaking tons of XS modules
--  $cf->{ccflags} .= ($cf->{ccflags} ? ' ' : '').'-Wno-error=implicit-function-declaration';
--
-   $self->SUPER::compile(@_);
- }
- 
 --- old/cpan/ExtUtils-MakeMaker/t/04-xs-rpath-darwin.t
 +++ new/cpan/ExtUtils-MakeMaker/t/04-xs-rpath-darwin.t
 @@ -14,9 +14,13 @@ BEGIN {
