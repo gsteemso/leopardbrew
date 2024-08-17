@@ -83,6 +83,8 @@ class Gettext < Formula
       '--without-cvs', #
       '--without-xz'
     ]
+    lif = Formula['libiconv']
+    args << "--with-libiconv-prefix=#{lif.opt_prefix}" if lif.any_version_installed?
 
     archs.each do |arch|
       if build.universal?
@@ -99,6 +101,7 @@ class Gettext < Formula
       ENV.deparallelize do
         system 'make', 'install'
       end
+
       if build.universal?
         system 'make', 'clean'
         Merge.prep(prefix, stashdir/"bin-#{arch}", the_binaries)
@@ -111,6 +114,20 @@ class Gettext < Formula
     end # each |arch|
     Merge.binaries(prefix, stashdir, archs) if build.universal?
   end # install
+
+  def caveats; <<-_.undent
+    GNU Gettext and GNU Libiconv are circularly dependent on one another.  The
+    `libiconv` formula explicitly depends on this one, which means gettext will
+    be brewed for you (if it wasn’t already) when you brew libiconv.  The reverse
+    cannot be done at the same time because of the circular dependency.  To ensure
+    the full functionality of both packages, you should `brew reinstall gettext`
+    after you have brewed libiconv.
+
+    They should be brewed in this order because older versions of Mac OS include
+    an outdated iconv that is enough to get by with, but do not include gettext at
+    all.
+  _
+  end
 
   test do
     system "#{bin}/gettext", '--version'

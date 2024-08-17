@@ -13,6 +13,8 @@ class Libiconv < Formula
 
   option :universal
 
+  depends_on 'gettext'
+
   patch do
     url "https://raw.githubusercontent.com/Homebrew/patches/9be2793af/libiconv/patch-utf8mac.diff"
     sha256 "e8128732f22f63b5c656659786d2cf76f1450008f36bcf541285268c66cabeab"
@@ -23,16 +25,30 @@ class Libiconv < Formula
   def install
     ENV.universal_binary if build.universal?
     ENV.deparallelize
-    system "./configure", "--disable-debug",
+    system "./configure", "--prefix=#{prefix}",
+                          "--disable-debug",
                           "--disable-dependency-tracking",
                           "--disable-silent-rules",
-                          "--prefix=#{prefix}",
                           "--enable-extra-encodings",
                           "--enable-static",
                           "--docdir=#{doc}"
     system "make", "-f", "Makefile.devel", "CFLAGS=#{ENV.cflags}", "CC=#{ENV.cc}"
     system 'make', 'check'
     system "make", "install"
+  end
+
+  def caveats; <<-_.undent
+    GNU Libiconv and GNU Gettext are circularly dependent on one another.  This
+    formula explicitly depends on the `gettext` formula, which means gettext will
+    be brewed for you (if it wasn’t already) when you brew libiconv.  The reverse
+    cannot be done at the same time because of the circular dependency.  To ensure
+    the full functionality of both packages, you should `brew reinstall gettext`
+    after you have brewed libiconv.
+
+    They should be brewed in this order because older versions of Mac OS include
+    an outdated iconv that is enough to get by with, but do not include gettext at
+    all.
+  _
   end
 
   test do
