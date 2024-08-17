@@ -101,8 +101,8 @@ def odie(error)
 end
 
 def pretty_duration(s)
-  m = (s/60).truncate; _s = s - 60*m;  # h, m, s are totals
-  h = (m/60).truncate; _m = m - 60*h   # _m, _s are < 60
+  m = (s/60).truncate; _s = (s - 60*m).round  # h, m, s are totals
+  h = (m/60).truncate; _m = m - 60*h          # _m, _s are < 60
   if m < 2 then "#{s.to_i} second#{plural(s)}"
   elsif h < 2 then "#{m} minute#{plural(m)} and #{_s} second#{plural(_s)}"
   else "#{h} hour#{plural(h)}, #{_m} minute#{plural(_m)}, and #{_s} second#{plural(_s)}"
