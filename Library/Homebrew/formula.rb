@@ -360,11 +360,11 @@ class Formula
   end
 
   # If this {Formula} is installed.
-  # Specifically, checks that the instance’s version is installed.
+  # Specifically, checks that the latest prefix is installed.
   # @private
   def installed?
     require 'tab'
-    (dir = prefix).directory? and (dir/Tab::FILENAME).file?
+    (dir = installed_prefix).directory? and (dir/Tab::FILENAME).file?
   end
 
   # If at least one version of {Formula} is installed.
@@ -398,7 +398,7 @@ class Formula
   end
 
   # The latest prefix for this formula. Checks for {#head}, then {#devel},
-  # and then {#stable}'s {#prefix}
+  # and then {#stable}'s {#prefix}.
   # @private
   def installed_prefix
     if head && (head_prefix = prefix(PkgVersion.new(head.version, revision))).directory?
