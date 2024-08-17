@@ -1,5 +1,6 @@
 require "fcntl"
 require "socket"
+require 'debrew'
 
 module Utils
   def self.safe_fork(&_block)
