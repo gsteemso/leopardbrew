@@ -91,7 +91,8 @@ class Libuv < Formula
       ENV.prepend_create_path "PYTHONPATH", buildpath/"sphinx/lib/python2.7/site-packages"
       # The resource “markupsafe” builds a quad-architecture fat-binary plugin.  Must temporarily
       # purge all CPU‐specific flags before compiling, or gcc chokes.
-      if superenv? then optflags_stash = ENV['HOMEBREW_OPTFLAGS']; ENV['HOMEBREW_OPTFLAGS'] = ''
+      if superenv?
+        then optflags_stash, ENV['HOMEBREW_OPTFLAGS'] = ENV['HOMEBREW_OPTFLAGS'], ''
         else cflags_stash = ENV['CFLAGS']; ENV.set_cflags('')
       end
       resources.each do |r|
@@ -99,7 +100,8 @@ class Libuv < Formula
           system "python", *Language::Python.setup_install_args(buildpath/"sphinx")
         end
       end
-      if superenv? then ENV['HOMEBREW_OPTFLAGS'] = optflags_stash
+      if superenv?
+        then ENV['HOMEBREW_OPTFLAGS'] = optflags_stash
         else ENV.set_cflags(cflags_stash)
       end
       ENV.prepend_path "PATH", buildpath/"sphinx/bin"
