@@ -1,6 +1,8 @@
+# Zstandard 1.5.6 requires C++14.  1.5.5 is the last version that can be built with Tiger‐/Leopard‐
+#   era compilers.
 class Zstd < Formula
   desc 'Zstandard - fast real-time compression algorithm (see RFC 8878)'
-  homepage 'https://www.zstd.net/'
+  homepage 'https://github.com/facebook/zstd/'
   url 'https://github.com/facebook/zstd/releases/download/v1.5.5/zstd-1.5.5.tar.gz'
   sha256 '9c4396cc829cfae319a6e2615202e82aad41372073482fce286fac78646d3ee4'
 
@@ -15,9 +17,6 @@ class Zstd < Formula
   end
 
   # the manpages depend on a Ruby gem called ronn (for turning Markdown into manpages)
-
-  # eliminate a compiler warning flag (-Wvla) that gcc 4.2 doesn’t understand
-  patch :DATA
 
   def install
     ENV.deparallelize
@@ -145,16 +144,3 @@ class Merge
     end # mach_o
   end # << self
 end # Merge
-
-__END__
---- old/lib/libzstd.mk
-+++ new/lib/libzstd.mk
-@@ -100,7 +100,7 @@
- DEBUGFLAGS= -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
-             -Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement \
-             -Wstrict-prototypes -Wundef -Wpointer-arith \
--            -Wvla -Wformat=2 -Winit-self -Wfloat-equal -Wwrite-strings \
-+            -Wformat=2 -Winit-self -Wfloat-equal -Wwrite-strings \
-             -Wredundant-decls -Wmissing-prototypes -Wc++-compat
- CFLAGS   += $(DEBUGFLAGS) $(MOREFLAGS)
- ASFLAGS  += $(DEBUGFLAGS) $(MOREFLAGS) $(CFLAGS)
