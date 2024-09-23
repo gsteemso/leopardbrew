@@ -4,12 +4,13 @@ class Dos2unix < Formula
   url 'https://waterlan.home.xs4all.nl/dos2unix/dos2unix-7.5.2.tar.gz'
   mirror 'https://downloads.sourceforge.net/project/dos2unix/dos2unix/7.5.2/dos2unix-7.5.2.tar.gz'
   sha256 '264742446608442eb48f96c20af6da303cb3a92b364e72cb7e24f88239c4bf3a'
-  head 'https://git.code.sf.net/p/dos2unix/dos2unix.git'
 
   devel do
     url 'https://waterlan.home.xs4all.nl/dos2unix/dos2unix-7.5.3-beta1.tar.gz'
     sha256 'e3dddcf7d02dbd070a2581ec685dd85792b54ebdb109d23c9c147f4300d766fe'
   end
+
+  depends_on 'gettext'
 
   def install
     system 'make', 'install', "prefix=#{prefix}"
