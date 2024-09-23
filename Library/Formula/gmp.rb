@@ -5,11 +5,10 @@ class Gmp < Formula
   mirror "https://ftp.gnu.org/gnu/gmp/gmp-6.3.0.tar.lz"
   sha256 "be5c908a7a836c3a9bd9d62aa58563c5e9e7fef94c43a7f42dbc35bb6d02733c"
 
-#  bottle do
-#    sha256 "fe8558bf7580c9c8a3775016eccf61249b8d637b1b2970942dba22444c48da7d" => :tiger_altivec
-#  end
+  bottle do
+    sha256 "fe8558bf7580c9c8a3775016eccf61249b8d637b1b2970942dba22444c48da7d" => :tiger_altivec
+  end
 
-  option :cxx11
   option :universal
 
   def install
@@ -40,65 +39,70 @@ class Gmp < Formula
     build_cpu = Hardware::CPU.family
     tuple_trailer = "apple-darwin#{`uname -r`.to_i}"
 
-    ENV.cxx11 if build.cxx11?
-
     if build.universal?
       ENV.permit_arch_flags if superenv?
       ENV.un_m64 if Hardware::CPU.family == :g5_64
       archs = Hardware::CPU.universal_archs
-      mkdir 'arch-headers'
-      dirs = []
+      stashdir = buildpath/'arch-stashes'
+      the_binaries = %w[
+        lib/libgmp.10.dylib
+        lib/libgmp.a
+        lib/libgmpxx.4.dylib
+        lib/libgmpxx.a
+      ]
+      the_headers = %w[
+        gmp.h
+      ]
     else
       archs = [MacOS.preferred_arch]
+    end # universal?
+
+    args = [
+      "--prefix=#{prefix}",
+      '--disable-silent-rules',
+      '--enable-cxx'
+    ]
+    args << '--disable-assembly' if Hardware.is_32_bit?
+
+    host_sym = (build.bottle? ? (ARGV.bottle_arch or Hardware.oldest_cpu) : build_cpu)
+    if (looked_up_host = cpu_lookup(host_sym)) != (looked_up_build = cpu_lookup(build_cpu))
+      args << "--build=#{looked_up_build}-#{tuple_trailer}"
+      args << "--host=#{looked_up_host}-#{tuple_trailer}"
     end
 
     archs.each do |arch|
       ENV.append_to_cflags "-arch #{arch}"
-      if (arch == :ppc64 or Hardware::CPU.ppc? and Hardware::CPU.is_64_bit?)
-        ENV.append_to_cflags '-force_cpusubtype_ALL'
+      ENV.append_to_cflags '-force_cpusubtype_ALL' if looked_up_host == 'powerpc970'
+
+      arch_args = case arch
+        when :i386 then ['ABI=32']
+        when :ppc
+          case host_sym
+            when :g3, :g4 then ['ABI=32']
+            when :g5, :g5_64 then ['ABI=mode32']
+          end
+        when :ppc64 then ['ABI=mode64']
+        when :x86_64 then ['ABI=64']
       end
 
-      if build.universal?
-        dir = "stash-#{arch}"
-        mkdir dir
-        dirs << dir
-      end
-
-      args = [
-        "--prefix=#{prefix}",
-        '--disable-silent-rules',
-        "--enable-cxx"
-      ]
-      args << '--disable-assembly' if Hardware.is_32_bit?
-
-      host_sym = (build.bottle? ? (ARGV.bottle_arch or Hardware.oldest_cpu) : build_cpu)
-      if cpu_lookup(host_sym) != cpu_lookup(build_cpu)
-        args << "--build=#{cpu_lookup(build_cpu)}-#{tuple_trailer}"
-        args << "--host=#{cpu_lookup(host_sym)}-#{tuple_trailer}"
-      end
-
-      system './configure', *args
+      system './configure', *args, *arch_args
       system 'make'
       system 'make', 'check'
-      ENV.deparallelize
-      system 'make', 'install'
+      ENV.deparallelize { system 'make', 'install' }
 
       if build.universal?
-        system 'make', 'clean'
-        Merge.scour_keg(prefix, dir)
-        # gmp.h is architecture-dependent; when installing :universal, this copy will be used in
-        # merging them all together
-        mkdir "arch-headers/#{arch}"
-        cp include/'gmp.h', "arch-headers/#{arch}/gmp.h"
+        system 'make', 'distclean'
+        Merge.prep(prefix, stashdir/"bin-#{arch}", the_binaries)
+        Merge.prep(include, stashdir/"h-#{arch}", the_headers)
         # undo architecture-specific tweaks before next run
         ENV.remove_from_cflags "-arch #{arch}"
-        ENV.remove_from_cflags '-force_cpusubtype_ALL' if arch == :ppc64
+        ENV.remove_from_cflags '-force_cpusubtype_ALL' if looked_up_host == 'powerpc970'
       end # universal?
-    end # archs.each
+    end # each |arch|
 
     if build.universal?
-      Merge.mach_o(prefix, dirs)
-      Merge.cpp_headers(include, 'arch-headers', archs)
+      Merge.binaries(prefix, stashdir, archs)
+      Merge.c_headers(include, stashdir, archs)
     end # universal?
   end # install
 
@@ -124,46 +128,68 @@ class Gmp < Formula
 end #Gmp
 
 class Merge
-  module Pathname_extension
-    def is_bare_mach_o?
-      # header word 0, magic signature:
-      #   MH_MAGIC    = 'feedface' – value with lowest‐order bit clear
-      #   MH_MAGIC_64 = 'feedfacf' – same value with lowest‐order bit set
-      # low‐order 24 bits of header word 1, CPU type:  7 is x86, 12 is ARM, 18 is PPC
-      # header word 3, file type:  no types higher than 10 are defined
-      # header word 5, net size of load commands, is far smaller than the filesize
-      if (self.file? and self.size >= 28 and mach_header = self.binread(24).unpack('N6'))
-        raise('Fat binary found where bare Mach-O file expected') if mach_header[0] == 0xcafebabe
-        ((mach_header[0] & 0xfffffffe) == 0xfeedface and
-          [7, 12, 18].detect { |item| (mach_header[1] & 0x00ffffff) == item } and
-          mach_header[3] < 11 and
-          mach_header[5] < self.size)
-      else
-        false
-      end
-    end unless method_defined?(:is_bare_mach_o?)
-  end # Pathname_extension
-
   class << self
     include FileUtils
 
-    def scour_keg(keg_prefix, stash, sub_path = '')
+    # The destination is expected to be a Pathname object.
+    # The source is just a string.
+    def cp_mkp(source, destination)
+      if destination.exists?
+        if destination.is_directory?
+          cp source, destination
+        else
+          raise "File exists at destination:  #{destination}"
+        end # directory?
+      else
+        mkdir_p destination.parent unless destination.parent.exists?
+        cp source, destination
+      end # destination exists?
+    end # Merge.cp_mkp
+
+    # The keg_prefix and stash_root are expected to be Pathname objects.
+    # The list members are just strings.
+    def prep(keg_prefix, stash_root, list)
+      list.each do |item|
+        source = keg_prefix/item
+        dest = stash_root/item
+        cp_mkp source, dest
+      end # each binary
+    end # Merge.prep
+
+    # The keg_prefix is expected to be a Pathname object.  The rest are just strings.
+    def binaries(keg_prefix, stash_root, archs, sub_path = '')
       # don’t suffer a double slash when sub_path is null:
       s_p = (sub_path == '' ? '' : sub_path + '/')
-      Dir["#{keg_prefix}/#{s_p}*"].each do |f|
-        pn = Pathname(f).extend(Pathname_extension)
-        spb = s_p + pn.basename
+      # generate a full list of files, even if some are not present on all architectures; bear in
+      # mind that the current _directory_ may not even exist on all archs
+      basename_list = []
+      arch_dirs = archs.map {|a| "bin-#{a}"}
+      arch_dir_list = arch_dirs.join(',')
+      Dir["#{stash_root}/{#{arch_dir_list}}/#{s_p}*"].map { |f|
+        File.basename(f)
+      }.each { |b|
+        basename_list << b unless basename_list.count(b) > 0
+      }
+      basename_list.each do |b|
+        spb = s_p + b
+        the_arch_dir = arch_dirs.detect { |ad| File.exist?("#{stash_root}/#{ad}/#{spb}") }
+        pn = Pathname("#{stash_root}/#{the_arch_dir}/#{spb}")
         if pn.directory?
-          Dir.mkdir "#{stash}/#{spb}"
-          scour_keg(keg_prefix, stash, spb)
-        # the number of things that look like Mach-O files but aren’t is horrifying, so test
-        elsif ((not pn.symlink?) and pn.is_bare_mach_o?)
-          cp pn, "#{stash}/#{spb}"
-        end
-      end
-    end # scour_keg
+          binaries(keg_prefix, stash_root, archs, spb)
+        else
+          arch_files = Dir["#{stash_root}/{#{arch_dir_list}}/#{spb}"]
+          if arch_files.length > 1
+            system 'lipo', '-create', *arch_files, '-output', keg_prefix/spb
+          else
+            # presumably there's a reason this only exists for one architecture, so no error;
+            # the same rationale would apply if it only existed in, say, two out of three
+            cp arch_files.first, keg_prefix/spb
+          end # if > 1 file?
+        end # if directory?
+      end # each basename |b|
+    end # Merge.binaries
 
-    def cpp_headers(include_dir, stash_dir, archs, sub_path = '', extensions = ['h'])
+    def c_headers(include_dir, stash_root, archs, sub_path = '')
       # Architecture-specific <header>.<extension> files need to be surgically combined and were
       # stashed for this purpose.  The differences are relatively minor and can be “#if defined ()”
       # together.  We make the simplifying assumption that the architecture-dependent headers in
@@ -171,16 +197,16 @@ class Merge
       #
       # Don’t suffer a double slash when sub_path is null:
       s_p = (sub_path == '' ? '' : sub_path + '/')
-      Dir["#{stash_dir}/#{archs[0]}/#{s_p}*.{#{extensions.join(',')}}"].each do |basis_file|
+      Dir["#{stash_root}/h-#{archs[0]}/#{s_p}*"].each do |basis_file|
         spb = s_p + File.basename(basis_file)
         if File.directory?(basis_file)
-          cpp_headers(include_dir, stash_dir, archs, spb, extensions)
+          c_headers(include_dir, stash_root, archs, spb)
         else
           diffpoints = {}  # Keyed by line number in the basis file.  Each value is an array of
                            # three‐element hashes; containing the arch, the hunk’s displacement
                            # (number of basis‐file lines it replaces), and an array of its lines.
           archs[1..-1].each do |a|
-            raw_diffs = `diff --minimal --unified=0 #{basis_file} #{stash_dir}/#{a}/#{spb}`
+            raw_diffs = `diff --minimal --unified=0 #{basis_file} #{stash_root}/h-#{a}/#{spb}`
             next unless raw_diffs
             # The unified diff output begins with two lines identifying the source files, which are
             # followed by a series of hunk records, each describing one difference that was found.
@@ -205,17 +231,17 @@ class Merge
                 :displacement => length_match,
                 :hunk_lines => line_group
               }
-            end # diff_hunks.each
-          end # archs.each
-          # Ideally, the logic would account for overlapping and/or different-displacement hunks
-          # at this point; but since most packages don't appear to generate that in the first place,
-          # it can wait.  That said, packages exist (e.g. Python and Python 3) which can and do
-          # generate quad fat binaries, so it can’t be ignored forever.
+            end # each diff hunk |d|
+          end # each arch |a|
+          # Ideally, the logic would account for overlapping and/or different-displacement hunks at
+          # this point; but since most packages do not seem to generate such in the first place, it
+          # can wait.  That said, packages exist (e.g. both Python 2 and Python 3) which can and do
+          # generate quad fat binaries (and we want to some day support generating them by default),
+          # so it can’t be ignored forever.
           basis_lines = []
           File.open(basis_file, 'r') { |text| basis_lines = text.read.lines[0..-1] }
-          # bear in mind that the line-array indices are one less than the line numbers
-          #
-          # start with the last diff point so the insertions don’t screw up our line numbering
+          # Don’t forget, the line-array indices are one less than the line numbers.
+          # Start with the last diff point so the insertions don’t screw up our line numbering:
           diffpoints.keys.sort.reverse.each do |index_string|
             diff_start = index_string.to_i - 1
             diff_end = index_string.to_i + diffpoints[index_string][0][:displacement] - 2
@@ -228,41 +254,10 @@ class Merge
               "\#endif\n"
             ]
             basis_lines[diff_start..diff_end] = adjusted_lines
-          end # keys.each do
+          end # each key |index_string|
           File.new("#{include_dir}/#{spb}", 'w').syswrite(basis_lines.join(''))
         end # if not a directory
-      end # Dir[basis files].each
-    end # cpp_headers
-
-    def mach_o(install_prefix, arch_dirs, sub_path = '')
-      # don’t suffer a double slash when sub_path is null:
-      s_p = (sub_path == '' ? '' : sub_path + '/')
-      # generate a full list of files, even if some are not present on all architectures; bear in
-      # mind that the current _directory_ may not even exist on all archs
-      basename_list = []
-      arch_dir_list = arch_dirs.join(',')
-      Dir["{#{arch_dir_list}}/#{s_p}*"].map { |f|
-        File.basename(f)
-      }.each do |b|
-        basename_list << b unless basename_list.count(b) > 0
-      end
-      basename_list.each do |b|
-        spb = s_p + b
-        the_arch_dir = arch_dirs.detect { |ad| File.exist?("#{ad}/#{spb}") }
-        pn = Pathname("#{the_arch_dir}/#{spb}")
-        if pn.directory?
-          mach_o(install_prefix, arch_dirs, spb)
-        else
-          arch_files = Dir["{#{arch_dir_list}}/#{spb}"]
-          if arch_files.length > 1
-            system 'lipo', '-create', *arch_files, '-output', install_prefix/spb
-          else
-            # presumably there's a reason this only exists for one architecture, so no error;
-            # the same rationale would apply if it only existed in, say, two out of three
-            cp arch_files.first, install_prefix/spb
-          end # if > 1 file?
-        end # if directory?
-      end # basename_list.each
-    end # mach_o
+      end # each |basis_file|
+    end # Merge.c_headers
   end # << self
 end # Merge
