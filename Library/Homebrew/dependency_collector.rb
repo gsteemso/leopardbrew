@@ -181,6 +181,7 @@ class DependencyCollector
     case File.extname(url)
     when ".xz"  then Dependency.new("xz", tags)
     when ".lz"  then Dependency.new("lzip", tags)
+    when '.zst' then Dependency.new('zstd', tags)
     when ".rar" then Dependency.new("unrar", tags)
     when ".7z"  then Dependency.new("p7zip", tags)
     end

@@ -70,6 +70,25 @@ class PostgresqlRequirement < Requirement
   satisfy { which "pg_config" }
 end
 
+class SelfUnbrewedRequirement < Requirement
+  fatal true
+
+  def initialize(stock_pathname, linked_pathname, unlink_script_name)
+    @stock = stock_pathname
+    @correct = linked_pathname
+    @unscript = unlink_script_name
+    super()
+  end
+
+  satisfy { (not @stock.symlink?) or (@correct.exists? and @stock.readlink == @correct.basename) }
+
+  def message; <<-_.undent
+    You can’t reïnstall this software while using it!  You need to run the
+    “#{@unscript}” command before proceeding.
+    _
+  end
+end
+
 class TeXRequirement < Requirement
   fatal true
   cask "mactex"

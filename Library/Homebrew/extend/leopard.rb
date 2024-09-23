@@ -73,8 +73,8 @@ end
 class String
   def start_with?(*prefixes)
     prefixes.any? do |prefix|
-      if prefix.respond_to?(:to_str)
-        prefix = prefix.to_str
+      if prefix.respond_to?(:to_s)
+        prefix = prefix.to_s
         self[0, prefix.length] == prefix
       end
     end
@@ -82,8 +82,8 @@ class String
 
   def end_with?(*suffixes)
     suffixes.any? do |suffix|
-      if suffix.respond_to?(:to_str)
-        suffix = suffix.to_str
+      if suffix.respond_to?(:to_s)
+        suffix = suffix.to_s
         self[-suffix.length, suffix.length] == suffix
       end
     end

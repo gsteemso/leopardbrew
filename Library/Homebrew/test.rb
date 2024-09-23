@@ -1,45 +1,46 @@
-old_trap = trap("INT") { exit! 130 }
+old_trap = trap('INT') { exit! 130 }
 
-require "global"
-require "extend/ENV"
-require "timeout"
-require "debrew"
-require "formula_assertions"
-require "fcntl"
-require "socket"
+require 'global'
+require 'extend/ENV'
+require 'timeout'
+require 'debrew'
+require 'formula_assertions'
+require 'fcntl'
+require 'socket'
 
 TEST_TIMEOUT_SECONDS = 5*60
 
 begin
-  error_pipe = UNIXSocket.open(ENV["HOMEBREW_ERROR_PIPE"], &:recv_io)
+  error_pipe = UNIXSocket.open(ENV['HOMEBREW_ERROR_PIPE'], &:recv_io)
   error_pipe.fcntl(Fcntl::F_SETFD, Fcntl::FD_CLOEXEC)
 
-  trap("INT", old_trap)
+  trap('INT', old_trap)
 
   normal_path = ENV['PATH']
 
   # this sets up all the stuff for universal and 64-bit builds, but also replaces the $PATH with
-  # the restricted one we use to mnake sure all our tools are where they ought to be
-  formula = ARGV.formulae.first
-  formula.build = BuildOptions.new(Tab.for_formula(formula).used_options, formula.options)
-  formula.extend(Homebrew::Assertions)
+  # the restricted one we use to make sure all our tools are where they ought to be
+  f = ARGV.formulae.first
+  f.set_active_spec(ARGV.build_head? ? :head : (ARGV.build_devel? ? :devel : :stable))
+  f.build = BuildOptions.new(Tab.from_file(f.prefix/Tab::FILENAME).used_options, f.options)
+  f.extend(Homebrew::Assertions)
   ENV.activate_extensions!
-  ENV.setup_build_environment(formula)
+  ENV.setup_build_environment(f)
 
   path_parts = ENV['PATH'].split(':') + normal_path.split(':')
   ENV['PATH'] = path_parts.uniq.join(':')
 
   # enable argument refurbishment
   # (this lets the optimization flags be noticed; otherwise, 64‐bit and universal builds fail)
-  ENV.cccfg_add 'O' if superenv?
+  ENV.refurbish_args if superenv?
 
-  if ARGV.debug?
-    formula.extend(Debrew::Formula)
-    raise "test returned false" if formula.run_test == false
+  if ARGV.debug?  # can’t use a timeout and run a debugging shell at the same time
+    f.extend(Debrew::Formula)
+    raise 'test returned false' if f.run_test == false
   else
-    # tests can also return false to indicate failure
+    # tests can either buggily time out, or explicitly return false to indicate failure
     Timeout.timeout TEST_TIMEOUT_SECONDS do
-      raise "test returned false" if formula.run_test == false
+      raise 'test returned false' if f.run_test == false
     end # timeout?
   end # debug?
   oh1 'Test passed'

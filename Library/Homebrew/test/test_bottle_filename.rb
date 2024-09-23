@@ -13,10 +13,9 @@ class BottleFilenameTests < Homebrew::TestCase
     assert_equal ".bottle.1.tar.gz", fn(1).suffix
   end
 
-  def test_to_str
+  def test_to_s
     expected = "foo-1.0.tag.bottle.tar.gz"
     assert_equal expected, fn(0).to_s
-    assert_equal expected, fn(0).to_str
   end
 
   def test_create

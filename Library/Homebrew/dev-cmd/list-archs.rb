@@ -311,21 +311,21 @@ module Homebrew
         oho "#{Term_seq.in_white(keg.name)} appears to contain #{Term_seq.in_yellow('no valid Mach-O files')}."
         no_archs_msg = true
       else
-        ohey("#{Term_seq.in_white(keg.name)} appears to contain some foreign code:", alien_reports.join('')) if alien_reports != []
-        mode = arch_reports.key(arch_reports.values.max).length
-        reps = arch_reports.select { |k, v| v == arch_reports.values.max }.keys
-        if thorough_flag
-          oho "#{Term_seq.in_white("#{keg.name} #{keg.root.basename}")} is built for ",
-            (reps.length > 1 ?
-              "#{Term_seq.in_br_white(reps.length)} combinations of architecture" :
-              "#{Term_seq.in_br_white(mode)} architecture#{plural(mode)}"),
-            ":  #{reps.map { |r| r.join(Term_seq.in_white('/')) + " (#{'×' + arch_reports[r].to_s})" }.join(', ')}."
-        else
-          reps = reps.reject { |r| r.any? { |rr| rr =~ /ppc‐\*/ } } if reps.length > 1
-          oho "#{Term_seq.in_white(keg.name)} is built for ",
-            "#{Term_seq.in_br_white(mode)} architecture#{plural(mode)}",
-            ":  #{reps.map { |r| r.join(Term_seq.in_white('/')) }.join(' | ')}."
-        end # thorough?
+        ohey("#{Term_seq.in_white(keg.name)} appears to contain some foreign code:", alien_reports * '') if alien_reports != []
+        unless thorough_flag
+          combo_incidence = arch_reports.values.max  # How often did we see the most common arch combinations?
+          arch_reports = arch_reports.select { |k, v| v == combo_incidence }  # Only report those most‐common combos
+          if arch_reports.length > 1
+            arch_count = arch_reports.keys.map { |k| k.length }.max  # How many archs appear in the most complex combos?
+            arch_reports = arch_reports.select { |k, v| k.length == arch_count }  # only report those most‐complex combos
+          end
+          arch_reports = arch_reports.reject { |r| r.any? { |rr| rr =~ /ppc‐\*/ } } if arch_reports.length > 1
+        end # not thorough?
+        oho "#{Term_seq.in_white("#{keg.name} #{keg.root.basename}")} is built for ",
+          "#{Term_seq.in_br_white(arch_reports.length)} combination#{plural(arch_reports.length)} of architectures:  ",
+          "#{arch_reports.keys.sort { |a, b| b.length <=> a.length }.map {
+              |k| "#{k * Term_seq.in_white('/')} (#{'×' + arch_reports[k].to_s})"
+            } * ', '}."
       end # any archs found?
     end # do each |keg|
 

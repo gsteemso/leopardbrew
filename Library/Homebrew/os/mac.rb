@@ -18,7 +18,7 @@ module OS
     # This can be compared to numerics, strings, or symbols
     # using the standard Ruby Comparable methods.
     def full_version
-      @full_version ||= Version.new(ENV["HOMEBREW_OSX_VERSION"].chomp)
+      @full_version ||= Version.new(MACOS_FULL_VERSION)
     end
 
     def cat

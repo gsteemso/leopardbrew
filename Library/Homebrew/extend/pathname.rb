@@ -195,7 +195,7 @@ class Pathname
   def extname(path = to_s)
     BOTTLE_EXTNAME_RX.match(path)
     return $1 if $1
-    /(\.(tar|cpio|pax)\.(gz|bz2|lz|xz|Z))$/.match(path)
+    /(\.(tar|cpio|pax)\.(gz|bz2|lz4?|xz|Z|zst))$/.match(path)
     return $1 if $1
     File.extname(path)
   end
@@ -239,43 +239,49 @@ class Pathname
   # @private
   def compression_type
     case extname
-    when ".jar", ".war"
-      # Don't treat jars or wars as compressed
-      return
-    when ".gz"
-      # If the filename ends with .gz not preceded by .tar
-      # then we want to gunzip but not tar
-      return :gzip_only
-    when ".bz2"
-      return :bzip2_only
-    when ".lha", ".lzh"
-      return :lha
-    end
+      when ".bz2"
+        # If the filename ends with .bz2 not preceded by .tar
+        # then we want to bunzip2 but not untar
+        return :bzip2_only
+      when ".gz"
+        # If the filename ends with .gz not preceded by .tar
+        # then we want to gunzip but not untar
+        return :gzip_only
+      when ".jar", ".war"
+        # Don't treat jars or wars as compressed
+        return
+      when ".lha", ".lzh"
+        return :lha
+    end # extension
 
-    # Get enough of the file to detect common file types
-    # POSIX tar magic has a 257 byte offset
-    # magic numbers stolen from /usr/share/file/magic/
-    case open("rb") { |f| f.read(262) }
-    when /^PK\003\004/n         then :zip
-    when /^\037\213/n           then :gzip
-    when /^BZh/n                then :bzip2
-    when /^\037\235/n           then :compress
-    when /^.{257}ustar/n        then :tar
-    when /^\xFD7zXZ\x00/n       then :xz
-    when /^LZIP/n               then :lzip
-    when /^Rar!/n               then :rar
-    when /^7z\xBC\xAF\x27\x1C/n then :p7zip
-    when /^xar!/n               then :xar
-    when /^\xed\xab\xee\xdb/n   then :rpm
-    else
-      # This code so that bad-tarballs and zips produce good error messages
-      # when they don't unarchive properly.
-      case extname
-      when ".tar.gz", ".tgz", ".tar.bz2", ".tbz" then :tar
-      when ".zip" then :zip
-      end
-    end
-  end
+    # Get enough of the file to detect common file types.  Magic numbers
+    #   stolen from /usr/share/file/magic, except for the Zstd number which
+    #   comes from RFC 8878.  Modern tar magic has a 257 byte offset.
+    case binread(262)
+      when /^\x1F\x8B/n           then :gzip
+      when /^\x1F\x9D/n           then :compress
+      when /^\x28\xB5\x2F\xFD/n   then :zstd
+      when /^7z\xBC\xAF\x27\x1C/n then :p7zip
+      when /^BZh/n                then :bzip2
+      when /^LZIP/n               then :lzip
+      when /^PK\003\004/n         then :zip
+      when /^Rar!/n               then :rar
+      when /^xar!/n               then :xar
+#     when /^\xED\xAB\xEE\xDB/n   then :rpm    # there is no code path to unpack these
+      when /^\xFD7zXZ\0/n         then :xz
+      when /ustar$/n              then :tar
+      else
+        # This code so that bad tarballs and archives produce good error
+        #   messages when they don't unarchive properly.
+        case extname
+          when '.tar.bz2', '.tar.gz', '.tbz', '.tgz' then :tar
+          when '.lz'          then :lzip
+          when '.xz'          then :xz
+          when '.zip'         then :zip
+          when '.zst'         then :zstd
+        end # extension
+    end # magic number
+  end # compression_type
 
   # @private
   def text_executable?
@@ -311,9 +317,6 @@ class Pathname
     raise ChecksumMismatchError.new(self, expected, actual) unless expected == actual
   end
 
-  # FIXME: eliminate the places where we rely on this method
-  alias_method :to_str, :to_s unless method_defined?(:to_str)
-
   def cd
     Dir.chdir(self) { yield }
   end
@@ -344,7 +347,7 @@ class Pathname
   end
 
   def /(other)
-    unless other.respond_to?(:to_str) || other.respond_to?(:to_path)
+    unless other.respond_to?(:to_s) || other.respond_to?(:to_path)
       opoo "Pathname#/ called on #{inspect} with #{other.inspect} as an argument"
       puts "This behavior is deprecated, please pass either a String or a Pathname"
     end

@@ -101,7 +101,7 @@ class Build
       ENV.prepend "CPPFLAGS", "-I#{dep.opt_include}" if dep.opt_include.directory?
     end unless superenv?
 
-    formula.extend(Debrew::Formula) if ARGV.debug?
+    formula.extend(Debrew::Formula) if DEBUG
 
     formula.brew do
       formula.patch

@@ -180,8 +180,8 @@ class Version
   end
 
   def initialize(val)
-    if val.respond_to?(:to_str)
-      @version = val.to_str
+    if val.respond_to?(:to_s)
+      @version = val.to_s
     else
       raise TypeError, "Version value must be a string"
     end
@@ -238,7 +238,6 @@ class Version
   def to_s
     version.dup
   end
-  alias_method :to_str, :to_s
 
   protected
 

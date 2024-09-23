@@ -77,7 +77,7 @@ class Dir
   class << self
     alias :oldglob :glob
     def glob(args, flags=0, &block)
-      if args.respond_to? :to_str
+      unless args.is_a?(Array)
         return oldglob(args, flags, &block)
       end
 

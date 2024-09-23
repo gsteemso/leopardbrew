@@ -55,16 +55,20 @@ class AbstractDownloadStrategy
 
   private
 
-  def xzpath
-    "#{HOMEBREW_PREFIX}/opt/xz/bin/xz"
+  def lhapath
+    "#{HOMEBREW_PREFIX}/opt/lha/bin/lha"
   end
 
   def lzippath
     "#{HOMEBREW_PREFIX}/opt/lzip/bin/lzip"
   end
 
-  def lhapath
-    "#{HOMEBREW_PREFIX}/opt/lha/bin/lha"
+  def xzpath
+    "#{HOMEBREW_PREFIX}/opt/xz/bin/xz"
+  end
+
+  def zstdpath
+    "#{HOMEBREW_PREFIX}/opt/zstd/bin/zstd"
   end
 
   def cvspath
@@ -182,18 +186,17 @@ class AbstractFileDownloadStrategy < AbstractDownloadStrategy
     when :zip
       with_system_path { quiet_safe_system "unzip", { :quiet_flag => "-qq" }, cached_location }
       chdir
-    when :gzip
-      safe_system TAR_BIN, '-xzf', @tarball_path
-      chdir
-    when :bzip2
-      safe_system TAR_BIN, '-xjf', @tarball_path
-      chdir
+    when :gzip                                      # Assume these are also tarred
+      safe_system TAR_BIN, '-xzf', cached_location  #
+      chdir                                         #
+    when :bzip2                                     #
+      safe_system TAR_BIN, '-xjf', cached_location  #
+      chdir                                         #
     when :gzip_only
       with_system_path { buffered_write("gunzip") }
     when :bzip2_only
       with_system_path { buffered_write("bunzip2") }
-    when :gzip, :bzip2, :compress, :tar
-      # Assume these are also tarred
+    when :compress, :tar
       with_system_path { safe_system TAR_BIN, '-xf', cached_location }
       chdir
     when :xz
@@ -210,6 +213,9 @@ class AbstractFileDownloadStrategy < AbstractDownloadStrategy
       quiet_safe_system "unrar", "x", { :quiet_flag => "-inul" }, cached_location
     when :p7zip
       safe_system "7zr", "x", cached_location
+#   when :rpm then ???  # there is no code path to unpack these
+    when :zstd
+      safe_system zstdpath, '-d', cached_location
     else
       cp cached_location, basename_without_params
     end

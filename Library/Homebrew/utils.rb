@@ -82,21 +82,23 @@ def oh1(title)
 end
 
 # Print a warning (do this rarely)
-def opoo(warning)
+def opoo(warning, *sput)
   $stderr.puts "#{Tty.yellow}Warning#{Tty.reset}: #{warning}"
+  $stderr.puts sput
 end
 
-def onoe(error)
+def onoe(error, *sput)
   $stderr.puts "#{Tty.red}Error#{Tty.reset}: #{error}"
+  $stderr.puts sput
 end
 
-def ofail(error)
-  onoe error
+def ofail(error, *sput)
+  onoe error, sput
   Homebrew.failed = true
 end
 
-def odie(error)
-  onoe error
+def odie(error, *sput)
+  onoe error, sput
   exit 1
 end
 
@@ -109,8 +111,8 @@ def pretty_duration(s)
   end
 end
 
-def plural(n, s = "s")
-  (n == 1) ? "" : s
+def plural(n, plural = 's', singular = '')
+  (n == 1) ? singular : plural
 end
 
 def interactive_shell(f = nil)

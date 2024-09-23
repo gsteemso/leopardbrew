@@ -1,5 +1,4 @@
-# provides #max_by
-require "vendor/backports/enumerable"
+require "vendor/backports/enumerable"  # provides #max_by
 require "digest/md5"
 require "formula_renames"
 

@@ -1,17 +1,15 @@
-require "blacklist"
-require "cmd/doctor"
-require "cmd/search"
-require "cmd/tap"
-require "formula_installer"
-require "hardware"
+require 'blacklist'
+require 'cmd/doctor'
+require 'cmd/search'
+require 'cmd/tap'
+require 'formula_installer'
+require 'hardware'
 
 module Homebrew
   def install
     raise FormulaUnspecifiedError if ARGV.named.empty?
 
-    if ARGV.include? "--head"
-      raise "Specify `--HEAD` in uppercase to build from trunk."
-    end
+    raise 'Specify “--HEAD” in uppercase to build from the latest source code.' if ARGV.include? '--head'
 
     ARGV.named.each do |name|
       if !File.exist?(name) && (name !~ HOMEBREW_CORE_FORMULA_REGEX) \
@@ -24,16 +22,16 @@ module Homebrew
       formulae = []
 
       if ARGV.casks.any?
-        brew_cask = Formulary.factory("brew-cask")
+        brew_cask = Formulary.factory('brew-cask')
         install_formula(brew_cask) unless brew_cask.installed?
         args = []
-        args << "--force" if ARGV.force?
-        args << "--debug" if ARGV.debug?
-        args << "--verbose" if ARGV.verbose?
+        args << '--force' if ARGV.force?
+        args << '--debug' if ARGV.debug?
+        args << '--verbose' if ARGV.verbose?
 
         ARGV.casks.each do |c|
-          cmd = "brew", "cask", "install", c, *args
-          ohai cmd.join " "
+          cmd = 'brew', 'cask', 'install', c, *args
+          ohai cmd.join ' '
           system(*cmd)
         end
       end
@@ -43,47 +41,38 @@ module Homebrew
       FormulaInstaller.prevent_build_flags unless MacOS.has_apple_developer_tools?
 
       ARGV.formulae.each do |f|
-        # head-only without --HEAD is an error
-        if !ARGV.build_head? && f.stable.nil? && f.devel.nil?
-          raise <<-EOS.undent
-          #{f.full_name} is a head-only formula
-          Install with `brew install --HEAD #{f.full_name}`
-          EOS
+        requested_spec = (ARGV.build_head? ? :head : (ARGV.build_devel? ? :devel : :stable))
+
+        case requested_spec
+          when :stable
+            if f.stable.nil?
+              if f.devel.nil?
+                raise "#{f.full_name} is a head‐only formula, please specify --HEAD"
+              elsif f.head.nil?
+                raise "#{f.full_name} is a development‐only formula, please specify --devel"
+              else
+                raise "#{f.full_name} has no stable download, please choose --devel or --HEAD"
+              end
+            end
+          when :head
+            raise "No head is defined for #{f.full_name}" if f.head.nil?
+          when :devel
+            raise "No devel block is defined for #{f.full_name}" if f.devel.nil?
         end
 
-        # devel-only without --devel is an error
-        if !ARGV.build_devel? && f.stable.nil? && f.head.nil?
-          raise <<-EOS.undent
-          #{f.full_name} is a devel-only formula
-          Install with `brew install --devel #{f.full_name}`
-          EOS
-        end
-
-        if ARGV.build_stable? && f.stable.nil?
-          raise "#{f.full_name} has no stable download, please choose --devel or --HEAD"
-        end
-
-        # --HEAD, fail with no head defined
-        if ARGV.build_head? && f.head.nil?
-          raise "No head is defined for #{f.full_name}"
-        end
-
-        # --devel, fail with no devel defined
-        if ARGV.build_devel? && f.devel.nil?
-          raise "No devel block is defined for #{f.full_name}"
-        end
-
-        if f.installed?
-          msg = "#{f.full_name}-#{f.installed_version} already installed"
-          msg << ", it's just not linked" unless f.linked_keg.symlink? || f.keg_only?
+        if f.installed?(requested_spec)
+          msg = "#{f.full_name}|#{f.send(requested_spec).version} is already installed"
+          msg << ', it’s just not linked' unless \
+            (f.linked_keg.symlink? and
+             f.linked_keg.readlink.realpath == f.installed_prefix(requested_spec)) or
+            f.keg_only?
           opoo msg
-        elsif f.oldname && (dir = HOMEBREW_CELLAR/f.oldname).exist? && !dir.subdirs.empty? \
-            && f.tap == Tab.for_keg(dir.subdirs.first).tap && !ARGV.force?
+        elsif f.oldname_installed? and not ARGV.force?
           # Check if the formula we try to install is the same as installed
           # but not migrated one. If --force passed then install anyway.
-          opoo "#{f.oldname} already installed, it's just not migrated"
-          puts "You can migrate formula with `brew migrate #{f}`"
-          puts "Or you can force install it with `brew install #{f} --force`"
+          opoo "#{f.oldname} is already installed, it's just not migrated",
+            "You can migrate this formula with `brew migrate #{f}`,\n",
+            "Or you can force install it with `brew install #{f} --force`"
         else
           formulae << f
         end
@@ -98,19 +87,18 @@ module Homebrew
       else
         ofail e.message
         query = query_regexp(e.name)
-        ohai "Searching formulae..."
+        ohai 'Searching formulae...'
         puts_columns(search_formulae(query))
-        ohai "Searching taps..."
+        ohai 'Searching taps...'
         puts_columns(search_taps(query))
 
         # If they haven't updated in a week (604800 seconds), that
         # might explain the error
-        master = HOMEBREW_REPOSITORY/".git/refs/heads/master"
+        master = HOMEBREW_REPOSITORY/'.git/refs/heads/master'
         if master.exist? && (Time.now.to_i - File.mtime(master).to_i) > 604800
-          ohai "You haven't updated Homebrew in a while."
-          puts <<-EOS.undent
+          ohai 'You haven’t updated Homebrew in a while.', <<-EOS.undent
             A formula for #{e.name} might have been added recently.
-            Run `brew update` to get the latest Homebrew updates!
+            Run “brew update” to get the latest Homebrew updates!
           EOS
         end
       end
@@ -118,8 +106,8 @@ module Homebrew
   end
 
   def check_writable_install_location
-    raise "Cannot write to #{HOMEBREW_CELLAR}" if HOMEBREW_CELLAR.exist? && !HOMEBREW_CELLAR.writable_real?
-    raise "Cannot write to #{HOMEBREW_PREFIX}" unless HOMEBREW_PREFIX.writable_real? || HOMEBREW_PREFIX.to_s == "/usr/local"
+    raise "Cannot write to #{HOMEBREW_CELLAR}" unless HOMEBREW_CELLAR.writable_real?
+    raise "Cannot write to #{HOMEBREW_PREFIX}" unless HOMEBREW_PREFIX.writable_real?
   end
 
   def check_xcode
@@ -137,15 +125,14 @@ module Homebrew
   end
 
   def check_macports
-    unless MacOS.macports_or_fink.empty?
-      opoo "It appears you have MacPorts or Fink installed."
-      puts "Software installed with other package managers causes known problems for"
-      puts "’brewing. If a formula fails to build, uninstall MacPorts/Fink and try again."
-    end
+    opoo 'It appears you have MacPorts or Fink installed.',
+      'Software installed with other package managers causes known problems for', "\n",
+      '’brewing. If a formula fails to build, uninstall MacPorts/Fink and try again.' \
+        unless MacOS.macports_or_fink.empty?
   end
 
   def check_cellar
-    FileUtils.mkdir_p HOMEBREW_CELLAR unless File.exist? HOMEBREW_CELLAR
+    FileUtils.mkdir_p HOMEBREW_CELLAR unless HOMEBREW_CELLAR.exists?
   rescue
     raise <<-EOS.undent
       Could not create #{HOMEBREW_CELLAR}
@@ -154,7 +141,6 @@ module Homebrew
   end
 
   def perform_preinstall_checks
-    # check_ppc
     check_writable_install_location
     check_xcode if MacOS.has_apple_developer_tools?
     check_cellar
@@ -183,9 +169,17 @@ module Homebrew
     # We already attempted to install f as part of the dependency tree of
     # another formula. In that case, don't generate an error, just move on.
   rescue CannotInstallFormulaError => e
+    # leave no trace of the failed installation
+    f.prefix.rmtree if f.prefix.exists?
     ofail e.message
   rescue BuildError
+    # leave no trace of the failed installation
+    f.prefix.rmtree if f.prefix.exists?
     check_macports
+    raise
+  rescue Exception
+    # leave no trace of the failed installation
+    f.prefix.rmtree if f.prefix.exists?
     raise
   end
 end

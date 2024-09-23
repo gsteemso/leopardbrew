@@ -73,7 +73,7 @@ begin
   if cmd
     internal_cmd = require? HOMEBREW_LIBRARY_PATH.join("cmd", cmd)
 
-    if !internal_cmd && ARGV.homebrew_developer?
+    if !internal_cmd && DEVELOPER
       internal_cmd = require? HOMEBREW_LIBRARY_PATH.join("dev-cmd", cmd)
     end
   end

@@ -37,7 +37,7 @@ class SoftwareSpec
     @bottle_specification = BottleSpecification.new
     @patches = []
     @options = Options.new
-    @flags = ARGV.flags_only
+    @flags = ARGV.effective_flags
     @deprecated_flags = []
     @deprecated_options = []
     @build = BuildOptions.new(Options.create(@flags), options)
@@ -221,7 +221,6 @@ class Bottle
     def to_s
       prefix + suffix
     end
-    alias_method :to_str, :to_s
 
     def prefix
       "#{name}-#{version}.#{tag}"

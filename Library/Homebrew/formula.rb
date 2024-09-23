@@ -9,6 +9,7 @@ require "formulary"
 require "software_spec"
 require "install_renamed"
 require "pkg_version"
+require 'tab'
 require "tap"
 require "formula_renames"
 require "keg"
@@ -190,7 +191,7 @@ class Formula
       raise FormulaValidationError.new(:url, url)
     end
 
-    val = version.respond_to?(:to_str) ? version.to_str : version
+    val = version.respond_to?(:to_s) ? version.to_s : version
     if val.nil? || val.empty? || val =~ /\s/
       raise FormulaValidationError.new(:version, val)
     end
@@ -214,6 +215,21 @@ class Formula
   # @private
   def head?
     active_spec == head
+  end
+
+  # Is the only defined {SoftwareSpec} for a {#stable} build?
+  def stable_only?
+    head.nil? and devel.nil?
+  end
+
+  # Is the only defined {SoftwareSpec} for a {#devel} build?
+  def devel_only?
+    head.nil? and stable.nil?
+  end
+
+  # Is the only defined {SoftwareSpec} for a {#head} build?
+  def head_only?
+    devel.nil? and stable.nil?
   end
 
   # @private
@@ -360,68 +376,83 @@ class Formula
   end
 
   # If this {Formula} is installed.
-  # Specifically, checks that the latest prefix is installed.
+  # Specifically, checks that the requested (or the active) current prefix is installed.
   # @private
-  def installed?
-    require 'tab'
-    (dir = installed_prefix).directory? and (dir/Tab::FILENAME).file?
+  def installed?(spec = nil)
+    is_installed_prefix?(spec ? spec_prefix(spec) : prefix)
   end
 
-  # If at least one version of {Formula} is installed.
+  # If at least one version of {Formula} is installed, no matter how outdated.
   # @private
   def any_version_installed?
-    require "tab"
-    rack.directory? && rack.subdirs.any? { |keg| (keg/Tab::FILENAME).file? }
+    (rack.directory? and rack.subdirs.any? { |keg| is_installed_prefix?(keg) }) or oldname_installed?
+  end
+
+  # If some version of {Formula} is installed under its old name.
+  # @private
+  def oldname_installed?
+    oldname and (oldrack = HOMEBREW_CELLAR/oldname) and oldrack.directory? \
+      and oldrack.subdirs.any? { |keg| is_installed_prefix?(keg) }
   end
 
   # Returns HEAD (if present), or else the greatest version number among kegs in this rack.
   def greatest_installed_keg
-    require 'tab'
     highest_seen = ''
     if rack.directory?
-      rack.subdirs.each do |kegpath|
-        if (kegpath/Tab::FILENAME).file?
-          candidate = kegpath.basename
+      rack.subdirs.each do |keg|
+        if is_installed_prefix?(keg)
+          candidate = keg.basename
           if candidate == 'HEAD' then highest_seen = 'HEAD'; break; end
           highest_seen = candidate if candidate.to_s > highest_seen.to_s
         end
       end
     end
-    (highest_seen != '') ? Keg.new(rack/highest_seen) : nil
+    raise RuntimeError "#{name} is not installed." if highest_seen == ''
+    Keg.new(rack/highest_seen)
   end
 
   # @private
   # The `LinkedKegs` directory for this {Formula}.
   # You probably want {#opt_prefix} instead.
   def linked_keg
-    Pathname.new("#{HOMEBREW_LIBRARY}/LinkedKegs/#{name}")
+    LINKDIR/name
   end
 
-  # The latest prefix for this formula. Checks for {#head}, then {#devel},
-  # and then {#stable}'s {#prefix}.
-  # @private
-  def installed_prefix
-    if head && (head_prefix = prefix(PkgVersion.new(head.version, revision))).directory?
-      head_prefix
-    elsif devel && (devel_prefix = prefix(PkgVersion.new(devel.version, revision))).directory?
-      devel_prefix
-    elsif stable && (stable_prefix = prefix(PkgVersion.new(stable.version, revision))).directory?
-      stable_prefix
-    else
-      prefix
+  def spec_prefix(ss)
+    (spec = send(ss) and pfx = prefix(PkgVersion.new(spec.version, revision))) ? pfx : nil
+  end
+
+  # The list of installed current spec versions
+  def installed_current_prefixes
+    icp = {}
+    [:head, :devel, :stable].each do |ss|
+      pfx = spec_prefix(ss)
+      icp[ss] = pfx if is_installed_prefix?(pfx)
     end
+    icp
   end
 
-  # The current version for this formula. Will raise an exception if the formula is not installed.
-  # @private
-  def installed_version
-    Keg.new(installed_prefix).version
+  private
+
+  def is_installed_prefix?(pn)
+    pn and pn.directory? and (pn/Tab::FILENAME).file?
+  end
+
+  public
+
+  def self.from_installed_prefix(pn)
+    if pn and pn.directory? and (pn/Tab::FILENAME).file?
+      t = Tab.from_file(pn/Tab::FILENAME)
+      Formulary.factory(t['source']['path'], t['source']['spec'])
+    else
+      nil
+    end
   end
 
   # The directory in the cellar that the formula is installed to.
   # This directory contains the formula's name and version.
   def prefix(v = pkg_version)
-    Pathname.new("#{HOMEBREW_CELLAR}/#{name}/#{v}")
+    HOMEBREW_CELLAR/name/v
   end
 
   # The parent of the prefix; the named directory in the cellar containing all
@@ -699,7 +730,7 @@ class Formula
 
   # The {.plist} name (the name of the launchd service).
   def plist_name
-    "tigerbrew.mistydemeo."+name
+    "leopardbrew.gsteemso."+name
   end
 
   def plist_path
@@ -724,7 +755,7 @@ class Formula
   # formula, as the path is stable even when the software is updated.
   # <pre>args << "--with-readline=#{Formula["readline"].opt_prefix}" if build.with? "readline"</pre>
   def opt_prefix
-    Pathname.new("#{HOMEBREW_PREFIX}/opt/#{name}")
+    OPTDIR/name
   end
 
   def opt_bin
@@ -877,9 +908,15 @@ class Formula
       begin
         yield self
       ensure
-        # the `open` inside `cp` should not be able to fail, so when it does,
-        # it torpedoes the entire install; thus this added `rescue nil` clause
-        cp Dir["{config.log,CMakeCache.txt}"], logs rescue nil
+        # the `open` inside `cp` should not be able to fail; when it does, it
+        # torpedoes the entire install.  Thus a `rescue` clause, to loop until
+        # it either succeeds or has failed so often it should be given up on.
+        count = 0
+        begin
+          count += 1; cp Dir["{config.log,CMakeCache.txt}"], logs
+        rescue
+          retry unless count >= 5
+        end
       end
     end
   end
@@ -1212,7 +1249,7 @@ class Formula
   # @private
   def run_test
     old_home = ENV["HOME"]
-    build, self.build = self.build, Tab.for_formula(self)
+    build, self.build = self.build, BuildOptions.new(Tab.for_formula(self).used_options, options)
     mktemp do
       @testpath = Pathname.pwd
       ENV["HOME"] = @testpath

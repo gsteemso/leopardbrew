@@ -27,7 +27,6 @@ class PkgVersion
       version.to_s
     end
   end
-  alias_method :to_str, :to_s
 
   def <=>(other)
     return unless PkgVersion === other

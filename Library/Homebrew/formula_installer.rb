@@ -407,6 +407,7 @@ class FormulaInstaller
     oh1 "Installing #{formula.full_name} dependency: #{Tty.green}#{dep.name}#{Tty.reset}"
     fi.install
     fi.finish
+    fi.insinuate
   rescue Exception
     ignore_interrupts do
       installed_keg.rename(keg_usual_path) if installed_keg and not keg_usual_path.directory?

@@ -7,7 +7,7 @@ class MultipleVersionsInstalledError < RuntimeError
 
   def initialize(name)
     @name = name
-    super "#{name} has multiple installed versions"
+    super "#{name} has multiple installed versions.  Which one to use is indeterminable."
   end
 end
 
@@ -310,7 +310,7 @@ class BuildToolsError < RuntimeError
 end
 
 # raised by Homebrew.install, Homebrew.reinstall, and Homebrew.upgrade
-# if the user passes any flags/environment that would case a bottle-only
+# if the user passes any flags/environment that would cause a bottle-only
 # installation on a system without build tools to fail
 class BuildFlagsError < RuntimeError
   def initialize(flags)
@@ -446,3 +446,17 @@ class BottleVersionMismatchError < RuntimeError
     EOS
   end
 end
+
+# raiseable by any formula that has a Perl module as a prerequisite, which by policy cannot be
+# brewed because Perl modules already have their own management system.
+class NeedPerlModulesError < RuntimeError
+  def initialize(module_names)
+    super <<-_.undent
+      You will need the following Perl module(s) in order to brew this formula:
+          #{module_names*"\n    "}
+      The list should be obtainable by entering
+          cpan #{module_names*' '}
+      at the command prompt.
+    _
+  end
+end # NeedPerlModulesError

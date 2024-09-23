@@ -142,8 +142,8 @@ class Cmd
 
     case arg
     when /^-g[1-9]?/, /^-gstabs[1-9+]?/, /^-ggdb[1-9]?/, '-gdwarf-2', /^-march=.+/, /^-mtune=.+/,
-      /^-mcpu=.+/, /^-O[0-9zs]?$/, '-fast', '-no-cpp-precomp', '-pedantic', '-pedantic-errors',
-      '-Wno-long-double', '-Wno-unused-but-set-variable'
+      /^-mcpu=.+/, /^-O[0-9zs]?/, '-fast', '-no-cpp-precomp', '-no-install', '-pedantic',
+      '-pedantic-errors', '-Wno-long-double', '-Wno-unused-but-set-variable'
       # silently discard
     when '-Wno-unneeded-internal-declaration'
       refurb_arg_parts << arg if tool =~ /clang/
@@ -205,7 +205,7 @@ class Cmd
     cflag_args.concat(optflags)
     cflag_args.concat(archflags)
     cflag_args << "-std=#{@arg0}" if @arg0 =~ /c[89]9/
-    cflag_args.concat(ENV.fetch('BREW_FORCE_FLAGS', '').split ' ')
+    cflag_args.concat(ENV.fetch('HOMEBREW_FORCE_FLAGS', '').split ' ')
     cflag_args
   end
 

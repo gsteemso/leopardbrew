@@ -100,9 +100,9 @@ class Tab < OpenStruct
       paths << dirs.first
     end
 
-    paths << f.prefix
-
-    path = paths.map { |pn| pn.join(FILENAME) }.find(&:file?)
+    unless (path = f.prefix/FILENAME).file?
+      path = paths.map { |pn| pn.join(FILENAME) }.find(&:file?)
+    end
 
     if path
       tab = from_file(path)

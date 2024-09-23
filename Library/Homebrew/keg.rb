@@ -120,11 +120,7 @@ class Keg
     path
   end
 
-  if Pathname.method_defined?(:to_path)
-    alias_method :to_path, :to_s
-  else
-    alias_method :to_str, :to_s
-  end
+  alias_method :to_path, :to_s if Pathname.method_defined?(:to_path)
 
   def inspect
     "#<#{self.class.name}:#{path}>"
