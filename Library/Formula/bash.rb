@@ -1,23 +1,3 @@
-class NotBrewedBash < Requirement
-  fatal true
-
-  def initialize(sysbash, linked_sysbash)
-    @stock = sysbash
-    @correct = linked_sysbash
-    super()
-  end
-
-  satisfy do
-    (not @stock.symlink?) or (@correct.exists? and @stock.readlink == @correct.basename)
-  end
-
-  def message; <<-_.undent
-    You can’t (re)install Bash while using it!  You need to run the `to-stock-bash`
-    command before proceeding.
-    _
-  end
-end
-
 class Bash < Formula
   desc "Bourne-Again SHell, a UNIX command interpreter"
   homepage "https://www.gnu.org/software/bash/"
@@ -29,13 +9,13 @@ class Bash < Formula
 
   head "http://git.savannah.gnu.org/r/bash.git"
 
-  STANDARD_BASH = (MacOS.version < :leopard ? '2.05' : '3.2')
+  STANDARD_BASH = (MacOS.version < :leopard ? '2.05' : '3.2')  # true even on Mac OS 14.5
   SYSTEM_BASH = Pathname.new '/bin/bash'
   MOVED_BASH = Pathname.new "/bin/bash-#{STANDARD_BASH}"
   TO = HOMEBREW_PREFIX/'bin/to-brewed-bash'
   FRO = HOMEBREW_PREFIX/'bin/to-stock-bash'
 
-  depends_on NotBrewedBash.new(SYSTEM_BASH, MOVED_BASH)
+  depends_on SelfUnbrewedRequirement.new(SYSTEM_BASH, MOVED_BASH, 'to-stock-bash')
   depends_on "readline"
 
   patch :DATA
@@ -62,16 +42,37 @@ class Bash < Formula
   def uninsinuate; system('sudo', MOVED_BASH, FRO) if FRO.exists?; end
 
   def caveats; <<-EOS.undent
-      To use this build of bash as your login shell, you must add it to /etc/shells.
-
       Some older software may rely on behaviour that has changed since your system’s
-      Bash was current.  To minimize breakage, source `#{HOMEBREW_PREFIX}/etc/bash_compat`
-      from your .bashrc.  It sets a Bash system variable for compatibility mode.
+      Bash was current.  To minimize breakage, source
+      “#{HOMEBREW_PREFIX}/etc/bash_compat” from your .bashrc.  It sets a Bash system
+      variable for compatibility mode.
+
+      To minimize the trouble caused by software that insists on accidentally using
+      the wrong Bash, two extra commands have been installed:
+        to-brewed-bash
+        to-stock-bash
+      These respectively activate and deactivate a complex arrangement of symlinks
+      that completely substitute the brewed version of Bash (including its alternate
+      names and accompanying programs, and all relevant manual pages) for the stock
+      versions.  When the brewed versions are active, the stock versions of all
+      commands and manpages remain available with the suffix “-#{STANDARD_BASH}” (for
+      example, the stock version of Bash remains available as “bash-#{STANDARD_BASH}”).
+
+      The switchover commands are used automatically when the formula is installed or
+      uninstalled; you should never need to worry about them yourself.  CAUTION:  If
+      the new Bash is removed other than by the `brew` command, none of the symlinks
+      will point to anything any more, crippling your system!  If this occurs, you
+      must manually run
+        /bin/bash-#{STANDARD_BASH} #{FRO}
+      to put your system back in order.  IF YOUR TERMINAL PROGRAM EXPECTS TO START UP
+      WITH BASH BUT NO ACTIVE TERMINAL WINDOWS FROM BEFORE THE DISASTER ARE STILL
+      RUNNING, THIS REQUIRES SETTING THE TERMINAL PROGRAM TO USE A DIFFERENT SHELL –
+      IN EXTREME CASES, EDITING /etc/shells FIRST.
     EOS
   end # caveats
 
   test do
-    assert_equal "hello", shell_output("#{bin}/bash -c \"echo hello\"").strip
+    assert_equal 'hello', shell_output("#{bin}/bash -c 'echo hello'").strip
   end
 
   def switch_to; <<-_.undent
@@ -97,10 +98,10 @@ class Bash < Formula
     Pfx="$(brew --prefix)" ; V_Ext="-${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]%[a-z]*}"
     for i in "${!Links[@]}" ; do
       Link="${Links[$i]}${Extensions[$i]}" ; gzLink="${Link}.gz"
-      if [ -e "$gzLink" ] ; then if [ -L "$gzlink" ] ; then sudo rm "$gzlink"
+      if [ -e "$gzLink" ] ; then if [ -L "$gzLink" ] ; then sudo rm "$gzLink"
                                  else sudo gunzip "$gzLink" ; fi ; fi
-      if [ -e "$Link" -a ! -L "$Link" ] ; then sudo mv "$Link" "${Links[$i]}${V_Ext}${Extensions[$i]}" ; fi
-      if [ "${Link_Local[$i]}" != 'yes' ] ; then sudo ln -fs "${Pfx}${Brew_Paths[$i]}${Extensions[$i]}" "$Link"
+      if [ -e "$Link" -a ! -L "$Link" ] ; then sudo mv -f "$Link" "${Links[$i]}${V_Ext}${Extensions[$i]}" ; fi
+      if [ "${Link_Local[$i]}" != 'yes' ] ; then sudo ln -fs "${Pfx}/opt/bash${Brew_Paths[$i]}${Extensions[$i]}" "$Link"
       else sudo ln -fs "${Brew_Paths[$i]##*/}${Extensions[$i]}" "$Link" ; fi
     done
 
@@ -112,7 +113,7 @@ class Bash < Formula
     fi
     Compatibility_File="BASH_COMPAT='${Compatibility_Version}'"
     sudo echo "$Compatibility_File" >| "/tmp/${Compatibility_Name}"
-    sudo mv "/tmp/${Compatibility_Name}" "${Pfx}/etc/${Compatibility_Name}"
+    sudo mv -f "/tmp/${Compatibility_Name}" "${Pfx}/etc/${Compatibility_Name}"
     echo 'Future invocations of Bash will use the brewed version.'
     _
   end # switch_to
