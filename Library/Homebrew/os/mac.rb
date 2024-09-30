@@ -53,6 +53,16 @@ module OS
       end
     end
 
+    # Locates a (working) copy of lipo, guaranteed to function whether the user
+    # has developer tools installed or not.
+    def lipo
+      if (path = HOMEBREW_PREFIX/"opt/cctools/bin/lipo").executable?
+        path
+      else
+        locate("lipo")
+      end
+    end
+
     # Locates a (working) copy of otool, guaranteed to function whether the user
     # has developer tools installed or not.
     def otool
