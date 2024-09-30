@@ -4,11 +4,11 @@ class Perl < Formula
   url 'https://www.cpan.org/src/5.0/perl-5.40.0.tar.xz'
   sha256 'd5325300ad267624cb0b7d512cfdfcd74fa7fe00c455c5b51a6bd53e5e199ef9'
 
-  head 'https://perl5.git.perl.org/perl.git', :branch => 'blead'
+  head 'https://github.com/Perl/perl5.git', :branch => 'blead'
 
   devel do
-    url 'https://www.cpan.org/src/5.0/perl-5.41.2.tar.xz'
-    sha256 '34673976db2c4432f498dca2c3df82587ca37d7a2c2ba9407d4e4f3854a51ea6'
+    url 'https://www.cpan.org/src/5.0/perl-5.41.3.tar.xz'
+    sha256 'e4f23aa6160a3830bdbefa241c87018a33e21da9e0ad915332158832d0fd8230'
   end
 
   keg_only :provided_by_osx,
@@ -20,22 +20,15 @@ class Perl < Formula
 
   option :universal
   option 'with-dtrace', 'Build with DTrace probes' if MacOS.version >= :leopard
-  option 'with-tests', 'Run the build-test suite'
+  option 'with-tests', 'Run the build-test suite (fails on ppc64 when built with older GCCs)'
 
+  # installperl:  .packlist files are sometimes created without write permissions (undocumented)
   # t/04-xs-rpath-darwin.t:  Need Darwin 9 minimum
-  # see https://github.com/Perl-Toolchain-Gang/ExtUtils-MakeMaker/pull/446
-  #
-  # (same, undocumented) Dummy library build needs to match Perl build, especially on 64-bit
-  patch :DATA
+  #   see https://github.com/Perl-Toolchain-Gang/ExtUtils-MakeMaker/pull/446
+  #   ″  :  Dummy library build needs to match Perl build, especially on 64-bit (undocumented)
+  patch :DATA unless build.head?
 
   def install
-    # Kernel.system but ignoring exceptions
-    def oblivious_system(cmd, *args)
-      Homebrew.system(cmd, *args)
-    rescue
-      # do nothing
-    end
-
     if build.universal?
       ENV.permit_arch_flags if superenv?
       ENV.un_m64 if Hardware::CPU.family == :g5_64
@@ -65,7 +58,7 @@ class Perl < Formula
       -Dusenm
       -Dusethreads
     ]
-    args << '-Dusedevel' if build.devel?
+    args << '-Dusedevel' unless build.stable?
     args << '-Dusedtrace' if build.with? 'dtrace'
 
     archs.each do |arch|
@@ -77,24 +70,19 @@ class Perl < Formula
       arch_args = %W[
         -Acppflags=-m#{bitness}
       ]
-      arch_args << '-Duse64bitall' if bitness == 64
+      if bitness == 64
+        arch_args << '-Duse64bitall'
+      elsif Hardware::CPU.family == :g5 or Hardware::CPU.family == :g5_64
+        arch_args << '-Duse64bitint'
+      end
 
       system './Configure', *args, *arch_args
       system 'make'
-      if build.with?('tests') || build.bottle?
-        # - The tests produce one known failure on ppc64, but when nothing else goes wrong, we
-        #   don't want the whole build to fail; so ignore errors.  On any other architecture, we
-        #   still want errors to be fatal.
-        if arch == :ppc64
-          oblivious_system 'make', 'test'
-        else
-          system 'make', 'test'
-        end
-      end
+      system 'make', 'test' if build.with?('tests') || build.bottle?
       system 'make', 'install'
 
       if build.universal?
-        ENV.deparallelize { system 'make', 'distclean' }
+        ENV.deparallelize { system 'make', 'veryclean' }
         Merge.scour_keg(prefix, stashdir/"bin-#{arch}")
         # undo architecture-specific tweaks before next run
         case bitness
@@ -123,8 +111,9 @@ class Perl < Formula
   end # caveats
 
   test do
+    perl = (stable? ? bin/'perl' : Dir.glob("#{bin}/perl5.*").first)
     (testpath/'test.pl').write "print 'Perl is not an acronym, but JAPH is a Perl acronym!';"
-    system "#{bin}/perl", 'test.pl'
+    system perl, 'test.pl'
   end # test
 end # Perl
 
@@ -214,6 +203,39 @@ class Merge
 end # Merge
 
 __END__
+--- old/installperl
++++ new/installperl
+@@ -238,7 +238,29 @@
+ 				" some tests failed! (Installing anyway.)\n";
+ 
+ # This will be used to store the packlist
+-$packlist = ExtUtils::Packlist->new("$installarchlib/.packlist");
++{ # it keeps getting created without write permissions so just do the nuclear option & remake it
++    umask 0000;
++    my(@subdirs, $string, $fh, $packlistname);
++    $installarchlib =~ s|//+|/|g;
++    @subdirs = split '/', $installarchlib;
++    foreach my $i (0..$#subdirs) {
++        $string = '/' . join '/', @subdirs[0..$i];
++        mkdir $string unless -d $string;
++    }
++    $packlistname = "$installarchlib/.packlist";
++    $packlist = ExtUtils::Packlist->new($packlistname);
++    unless (-w $packlistname) {
++        unless (chmod(0755, $installarchlib) and chmod(0644, $packlistname)) {
++            local $/ = local $\ = undef;
++            if (open($fh, '<', $packlistname)) { $string = <$fh>; close($fh); }
++            else { $string = ''; }
++            unlink($packlistname) or die "Couldn't delete file $packlistname.\n" if (-f $packlistname);
++            open($fh, '+>', $packlistname) or die "Couldn't open file $packlistname for I/O.\n";
++            print $fh $string;
++            close($fh);
++        }
++    }
++}
+ 
+ if ($Is_W32 or $Is_Cygwin) {
+     my $perldll;
 --- old/cpan/ExtUtils-MakeMaker/t/04-xs-rpath-darwin.t
 +++ new/cpan/ExtUtils-MakeMaker/t/04-xs-rpath-darwin.t
 @@ -14,9 +14,13 @@ BEGIN {
