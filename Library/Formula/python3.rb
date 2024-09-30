@@ -1,43 +1,26 @@
 class Python3 < Formula
-  desc "Interpreted, interactive, object-oriented programming language"
-  homepage "https://www.python.org/"
-  url "https://www.python.org/ftp/python/3.10.14/Python-3.10.14.tar.xz"
-  sha256 "9c50481faa8c2832329ba0fc8868d0a606a680fc4f60ec48d26ce8e076751fda"
+  desc 'Interpreted, interactive, object-oriented programming language'
+  homepage 'https://www.python.org/'
+  url 'https://www.python.org/ftp/python/3.10.15/Python-3.10.15.tar.xz'
+  sha256 'aab0950817735172601879872d937c1e4928a57c409ae02369ec3d91dccebe79'
 
-  bottle do
-    sha256 "eaebc29ef8cd0b64b4032694e68c7f8b95352cc790f457c9fd5a3d4bb76f93ab" => :tiger_altivec
-  end
+  XY = '3.10'.freeze
 
   option :universal
 
-  depends_on "pkg-config" => :build
-  depends_on "readline" => :recommended
-  depends_on "sqlite"
-  depends_on "gdbm" => :recommended
-  depends_on "openssl3"
-  depends_on "bzip2"
-  depends_on "xz" => :recommended # for the lzma module added in 3.3
-  depends_on "tcl-tk"
-  depends_on :x11 if Tab.for_name("tcl-tk").with?("x11")
+  depends_on 'pkg-config' => :build
+  depends_on 'gdbm' => :recommended
+  depends_on 'readline' => :recommended
+  depends_on 'xz' => :recommended # for the lzma module added in 3.3
+  depends_on 'bzip2'
+  depends_on 'openssl3'
+  depends_on 'sqlite'
+  depends_on 'tcl-tk'
+  depends_on :x11 if Tab.for_name('tcl-tk').with?('x11')
 
-  skip_clean "bin/pip3", "bin/pip-3.4", "bin/pip-3.5", "bin/pip-3.6", "bin/pip-3.7", "bin/pip-3.10"
-  skip_clean "bin/easy_install3", "bin/easy_install-3.4", "bin/easy_install-3.5", "bin/easy_install-3.6", "bin/easy_install-3.7", "bin/easy_install-3.10"
+  skip_clean 'bin/pip3', 'bin/pip-3.4', 'bin/pip-3.5', 'bin/pip-3.6', 'bin/pip-3.7', 'bin/pip-3.10'
 
-  resource "setuptools" do
-    url "https://files.pythonhosted.org/packages/4d/5b/dc575711b6b8f2f866131a40d053e30e962e633b332acf7cd2c24843d83d/setuptools-69.2.0.tar.gz"
-    sha256 "0ff4183f8f42cd8fa3acea16c45205521a4ef28f73c6391d8a25e92893134f2e"
-  end
-
-  resource "pip" do
-    url "https://files.pythonhosted.org/packages/94/59/6638090c25e9bc4ce0c42817b5a234e183872a1129735a9330c472cc2056/pip-24.0.tar.gz"
-    sha256 "ea9bd1a847e8c5774a5777bb398c19e80bcd4e2aa16a4b301b718fe6f593aba2"
-  end
-
-  resource "wheel" do
-    url "https://files.pythonhosted.org/packages/b8/d6/ac9cd92ea2ad502ff7c1ab683806a9deb34711a1e2bd8a59814e8fc27e69/wheel-0.43.0.tar.gz"
-    sha256 "465ef92c69fa5c5da2d1cf8ac40559a8c940886afcef87dcf14b9470862f1d85"
-  end
-
+  # Enable PPC‐only universal builds.
   # Homebrew's tcl-tk is built in a standard unix fashion (due to link errors)
   # so we have to stop python from searching for frameworks and linking against
   # X11.
@@ -52,81 +35,13 @@ class Python3 < Formula
     MacOS::CLT.installed?
   end
 
-  module Pathname_extension
-    def is_fat_binary?
-      # header 32‐bit word 0, magic signature:  FAT_MAGIC = 0xcafebabe
-      # header word 1, number n of Mach-O sub‐binaries:  2 to 4, but allow up to 6 just in case
-      # header words 2 + (0..(n – 1)) * 5: CPU types:  7 is x86, 12 is ARM, 18 is PPC
-      # (each sub‐binary has a 7‐ or 8‐word header)
-      if (self.file? and self.size >= 104 and fat_header = self.binread(32).unpack('N8'))
-        (fat_header[0]  == 0xcafebabe and
-         fat_header[1] >= 2 and fat_header[1] <= 6 and
-         [7, 12, 18].detect { |item| (fat_header[2] & 0x00ffffff) == item } and
-         [7, 12, 18].detect { |item| (fat_header[7] & 0x00ffffff) == item })
-      else
-        false
-      end
-    end unless method_defined?(:is_fat_binary?)
-
-    def ppc_archs
-      # it has already been established that self is a valid fat file with 2-6 members
-      ppc32_found = ppc64_found = false
-      archs = []
-      n = self.binread(4, 4).unpack('N1').first - 1
-      for i in 0..n
-        cpu_type = self.binread(4, 8 + 20 * i).unpack('N1').first
-        if cpu_type & 0x00ffffff == 18
-          if cpu_type & 0xff000000 == 0
-            ppc32_found = true
-          else
-            ppc64_found = true
-          end
-        end
-      end
-      archs << 'ppc' if ppc32_found
-      archs << 'ppc64' if ppc64_found
-      archs
-    end unless method_defined?(:ppc_archs)
-  end # Pathname_extension
-
-  def purge_keg(lipo = which('lipo'), sub_path = '')
-    # don’t suffer a double slash when sub_path is null:
-    s_p = (sub_path == '' ? '' : sub_path + '/')
-    Dir["#{prefix}/#{s_p}*"].each do |f|
-      pn = Pathname(f).extend(Pathname_extension)
-      if pn.directory?
-        purge_keg(lipo, s_p + pn.basename)
-      # the number of things that look like fat binaries but aren’t is horrifying, so test:
-      elsif ((not pn.symlink?) and pn.is_fat_binary?)
-        ppc_archs = pn.ppc_archs
-        part_names = []
-        ppc_archs.each do |a|
-          part_name = "#{pn.to_s}.#{a}"
-          system lipo, pn, '-extract_family', a, '-output', part_name
-          part_names << part_name
-        end
-        pn.delete
-        if part_names.length > 1
-          system lipo, '-create', *part_names, '-output', pn
-          File.delete *part_names
-        elsif part_names.length == 1
-          File.rename(part_names.first, pn.to_s)
-        else
-          raise "#{pn.to_s} contained no PowerPC code at all!"
-        end
-      end
-    end
-  end # purge_keg
-
   def install
-    # Unset these so that installing pip and setuptools puts them where we want
+    # Unset these so that installing pip puts it where we want
     # and not into some other Python the user has installed.
-    ENV["PYTHONHOME"] = nil
-    ENV["PYTHONPATH"] = nil
+    ENV['PYTHONHOME'] = nil
+    ENV['PYTHONPATH'] = nil
 
-    xy = (buildpath/"configure.ac").read.slice(/PYTHON_VERSION, (3\.\d\d)/, 1)
-    lib_cellar = prefix/"Frameworks/Python.framework/Versions/#{xy}/lib/python#{xy}"
-
+    # Avoid linking to libgcc http://code.activestate.com/lists/python-dev/112195/
     args = %W[
       --prefix=#{prefix}
       --enable-ipv6
@@ -134,207 +49,168 @@ class Python3 < Formula
       --datadir=#{share}
       --enable-framework=#{frameworks}
       --enable-loadable-sqlite-extensions
-      --without-ensurepip
-      --with-openssl=#{Formula["openssl3"].opt_prefix}
+      --with-openssl=#{Formula['openssl3'].opt_prefix}
+      MACOSX_DEPLOYMENT_TARGET=#{MacOS.version}
     ]
+    args << '--without-gcc' if ENV.compiler == :clang
 
-    args << "--without-gcc" if ENV.compiler == :clang
+    args << '--enable-universalsdk=/'
+    if build.universal? then
+      ENV.permit_arch_flags if superenv?
+      bitness = ''
+    elsif Hardware::CPU.is_32_bit? then bitness = '-32'
+    else bitness = '-64'; end
+    args << "--with-universal-archs=#{Hardware::CPU.ppc? ? 'ppc' : 'intel'}#{bitness}"
 
     cflags   = []
     ldflags  = []
     cppflags = []
-
     unless MacOS::CLT.installed?
       # Help Python's build system (setuptools/pip) to build things on Xcode-only systems
-      # The setup.py looks at "-isysroot" to get the sysroot (and not at --sysroot)
+      # The setup.py looks at “-isysroot” to get the sysroot (and not at --sysroot)
       cflags   << "-isysroot #{MacOS.sdk_path}"
       ldflags  << "-isysroot #{MacOS.sdk_path}"
       cppflags << "-I#{MacOS.sdk_path}/usr/include" # find zlib
     end
-    # Avoid linking to libgcc http://code.activestate.com/lists/python-dev/112195/
-    args << "MACOSX_DEPLOYMENT_TARGET=#{MacOS.version}"
+
+    # There is no simple way to extract a “ppc” slice from a universal file.  We have to
+    # specify the exact sub‐architecture we actually put in there in the first place.
+    if Hardware::CPU.ppc?
+      our_ppc_flavour = Hardware::CPU.optimization_flags[Hardware::CPU.family][/^-mcpu=(\d+)/, 1]
+      inreplace 'configure' do |s| s.gsub! '-extract ppc7400', "-extract ppc#{our_ppc_flavour}" end
+    end
 
     # We want our readline! This is just to outsmart the detection code,
     # superenv makes cc always find includes/libs!
-    inreplace "setup.py",
-      "do_readline = self.compiler.find_library_file(self.lib_dirs,
-                readline_lib)",
-      "do_readline = '#{Formula["readline"].opt_lib}/libhistory.dylib'"
+    inreplace 'setup.py',
+      'do_readline = self.compiler.find_library_file(self.lib_dirs,
+                readline_lib)',
+      "do_readline = '#{Formula['readline'].opt_lib}/libhistory.dylib'"
 
-    inreplace "setup.py" do |s|
-      s.gsub! "sqlite_setup_debug = False", "sqlite_setup_debug = True"
-      s.gsub! "for d_ in self.inc_dirs + sqlite_inc_paths:",
-              "for d_ in ['#{Formula["sqlite"].opt_include}']:"
-    end
-
-    if build.universal?
-      ENV.permit_arch_flags
-      args << "--enable-universalsdk"
-      if Hardware::CPU.ppc?
-        # a universal build of Python is done by the Python build scripts, not by Tigerbrew, and on
-        # PPC includes cross-compilation for i386 and x86_64.  All traces of customization to a
-        # PowerPC CPU must be removed or the compiler will choke when building for the other two
-        # architectures.
-        ENV['HOMEBREW_OPTFLAGS'] = '' if superenv?
-        # Add an appropriate else clause if it doesn’t build correctly under stdenv.
-        args << '--with-universal-archs=all' << 'ax_cv_c_float_words_bigendian=yes'
-        # with a four-architecture build, gettext won’t link correctly as it lacks Intel‐compatible
-        # binaries, so hide it:
-        intl_header = HOMEBREW_PREFIX/'include/libintl.h'
-        intl_header.rename(HOMEBREW_PREFIX/'include/not_libintl.h') if intl_header.file?
-      elsif Hardware::CPU.intel?
-        args << '--with-universal-archs=intel' << 'ax_cv_c_float_words_bigendian=no'
-      end
+    inreplace 'setup.py' do |s|
+      s.gsub! 'sqlite_setup_debug = False', 'sqlite_setup_debug = True'
+      s.gsub! 'for d_ in self.inc_dirs + sqlite_inc_paths:',
+              "for d_ in ['#{Formula['sqlite'].opt_include}']:"
     end
 
     # Allow python modules to use ctypes.find_library to find homebrew's stuff
     # even if homebrew is not a /usr/local/lib. Try this with:
     # `brew install enchant && pip install pyenchant`
-    inreplace "./Lib/ctypes/macholib/dyld.py" do |f|
-      f.gsub! "DEFAULT_LIBRARY_FALLBACK = [", "DEFAULT_LIBRARY_FALLBACK = [ '#{HOMEBREW_PREFIX}/lib',"
-      f.gsub! "DEFAULT_FRAMEWORK_FALLBACK = [", "DEFAULT_FRAMEWORK_FALLBACK = [ '#{HOMEBREW_PREFIX}/Frameworks',"
+    inreplace './Lib/ctypes/macholib/dyld.py' do |f|
+      f.gsub! 'DEFAULT_LIBRARY_FALLBACK = [', "DEFAULT_LIBRARY_FALLBACK = [ '#{HOMEBREW_PREFIX}/lib',"
+      f.gsub! 'DEFAULT_FRAMEWORK_FALLBACK = [', "DEFAULT_FRAMEWORK_FALLBACK = [ '#{HOMEBREW_PREFIX}/Frameworks',"
     end
 
-    tcl_tk = Formula["tcl-tk"].opt_prefix
-    ENV.append "CPPFLAGS", "-I#{tcl_tk}/include"
-    ENV.append "LDFLAGS", "-L#{tcl_tk}/lib"
+    tcl_tk = Formula['tcl-tk'].opt_prefix
+    ENV.append 'CPPFLAGS', "-I#{tcl_tk}/include"
+    ENV.append 'LDFLAGS', "-L#{tcl_tk}/lib"
 
-    args << "CFLAGS=#{cflags.join(" ")}" unless cflags.empty?
-    args << "LDFLAGS=#{ldflags.join(" ")}" unless ldflags.empty?
-    args << "CPPFLAGS=#{cppflags.join(" ")}" unless cppflags.empty?
+    args << "CFLAGS=#{cflags.join(' ')}" unless cflags.empty?
+    args << "LDFLAGS=#{ldflags.join(' ')}" unless ldflags.empty?
+    args << "CPPFLAGS=#{cppflags.join(' ')}" unless cppflags.empty?
 
-    system "./configure", *args
-    system "make"
+    system './configure', *args
+    system 'make'
 
     ENV.deparallelize # Installs must be serialized
     # Tell Python not to install into /Applications (default for framework builds)
-    system "make", "install", "PYTHONAPPSDIR=#{prefix}"
+    system 'make', 'install', "PYTHONAPPSDIR=#{prefix}"
     # Demos and Tools
-    system "make", "frameworkinstallextras", "PYTHONAPPSDIR=#{share}/python3"
+    system 'make', 'frameworkinstallextras', "PYTHONAPPSDIR=#{share}/python3"
 
-    # Any .app get a " 3" attached, so it does not conflict with python 2.x.
-    Dir.glob("#{prefix}/*.app") { |app| mv app, app.sub(".app", " 3.app") }
+    # Any .app get a “ 3” attached, so it does not conflict with python 2.x.
+    Dir.glob(prefix/'*.app') { |app| mv app, app.sub('.app', ' 3.app') }
 
     # A fix, because python and python3 both want to install Python.framework
     # and therefore we can't link both into HOMEBREW_PREFIX/Frameworks
     # https://github.com/Homebrew/homebrew/issues/15943
-    ["Headers", "Python", "Resources"].each { |f| rm(prefix/"Frameworks/Python.framework/#{f}") }
-    rm prefix/"Frameworks/Python.framework/Versions/Current"
+    ['Headers', 'Python', 'Resources'].each { |f| rm frameworks/"Python.framework/#{f}" }
+    rm frameworks/'Python.framework/Versions/Current'
 
     # Symlink the pkgconfig files into HOMEBREW_PREFIX so they're accessible.
-    (lib/"pkgconfig").install_symlink Dir["#{frameworks}/Python.framework/Versions/#{xy}/lib/pkgconfig/*"]
+    (lib/'pkgconfig').install_symlink Dir[frameworks/"Python.framework/Versions/#{xy}/lib/pkgconfig/*"]
 
     # No need to remove 2to3 – while python2 includes it, the python 2 formula already deletes it
-    # rm bin/"2to3"
+    # rm bin/'2to3'
 
-    # Remove the site-packages that Python created in its Cellar.
-    (prefix/"Frameworks/Python.framework/Versions/#{xy}/lib/python#{xy}/site-packages").rmtree
-
-    %w[setuptools pip wheel].each do |r|
-      (libexec/r).install resource(r)
-    end
+    # Remove the site-packages that Python created in its Cellar.  We keep them in HOMEBREW_PREFIX
+    # so they will survive small Python upgrades (e.g. 3.10.14 → 3.10.15).
+    (frameworks/"Python.framework/Versions/#{xy}/lib/python#{xy}/site-packages").rmtree
 
     # Install unversioned symlinks in libexec/bin.
-    {
-      "idle" => "idle3",
-      "pydoc" => "pydoc3",
-      "python" => "python3",
-      "python-config" => "python3-config",
+    { 'idle' => 'idle3',
+      'pydoc' => 'pydoc3',
+      'python' => 'python3',
+      'python-config' => 'python3-config',
     }.each do |unversioned_name, versioned_name|
-      (libexec/"bin").install_symlink (bin/versioned_name).realpath => unversioned_name
-    end
-
-    # Installed test data contains prebuilt libraries for 10.9+,
-    # which confuses ld in earlier versions of OS X and breaks
-    # relocation/bottling attempts.
-    (libexec/"wheel/tests/testdata").rmtree
-
-    if (build.universal? and Hardware::CPU.ppc?)
-      # remove all non‐PowerPC sub‐binaries to avoid link errors later on
-      purge_keg
-      # restore the libintl header
-      intl_header = HOMEBREW_PREFIX/'include/not_libintl.h'
-      intl_header.rename(HOMEBREW_PREFIX/'include/libintl.h') if intl_header.file?
+      (libexec/'bin').install_symlink (bin/versioned_name).realpath => unversioned_name
     end
   end
 
   def post_install
-    ENV.delete "PYTHONPATH"
+    ENV.delete 'PYTHONPATH'
 
-    xy = (prefix/"Frameworks/Python.framework/Versions").children.min.basename.to_s
     site_packages = HOMEBREW_PREFIX/"lib/python#{xy}/site-packages"
-    site_packages_cellar = prefix/"Frameworks/Python.framework/Versions/#{xy}/lib/python#{xy}/site-packages"
+    cellar_framework = frameworks/"Python.framework/Versions/#{xy}"
+    cellar_site_packages = cellar_framework/"lib/python#{xy}/site-packages"
 
     # Fix up the site-packages so that user-installed Python software survives
     # minor updates, such as going from 3.3.2 to 3.3.3:
-
     # Create a site-packages in HOMEBREW_PREFIX/lib/python#{xy}/site-packages
     site_packages.mkpath
+    # Symlink it into the cellar
+    cellar_site_packages.rmtree if cellar_site_packages.exists?
+    cellar_site_packages.parent.install_symlink site_packages
 
-    # Symlink the prefix site-packages into the cellar.
-    site_packages_cellar.unlink if site_packages_cellar.exist?
-    site_packages_cellar.parent.install_symlink site_packages
+    # redo the Pip3 install, which gets smurfed up by the site-packages shenanigans above
+    system bin/'python3', '-m', 'ensurepip', '--upgrade'
+
+    # upgrade pip and the setuptools it dragged in
+    ['pip', 'setuptools', 'wheel'].each do |pkg|
+      system bin/'pip3', 'install', '--force-reinstall', '--upgrade', '--no-warn-script-location', pkg
+    end
+    rm_rf cellar_framework/'bin/pip'
+    mv cellar_framework/'bin/wheel', cellar_framework/'bin/wheel3'
+    bin.install_symlink cellar_framework/'bin/wheel3'
 
     # Write our sitecustomize.py
-    rm_rf Dir["#{site_packages}/sitecustomize.py[co]"]
-    (site_packages/"sitecustomize.py").atomic_write(sitecustomize)
-
-    # Remove old setuptools installations that may still fly around and be
-    # listed in the easy_install.pth. This can break setuptools build with
-    # zipimport.ZipImportError: bad local file header
-    # setuptools-0.9.8-py3.3.egg
-    rm_rf Dir["#{site_packages}/setuptools*"]
-    rm_rf Dir["#{site_packages}/distribute*"]
-    rm_rf Dir["#{site_packages}/pip[-_.][0-9]*", "#{site_packages}/pip"]
-
-    %w[setuptools pip wheel].each do |pkg|
-      (libexec/pkg).cd do
-        system bin/"python3", "-s", "setup.py", "--no-user-cfg", "install",
-               "--force", "--verbose", "--install-scripts=#{bin}",
-               "--install-lib=#{site_packages}",
-               "--single-version-externally-managed",
-               "--record=installed.txt"
-      end
-    end
-
-    rm_rf [bin/"pip", bin/"easy_install"]
-    mv bin/"wheel", bin/"wheel3"
+    rm_rf Dir[site_packages/'sitecustomize.py[co]']
+    (site_packages/'sitecustomize.py').atomic_write(sitecustomize)
 
     # Install unversioned symlinks in libexec/bin.
-    {
-      "pip" => "pip3",
-      "wheel" => "wheel3",
+    { 'pip' => 'pip3',
+      'wheel' => 'wheel3',
     }.each do |unversioned_name, versioned_name|
-      (libexec/"bin").install_symlink (bin/versioned_name).realpath => unversioned_name
+      (libexec/'bin').install_symlink (bin/versioned_name).realpath => unversioned_name
     end
 
     # post_install happens after link
     %W[pip3 pip#{xy} wheel3].each do |e|
-      (HOMEBREW_PREFIX/"bin").install_symlink bin/e
+      (HOMEBREW_PREFIX/'bin').install_symlink bin/e
     end
 
     # Help distutils find brewed stuff when building extensions
-    include_dirs = [HOMEBREW_PREFIX/"include", Formula["openssl3"].opt_include,
-                    Formula["sqlite"].opt_include, Formula["tcl-tk"].opt_include]
-    library_dirs = [HOMEBREW_PREFIX/"lib", Formula["openssl3"].opt_lib,
-                    Formula["sqlite"].opt_lib, Formula["tcl-tk"].opt_lib]
+    include_dirs = [HOMEBREW_PREFIX/'include', Formula['openssl3'].opt_include,
+                    Formula['sqlite'].opt_include, Formula['tcl-tk'].opt_include]
+    library_dirs = [HOMEBREW_PREFIX/'lib', Formula['openssl3'].opt_lib,
+                    Formula['sqlite'].opt_lib, Formula['tcl-tk'].opt_lib]
 
-    cfg = prefix/"Frameworks/Python.framework/Versions/#{xy}/lib/python#{xy}/distutils/distutils.cfg"
+    cfg = cellar_framework/"lib/python#{xy}/distutils/distutils.cfg"
 
-    cfg.atomic_write <<~EOS
+    cfg.atomic_write <<-EOS.undent
       [install]
       prefix=#{HOMEBREW_PREFIX}
 
       [build_ext]
-      include_dirs=#{include_dirs.join ":"}
-      library_dirs=#{library_dirs.join ":"}
+      include_dirs=#{include_dirs.join ':'}
+      library_dirs=#{library_dirs.join ':'}
     EOS
   end
 
-  def sitecustomize
-    xy = (prefix/"Frameworks/Python.framework/Versions").children.min.basename.to_s
+  def xy; XY; end
 
-    <<~EOS
+  def sitecustomize
+    <<-EOS.undent
       # This file is created by Homebrew and is executed on each python startup.
       # Don't print from here, or else python command line scripts may fail!
       # <https://docs.brew.sh/Homebrew-and-Python>
@@ -343,11 +219,13 @@ class Python3 < Formula
       import sys
 
       if sys.version_info[0] != 3:
-          # This can only happen if the user has set the PYTHONPATH for 3.x and run Python 2.x or vice versa.
-          # Every Python looks at the PYTHONPATH variable and we can't fix it here in sitecustomize.py,
-          # because the PYTHONPATH is evaluated after the sitecustomize.py. Many modules (e.g. PyQt4) are
-          # built only for a specific version of Python and will fail with cryptic error messages.
-          # In the end this means: Don't set the PYTHONPATH permanently if you use different Python versions.
+          # This can only happen if the user has set the PYTHONPATH for 3.x and run
+          # Python 2.x or vice versa.  Every Python looks at the PYTHONPATH variable
+          # and we can't fix it here in sitecustomize.py, because the PYTHONPATH is
+          # evaluated after the sitecustomize.py.  Many modules (e.g. PyQt4) are
+          # built only for a specific version of Python and will fail with cryptic
+          # error messages.  In the end this means:  Don't set the PYTHONPATH
+          # permanently if you use different Python versions.
           exit('Your PYTHONPATH points to a site-packages dir for Python 3.x but you are running Python ' +
                str(sys.version_info[0]) + '.x!\\n     PYTHONPATH is currently: "' + str(os.environ['PYTHONPATH']) + '"\\n' +
                '     You should `unset PYTHONPATH` to fix this.')
@@ -372,12 +250,7 @@ class Python3 < Formula
   end
 
   def caveats
-    if prefix.exist?
-      xy = (prefix/"Frameworks/Python.framework/Versions").children.min.basename.to_s
-    else
-      xy = version.to_s.slice(/(3\.\d\d)/) || "3.10"
-    end
-    text = <<~EOS
+    text = <<-EOS.undent
       Python is installed as
         #{HOMEBREW_PREFIX}/bin/python3
 
@@ -385,11 +258,11 @@ class Python3 < Formula
       `python3`, `python3-config`, `pip3` etc., respectively, are installed into
         #{opt_libexec}/bin
 
-      If you need Homebrew's Python 2.7 run
+      If you need Homebrew’s Python 2.7 run
         brew install python
 
-      Pip, setuptools, and wheel are installed. To update them run
-        pip3 install --upgrade pip setuptools wheel
+      Pip and wheel are installed. To update them run
+        pip3 install --upgrade pip wheel
 
       You can install Python packages with
         pip3 install <package>
@@ -399,29 +272,70 @@ class Python3 < Formula
       See: https://docs.brew.sh/Homebrew-and-Python
     EOS
 
-    # Tk warning only for 10.6
-    tk_caveats = <<~EOS
+    text += <<-EOS.undent if MacOS.version <= :snow_leopard
 
-      Apple's Tcl/Tk is not recommended for use with Python on Mac OS X 10.6.
-      For more information see: https://www.python.org/download/mac/tcltk/
+      Apple’s Tcl/Tk is not recommended for Python on Mac OS X 10.6 or earlier.
+      For more information see:  https://www.python.org/download/mac/tcltk/
     EOS
 
-    text += tk_caveats unless MacOS.version >= :lion
     text
   end
 
   test do
-    xy = (prefix/"Frameworks/Python.framework/Versions").children.min.basename.to_s
     # Check if sqlite is ok, because we build with --enable-loadable-sqlite-extensions
     # and it can occur that building sqlite silently fails if OSX's sqlite is used.
-    system "#{bin}/python#{xy}", "-c", "import sqlite3"
+    system bin/"python#{xy}", '-c', 'import sqlite3'
     # Check if some other modules import. Then the linked libs are working.
-    system "#{bin}/python#{xy}", "-c", "import tkinter; root = tkinter.Tk()"
-    system bin/"pip3", "list"
+    system bin/"python#{xy}", '-c', 'import tkinter; root = tkinter.Tk()'
+    system bin/'pip3', 'list'
   end
 end
 
 __END__
+--- configure	2024-09-06 17:20:06 -0700
++++ configure	2024-09-28 18:29:02 -0700
+@@ -7578,6 +7578,21 @@
+                LIPO_INTEL64_FLAGS="-extract x86_64"
+                ARCH_RUN_32BIT="true"
+                ;;
++            ppc)
++               UNIVERSAL_ARCH_FLAGS="-arch ppc -arch ppc64"
++               LIPO_32BIT_FLAGS="-extract ppc7400"
++               ARCH_RUN_32BIT="/usr/bin/arch -ppc"
++               ;;
++            ppc-32)
++               UNIVERSAL_ARCH_FLAGS="-arch ppc"
++               LIPO_32BIT_FLAGS=""
++               ARCH_RUN_32BIT=""
++               ;;
++            ppc-64)
++               UNIVERSAL_ARCH_FLAGS="-arch ppc64"
++               LIPO_32BIT_FLAGS=""
++               ARCH_RUN_32BIT="true"
++               ;;
+             intel)
+                UNIVERSAL_ARCH_FLAGS="-arch i386 -arch x86_64"
+                LIPO_32BIT_FLAGS="-extract i386"
+@@ -7599,7 +7614,7 @@
+                ARCH_RUN_32BIT="/usr/bin/arch -i386 -ppc"
+                ;;
+             *)
+-               as_fn_error $? "proper usage is --with-universal-arch=universal2|32-bit|64-bit|all|intel|3-way" "$LINENO" 5
++               as_fn_error $? "proper usage is --with-universal-arch=universal2|32-bit|64-bit|all|ppc|intel|3-way" "$LINENO" 5
+                ;;
+             esac
+ 
+--- Lib/_osx_support.py	2024-09-06 17:20:06 -0700
++++ Lib/_osx_support.py	2024-09-27 21:27:57 -0700
+@@ -544,6 +544,8 @@
+                 machine = 'universal2'
+             elif archs == ('i386', 'ppc'):
+                 machine = 'fat'
++            elif archs == ('ppc', 'ppc64'):
++                machine = 'fatppc'
+             elif archs == ('i386', 'x86_64'):
+                 machine = 'intel'
+             elif archs == ('i386', 'ppc', 'x86_64'):
 --- setup.py
 +++ setup.py
 @@ -2111,12 +2111,6 @@
@@ -473,7 +387,7 @@ __END__
          #       -DWITH_PIL -I../Extensions/Imaging/libImaging  tkImaging.c \
 --- Modules/posixmodule.c
 +++ Modules/posixmodule.c
-@@ -66,6 +66,8 @@
+@@ -72,6 +72,8 @@
   */
  #if defined(__APPLE__)
  
@@ -482,7 +396,7 @@ __END__
  #if defined(__has_builtin)
  #if __has_builtin(__builtin_available)
  #define HAVE_BUILTIN_AVAILABLE 1
-@@ -238,7 +240,7 @@ corresponding Unix manual entries for mo
+@@ -244,7 +246,7 @@ corresponding Unix manual entries for mo
  #  include <sys/sendfile.h>
  #endif
  
@@ -491,7 +405,7 @@ __END__
  #  include <copyfile.h>
  #endif
  
-@@ -9997,7 +9999,7 @@ done:
+@@ -10035,7 +10037,7 @@ done:
  #endif /* HAVE_SENDFILE */
  
  
@@ -500,7 +414,7 @@ __END__
  /*[clinic input]
  os._fcopyfile
  
-@@ -15440,7 +15442,7 @@ all_ins(PyObject *m)
+@@ -15478,7 +15480,7 @@ all_ins(PyObject *m)
  #endif
  #endif  /* HAVE_EVENTFD && EFD_CLOEXEC */
  
