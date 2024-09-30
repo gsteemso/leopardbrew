@@ -1,11 +1,25 @@
-require "formula"
-require "keg"
-require "migrator"
+#:
+#:  Usage:  brew outdated [ [/--HEAD/ | /--devel/] /installed formula/ [...] ]
+#:
+#:Determine which, if any, of the named /installed formulæ/ are out of date
+#:(i.e., would have newer versions if brewed today).
+#:
+#:If no individual formulæ are named, all installed formulæ are examined.
+#:
+#:Formulæ may be tagged “--HEAD” or “--devel” to check those versions – though
+#:specifying “--HEAD” will generally provide an incorrect result.  (Whether old
+#:or recent, a formula installed as --HEAD will always look up‐to‐date, as its
+#:version is always “HEAD”.  This is unaffected by whether the upstream
+#:repository has in fact been updated since the local version was installed).
+#:
+require 'formula'
+require 'keg'
+require 'migrator'
 
 module Homebrew
   def outdated
     formulae = ARGV.resolved_formulae.any? ? ARGV.resolved_formulae : Formula.installed
-    if ARGV.json == "v1"
+    if ARGV.json == 'v1'
       outdated = print_outdated_json(formulae)
     else
       outdated = print_outdated(formulae)
@@ -28,7 +42,7 @@ module Homebrew
         keg = Keg.new keg_dir
         version = keg.version
         all_versions << version
-        older_version = f.pkg_version <= version
+        older_version = f.pkg_version > version
 
         tap = Tab.for_keg(keg).tap
         if tap.nil? || f.tap == tap || older_version
@@ -44,11 +58,11 @@ module Homebrew
   end
 
   def print_outdated(formulae)
-    verbose = ($stdout.tty? || ARGV.verbose?) && !ARGV.flag?("--quiet")
+    verbose = ($stdout.tty? || VERBOSE) and not ARGV.quieter?
 
     outdated_brews(formulae) do |f, versions|
       if verbose
-        puts "#{f.full_name} (#{versions*", "} < #{f.pkg_version})"
+        puts "#{f.full_name} (#{versions * ', '} < #{f.pkg_version})"
       else
         puts f.full_name
       end
