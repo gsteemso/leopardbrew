@@ -49,7 +49,7 @@ class FormulaInstaller
     @quieter = false
     @debug = false
     @options = Options.new
-    @old_keg = formula.greatest_installed_keg
+    @old_keg = formula.greatest_installed_keg if formula.any_version_installed?
 
     @@attempted ||= Set.new
 
