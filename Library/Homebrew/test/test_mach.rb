@@ -14,7 +14,7 @@ class MachOPathnameTests < Homebrew::TestCase
     assert_predicate pn, :universal?
     refute_predicate pn, :i386?
     refute_predicate pn, :x86_64?
-    refute_predicate pn, :ppc7400?
+    refute_predicate pn, :ppc?
     refute_predicate pn, :ppc64?
     assert_predicate pn, :dylib?
     refute_predicate pn, :mach_o_executable?
@@ -27,7 +27,7 @@ class MachOPathnameTests < Homebrew::TestCase
     refute_predicate pn, :universal?
     assert_predicate pn, :i386?
     refute_predicate pn, :x86_64?
-    refute_predicate pn, :ppc7400?
+    refute_predicate pn, :ppc?
     refute_predicate pn, :ppc64?
     assert_predicate pn, :dylib?
     refute_predicate pn, :mach_o_executable?
@@ -40,7 +40,7 @@ class MachOPathnameTests < Homebrew::TestCase
     refute_predicate pn, :universal?
     refute_predicate pn, :i386?
     assert_predicate pn, :x86_64?
-    refute_predicate pn, :ppc7400?
+    refute_predicate pn, :ppc?
     refute_predicate pn, :ppc64?
     assert_predicate pn, :dylib?
     refute_predicate pn, :mach_o_executable?
@@ -53,7 +53,7 @@ class MachOPathnameTests < Homebrew::TestCase
     assert_predicate pn, :universal?
     refute_predicate pn, :i386?
     refute_predicate pn, :x86_64?
-    refute_predicate pn, :ppc7400?
+    refute_predicate pn, :ppc?
     refute_predicate pn, :ppc64?
     refute_predicate pn, :dylib?
     assert_predicate pn, :mach_o_executable?
@@ -66,7 +66,7 @@ class MachOPathnameTests < Homebrew::TestCase
     assert_predicate pn, :universal?
     refute_predicate pn, :i386?
     refute_predicate pn, :x86_64?
-    refute_predicate pn, :ppc7400?
+    refute_predicate pn, :ppc?
     refute_predicate pn, :ppc64?
     refute_predicate pn, :dylib?
     refute_predicate pn, :mach_o_executable?
@@ -79,7 +79,7 @@ class MachOPathnameTests < Homebrew::TestCase
     refute_predicate pn, :universal?
     assert_predicate pn, :i386?
     refute_predicate pn, :x86_64?
-    refute_predicate pn, :ppc7400?
+    refute_predicate pn, :ppc?
     refute_predicate pn, :ppc64?
     refute_predicate pn, :dylib?
     refute_predicate pn, :mach_o_executable?
@@ -92,7 +92,7 @@ class MachOPathnameTests < Homebrew::TestCase
     refute_predicate pn, :universal?
     refute_predicate pn, :i386?
     assert_predicate pn, :x86_64?
-    refute_predicate pn, :ppc7400?
+    refute_predicate pn, :ppc?
     refute_predicate pn, :ppc64?
     refute_predicate pn, :dylib?
     refute_predicate pn, :mach_o_executable?
@@ -105,7 +105,7 @@ class MachOPathnameTests < Homebrew::TestCase
     refute_predicate pn, :universal?
     refute_predicate pn, :i386?
     refute_predicate pn, :x86_64?
-    refute_predicate pn, :ppc7400?
+    refute_predicate pn, :ppc?
     refute_predicate pn, :ppc64?
     refute_predicate pn, :dylib?
     refute_predicate pn, :mach_o_executable?
@@ -177,7 +177,7 @@ class TextExecutableTests < Homebrew::TestCase
     refute_predicate pn, :universal?
     refute_predicate pn, :i386?
     refute_predicate pn, :x86_64?
-    refute_predicate pn, :ppc7400?
+    refute_predicate pn, :ppc?
     refute_predicate pn, :ppc64?
     refute_predicate pn, :dylib?
     refute_predicate pn, :mach_o_executable?
@@ -191,7 +191,7 @@ class TextExecutableTests < Homebrew::TestCase
     refute_predicate pn, :universal?
     refute_predicate pn, :i386?
     refute_predicate pn, :x86_64?
-    refute_predicate pn, :ppc7400?
+    refute_predicate pn, :ppc?
     refute_predicate pn, :ppc64?
     refute_predicate pn, :dylib?
     refute_predicate pn, :mach_o_executable?
@@ -205,7 +205,7 @@ class TextExecutableTests < Homebrew::TestCase
     refute_predicate pn, :universal?
     refute_predicate pn, :i386?
     refute_predicate pn, :x86_64?
-    refute_predicate pn, :ppc7400?
+    refute_predicate pn, :ppc?
     refute_predicate pn, :ppc64?
     refute_predicate pn, :dylib?
     refute_predicate pn, :mach_o_executable?
