@@ -24,12 +24,12 @@ module Homebrew
     raise 'Specify “--HEAD” in uppercase to build from the latest source code.' if ARGV.include? '--head'
 
     ARGV.resolved_formulae.each do |f|
-      if f.any_version_installed?
+      if f.installed?
         reinstall_formula(f)
       else
         opoo <<-_.undent
-          The formula #{f.name} could not be reinstalled because no version of it is
-          installed in the first place.  Use “brew install #{f.name}” instead.
+          The formula #{f.name} could not be reinstalled because no current version of it
+          is installed in the first place.  Use “brew install #{f.name}” instead.
         _
       end
     end
@@ -56,7 +56,7 @@ module Homebrew
     oh1 "New spec = #{new_spec or '[nil]'}" if DEBUG
     f.set_active_spec new_spec
     keep_other_current_kegs = existing_prefixes.include?(f.prefix)
-    oh1 "Replace other existing kegs?  #{keep_other_current_kegs ? 'NO' : 'YES'}" if DEBUG
+    oh1 "Replace other current kegs?  #{keep_other_current_kegs ? 'NO' : 'YES'}" if DEBUG
     notice  = "Reinstalling #{f.full_name}"
     notice += " with #{options * ', '}" unless options.empty?
     oh1 notice
@@ -101,13 +101,13 @@ module Homebrew
     if f.prefix.exists?
       # delete the old version if both are present and they aren’t the same
       if keg.exists? and keg.root != f.prefix
-        onoe "Deleting superfluous #{keg}" if DEBUG
+        oh1 "Deleting superfluous #{keg}" if DEBUG
         keg.root.rmtree
       end
       # also delete other current specifications if the one we just installed wasn’t among them
       unless keep_other_current_kegs
         existing_prefixes.each do |p|
-          onoe "Deleting replaced #{p}" if DEBUG
+          oh1 "Deleting replaced #{p}" if DEBUG
           p.rmtree
         end
       end
