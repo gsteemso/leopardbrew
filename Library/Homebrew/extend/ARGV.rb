@@ -93,7 +93,7 @@ module HomebrewArgvExtension
     @resolved_formulae ||= (downcased_unique_named - casks).map do |name|
       if name.include?('/')
         f = Formulary.factory(name, spec)
-        if spec(default=nil).nil? and f.any_version_installed?
+        if spec(default=nil).nil? and f.installed?
           installed_spec = Tab.for_formula(f).spec
           f.set_active_spec(installed_spec) if f.send(installed_spec)
         end
