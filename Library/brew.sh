@@ -28,7 +28,7 @@ then
 fi
 
 # Where we store built products.  [prefix]/Cellar if it exists ([prefix] is
-# “/usr/local” by default) -- otherwise defaults to [repository]/Cellar.
+# “/usr/local” by default) -- normally defaults to [repository]/Cellar.
 if [[ -d "$HOMEBREW_PREFIX/Cellar" ]]
 then
   HOMEBREW_CELLAR="$HOMEBREW_PREFIX/Cellar"
@@ -99,6 +99,7 @@ export HOMEBREW_REPOSITORY
 export HOMEBREW_CACHE
 export HOMEBREW_CELLAR
 export HOMEBREW_CURL  # ← may be updated by `vendor-curl.sh` (sourced below)
+export HOMEBREW_LIBRARY_PATH="${HOMEBREW_LIBRARY}/Homebrew"
 export HOMEBREW_OS_VERSION
 export HOMEBREW_OSX_VERSION
 # HOMEBREW_RUBY_PATH is also exported from `ruby.sh` (sourced below)
@@ -167,10 +168,10 @@ case "$HOMEBREW_COMMAND" in
   --config)    HOMEBREW_COMMAND="config";;
 esac
 
-if [[ -f "$HOMEBREW_LIBRARY/Homebrew/cmd/$HOMEBREW_COMMAND.sh" ]]; then
-  HOMEBREW_BASH_COMMAND="$HOMEBREW_LIBRARY/Homebrew/cmd/$HOMEBREW_COMMAND.sh"
-elif [[ -n "$HOMEBREW_DEVELOPER" && -f "$HOMEBREW_LIBRARY/Homebrew/dev-cmd/$HOMEBREW_COMMAND.sh" ]]; then
-  HOMEBREW_BASH_COMMAND="$HOMEBREW_LIBRARY/Homebrew/dev-cmd/$HOMEBREW_COMMAND.sh"
+if [[ -f "$HOMEBREW_LIBRARY_PATH/cmd/$HOMEBREW_COMMAND.sh" ]]; then
+  HOMEBREW_BASH_COMMAND="$HOMEBREW_LIBRARY_PATH/cmd/$HOMEBREW_COMMAND.sh"
+elif [[ -n "$HOMEBREW_DEVELOPER" && -f "$HOMEBREW_LIBRARY_PATH/dev-cmd/$HOMEBREW_COMMAND.sh" ]]; then
+  HOMEBREW_BASH_COMMAND="$HOMEBREW_LIBRARY_PATH/dev-cmd/$HOMEBREW_COMMAND.sh"
 fi
 
 if [[ "$(id -u)" = "0" && "$(/usr/bin/stat -f%u "$HOMEBREW_BREW_FILE")" != "0" ]]
@@ -189,11 +190,11 @@ fi
 
 # Hide shellcheck complaint:
 # shellcheck source=/dev/null
-source "$HOMEBREW_LIBRARY/Homebrew/utils/ruby.sh"
+source "$HOMEBREW_LIBRARY_PATH/utils/ruby.sh"
 setup-ruby-path
-if [[ -x "$HOMEBREW_LIBRARY/Homebrew/cmd/vendor-curl.sh" ]]
+if [[ -x "$HOMEBREW_LIBRARY_PATH/cmd/vendor-curl.sh" ]]
 then
-  source "$HOMEBREW_LIBRARY/Homebrew/cmd/vendor-curl.sh"
+  source "$HOMEBREW_LIBRARY_PATH/cmd/vendor-curl.sh"
   setup-curl-path
   # This may have changed after we vendored curl; regenerate it
   HOMEBREW_CURL_VERSION="$("$HOMEBREW_CURL" --version 2>/dev/null | head -n1 | /usr/bin/awk '{print $1"/"$2}')"

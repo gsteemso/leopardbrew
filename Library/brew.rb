@@ -4,7 +4,7 @@
 std_trap = trap("INT") { exit! 130 } # no backtrace thanks
 
 # add HOMEBREW_LIBRARY_PATH to front of Ruby‐library search path
-$:.unshift("#{ENV['HOMEBREW_LIBRARY']}/Homebrew")
+$:.unshift(ENV['HOMEBREW_LIBRARY_PATH'])
 
 require 'global'  # a Homebrew library
 # among other things, it imports all of our important environment variables as Ruby constants
