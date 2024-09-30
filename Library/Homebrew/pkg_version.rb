@@ -27,6 +27,7 @@ class PkgVersion
       version.to_s
     end
   end
+  alias :to_str :to_s unless method_defined? :to_str  # we don’t wanna, but Ruby 1.8.x doesn’t care
 
   def <=>(other)
     return unless PkgVersion === other

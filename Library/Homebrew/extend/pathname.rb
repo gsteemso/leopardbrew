@@ -23,6 +23,7 @@ class Pathname
   end
 
   alias :exists? :exist? unless method_defined? :exists?
+  alias :to_str :to_s unless method_defined? :to_str  # we don’t wanna, but Ruby 1.8.x doesn’t care
 
   # Moves a file from the original location to the {Pathname}'s.
   def install(*sources)
