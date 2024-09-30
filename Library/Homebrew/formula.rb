@@ -299,16 +299,17 @@ class Formula
   # An old name for the formula
   def oldname
     @oldname ||= if core_formula?
-      if FORMULA_RENAMES && FORMULA_RENAMES.value?(name)
-        FORMULA_RENAMES.to_a.rassoc(name).first
+        if FORMULA_RENAMES && FORMULA_RENAMES.value?(name)
+          FORMULA_RENAMES.to_a.rassoc(name).first
+        end
+      elsif tap?
+        user, repo = tap.split("/")
+        formula_renames = Tap.fetch(user, repo.sub("homebrew-", "")).formula_renames
+        if formula_renames.value?(name)
+          formula_renames.to_a.rassoc(name).first
+        end
       end
-    elsif tap?
-      user, repo = tap.split("/")
-      formula_renames = Tap.fetch(user, repo.sub("homebrew-", "")).formula_renames
-      if formula_renames.value?(name)
-        formula_renames.to_a.rassoc(name).first
-      end
-    end
+    oh1 "Formula #{name}’s old name was #{@oldname}" if DEBUG and @oldname
   end
 
   # The {Resource}s for the currently active {SoftwareSpec}.
@@ -385,7 +386,7 @@ class Formula
   # If at least one version of {Formula} is installed, no matter how outdated.
   # @private
   def any_version_installed?
-    (rack.directory? and rack.subdirs.any? { |keg| is_installed_prefix?(keg) }) or oldname_installed?
+    rack.directory? and rack.subdirs.any? { |keg| is_installed_prefix?(keg) }
   end
 
   # If some version of {Formula} is installed under its old name.
@@ -407,7 +408,7 @@ class Formula
         end
       end
     end
-    raise RuntimeError "#{name} is not installed." if highest_seen == ''
+    raise RuntimeError, "#{name} is not installed." if highest_seen == ''
     Keg.new(rack/highest_seen)
   end
 
