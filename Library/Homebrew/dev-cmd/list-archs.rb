@@ -13,31 +13,25 @@
 #:do weird things which require every last file within each keg to be examined.)
 #:
 
-SIGNATURES = {
-  'cafebabe' => :FAT_MAGIC,
-  'feedface' => :MH_MAGIC,
-  'feedfacf' => :MH_MAGIC_64,
-}.freeze
-
 CPU_TYPES = {
   '00000001' => 'VAX',
   '00000002' => 'ROMP',
-  '00000004' => 'ns32032',
-  '00000005' => 'ns32332',
-  '00000006' => 'm68k',
-  '01000006' => 'a68k',
+  '00000004' => 'NS32032',
+  '00000005' => 'NS32332',
+  '00000006' => 'M68k',
+  '01000006' => 'A68k',
   '00000007' => 'i386',
   '01000007' => 'x86-64',
   '00000008' => 'MIPS',
   '01000008' => 'MIPS64',
-  '00000009' => 'ns32532',
-  '0000000a' => 'm98k',
+  '00000009' => 'NS32532',
+  '0000000a' => 'M98k',
   '0000000b' => 'PA',
   '0100000b' => 'PA64',
   '0000000c' => 'ARM',
   '0100000c' => 'ARM64',
   '0200000c' => 'ARM64/32',
-  '0000000d' => 'm88k',
+  '0000000d' => 'M88k',
   '0000000e' => 'SPARC',
   '0100000e' => 'SPARC64',
   '0000000f' => 'i860',
@@ -161,29 +155,13 @@ module Term_seq # standard terminal display-control sequences (yes, can be a wro
   def reset_gr ; sgr(rst) ; end
 end # Term_seq
 
-class Pathname
-  def mach_o_signature?
-    self.file? and
-    (self.size >= 28 and SIGNATURES[self.binread(4).unpack('H8').first]) or
-    (self.binread(8) == "!<arch>\x0a" and
-     self.size >= 72 and
-     (self.binread(16, 8) !~ %r|^#1/\d+|   and SIGNATURES[self.binread(4, 68).unpack('H8').first]) or
-     (self.binread(16, 8) =~ %r|^#1/(\d+)| and SIGNATURES[self.binread(4, 68+($1.to_i)).unpack('H8').first]))
-  end # mach_o_signature
-end # Pathname
-
 module Homebrew
   Term_seq.set_grcm_cumulative
 
   def list_archs
-    def oho(*msg)
-      puts "#{Term_seq.bolder_on_black}#{Term_seq.in_br_blue '==>'} #{msg.to_a.join('')}#{Term_seq.reset_gr}"
-    end
+    def oho(*msg); puts "#{Term_seq.bolder_on_black}#{Term_seq.in_br_blue '==>'} #{msg.to_a.join('')}#{Term_seq.reset_gr}"; end
 
-    def ohey(title, *msg)
-      oho title
-      puts msg
-    end
+    def ohey(title, *msg); oho title; puts msg; end
 
     def scour(in_here)
       possibles = []
@@ -193,10 +171,8 @@ module Homebrew
         Pathname.new(m)
       }.each do |pn|
         unless pn.symlink?
-          if pn.directory?
-            possibles += scour(pn)
-          elsif pn.mach_o_signature?
-            possibles << pn
+          if pn.directory? then possibles += scour(pn)
+          elsif pn.mach_o_signature? then possibles << pn
           end
         end # unless symlink?
       end # each |pn|
@@ -205,28 +181,19 @@ module Homebrew
 
     def cpu_valid(type, subtype)
       case CPU_TYPES[type]
-      when /^ARM/, 'i386', 'x86-64'
-        CPU_TYPES[type]
-      when 'PPC'
-        val = PPC_SUBTYPES[subtype]
-        got_generic_ppc = true if val and val == 'ppc‐*'
-        val
-      when 'PPC64'
-        'ppc64'
-      else
-        nil
+        when /^ARM/, 'i386', 'x86-64' then CPU_TYPES[type]
+        when 'PPC' then got_generic_ppc = true if (val = PPC_SUBTYPES[subtype]) and val == 'ppc‐*'; val
+        when 'PPC64' then 'ppc64'
+        else nil
       end
     end # cpu_valid
 
     thorough_flag = ARGV.include? '--thorough'
     requested = (thorough_flag ? ARGV.versioned_kegs : ARGV.kegs)
     raise KegUnspecifiedError if requested.empty?
-    no_archs_msg = false
-    got_generic_ppc = false
+    no_archs_msg = false; got_generic_ppc = false
     requested.each do |keg|
-      max_arch_count = 0
-      arch_reports = {}
-      alien_reports = []
+      max_arch_count = 0; arch_reports = {}; alien_reports = []
       scour(keg.to_s).each do |mo|
         sig = mo.mach_o_signature?
         if sig == :FAT_MAGIC
@@ -261,24 +228,17 @@ module Homebrew
               # the ꜱɢʀ sequences at beginning and end are 5 characters each
               if (a[5..7] == 'ppc' and b[5..7] == 'ppc')
                 # sort ppc64 after all other ppc types
-                if a[8..-6] == '64'
-                  1
-                elsif b[8..-6] == '64'
-                  -1
-                else 
-                  a <=> b
+                if a[8..-6] == '64' then 1
+                elsif b[8..-6] == '64' then -1
+                else a <=> b
                 end
-              else
-                a <=> b
+              else a <=> b
               end # ppc_x_?
             end # sort! native parts
             foreign_parts.sort! do |a, b|
-              if a.keys.first[0] < b.keys.first[0]
-                -1
-              elsif a.keys.first[0] > b.keys.first[0]
-                1
-              else
-                a.keys.first[1] <=> b.keys.first[1]
+              if a.keys.first[0] < b.keys.first[0] then -1
+              elsif a.keys.first[0] > b.keys.first[0] then 1
+              else a.keys.first[1] <=> b.keys.first[1]
               end # compare CPUtype or else compare subtype
             end # sort! foreign parts
             parts = native_parts + foreign_parts.map { |h| Term_seq.in_cyan("#{h.keys.first[0]}:#{h.keys.first[1]}") }
@@ -292,18 +252,15 @@ module Homebrew
             :type => mo.binread(4, 4).unpack('H8').first,
             :subtype => mo.binread(4, 8).unpack('H8').first
           }
-          if arch = cpu_valid(cpu[:type], cpu[:subtype])
-            key = [Term_seq.in_br_cyan(arch)]
+          if arch = cpu_valid(cpu[:type], cpu[:subtype]) then key = [Term_seq.in_br_cyan(arch)]
           else # alien arch
             ct = (CPU_TYPES[cpu[:type]] or cpu[:type])
             key = [Term_seq.in_cyan("#{ct}:#{cpu[:subtype]}")]
             alien_reports << "File #{Term_seq.in_white(mo)}:\n  [foreign CPU type #{Term_seq.in_cyan(ct)} with subtype #{Term_seq.in_cyan(cpu[:subtype])}.\n"
           end # native arch?
         end # Fat / Mach-O sig?
-        if arch_reports[key]
-          arch_reports[key] += 1
-        else
-          arch_reports[key] = 1
+        if arch_reports[key] then arch_reports[key] += 1
+        else arch_reports[key] = 1
         end
       end # do each |mo|
 
@@ -323,9 +280,9 @@ module Homebrew
         end # not thorough?
         oho "#{Term_seq.in_white("#{keg.name} #{keg.root.basename}")} is built for ",
           "#{Term_seq.in_br_white(arch_reports.length)} combination#{plural(arch_reports.length)} of architectures:  ",
-          "#{arch_reports.keys.sort { |a, b| b.length <=> a.length }.map {
+          arch_reports.keys.sort { |a, b| b.length <=> a.length }.map {
               |k| "#{k * Term_seq.in_white('/')} (#{'×' + arch_reports[k].to_s})"
-            } * ', '}."
+            } * ', ', '.'
       end # any archs found?
     end # do each |keg|
 
