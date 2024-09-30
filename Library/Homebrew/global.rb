@@ -31,12 +31,12 @@ HOMEBREW_CELLAR         = Pathname.new(ENV['HOMEBREW_CELLAR'])
 HOMEBREW_CURL           = Pathname.new(ENV['HOMEBREW_CURL'])
 HOMEBREW_LIBRARY        = Pathname.new(ENV['HOMEBREW_LIBRARY'])
   HOMEBREW_CONTRIB      =   HOMEBREW_LIBRARY/'Contributions'
-  HOMEBREW_LIBRARY_PATH =   HOMEBREW_LIBRARY/'Homebrew'             # Homebrew’s Ruby libraries
+  LINKDIR               =   HOMEBREW_LIBRARY/'LinkedKegs'           # Records which kegs are linked
+  PINDIR                =   HOMEBREW_LIBRARY/'PinnedKegs'           # see `formula_pin.rb`
+HOMEBREW_LIBRARY_PATH   = Pathname.new(ENV['HOMEBREW_LIBRARY_PATH']) # Homebrew’s Ruby libraries
   HOMEBREW_LOAD_PATH    =   HOMEBREW_LIBRARY_PATH
                             # The path to our libraries /when invoking Ruby/.  Is sometimes set to
                             # a custom value during unit testing of Homebrew itself.
-  LINKDIR               =   HOMEBREW_LIBRARY/'LinkedKegs'           # Records which kegs are linked
-  PINDIR                =   HOMEBREW_LIBRARY/'PinnedKegs'           # see `formula_pin.rb`
 HOMEBREW_PREFIX         = Pathname.new(ENV['HOMEBREW_PREFIX'])      # Where we link under
   OPTDIR                =   HOMEBREW_PREFIX/'opt'                   # Where we are always available
 HOMEBREW_REPOSITORY     = Pathname.new(ENV['HOMEBREW_REPOSITORY'])  # Where .git is found
@@ -46,25 +46,25 @@ HOMEBREW_RUBY_PATH      = Pathname.new(ENV['HOMEBREW_RUBY_PATH'])   # To our int
 # CompilerConstants::GNU_CXX11_REGEXP #
 # CompilerConstants::GNU_CXX14_REGEXP # see `compilers.rb`
 # CompilerConstants::GNU_GCC_REGEXP   #
-HOMEBREW_CASK_TAP_FORMULA_REGEX     = %r{^(Caskroom)/(cask)/([\w+-.]+)$}
-                                      # Match formulæ in the default brew‐cask tap, e.g. Caskroom/cask/someformula
-HOMEBREW_CORE_FORMULA_REGEX         = %r{^homebrew/homebrew/([\w+-.]+)$}i
-                                      # Match core formulæ, e.g. homebrew/homebrew/someformula
-HOMEBREW_PULL_OR_COMMIT_URL_REGEX   = %r{https://github\.com/([\w-]+)/tigerbrew(-[\w-]+)?/(?:pull/(\d+)|commit/[0-9a-fA-F]{4,40})}
-HOMEBREW_TAP_ARGS_REGEX             = %r{^([\w-]+)/(homebrew-)?([\w-]+)$}
-                                      # Match taps given as arguments, e.g. someuser/sometap
-HOMEBREW_TAP_DIR_REGEX              = %r{#{Regexp.escape(HOMEBREW_LIBRARY.to_s)}/Taps/([\w-]+)/([\w-]+)}
-                                      # Match taps’ directory paths, e.g. HOMEBREW_LIBRARY/Taps/someuser/sometap
-HOMEBREW_TAP_FORMULA_REGEX          = %r{^([\w-]+)/([\w-]+)/([\w+-.@]+)$}
-                                      # Match taps’ formulæ, e.g. someuser/sometap/someformula
-HOMEBREW_TAP_PATH_REGEX             = Regexp.new(HOMEBREW_TAP_DIR_REGEX.source + %r{/(.*)}.source)
+HOMEBREW_CASK_TAP_FORMULA_REGEX   = %r{^(Caskroom)/(cask)/([\w+-.]+)$}
+                                    # Match formulæ in the default brew‐cask tap, e.g. Caskroom/cask/someformula
+HOMEBREW_CORE_FORMULA_REGEX       = %r{^homebrew/homebrew/([\w+-.]+)$}i
+                                    # Match core formulæ, e.g. homebrew/homebrew/someformula
+HOMEBREW_PULL_OR_COMMIT_URL_REGEX = %r{https://github\.com/([\w-]+)/tigerbrew(-[\w-]+)?/(?:pull/(\d+)|commit/[0-9a-fA-F]{4,40})}
+HOMEBREW_TAP_ARGS_REGEX           = %r{^([\w-]+)/(homebrew-)?([\w-]+)$}
+                                    # Match taps given as arguments, e.g. someuser/sometap
+HOMEBREW_TAP_DIR_REGEX            = %r{#{Regexp.escape(HOMEBREW_LIBRARY.to_s)}/Taps/([\w-]+)/([\w-]+)}
+                                    # Match taps’ directory paths, e.g. HOMEBREW_LIBRARY/Taps/someuser/sometap
+HOMEBREW_TAP_FORMULA_REGEX        = %r{^([\w-]+)/([\w-]+)/([\w+-.@]+)$}
+                                    # Match taps’ formulæ, e.g. someuser/sometap/someformula
+  HOMEBREW_TAP_PATH_REGEX         =   Regexp.new(HOMEBREW_TAP_DIR_REGEX.source + %r{/(.*)}.source)
                                       # Match taps’ formula paths, e.g. HOMEBREW_LIBRARY/Taps/someuser/sometap/someformula
-# Pathname::BOTTLE_EXTNAME_RX         # see `extend/pathname.rb`
+# Pathname::BOTTLE_EXTNAME_RX       # see `extend/pathname.rb`
 
 # Other predefined values:
-# CompilerConstants::CLANG_CXX11_MIN  #
-# CompilerConstants::CLANG_CXX14_MIN  # see `compilers.rb`
-# CompilerConstants::COMPILERS        #
+# CompilerConstants::CLANG_CXX11_MIN #
+# CompilerConstants::CLANG_CXX14_MIN # see `compilers.rb`
+# CompilerConstants::COMPILERS       #
 HOMEBREW_CURL_ARGS          = '-f#LA'
 HOMEBREW_INTERNAL_COMMAND_ALIASES = {
                           'ls'          => 'list',
@@ -133,8 +133,11 @@ require 'compat' unless ARGV.include?('--no-compat') || NO_COMPAT
 #   VERBOSE                  #   Same thing but system‐wide
 
 # Environment variables that can be used to control Superenv:
-# HOMEBREW_CC_LOG_PATH  # This is set by `formula.rb` whenever it executes a Superenv build tool
-# HOMEBREW_FORCE_FLAGS  # When argument refurbishment is performed, these are always inserted
+# HOMEBREW_CC_LOG_PATH    # This is set by `formula.rb` whenever it executes a Superenv build tool
+# HOMEBREW_FORCE_FLAGS    # When argument refurbishment is performed, these are always inserted
+# HOMEBREW_INCLUDE_PATHS  # These are how -I flags reach ENV/*/cc
+# HOMEBREW_ISYSTEM_PATHS  # These are how -isystem flags reach ENV/*/cc
+# HOMEBREW_LIBRARY_PATHS  # These are how -L flags reach ENV/*/cc
 
 module Homebrew
   include FileUtils
