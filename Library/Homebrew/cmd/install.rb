@@ -170,16 +170,25 @@ module Homebrew
     # another formula. In that case, don't generate an error, just move on.
   rescue CannotInstallFormulaError => e
     # leave no trace of the failed installation
-    f.prefix.rmtree if f.prefix.exists?
+    if f.prefix.exists?
+      oh1 "Deleting failed install at #{f.prefix}" if DEBUG
+      f.prefix.rmtree
+    end
     ofail e.message
   rescue BuildError
     # leave no trace of the failed installation
-    f.prefix.rmtree if f.prefix.exists?
+    if f.prefix.exists?
+      oh1 "Deleting failed install at #{f.prefix}" if DEBUG
+      f.prefix.rmtree
+    end
     check_macports
     raise
   rescue Exception
     # leave no trace of the failed installation
-    f.prefix.rmtree if f.prefix.exists?
+    if f.prefix.exists?
+      oh1 "Deleting failed install at #{f.prefix}" if DEBUG
+      f.prefix.rmtree
+    end
     raise
   end
 end
