@@ -9,7 +9,7 @@ class Bash < Formula
 
   head "http://git.savannah.gnu.org/r/bash.git"
 
-  STANDARD_BASH = (MacOS.version < :leopard ? '2.05' : '3.2')  # true even on Mac OS 14.5
+  STANDARD_BASH = (MacOS.version < :leopard ? '2.05' : '3.2')  # true even on Mac OS 15
   SYSTEM_BASH = Pathname.new '/bin/bash'
   MOVED_BASH = Pathname.new "/bin/bash-#{STANDARD_BASH}"
   TO = HOMEBREW_PREFIX/'bin/to-brewed-bash'
