@@ -133,13 +133,13 @@ module Homebrew
       else
         case o.flag
         when /^--with-(.+)$/
-          if formula.option_defined?(inverse = "without-#{$1}")
+          if formula.option_defined?(inverse = "without-#{$1}") or use_opts.include? inverse
             anti_opts += [Option.new(inverse)]
           else
             unrecognized = true
           end # --with-xxxx?
         when /^--without-(.+)$/
-          if formula.option_defined?(inverse = "with-#{$1}")
+          if formula.option_defined?(inverse = "with-#{$1}") or use_opts.include? inverse
             anti_opts += [Option.new(inverse)]
           else
             unrecognized = true
