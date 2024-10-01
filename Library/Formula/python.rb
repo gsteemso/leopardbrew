@@ -1,83 +1,53 @@
 class Python < Formula
-  desc "Interpreted, interactive, object-oriented programming language"
-  homepage "https://www.python.org"
-  url "https://www.python.org/ftp/python/2.7.18/Python-2.7.18.tar.xz"
-  sha256 "b62c0e7937551d0cc02b8fd5cb0f544f9405bafc9a54d3808ed4594812edef43"
+  desc 'Interpreted, interactive, object-oriented programming language'
+  homepage 'https://www.python.org'
+  url 'https://www.python.org/ftp/python/2.7.18/Python-2.7.18.tar.xz'
+  sha256 'b62c0e7937551d0cc02b8fd5cb0f544f9405bafc9a54d3808ed4594812edef43'
   # as Python 2.7 development halted years ago, the :HEAD version is no longer available
   revision 1
 
   bottle do
-    sha256 "2e35834cc056418aef2471eddb7b75a83fd3336b8c832bb0bbf13f140bb68dcc" => :tiger_altivec
+    sha256 '2e35834cc056418aef2471eddb7b75a83fd3336b8c832bb0bbf13f140bb68dcc' => :tiger_altivec
   end
 
   # Please don't add a wide/ucs4 option, as it won't be accepted.
   # More details in: https://github.com/Homebrew/homebrew/pull/32368
   option :universal
-  option "with-tcl-tk", "Use Tigerbrew's Tk instead of OS X Tk (has optional Cocoa and threads support)"
 
   # sphinx-doc depends on python, but on 10.6 or earlier python is fulfilled by
   # brew, which would lead to circular dependency.
   if MacOS.version > :snow_leopard
-    option "with-sphinx-doc", "Build HTML documentation"
-    depends_on "sphinx-doc" => [:build, :optional]
+    option 'with-sphinx-doc', 'Build HTML documentation'
+    depends_on 'sphinx-doc' => [:build, :optional]
   end
 
-  deprecated_option "quicktest" => "with-quicktest"
-  deprecated_option "with-brewed-tk" => "with-tcl-tk"
+  deprecated_option 'quicktest' => 'with-quicktest'
 
-  depends_on "pkg-config" => :build
-  depends_on "readline" => :recommended
-  depends_on "sqlite" => :recommended
-  depends_on "gdbm" => :recommended
-  depends_on "openssl"
-  depends_on "tcl-tk" => :optional
-  depends_on "berkeley-db4" => :optional
-  depends_on :x11 if build.with?("tcl-tk") && Tab.for_name("tcl-tk").with?("x11")
+  depends_on 'pkg-config' => :build
+  depends_on 'openssl'
+  depends_on 'tcl-tk'
+  depends_on :x11 if Tab.for_name('tcl-tk').with?('x11')
+  depends_on 'gdbm' => :recommended
+  depends_on 'readline' => :recommended
+  depends_on 'sqlite' => :recommended
+  depends_on 'berkeley-db4' => :optional
 
-  skip_clean "bin/pip", "bin/pip-2.7"
-  skip_clean "bin/easy_install", "bin/easy_install-2.7"
+  skip_clean 'bin/pip', 'bin/pip-2.7'
+  skip_clean 'bin/easy_install', 'bin/easy_install-2.7'
 
-  resource "setuptools" do
-    url "https://files.pythonhosted.org/packages/b2/40/4e00501c204b457f10fe410da0c97537214b2265247bc9a5bc6edd55b9e4/setuptools-44.1.1.zip"
-    sha256 "c67aa55db532a0dadc4d2e20ba9961cbd3ccc84d544e9029699822542b5a476b"
+  # Patch to disable the search for Tk.framework, since Homebrew’s Tk is
+  # a plain unix build. Remove `-lX11` too, because our Tk is “AquaTk”.
+  patch do
+    url 'https://raw.githubusercontent.com/Homebrew/patches/42fcf22/python/brewed-tk-patch.diff'
+    sha256 '15c153bdfe51a98efe48f8e8379f5d9b5c6c4015e53d3f9364d23c8689857f09'
   end
 
-  resource "pip" do
-    url "https://files.pythonhosted.org/packages/53/7f/55721ad0501a9076dbc354cc8c63ffc2d6f1ef360f49ad0fbcce19d68538/pip-20.3.4.tar.gz"
-    sha256 "6773934e5f5fc3eaa8c5a44949b5b924fc122daa0a8aa9f80c835b4ca2a543fc"
-  end
-
-  resource "wheel" do
-    url "https://files.pythonhosted.org/packages/c0/6c/9f840c2e55b67b90745af06a540964b73589256cb10cc10057c87ac78fc2/wheel-0.37.1.tar.gz"
-    sha256 "e9a504e793efbca1b8e0e9cb979a249cf4a0a7b5b8c9e8b65a5e39d49529c1c4"
-  end
-
-  # Patch to disable the search for Tk.framework, since Homebrew's Tk is
-  # a plain unix build. Remove `-lX11`, too because our Tk is "AquaTk".
-  if build.with? "tcl-tk"
-    patch do
-      url "https://raw.githubusercontent.com/Homebrew/patches/42fcf22/python/brewed-tk-patch.diff"
-      sha256 "15c153bdfe51a98efe48f8e8379f5d9b5c6c4015e53d3f9364d23c8689857f09"
-    end
-  end
-
-  def lib_cellar
-    prefix/"Frameworks/Python.framework/Versions/2.7/lib/python2.7"
-  end
-
-  def site_packages_cellar
-    lib_cellar/"site-packages"
-  end
-
-  # The HOMEBREW_PREFIX location of site-packages.
-  def site_packages
-    HOMEBREW_PREFIX/"lib/python2.7/site-packages"
-  end
+  patch :DATA  # enable PPC‐only universal builds
 
   # setuptools remembers the build flags python is built with and uses them to
   # build packages later. Xcode-only systems need different flags.
   def pour_bottle
-    reason <<~EOS
+    reason <<-EOS.undent
       The bottle needs the Apple Command Line Tools to be installed.
         You can install them, if desired, with:
           xcode-select --install
@@ -85,78 +55,13 @@ class Python < Formula
     satisfy { MacOS::CLT.installed? }
   end
 
-  module Pathname_extension
-    def is_fat_binary?
-      # header 32‐bit word 0, magic signature:  FAT_MAGIC = 0xcafebabe
-      # header word 1, number n of Mach-O sub‐binaries:  2 to 4, but allow up to 6 just in case
-      # header words 2 + (0..(n – 1)) * 5: CPU types:  7 is x86, 12 is ARM, 18 is PPC
-      # (each sub‐binary has a 7‐ or 8‐word header)
-      if (self.file? and self.size >= 104 and fat_header = self.binread(32).unpack('N8'))
-        (fat_header[0]  == 0xcafebabe and
-         fat_header[1] >= 2 and fat_header[1] <= 6 and
-         [7, 12, 18].detect { |item| (fat_header[2] & 0x00ffffff) == item } and
-         [7, 12, 18].detect { |item| (fat_header[7] & 0x00ffffff) == item })
-      else
-        false
-      end
-    end unless method_defined?(:is_fat_binary?)
-
-    def ppc_archs
-      # it has already been established that self is a valid fat file with 2-6 members
-      ppc32_found = ppc64_found = false
-      archs = []
-      n = self.binread(4, 4).unpack('N1').first - 1
-      for i in 0..n
-        cpu_type = self.binread(4, 8 + 20 * i).unpack('N1').first
-        if cpu_type & 0x00ffffff == 18
-          if cpu_type & 0xff000000 == 0
-            ppc32_found = true
-          else
-            ppc64_found = true
-          end
-        end
-      end
-      archs << 'ppc' if ppc32_found
-      archs << 'ppc64' if ppc64_found
-      archs
-    end unless method_defined?(:ppc_archs)
-  end # Pathname_extension
-
-  def purge_keg(lipo = which('lipo'), sub_path = '')
-    # don’t suffer a double slash when sub_path is null:
-    s_p = (sub_path == '' ? '' : sub_path + '/')
-    Dir["#{prefix}/#{s_p}*"].each do |f|
-      pn = Pathname(f).extend(Pathname_extension)
-      if pn.directory?
-        purge_keg(lipo, s_p + pn.basename)
-      # the number of things that look like fat binaries but aren’t is horrifying, so test:
-      elsif ((not pn.symlink?) and pn.is_fat_binary?)
-        ppc_archs = pn.ppc_archs
-        part_names = []
-        ppc_archs.each do |a|
-          part_name = "#{pn.to_s}.#{a}"
-          system lipo, pn, '-extract_family', a, '-output', part_name
-          part_names << part_name
-        end
-        pn.delete
-        if part_names.length > 1
-          system lipo, '-create', *part_names, '-output', pn
-          File.delete *part_names
-        elsif part_names.length == 1
-          File.rename(part_names.first, pn.to_s)
-        else
-          raise "#{pn.to_s} contained no PowerPC code at all!"
-        end
-      end
-    end
-  end # purge_keg
-
   def install
     # Unset these so that installing pip and setuptools puts them where we want
     # and not into some other Python the user has installed.
-    ENV["PYTHONHOME"] = nil
-    ENV["PYTHONPATH"] = nil
+    ENV['PYTHONHOME'] = nil
+    ENV['PYTHONPATH'] = nil
 
+    # Avoid linking to libgcc (see https://code.activestate.com/lists/python-dev/112195/)
     args = %W[
       --prefix=#{prefix}
       --enable-ipv6
@@ -164,8 +69,9 @@ class Python < Formula
       --datadir=#{share}
       --enable-framework=#{frameworks}
       --without-ensurepip
+      MACOSX_DEPLOYMENT_TARGET=#{MacOS.version}
     ]
-    args << "--without-gcc" if ENV.compiler == :clang
+    args << '--without-gcc' if ENV.compiler == :clang
 
     cflags   = []
     ldflags  = []
@@ -173,115 +79,96 @@ class Python < Formula
 
     unless MacOS::CLT.installed?
       # Help Python's build system (setuptools/pip) to build things on Xcode-only systems
-      # The setup.py looks at "-isysroot" to get the sysroot (and not at --sysroot)
+      # The setup.py looks at “-isysroot” to get the sysroot (and not at --sysroot)
       cflags   << "-isysroot #{MacOS.sdk_path}"
       ldflags  << "-isysroot #{MacOS.sdk_path}"
       cppflags << "-I#{MacOS.sdk_path}/usr/include" # find zlib
-      # For the Xlib.h, Python needs this header dir with the system Tk
-      if build.without? "tcl-tk"
-        cflags << "-I#{MacOS.sdk_path}/System/Library/Frameworks/Tk.framework/Versions/8.5/Headers"
-      end
     end
-
-    # Avoid linking to libgcc https://code.activestate.com/lists/python-dev/112195/
-    args << "MACOSX_DEPLOYMENT_TARGET=#{MacOS.version}"
 
     # We want our readline and openssl! This is just to outsmart the detection code,
     # superenv handles that cc finds includes/libs!
-    inreplace "setup.py" do |s|
+    inreplace 'setup.py' do |s|
       s.gsub! "do_readline = self.compiler.find_library_file(lib_dirs, 'readline')",
-              "do_readline = '#{Formula["readline"].opt_lib}/libhistory.dylib'"
-      s.gsub! "/usr/local/ssl", Formula["openssl"].opt_prefix
-      s.gsub! "/usr/include/db4", Formula["berkeley-db4"].opt_include
+              "do_readline = '#{Formula['readline'].opt_lib}/libhistory.dylib'"
+      s.gsub! '/usr/local/ssl', Formula['openssl'].opt_prefix
+      s.gsub! '/usr/include/db4', Formula['berkeley-db4'].opt_include
     end
 
-    if build.universal?
-      ENV.permit_arch_flags
-      args << "--enable-universalsdk=/"
-      if Hardware::CPU.ppc?
-        # a universal build of Python is done by the Python build scripts, not by Tigerbrew, and on
-        # PPC includes cross-compilation for i386 and x86_64.  All traces of customization to a
-        # PowerPC CPU must be removed or the compiler will choke when building for the other two
-        # architectures.
-        ENV['HOMEBREW_OPTFLAGS'] = '' if superenv?
-        # Add an appropriate else clause if it doesn’t build correctly under stdenv.
-        args << '--with-universal-archs=all'
-      else
-        args << '--with-universal-archs=intel'
+    args << '--enable-universalsdk=/'
+    if build.universal? then
+      bitness = ''
+      if superenv?
+        ENV.permit_arch_flags
+        # one of the modules adds “-arch i386” on PPC to work around a linker bug, so no PPC CPUs
+        ENV['HOMEBREW_OPTFLAGS'] = '' if Hardware::CPU.ppc?
       end
-    end
+    elsif Hardware::CPU.is_32_bit? then bitness = '-32'
+    else bitness = '-64'; end
+    # ARM builds are not supported; just build for Intel and hope it keeps working
+    args << "--with-universal-archs=#{Hardware::CPU.ppc? ? 'ppc' : 'intel'}#{bitness}"
 
-    if build.with? "sqlite"
-      inreplace "setup.py" do |s|
-        s.gsub! "sqlite_setup_debug = False", "sqlite_setup_debug = True"
-        s.gsub! "for d_ in inc_dirs + sqlite_inc_paths:",
-                "for d_ in ['#{Formula["sqlite"].opt_include}']:"
+    if build.with? 'sqlite'
+      inreplace 'setup.py' do |s|
+        s.gsub! 'sqlite_setup_debug = False', 'sqlite_setup_debug = True'
+        s.gsub! 'for d_ in inc_dirs + sqlite_inc_paths:',
+                "for d_ in ['#{Formula['sqlite'].opt_include}']:"
         # Allow sqlite3 module to load extensions:
         # https://docs.python.org/library/sqlite3.html#f1
-        s.gsub! 'sqlite_defines.append(("SQLITE_OMIT_LOAD_EXTENSION", "1"))', ""
+        s.gsub! 'sqlite_defines.append(("SQLITE_OMIT_LOAD_EXTENSION", "1"))', ''
       end
     end
 
     # Allow python modules to use ctypes.find_library to find homebrew's stuff
     # even if homebrew is not a /usr/local/lib. Try this with:
     # `brew install enchant && pip install pyenchant`
-    inreplace "./Lib/ctypes/macholib/dyld.py" do |f|
-      f.gsub! "DEFAULT_LIBRARY_FALLBACK = [", "DEFAULT_LIBRARY_FALLBACK = [ '#{HOMEBREW_PREFIX}/lib',"
-      f.gsub! "DEFAULT_FRAMEWORK_FALLBACK = [", "DEFAULT_FRAMEWORK_FALLBACK = [ '#{HOMEBREW_PREFIX}/Frameworks',"
+    inreplace './Lib/ctypes/macholib/dyld.py' do |f|
+      f.gsub! 'DEFAULT_LIBRARY_FALLBACK = [', "DEFAULT_LIBRARY_FALLBACK = [ '#{HOMEBREW_PREFIX}/lib',"
+      f.gsub! 'DEFAULT_FRAMEWORK_FALLBACK = [', "DEFAULT_FRAMEWORK_FALLBACK = [ '#{HOMEBREW_PREFIX}/Frameworks',"
     end
 
-    if build.with? "tcl-tk"
-      tcl_tk = Formula["tcl-tk"].opt_prefix
-      cppflags << "-I#{tcl_tk}/include"
-      ldflags  << "-L#{tcl_tk}/lib"
-    end
+    tcl_tk = Formula['tcl-tk'].opt_prefix
+    cppflags << "-I#{tcl_tk}/include"
+    ldflags  << "-L#{tcl_tk}/lib"
 
-    args << "CFLAGS=#{cflags.join(" ")}" unless cflags.empty?
-    args << "LDFLAGS=#{ldflags.join(" ")}" unless ldflags.empty?
-    args << "CPPFLAGS=#{cppflags.join(" ")}" unless cppflags.empty?
+    args << "CFLAGS=#{cflags.join(' ')}" unless cflags.empty?
+    args << "LDFLAGS=#{ldflags.join(' ')}" unless ldflags.empty?
+    args << "CPPFLAGS=#{cppflags.join(' ')}" unless cppflags.empty?
 
-    system "./configure", *args
-    system "make"
+    system './configure', *args
+    system 'make'
     ENV.deparallelize do
       # Tell Python not to install into /Applications
-      system "make", "install", "PYTHONAPPSDIR=#{prefix}"
-      system "make", "frameworkinstallextras", "PYTHONAPPSDIR=#{pkgshare}"
+      system 'make', 'install', "PYTHONAPPSDIR=#{prefix}"
+      system 'make', 'frameworkinstallextras', "PYTHONAPPSDIR=#{pkgshare}"
     end
-
-    # when applicable, remove all non‐PowerPC sub‐binaries to avoid link errors later on
-    purge_keg if (build.universal? and Hardware::CPU.ppc?)
 
     # Fixes setting Python build flags for certain software
     # See: https://github.com/Homebrew/homebrew/pull/20182
     # https://bugs.python.org/issue3588
-    inreplace lib_cellar/"config/Makefile" do |s|
-      s.change_make_var! "LINKFORSHARED",
+    inreplace cellar_framework/'lib/python2.7/config/Makefile' do |s|
+      s.change_make_var! 'LINKFORSHARED',
         "-u _PyMac_Error $(PYTHONFRAMEWORKINSTALLDIR)/Versions/$(VERSION)/$(PYTHONFRAMEWORK)"
     end
 
     # Prevent third-party packages from building against fragile Cellar paths
-    inreplace [lib_cellar/"_sysconfigdata.py",
-               lib_cellar/"config/Makefile",
-               frameworks/"Python.framework/Versions/Current/lib/pkgconfig/python-2.7.pc"],
+    inreplace [cellar_framework/'lib/python2.7/_sysconfigdata.py',
+               cellar_framework/'lib/python2.7/config/Makefile',
+               frameworks/'Python.framework/Versions/Current/lib/pkgconfig/python-2.7.pc'],
               prefix, opt_prefix
 
     # Symlink the pkgconfig files into HOMEBREW_PREFIX so they're accessible.
-    (lib/"pkgconfig").install_symlink Dir["#{frameworks}/Python.framework/Versions/Current/lib/pkgconfig/*"]
+    (lib/'pkgconfig').install_symlink Dir[frameworks/'Python.framework/Versions/Current/lib/pkgconfig/*']
 
     # Remove 2to3 because Python 3 also installs it
-    rm bin/"2to3"
+    rm bin/'2to3'
 
     # Remove the site-packages that Python created in its Cellar.
-    site_packages_cellar.rmtree
+    cellar_site_packages.rmtree
 
-    (libexec/"setuptools").install resource("setuptools")
-    (libexec/"pip").install resource("pip")
-    (libexec/"wheel").install resource("wheel")
-
-    if MacOS.version > :snow_leopard && build.with?("sphinx-doc")
-      cd "Doc" do
-        system "make", "html"
-        doc.install Dir["build/html/*"]
+    if MacOS.version > :snow_leopard && build.with?('sphinx-doc')
+      cd 'Doc' do
+        system 'make', 'html'
+        doc.install Dir['build/html/*']
       end
     end
   end
@@ -297,16 +184,16 @@ class Python < Formula
     # Fix up the site-packages so that user-installed Python software survives
     # minor updates, such as going from 2.7.0 to 2.7.1:
 
+    # Symlink the prefix site-packages into the cellar.
+    cellar_site_packages.unlink if cellar_site_packages.exist?
+    cellar_site_packages.parent.install_symlink site_packages
+
     # Create a site-packages in HOMEBREW_PREFIX/lib/python2.7/site-packages
     site_packages.mkpath
 
-    # Symlink the prefix site-packages into the cellar.
-    site_packages_cellar.unlink if site_packages_cellar.exist?
-    site_packages_cellar.parent.install_symlink site_packages
-
     # Write our sitecustomize.py
     rm_rf Dir["#{site_packages}/sitecustomize.py[co]"]
-    (site_packages/"sitecustomize.py").atomic_write(sitecustomize)
+    (site_packages/'sitecustomize.py').atomic_write(sitecustomize)
 
     # Remove old setuptools installations that may still fly around and be
     # listed in the easy_install.pth. This can break setuptools build with
@@ -316,50 +203,45 @@ class Python < Formula
     rm_rf Dir["#{site_packages}/distribute*"]
     rm_rf Dir["#{site_packages}/pip[-_.][0-9]*", "#{site_packages}/pip"]
 
-    setup_args = ["-s", "setup.py", "--no-user-cfg", "install", "--force",
-                  "--verbose",
-                  "--single-version-externally-managed",
-                  "--record=installed.txt",
-                  "--install-scripts=#{bin}",
-                  "--install-lib=#{site_packages}"]
-
-    (libexec/"setuptools").cd { system "#{bin}/python", *setup_args }
-    (libexec/"pip").cd { system "#{bin}/python", *setup_args }
-    (libexec/"wheel").cd { system "#{bin}/python", *setup_args }
+    # (Re‐)install pip (and setuptools) and wheel, which would have gotten smurfed up by the site‐
+    # packages shenanigans above
+    system bin/'python', '-m', 'ensurepip', '--upgrade'
+    ['pip', 'setuptools'].each do |pkg|
+      system cellar_framework/'bin/pip', 'install', '--force-reinstall', '--upgrade', '--no-warn-script-location', pkg
+    end
 
     # When building from source, these symlinks will not exist, since
     # post_install happens after linking.
     %w[pip pip2 pip2.7 easy_install easy_install-2.7 wheel].each do |e|
-      (HOMEBREW_PREFIX/"bin").install_symlink bin/e
+      (HOMEBREW_PREFIX/'bin').install_symlink bin/e
     end
 
     # Help distutils find brewed stuff when building extensions
-    include_dirs = [HOMEBREW_PREFIX/"include", Formula["openssl"].opt_include]
-    library_dirs = [HOMEBREW_PREFIX/"lib", Formula["openssl"].opt_lib]
+    include_dirs = [HOMEBREW_PREFIX/'include', Formula['openssl'].opt_include, Formula['tcl-tk'].opt_include]
+    library_dirs = [HOMEBREW_PREFIX/'lib', Formula['openssl'].opt_lib, Formula['tcl-tk'].opt_lib]
 
-    if build.with? "sqlite"
-      include_dirs << Formula["sqlite"].opt_include
-      library_dirs << Formula["sqlite"].opt_lib
+    if build.with? 'sqlite'
+      include_dirs << Formula['sqlite'].opt_include
+      library_dirs << Formula['sqlite'].opt_lib
     end
 
-    if build.with? "tcl-tk"
-      include_dirs << Formula["tcl-tk"].opt_include
-      library_dirs << Formula["tcl-tk"].opt_lib
-    end
-
-    cfg = lib_cellar/"distutils/distutils.cfg"
-    cfg.atomic_write <<~EOS
+    (cellar_framework/'lib/python2.7/distutils/distutils.cfg').atomic_write <<-EOS.undent
       [install]
       prefix=#{HOMEBREW_PREFIX}
 
       [build_ext]
-      include_dirs=#{include_dirs.join ":"}
-      library_dirs=#{library_dirs.join ":"}
+      include_dirs=#{include_dirs.join ':'}
+      library_dirs=#{library_dirs.join ':'}
     EOS
   end
 
-  def sitecustomize
-    <<~EOS
+  def cellar_framework; frameworks/'Python.framework/Versions/2.7/'; end
+
+  def cellar_site_packages; cellar_framework/'lib/python2.7/site-packages'; end
+
+  def site_packages; HOMEBREW_PREFIX/'lib/python2.7/site-packages'; end
+
+  def sitecustomize; <<-EOS.undent
       # This file is created by Homebrew and is executed on each python startup.
       # Don't print from here, or else python command line scripts may fail!
       # <https://docs.brew.sh/Homebrew-and-Python>
@@ -408,26 +290,63 @@ class Python < Formula
     EOS
   end
 
-  def caveats; <<~EOS
-    Pip and setuptools are installed. To update them
-      pip install --upgrade pip setuptools
+  def caveats; <<-EOS.undent
+      Pip and setuptools are installed. To update them
+        pip install --upgrade pip setuptools
 
-    You can install Python packages with
-      pip install <package>
+      You can install Python packages with
+        pip install <package>
 
-    They will install into the site-package directory
-      #{site_packages}
+      They will install into the site-package directory
+        #{site_packages}
 
-    See: https://docs.brew.sh/Homebrew-and-Python
-  EOS
+      See: https://docs.brew.sh/Homebrew-and-Python
+    EOS
   end
 
   test do
     # Check if sqlite is ok, because we build with --enable-loadable-sqlite-extensions
     # and it can occur that building sqlite silently fails if OSX's sqlite is used.
-    system "#{bin}/python", "-c", "import sqlite3"
+    system cellar_framework/'bin/python2.7', '-c', 'import sqlite3'
     # Check if some other modules import. Then the linked libs are working.
-    system "#{bin}/python", "-c", "import Tkinter; root = Tkinter.Tk()" if build.with? 'tcl-tk'
-    system bin/"pip", "list", "--format=columns"
+    system cellar_framework/'bin/python2.7', '-c', 'import Tkinter; root = Tkinter.Tk()'
+    system cellar_framework/'bin/pip', 'list', '--format=columns'
   end
 end
+
+__END__
+--- old/configure	2020-04-19 14:13:39 -0700
++++ new/configure	2024-09-24 20:31:23 -0700
+@@ -6152,6 +6152,21 @@
+                LIPO_32BIT_FLAGS=""
+                ARCH_RUN_32BIT=""
+                ;;
++            ppc)
++               UNIVERSAL_ARCH_FLAGS="-arch ppc -arch ppc64"
++               LIPO_32BIT_FLAGS="-extract ppc7400"
++               ARCH_RUN_32BIT="/usr/bin/arch -ppc"
++               ;;
++            ppc-32)
++               UNIVERSAL_ARCH_FLAGS="-arch ppc"
++               LIPO_32BIT_FLAGS=""
++               ARCH_RUN_32BIT=""
++               ;;
++            ppc-64)
++               UNIVERSAL_ARCH_FLAGS="-arch ppc64"
++               LIPO_32BIT_FLAGS=""
++               ARCH_RUN_32BIT=""
++               ;;
+             3-way)
+                UNIVERSAL_ARCH_FLAGS="-arch i386 -arch ppc -arch x86_64"
+                LIPO_32BIT_FLAGS="-extract ppc7400 -extract i386"
+--- old/Lib/_osx_support.py	2020-04-19 14:13:39 -0700
++++ new/Lib/_osx_support.py	2024-09-24 22:33:49 -0700
+@@ -472,6 +472,8 @@
+                 machine = archs[0]
+             elif archs == ('i386', 'ppc'):
+                 machine = 'fat'
++            elif archs == ('ppc', 'ppc64'):
++                machine = 'fatppc'
+             elif archs == ('i386', 'x86_64'):
+                 machine = 'intel'
+             elif archs == ('i386', 'ppc', 'x86_64'):
