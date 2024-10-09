@@ -170,6 +170,7 @@ class Requirement
         @satisfied
       elsif @options[:build_env]
         require "extend/ENV"
+        ENV.activate_extensions!
         ENV.with_build_environment { yield @proc }
       else
         yield @proc
