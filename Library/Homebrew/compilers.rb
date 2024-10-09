@@ -4,6 +4,7 @@ module CompilerConstants
   GNU_GCC_REGEXP = /^gcc-(4\.[3-9]|[5-7])$/
   GNU_CXX11_REGEXP = /^gcc-(4\.[89]|[5-7])$/
   GNU_CXX14_REGEXP = /^gcc-([5-7])$/
+  GNU_C11_REGEXP = /^gcc-(4.9|[5-7])$/
   CLANG_CXX11_MIN = '3.3'
   CLANG_CXX14_MIN = '5'
   COMPILER_SYMBOL_MAP = {

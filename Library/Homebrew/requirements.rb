@@ -1,5 +1,6 @@
 require "requirement"
 require "requirements/apr_requirement"
+require "requirements/c11_requirement"
 require "requirements/cctools_requirement"
 require "requirements/cxx11_requirement"
 require "requirements/emacs_requirement"
@@ -26,7 +27,8 @@ class ArchRequirement < Requirement
 
   satisfy(:build_env => false) do
     case @arch
-    when :x86_64 then MacOS.prefer_64_bit?
+    when :x86_64 then MacOS.prefer_64_bit? and Hardware::CPU.intel?
+    when :ppc64 then MacOS.prefer_64_bit? and Hardware::CPU.ppc?
     when :intel, :ppc then Hardware::CPU.type == @arch
     end
   end
@@ -46,7 +48,7 @@ class GPGRequirement < Requirement
   fatal true
   default_formula "gpg"
 
-  satisfy { which("gpg") || which("gpg2") }
+  satisfy { which("gpg") }
 end
 
 class MercurialRequirement < Requirement

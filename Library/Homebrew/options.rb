@@ -19,7 +19,7 @@ class Option
   end
 
   def ==(other)
-    instance_of?(other.class) && name == other.name
+    instance_of?(other.class) and name == other.name
   end
   alias_method :eql?, :==
 
@@ -49,7 +49,7 @@ class DeprecatedOption
   end
 
   def ==(other)
-    instance_of?(other.class) && old == other.old && current == other.current
+    instance_of?(other.class) and old == other.old and current == other.current
   end
   alias_method :eql?, :==
 end
@@ -103,7 +103,7 @@ class Options
   end
 
   def include?(o)
-    any? { |opt| opt == o || opt.name == o || opt.flag == o }
+    any? { |opt| opt == o or opt.name == o or opt.flag == o }
   end
 
   alias_method :to_ary, :to_a
