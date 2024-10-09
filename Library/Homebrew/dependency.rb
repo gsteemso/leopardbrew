@@ -74,8 +74,7 @@ class Dependency
       expanded_deps = []
 
       deps.each do |dep|
-        # FIXME: don't hide cyclic dependencies
-        next if dependent.name == dep.name
+        raise "The formula #{dep.name} depends on itself!" if dependent.name == dep.name
 
         case action(dependent, dep, &block)
         when :prune
