@@ -29,7 +29,7 @@ class FormulaInstaller
   end
 
   attr_reader :formula
-  attr_accessor :options, :old_keg
+  attr_accessor :options
   mode_attr_accessor :show_summary_heading, :show_header
   mode_attr_accessor :build_from_source, :build_bottle, :force_bottle
   mode_attr_accessor :ignore_deps, :only_deps, :interactive, :git
@@ -49,7 +49,6 @@ class FormulaInstaller
     @quieter = false
     @debug = false
     @options = Options.new
-    @old_keg = formula.greatest_installed_keg if formula.any_version_installed?
 
     @@attempted ||= Set.new
 
@@ -130,7 +129,8 @@ class FormulaInstaller
         dep.installed? && !dep.keg_only? && !dep.linked_keg.directory?
       end
       raise CannotInstallFormulaError,
-        "You must `brew link #{unlinked_deps*" "}' before #{formula.full_name} can be installed" unless unlinked_deps.empty?
+        "You must `brew link #{unlinked_deps*" "}' before #{formula.full_name} can be installed" \
+                                                                        unless unlinked_deps.empty?
     end
   end
 
@@ -441,7 +441,6 @@ class FormulaInstaller
     install_plist
 
     keg = Keg.new(formula.prefix)
-    old_keg.unlink if old_keg
     link(keg)
 
     unless @poured_bottle && formula.bottle_specification.skip_relocation?
@@ -537,7 +536,7 @@ class FormulaInstaller
     ENV['HOMEBREW_ERROR_PIPE'] = write.to_i.to_s
 
     args = %W[
-      #{RUBY_PATH}
+      #{CONFIG_RUBY_PATH}
       -W0
       -I #{HOMEBREW_LOAD_PATH}
       --

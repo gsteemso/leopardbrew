@@ -32,6 +32,7 @@ module Homebrew
           ARGV.clear
           ARGV.unshift(f.full_name, named_version)
           switch
+          ARGV.clear
           ARGV.unshift *stashed_argv
         end
       end
@@ -48,7 +49,7 @@ module Homebrew
 
       begin
         args = %W[
-          #{RUBY_PATH}
+          #{CONFIG_RUBY_PATH}
           -W0
           -I #{HOMEBREW_LOAD_PATH}
           --

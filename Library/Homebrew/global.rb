@@ -22,11 +22,19 @@ else
   odie '$HOMEBREW_BREW_FILE was not exported! Please call bin/brew directly!'
 end
 
+RbConfig = Config if RUBY_VERSION < '1.8.6'  # different module name on Tiger
+
 # Predefined pathnames:
+CONFIG_RUBY_PATH        = if RbConfig.respond_to?(:ruby)            # The current Ruby binary
+                          then Pathname.new(RbConfig.ruby)
+                          else Pathname.new(RbConfig::CONFIG['bindir']).join \
+                              (RbConfig::CONFIG['ruby_install_name'] + RbConfig::CONFIG['EXEEXT'])
+                          end
+  CONFIG_RUBY_BIN       =   CONFIG_RUBY_PATH.dirname                # Where it lives
 HOMEBREW_CACHE          = Pathname.new(ENV['HOMEBREW_CACHE'])
                           # Where downloads (bottles, source tarballs, etc.) are cached
-  HOMEBREW_CACHE_FORMULA = HOMEBREW_CACHE/'Formula'
-                           # Where brews installed via URL are cached
+  HOMEBREW_CACHE_FORMULA =  HOMEBREW_CACHE/'Formula'
+                            # Where brews installed via URL are cached
 HOMEBREW_CELLAR         = Pathname.new(ENV['HOMEBREW_CELLAR'])
 HOMEBREW_CURL           = Pathname.new(ENV['HOMEBREW_CURL'])
 HOMEBREW_LIBRARY        = Pathname.new(ENV['HOMEBREW_LIBRARY'])
@@ -40,7 +48,12 @@ HOMEBREW_LIBRARY_PATH   = Pathname.new(ENV['HOMEBREW_LIBRARY_PATH']) # Homebrew�
 HOMEBREW_PREFIX         = Pathname.new(ENV['HOMEBREW_PREFIX'])      # Where we link under
   OPTDIR                =   HOMEBREW_PREFIX/'opt'                   # Where we are always available
 HOMEBREW_REPOSITORY     = Pathname.new(ENV['HOMEBREW_REPOSITORY'])  # Where .git is found
-HOMEBREW_RUBY_PATH      = Pathname.new(ENV['HOMEBREW_RUBY_PATH'])   # To our internal Ruby binary
+HOMEBREW_RUBY_PATH      = Pathname.new(ENV['HOMEBREW_RUBY_PATH'])   # Our internal Ruby binary
+  HOMEBREW_RUBY_BIN     =   HOMEBREW_RUBY_PATH.parent               # Where it lives
+SYSTEM_RUBY_PATH        = Pathname.new('/usr/bin/ruby')             # The system Ruby binary
+  SYSTEM_RUBY_BIN       =   SYSTEM_RUBY_PATH.parent                 # Where it lives
+gtar = HOMEBREW_PREFIX/'opt/gnu-tar/bin/gtar'
+TAR_PATH                = Pathname.new(gtar.executable? ? gtar : which('tar'))
 
 # Predefined regular expressions:
 # CompilerConstants::GNU_CXX11_REGEXP #
@@ -66,22 +79,22 @@ HOMEBREW_TAP_FORMULA_REGEX        = %r{^([\w-]+)/([\w-]+)/([\w+-.@]+)$}
 # CompilerConstants::CLANG_CXX14_MIN # see `compilers.rb`
 # CompilerConstants::COMPILERS       #
 HOMEBREW_CURL_ARGS          = '-f#LA'
-HOMEBREW_INTERNAL_COMMAND_ALIASES = {
-                          'ls'          => 'list',
-                          'homepage'    => 'home',
-                          '-S'          => 'search',
-                          'up'          => 'update',
-                          'ln'          => 'link',
-                          'instal'      => 'install',  # gem does the same
-                          'rm'          => 'uninstall',
-                          'remove'      => 'uninstall',
-                          'configure'   => 'diy',
-                          'abv'         => 'info',
-                          'dr'          => 'doctor',
-                          '--repo'      => '--repository',
-                          'environment' => '--env',
-                          '--config'    => 'config'
-                        }
+HOMEBREW_INTERNAL_COMMAND_ALIASES = \
+                              { 'ls'          => 'list',
+                                'homepage'    => 'home',
+                                '-S'          => 'search',
+                                'up'          => 'update',
+                                'ln'          => 'link',
+                                'instal'      => 'install',  # gem does the same
+                                'rm'          => 'uninstall',
+                                'remove'      => 'uninstall',
+                                'configure'   => 'diy',
+                                'abv'         => 'info',
+                                'dr'          => 'doctor',
+                                '--repo'      => '--repository',
+                                'environment' => '--env',
+                                '--config'    => 'config'
+                              }
 HOMEBREW_SYSTEM             = ENV['HOMEBREW_SYSTEM']
 HOMEBREW_USER_AGENT         = ENV['HOMEBREW_USER_AGENT']
 HOMEBREW_USER_AGENT_CURL    = ENV['HOMEBREW_USER_AGENT_CURL']
@@ -92,18 +105,7 @@ HOMEBREW_WWW                = 'https://github.com/gsteemso/leopardbrew'
 # MACOS_FULL_VERSION        # Imported from $HOMEBREW_OSX_VERSION in `os.rb`
 # MACOS_VERSION             # Just the numeric part (see `os.rb`)
 OS_VERSION                  = ENV['HOMEBREW_OS_VERSION']
-    RbConfig = Config if RUBY_VERSION < '1.8.6'  # different module name on Tiger
-    if RbConfig.respond_to?(:ruby)
-      RUBY_PATH = Pathname.new(RbConfig.ruby)
-    else
-      RUBY_PATH = Pathname.new(RbConfig::CONFIG['bindir']).join(
-                    RbConfig::CONFIG['ruby_install_name'] + RbConfig::CONFIG['EXEEXT']
-                  )
-    end
-RUBY_BIN                    = RUBY_PATH.dirname  # the directory the system Ruby interpreter lives in
 # Tab::FILENAME             # see `tab.rb`
-    gtar = HOMEBREW_PREFIX/'opt/gnu-tar/bin/gtar'
-TAR_BIN                     = (gtar.executable? ? gtar : which('tar'))
 
 # Optionally user‐defined values:
 BREW_NICE_LEVEL = ENV['HOMEBREW_NICE_LEVEL']  # Do we `nice` our build process?
@@ -117,6 +119,7 @@ HOMEBREW_TEMP   = Pathname.new(ENV.fetch 'HOMEBREW_TEMP', '/tmp')
                   # Where temporary folders for building and testing formulæ are created
 NO_COMPAT       = ENV['HOMEBREW_NO_COMPAT']
 ORIGINAL_PATHS  = ENV['PATH'].split(File::PATH_SEPARATOR).map { |p| Pathname.new(p).expand_path rescue nil }.compact.freeze
+QUIETER         = ARGV.quieter?               # Give as little feedback as possible
 VERBOSE         = ARGV.verbose?               # Give lots of feedback (checks all of “-v”,
                                               #   “--verbose”, $HOMEBREW_VERBOSE, & $VERBOSE)
 
@@ -128,6 +131,7 @@ require 'compat' unless ARGV.include?('--no-compat') || NO_COMPAT
 # HOMEBREW_BUILD_FROM_SOURCE # Force building from source even when there is a bottle
 # HOMEBREW_BUILD_UNIVERSAL   # If there’s a :universal option, always use it
 # HOMEBREW_PREFER_64_BIT     # Build 64‐bit by default (required to build --universal; see `os/mac.rb`)
+# HOMEBREW_QUIET             # Show as little as possible
 # HOMEBREW_SANDBOX           # hells if I know
 # HOMEBREW_VERBOSE           # Show build messages
 #   VERBOSE                  #   Same thing but system‐wide
@@ -138,6 +142,9 @@ require 'compat' unless ARGV.include?('--no-compat') || NO_COMPAT
 # HOMEBREW_INCLUDE_PATHS  # These are how -I flags reach ENV/*/cc
 # HOMEBREW_ISYSTEM_PATHS  # These are how -isystem flags reach ENV/*/cc
 # HOMEBREW_LIBRARY_PATHS  # These are how -L flags reach ENV/*/cc
+
+# Other environment variables:
+# HOMEBREW_MACH_O_FILE    # Briefly exists during `otool -L` parsing; see `mach.rb`
 
 module Homebrew
   include FileUtils

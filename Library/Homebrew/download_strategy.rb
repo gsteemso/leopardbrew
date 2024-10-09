@@ -187,17 +187,17 @@ class AbstractFileDownloadStrategy < AbstractDownloadStrategy
       with_system_path { quiet_safe_system "unzip", { :quiet_flag => "-qq" }, cached_location }
       chdir
     when :gzip                                      # Assume these are also tarred
-      safe_system TAR_BIN, '-xzf', cached_location  #
+      safe_system TAR_PATH, '-xzf', cached_location  #
       chdir                                         #
     when :bzip2                                     #
-      safe_system TAR_BIN, '-xjf', cached_location  #
+      safe_system TAR_PATH, '-xjf', cached_location  #
       chdir                                         #
     when :gzip_only
       with_system_path { buffered_write("gunzip") }
     when :bzip2_only
       with_system_path { buffered_write("bunzip2") }
     when :compress, :tar
-      with_system_path { safe_system TAR_BIN, '-xf', cached_location }
+      with_system_path { safe_system TAR_PATH, '-xf', cached_location }
       chdir
     when :xz
       with_system_path { pipe_to_tar(xzpath) }
@@ -233,7 +233,7 @@ class AbstractFileDownloadStrategy < AbstractDownloadStrategy
 
   def pipe_to_tar(tool)
     Utils.popen_read(tool, '-dc', cached_location.to_s) do |rd|
-      Utils.popen_write(TAR_BIN, '-xif', '-') do |wr|
+      Utils.popen_write(TAR_PATH, '-xif', '-') do |wr|
         buf = ''
         wr.write(buf) while rd.read(16384, buf)
       end

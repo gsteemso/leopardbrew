@@ -14,7 +14,7 @@ class IntegrationCommandTests < Homebrew::TestCase
       ENV["HOMEBREW_BREW_FILE"] = HOMEBREW_PREFIX/"bin/brew"
       ENV["HOMEBREW_INTEGRATION_TEST"] = args.join " "
       ENV["HOMEBREW_TEST_TMPDIR"] = TEST_TMPDIR
-      Utils.popen_read(RUBY_PATH, *cmd_args).chomp
+      Utils.popen_read(CONFIG_RUBY_PATH, *cmd_args).chomp
     end
   end
 

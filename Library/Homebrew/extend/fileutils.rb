@@ -93,7 +93,7 @@ module FileUtils
 
   # Run the `rake` from the `ruby` Homebrew is using rather than whatever is in the `PATH`.
   def rake(*args)
-    system RUBY_BIN/"rake", *args
+    system CONFIG_RUBY_BIN/"rake", *args
   end
 
   # Run `make` 3.81 or newer.  Uses system make from Leopard onward, otherwise brewed make.
@@ -116,7 +116,7 @@ module FileUtils
 
   # Run the `ruby` Homebrew is using rather than whatever is in the `PATH`.
   def ruby(*args)
-    system RUBY_PATH, *args
+    system CONFIG_RUBY_PATH, *args
   end
 
   # Run `xcodebuild` without Homebrew's compiler environment variables set.

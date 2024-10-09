@@ -153,24 +153,20 @@ module Homebrew
 
   def self.install_gem_setup_path!(gem, version = nil, executable = gem)
     require "rubygems"
-    ENV["PATH"] = "#{Gem.user_dir}/bin:#{ENV["PATH"]}"
-
+    ENV.prepend_path 'PATH', CONFIG_RUBY_BIN
+    ENV.prepend_path 'PATH', "#{Gem.user_dir}/bin"
     args = [gem]
     args << "-v" << version if version
-
-    unless quiet_system "gem", "list", "--installed", *args
-      safe_system "gem", "install", "--no-ri", "--no-rdoc",
-                                    "--user-install", *args
-    end
-
-    unless which executable
-      odie <<-EOS.undent
-        The '#{gem}' gem is installed but couldn't find '#{executable}' in the PATH:
-        #{ENV["PATH"]}
-      EOS
-    end
-  end
-end
+    unless quiet_system(CONFIG_RUBY_BIN/'gem', "list", "--installed", *args)
+      args.unshift '--user-install' if `#{CONFIG_RUBY_BIN}/gem --version` >= '1.3.6'  # The version
+      safe_system(CONFIG_RUBY_BIN/'gem', "install", *args)                      # it upgrades itself
+    end                                                                         # to w/ Ruby 1.8.6.
+    odie <<-EOS.undent unless which executable
+      The '#{gem}' gem is installed but couldn't find '#{executable}' in the PATH:
+      #{ENV["PATH"]}
+    EOS
+  end # ⸬install_gem_setup_path!
+end # Homebrew
 
 def with_system_path
   old_path = ENV["PATH"]
@@ -205,19 +201,23 @@ end
 # repeats cmd for each of its fat‐binary architectures (useful for `test` blocks)
 def arch_system(cmd, *args)
   if (arch_cmd = which 'arch')
-    cmd = which(cmd) unless cmd.to_s.start_with? '/'
-    archs = archs_for_command(cmd).select { |a|
-        Hardware::CPU.can_run?(a)
-      }
-    archs.each do |a|
-      system arch_cmd, '-arch', a.to_s, cmd, *args
+    cmd = which(cmd) unless cmd.to_s =~ %r{/}
+    cmd = Pathname.new(cmd) unless cmd.class == Pathname
+    cmd.archs.select { |a| Hardware::CPU.can_run?(a) }.each do |a|
+      if VERBOSE
+        system arch_cmd, '-arch', a.to_s, cmd, *args
+      else
+        quiet_system arch_cmd, '-arch', a.to_s, cmd, *args
+      end
     end
   else
     opoo "Can’t find the “arch” command.  Running #{cmd} with the default architecture only:"
-    safe_system cmd, *args
+    if VERBOSE
+      system cmd, *args
+    else
+      quiet_system cmd, *args
+    end
   end
-rescue
-  raise ErrorDuringExecution.new(cmd, args)
 end # arch_system
 
 def curl(*args)
@@ -317,8 +317,9 @@ def gzip(*paths)
 end
 
 # Returns array of architectures that the given command or library is built for.
+# Expects a bare string.  If you have a Pathname just use its #archs method.
 def archs_for_command(cmd)
-  cmd = which(cmd) unless cmd.start_with? '/'
+  cmd = which(cmd) unless cmd.to_s.start_with? '/'
   Pathname.new(cmd).archs
 end
 

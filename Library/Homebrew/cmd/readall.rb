@@ -22,7 +22,7 @@ module Homebrew
           Thread.new do
             begin
               while rb = ruby_files.pop(true)
-                failed = true unless system RUBY_PATH, "-c", "-w", rb
+                failed = true unless system CONFIG_RUBY_PATH, "-c", "-w", rb
               end
             rescue ThreadError # ignore empty queue error
             end

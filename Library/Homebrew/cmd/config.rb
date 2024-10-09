@@ -119,8 +119,8 @@ module Homebrew
       s << RUBY_VERSION
     end
 
-    if RUBY_PATH.to_s !~ %r{^/System/Library/Frameworks/Ruby.framework/Versions/[12]\.[089]/usr/bin/ruby}
-      s << " => #{RUBY_PATH}"
+    if CONFIG_RUBY_PATH.to_s !~ %r{^/System/Library/Frameworks/Ruby.framework/Versions/[12]\.[089]/usr/bin/ruby}
+      s << " => #{CONFIG_RUBY_PATH}"
     end
     s
   end
