@@ -18,6 +18,8 @@
 require 'formula_installer'
 
 module Homebrew
+  @the_formulae = @the_rest = []
+
   def reinstall
     FormulaInstaller.prevent_build_flags unless MacOS.has_apple_developer_tools?
 
@@ -36,6 +38,7 @@ module Homebrew
   end # reinstall
 
   def reinstall_formula(f)
+    reinstalling = false
     existing_prefixes = f.installed_current_prefixes.values
     ohai 'installed current prefixes:', existing_prefixes * ' ' if DEBUG
     named_spec = (ARGV.build_head? ? :head :
@@ -57,6 +60,7 @@ module Homebrew
     f.set_active_spec new_spec
     keep_other_current_kegs = existing_prefixes.include?(f.prefix)
     oh1 "Replace other current kegs?  #{keep_other_current_kegs ? 'NO' : 'YES'}" if DEBUG
+
     notice  = "Reinstalling #{f.full_name}"
     notice += " with #{options * ', '}" unless options.empty?
     oh1 notice
@@ -66,19 +70,20 @@ module Homebrew
     proper_name = keg.to_s
     keg.unlink if (was_linked = keg.linked?)
     ignore_interrupts { keg.rename "#{keg}.reinstall" }
+    reinstalling = true
 
     fi = FormulaInstaller.new(f)
     fi.options             = options
     fi.ignore_deps         = ARGV.ignore_deps?
     fi.only_deps           = ARGV.only_deps?
-    fi.build_bottle        = ARGV.build_bottle? or (!f.bottled? and tab.build_bottle?)
     fi.build_from_source   = ARGV.build_from_source?
+    fi.build_bottle        = ARGV.build_bottle? or (!f.bottled? and tab.build_bottle?)
     fi.force_bottle        = ARGV.force_bottle?
     fi.interactive         = ARGV.interactive?
     fi.git                 = ARGV.git?
-    fi.verbose             = ARGV.verbose?
+    fi.verbose             = VERBOSE
     fi.quieter             = ARGV.quieter?
-    fi.debug               = ARGV.debug?
+    fi.debug               = DEBUG
     fi.prelude
     fi.install
     fi.finish
@@ -88,7 +93,7 @@ module Homebrew
     # next
   rescue Exception
     # leave no trace of the failed installation
-    if f.prefix.exists?
+    if reinstalling and f.prefix.exists?
       oh1 "Cleaning up failed #{f.prefix}" if DEBUG
       f.prefix.rmtree
     end
@@ -119,7 +124,7 @@ module Homebrew
       puts "Ignoring unrecognized option:  #{flag}"
       if flag[-1] == '='
         alt = flag.chop
-        puts "did you mean #{alt}?" if formula.option_defined?(alt)
+        puts "did you mean “#{alt}”?" if formula.option_defined?(alt)
       end
     end # whinge_re_unrecognized
 
@@ -129,35 +134,37 @@ module Homebrew
       o = Option.new($1)
       unrecognized = false
       if formula.option_defined?(o)
-        use_opts += [o]
+        use_opts << o
       else
         case o.flag
         when /^--with-(.+)$/
           if formula.option_defined?(inverse = "without-#{$1}") or use_opts.include? inverse
-            anti_opts += [Option.new(inverse)]
+            anti_opts << Option.new(inverse)
           else
             unrecognized = true
           end # --with-xxxx?
         when /^--without-(.+)$/
           if formula.option_defined?(inverse = "with-#{$1}") or use_opts.include? inverse
-            anti_opts += [Option.new(inverse)]
+            anti_opts << Option.new(inverse)
           else
             unrecognized = true
           end # --without-xxxx?
         when '--single-arch'
-          anti_opts += [Option.new('universal')]
+          anti_opts << Option.new('universal')
+        when '--universal'
+          # the formula doesn’t have a :universal option; ignore it
         when '--stable'
           anti_opts += [Option.new('HEAD'), Option.new('devel')]
         when '--devel'
-          use_opts += [o]
-          anti_opts += [Option.new('HEAD')]
+          use_opts << o
+          anti_opts << Option.new('HEAD')
         when '--HEAD'
-          use_opts += [o]
-          anti_opts += [Option.new('devel')]
+          use_opts << o
+          anti_opts << Option.new('devel')
         else
           flag =~ /^--un-([^=]+=?)(.+)?$/
           if use_opts.include?($1)
-            anti_opts += [Option.new($1)]
+            anti_opts << Option.new($1)
           else
             unrecognized = true
           end # un-option?
