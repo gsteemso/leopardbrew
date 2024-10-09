@@ -1,5 +1,9 @@
 HOMEBREW_VERSION="0.9.5"
 
+brew() {
+  "$HOMEBREW_BREW_FILE" "$@"
+}
+
 odie() {
   if [[ -t 2 ]] # check whether stderr is a tty.
   then
@@ -17,8 +21,8 @@ odie() {
   exit 1
 }
 
-brew() {
-  "$HOMEBREW_BREW_FILE" "$@"
+safe_cd() {
+  cd "$@" >/dev/null || odie "Error: failed to cd to $*!"
 }
 
 # Force UTF-8 to avoid encoding issues for users with broken locale settings.
@@ -55,7 +59,7 @@ fi
 unset GEM_HOME
 unset GEM_PATH
 
-HOMEBREW_SYSTEM="$(uname -s)"
+HOMEBREW_SYSTEM="$(uname -s)"   # TODO:  Differentiate between bare Darwin and actual Mac OS
 case "$HOMEBREW_SYSTEM" in
   Darwin) HOMEBREW_OSX="1";;
   Linux) HOMEBREW_LINUX="1";;
@@ -65,7 +69,7 @@ HOMEBREW_CURL="/usr/bin/curl"
 if [[ -n "$HOMEBREW_OSX" ]]
 then
   HOMEBREW_PROCESSOR="$(uname -p)"
-  HOMEBREW_PRODUCT="Homebrew"
+  HOMEBREW_PRODUCT="Leopardbrew"
   HOMEBREW_SYSTEM="Macintosh"
   # This is i386 even on x86_64 machines
   [[ "$HOMEBREW_PROCESSOR" = "i386" ]] && HOMEBREW_PROCESSOR="Intel"
