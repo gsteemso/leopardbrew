@@ -133,11 +133,11 @@ class Formula
     @path = path
     @revision = self.class.revision || 0
 
-    if path.to_s =~ HOMEBREW_TAP_PATH_REGEX
-      @full_name = "#{$1}/#{$2.gsub(/^homebrew-/, "")}/#{name}"
-    else
-      @full_name = name
-    end
+    @full_name = if path.to_s =~ HOMEBREW_TAP_PATH_REGEX
+        "#{$1}/#{$2.gsub(/^homebrew-/, '')}/#{name}"
+      else
+        name
+      end
 
     set_spec :stable
     set_spec :devel
@@ -145,12 +145,12 @@ class Formula
 
     @active_spec = determine_active_spec(spec)
     @active_spec_sym = if head?
-      :head
-    elsif devel?
-      :devel
-    else
-      :stable
-    end
+        :head
+      elsif devel?
+        :devel
+      else
+        :stable
+      end
     validate_attributes!
     @build = active_spec.build
     @pin = FormulaPin.new(self)
