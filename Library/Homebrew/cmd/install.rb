@@ -153,8 +153,8 @@ module Homebrew
     fi.options             = f.build.used_options
     fi.ignore_deps         = ARGV.ignore_deps?
     fi.only_deps           = ARGV.only_deps?
-    fi.build_bottle        = ARGV.build_bottle?
     fi.build_from_source   = ARGV.build_from_source?
+    fi.build_bottle        = ARGV.build_bottle?
     fi.force_bottle        = ARGV.force_bottle?
     fi.interactive         = ARGV.interactive?
     fi.git                 = ARGV.git?
