@@ -78,8 +78,13 @@ module SharedEnvExtension
     end
   end
 
+  def already_in?(key, path)
+    old = self[key]
+    not old.nil? and not old.empty? and old =~ Regexp.new(path.to_s.dump)
+  end
+
   def append_path(key, path)
-    append key, path, File::PATH_SEPARATOR if File.directory? path
+    append key, path, File::PATH_SEPARATOR if File.directory? path and not already_in?(key, path)
   end
 
   # Prepends a directory to `PATH`.
@@ -87,7 +92,7 @@ module SharedEnvExtension
   # This is done automatically for `keg_only` formulae.
   # <pre>ENV.prepend_path "PKG_CONFIG_PATH", "#{Formula["glib"].opt_lib}/pkgconfig"</pre>
   def prepend_path(key, path)
-    prepend key, path, File::PATH_SEPARATOR if File.directory? path
+    prepend key, path, File::PATH_SEPARATOR if File.directory? path and not already_in?(key, path)
   end
 
   def prepend_create_path(key, path)
@@ -179,6 +184,10 @@ module SharedEnvExtension
       self.cc  = determine_cc
       self.cxx = determine_cxx
     end
+  end
+
+  def supports_c11?
+    cc =~ GNU_C11_REGEXP or cc =~ /clang/
   end
 
   def supports_cxx11?
