@@ -547,29 +547,29 @@ module ObserverPathnameExtension
 
   def unlink
     super
-    puts "rm #{self}" if ARGV.verbose?
+    puts "rm #{self}" if VERBOSE
     ObserverPathnameExtension.n += 1
   end
 
   def rmdir
     super
-    puts "rmdir #{self}" if ARGV.verbose?
+    puts "rmdir #{self}" if VERBOSE
     ObserverPathnameExtension.d += 1
   end
 
   def make_relative_symlink(src)
     super
-    puts "ln -s #{src.relative_path_from(dirname)} #{basename}" if ARGV.verbose?
+    puts "ln -s #{src.relative_path_from(dirname)} #{basename}" if VERBOSE
     ObserverPathnameExtension.n += 1
   end
 
   def install_info
     super
-    puts "info #{self}" if ARGV.verbose?
+    puts "info #{self}" if VERBOSE
   end
 
   def uninstall_info
     super
-    puts "uninfo #{self}" if ARGV.verbose?
+    puts "uninfo #{self}" if VERBOSE
   end
 end
