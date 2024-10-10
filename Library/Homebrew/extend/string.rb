@@ -21,6 +21,8 @@ class String
     s = chomp
     s unless s.empty?
   end
+
+  alias :starts_with? :start_with? unless method_defined? :starts_with?
 end
 
 class NilClass
