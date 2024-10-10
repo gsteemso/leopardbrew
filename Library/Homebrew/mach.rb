@@ -42,78 +42,94 @@ end
 # only useable when included in Pathname
 module MachO
   # @private
+  AR_MAGIC = "!<arch>\n".freeze
+  AR_MEMBER_HDR_SIZE = 60.freeze
+
+  # @private
   MACH_SIGNATURES = {
     'cafebabe' => :FAT_MAGIC,
     'feedface' => :MH_MAGIC,
     'feedfacf' => :MH_MAGIC_64,
   }.freeze
-
   MACH_FILE_TYPE = {
-     1 => :MH_OBJECT,       # Relatively small object‐code file
-     2 => :MH_EXECUTE,      # Executable
-     3 => :MH_FVMLIB,       # Fixed VM shared library file
-     4 => :MH_CORE,         # Core dump
-     5 => :MH_PRELOAD,      # Preloaded executable
-     6 => :MH_DYLIB,        # Dynamically bound shared library
-     7 => :MH_DYLINKER,     # Dynamic link editor (LD itself)
-     8 => :MH_BUNDLE,       # Dynamically bound object‐code bundle
-     9 => :MH_DYLIB_STUB,   # Shared library stub for static linking only (no section contents)
-    10 => :MH_DSYM,         # “companion file with only debug sections”
-    11 => :MH_KEXT_BUNDLE,  # X86_64 kernel extension
-    12 => :MH_FILESET       # “set of Mach‐Os”
+    0x00000001 => :MH_OBJECT,       # Relatively small object‐code file
+    0x00000002 => :MH_EXECUTE,      # Executable
+    0x00000003 => :MH_FVMLIB,       # Fixed VM shared library file
+    0x00000004 => :MH_CORE,         # Core dump
+    0x00000005 => :MH_PRELOAD,      # Preloaded executable
+    0x00000006 => :MH_DYLIB,        # Dynamically bound shared library
+    0x00000007 => :MH_DYLINKER,     # Dynamic link editor (LD itself)
+    0x00000008 => :MH_BUNDLE,       # Dynamically bound object‐code bundle
+    0x00000009 => :MH_DYLIB_STUB,   # Shared library stub – static linking only (no section contents)
+    0x0000000a => :MH_DSYM,         # “companion file with only debug sections”
+    0x0000000b => :MH_KEXT_BUNDLE,  # X86_64 kernel extension
+    0x0000000c => :MH_FILESET       # “set of Mach‐Os”
   }.freeze
 
   # @private
   OTOOL_RX = /\t(.*) \(compatibility version (?:\d+\.)*\d+, current version (?:\d+\.)*\d+\)/
 
   # Mach-O binary methods, see:
-  # /usr/include/mach-o/loader.h
-  # /usr/include/mach-o/fat.h
+  # <mach-o/loader.h>
+  # <mach-o/fat.h>
   # @private
   def mach_data
-    @mach_data ||= begin
+    @mach_data ||= \
+      begin
         offsets = []
-        mach_data = []
+        data = []
 
-        if sig = mach_o_signature?
+        if candidate = ar_sigseek_from(0) then offsets << candidate
+        elsif sig = mach_o_signature_at?(0)
           if sig == :FAT_MAGIC
-            fat_count.times do |i|
-              # The second quad is the number of `struct fat_arch` in the file.
-              # Each `struct fat_arch` is 5 quads (20 bytes); the `offset` member
-              # is the 3rd (8 bytes into the struct), with an additional 8 byte
-              # offset due to the 2-quad `struct fat_header` at the beginning of
-              # the file.
-              offsets << read(4, 20*i + 16).unpack("N").first
+            if (fct = fat_count_at(0)) and fct > 0
+              fct.times do |i|
+                # The second quad is the number of `struct fat_arch` in the file.  Each `struct
+                #   fat_arch` is 5 quads (20 bytes); the `offset` member is the 3rd (8 bytes into
+                #   the struct), with an additional 8 byte offset due to the 2-quad `struct
+                #   fat_header` at the beginning of the file.
+                candidate = binread(4, 16 + 20*i).unpack("N").first
+                offsets << (ar_sigseek_from(candidate) or candidate)
+              end
             end
-          else offsets << 0; end  # single arch
-        else raise "Not a Mach-O binary."
-        end
+          else offsets << 0 # single arch (:MH_MAGIC or :MH_MAGIC_64)
+          end # mach-O signature?
+        end # signatures?
 
         offsets.each do |offset|
-          arch = \
-            if (sig = binread(4, offset).unpack('H8').first) == 'feedface' and (cputype_flags = binread(1, offset + 4)) == "\x00"
-              if (cputype = binread(3, offset + 5).unpack('H6').first) == '000007' then :i386
-              elsif cputype == '00000c' then :arm
-              elsif cputype == '000012' then :ppc
-              else :dunno; end
-            elsif sig == 'feedfacf'
-              if (cputype = binread(3, offset + 5)) == '000007' and cputype_flags == "\x01" then :x86_64
-              elsif cputype == '00000c'
-                if cputype_flags == "\x01" then :arm64
-                elsif cputype_flags == "\x02" then :arm64_32
+          if size >= (offset + 16)
+            # The first quad (at offset + 0) is the signature, the second (at offset + 4) is the
+            #   CPU type (with flags in the high‐order byte), the third (at offset + 8) is the CPU
+            #   subtype, and the fourth (at offset + 12) is the Mach file type.
+            sig, cputype, cpu_subtype, mach_filetype = binread(16, offset).unpack('H8H8H8N')
+            sig = MACH_SIGNATURES[sig]
+            arch = \
+              if sig == :MH_MAGIC then case cputype
+                when '00000007' then :i386
+                when '0000000c' then :arm
+                when '00000012' then :ppc
                 else :dunno; end
-              elsif cputype == '000012' and cputype_flags == "\x01" then :ppc64
-              else :dunno; end
-            end # determine arch
-          mach_data << { :arch => arch, :type => MACH_FILE_TYPE[binread(4, offset + 12).unpack('N').first] }
+              elsif sig == :MH_MAGIC_64 then case cputype
+                when '01000007' then :x86_64
+                when '0100000c' then :arm64
+                when '0200000c' then :arm64_32
+                when '01000012' then :ppc64
+                else :dunno; end
+              end # determine arch
+            data << { :arch => arch,
+                      :cpu_subtype => cpu_subtype,
+                      :type => MACH_FILE_TYPE[mach_filetype]
+            } unless arch == :dunno
+          end # valid offset
         end # each offset
-        mach_data
-      rescue # from error during mach_data construction
+        data.uniq
+      rescue # from error during @mach_data construction
         []
-      end # mach_data construction
-  end
+      end # @mach_data construction
+    @mach_data
+  end # mach_data
 
-  def archs; mach_data.map { |m| m.fetch :arch }.extend(ArchitectureListExtension); end
+  def archs; mach_data.map { |m| m.fetch :arch }.uniq.extend(ArchitectureListExtension); end
 
   def arch
     case archs.length
@@ -121,17 +137,16 @@ module MachO
       when 1 then archs.first
       else :universal
     end
-  end
+  end # arch
 
   def universal?; arch == :universal; end
-
-  def i386?; arch == :i386; end
-
-  def x86_64?; arch == :x86_64; end
-
   def ppc?; arch == :ppc; end
-
   def ppc64?; arch == :ppc64; end
+  def i386?; arch == :i386; end
+  def x86_64?; arch == :x86_64; end
+  def arm?; arch == :arm; end
+  def arm64?; arch == :arm64; end
+  def arm64_32?; arch == :arm64_32; end
 
   # @private
   def dylib?; mach_data.any? { |m| m.fetch(:type) == :MH_DYLIB }; end
@@ -142,26 +157,60 @@ module MachO
   # @private
   def mach_o_bundle?; mach_data.any? { |m| m.fetch(:type) == :MH_BUNDLE }; end
 
-  # This also finds signatures within Ar archives.
-  # The universal‐binary file signature is also used by Java files, so do extra
-  #   sanity‐checking for that case.  If there are an implausibly large number of
-  #   architectures, it is unlikely to be a real fat binary; Java files, for example,
-  #   will produce a figure well in excess of 60 thousand.  Assume up to 7
-  #   architectures, in case we ever handle ARM binaries as well:  ppc, ppc64, i386,
-  #   x86_64, arm, arm64, arm64_32.
-  def mach_o_signature?
-    if file? and
-        (size >= 28 and (sig = MACH_SIGNATURES[binread(4).unpack('H8').first]) and fat_count <= 7) or
-        (binread(8) == "!<arch>\x0a" and size >= 72 and
-         (binread(16, 8) !~ %r|^#1/\d+|   and (sig = MACH_SIGNATURES[binread(4, 68).unpack('H8').first])) or
-         (binread(16, 8) =~ %r|^#1/(\d+)| and (sig = MACH_SIGNATURES[binread(4, 68+($1.to_i)).unpack('H8').first])))
-      sig
-    end
-  end # mach_o_signature
+  # The universal‐binary file signature is also used by Java files, so we do extra sanity‐checking
+  #   for that case.  If there are an implausibly large number of architectures, it is unlikely to
+  #   be a real fat binary; Java files, for example, will produce a figure well in excess of 60
+  #   thousand.  Assume up to 7 architectures, in case we start handling ARM binaries as well:  ppc,
+  #   ppc64, i386, x86_64, arm, arm64, arm64_32.  Not all will run on a Mac, but who knows whether
+  #   there are apps that also run on iOS?
+  def mach_o_signature_at?(offset)
+    sig = nil unless (file? and size >= (offset + 4) and
+                (sig = MACH_SIGNATURES[binread(4, offset).unpack('H8').first]) and
+                (sig != :FAT_MAGIC or (fct = fat_count_at(offset) and fct <= 7)))
+    sig
+  end # mach_o_signature_at?
 
   # Only call this if we already know it’s a universal binary!
   # @private
-  def fat_count; binread(4,4).unpack('N').first; end
+  def fat_count_at(offset); size > (offset + 8) and binread(4, offset + 4).unpack('N').first; end
+
+  # ‘ar’ archive binary stuff.  See <ar.h> and ar(5).
+
+  def ar_signature_at?(offset)
+    file? and size >= (offset + 8) and (binread(8, offset).unpack('a8').first == AR_MAGIC)
+  end
+
+  # In an ‘ar’ archive, finds the start of the current member’s sub‐file and walks to the next
+  #   member.  Returns a list:  [offset of signature, offset of next header].  The latter is ‘nil’
+  #   at the end of the archive; the former is also ‘nil’ if the current member is stunted enough.
+  # @private
+  def ar_walk_from(initial_offset)
+    return [nil, nil] if size <= (body_offset = initial_offset + AR_MEMBER_HDR_SIZE)
+    header = binread(AR_MEMBER_HDR_SIZE, initial_offset)
+    extent = (header.b[0, 16] =~ %r{^#1/(\d+)} ? $1.to_i : 0)   # extended name after header block?
+    startpoint = body_offset + extent
+    return [nil, nil] if size < (startpoint + 8)
+    extent = (header.b[48, 10] =~ %r{^(\d+)} ? $1.to_i : 0)
+    return [startpoint, nil] if size < (endpoint = body_offset + extent)
+    endpoint += (endpoint & 1)                                  # pad to an even number of bytes
+    return [startpoint, (size > endpoint ? endpoint : nil)]
+  end # ar_walk_from
+
+  # Returns either the offset of the first valid Mach-O ‘ar’ member, or ‘nil’.
+  # @private
+  def ar_sigseek_from(offset)
+    return nil unless ar_signature_at?(offset)
+    offset += 8
+    while offset
+      candidate, offset = ar_walk_from(offset)
+      break unless candidate
+      next if ar_signature_at?(candidate)                       # skip malformed data
+      break if (sig = mach_o_signature_at?(candidate)) and      # stop @ 1st good signature
+                sig != :FAT_MAGIC                               # skip malformed data
+      candidate = nil
+    end
+    candidate
+  end
 
   # @private
   class Metadata

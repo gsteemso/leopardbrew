@@ -57,7 +57,7 @@ PPC_SUBTYPES = {
   '00000064' => 'ppc970'
 }.freeze
 
-module Term_seq # standard terminal display-control sequences (yes, can be a wrong assumption)
+module Trm # standard terminal display-control sequences (yes, can be a wrong assumption)
   module_function
   # - In the 7‐bit environment UTF‐8 imposes, the Control Sequence Introducer (ᴄꜱɪ) is “ᴇꜱᴄ ‘[’”.
   def csi ; "\033[" ; end
@@ -93,8 +93,7 @@ module Term_seq # standard terminal display-control sequences (yes, can be a wro
   def mag    ;  '35' ; end # }
   def cyn    ;  '36' ; end # }
   def wht    ;  '37' ; end # }
-             #   38 is for extensions to higher‐bit‐depth foreground colours; Terminal.app doesn’t
-             #      support any of them under Tiger or Leopard.
+             #   38:  Higher‐bit‐depth foreground‐colour extensions.  Unsupported on Tiger/Leopard.
   def dflt   ;  '39' ; end # default display (foreground) colour.
   def on_blk ;  '40' ; end # }
   def on_red ;  '41' ; end # }
@@ -104,30 +103,26 @@ module Term_seq # standard terminal display-control sequences (yes, can be a wro
   def on_mag ;  '45' ; end # }
   def on_cyn ;  '46' ; end # }
   def on_wht ;  '47' ; end # }
-             #   48 is for extensions to higher‐bit‐depth background colours; Terminal.app doesn’t
-             #      support any of them under Tiger or Leopard.
+             #   48:  Higher‐bit‐depth background‐colour extensions.  Unsupported on Tiger/Leopard.
   def ondflt ;  '49' ; end # default background colour.
              #   50 was reserved to cancel 26.
-             #   51–53 were “framed”, “circled”, & “overlined”.
-             #   54 cancelled 51–52 and 55 cancelled 53.
+             #   51–53:  “Framed”, “circled”, & “overlined”.  54 cancelled 51–52; 55 cancelled 53.
              #   56–59 were unused.
-             #   60–64 were for ideographs (underline/right‐line; double of; overline/left‐line;
-             #         double of; stress mark); 65 cancelled them.
-  # - The following are extensions – Tiger’s Terminal.app treats them the same as their non‐bright
-  #   counterparts, but Leopard’s does present them as brighter.
+             #   60–64 were for ideographs:  Under/right‐line; doubly so; over/left‐line; doubly so;
+             #         stress mark.  65 cancelled them; 66–89 were unused.
   def br_blk ;  '90' ; end # }
   def br_red ;  '91' ; end # }
   def br_grn ;  '92' ; end # }
-  def br_ylw ;  '93' ; end # } “display” (foreground) colours.
-  def br_blu ;  '94' ; end # }
-  def br_mag ;  '95' ; end # }
+  def br_ylw ;  '93' ; end # } “Display” (foreground) colours.  Undifferentiated in Tiger’s
+  def br_blu ;  '94' ; end # }                                  Terminal.app; brighter in Leopard’s
+  def br_mag ;  '95' ; end # }                                  et seq.
   def br_cyn ;  '96' ; end # }
   def br_wht ;  '97' ; end # } ___
   def onbblk ; '100' ; end # }
   def onbred ; '101' ; end # }
   def onbgrn ; '102' ; end # }
-  def onbylw ; '103' ; end # } background colours.
-  def onbblu ; '104' ; end # }
+  def onbylw ; '103' ; end # } Background colours.  Undifferentiated in Tiger’s Terminal.app;
+  def onbblu ; '104' ; end # }                      brighter in Leopard’s et seq.
   def onbmag ; '105' ; end # }
   def onbcyn ; '106' ; end # }
   def onbwht ; '107' ; end # }
@@ -152,27 +147,28 @@ module Term_seq # standard terminal display-control sequences (yes, can be a wro
   def in_br_blue(msg) ; sgr(br_blu) + msg.to_s + sgr(dflt) ; end
   def in_br_cyan(msg) ; sgr(br_cyn) + msg.to_s + sgr(dflt) ; end
   def in_br_white(msg) ; sgr(br_wht) + msg.to_s + sgr(dflt) ; end
-  def reset_gr ; sgr(rst) ; end
-end # Term_seq
+  def reset_ ; sgr(rst) ; end
+end # Trm
 
 module Homebrew
-  Term_seq.set_grcm_cumulative
+  Trm.set_grcm_cumulative
+
+  def oho(*msg); puts "#{Trm.bolder_on_black}#{Trm.in_br_blue '==>'} #{msg.to_a * ''}#{Trm.reset_}"; end
+
+  def ohey(title, *msg); oho title; puts msg; end
 
   def list_archs
-    def oho(*msg); puts "#{Term_seq.bolder_on_black}#{Term_seq.in_br_blue '==>'} #{msg.to_a.join('')}#{Term_seq.reset_gr}"; end
+    thorough_flag = ARGV.include? '--thorough'
+    requested = (thorough_flag ? ARGV.versioned_kegs : ARGV.kegs)
+    raise KegUnspecifiedError if requested.empty?
+    no_archs_msg = false; got_generic_ppc = false
 
-    def ohey(title, *msg); oho title; puts msg; end
-
-    def scour(in_here)
+    def scour(loc)
       possibles = []
-      Dir["#{in_here}/{*,.*}"].reject { |f|
-        f =~ /\/\.{1,2}$/
-      }.map { |m|
-        Pathname.new(m)
-      }.each do |pn|
+      Dir["#{loc}/{*,.*}"].reject { |f| f =~ %r{/\.{1,2}$} }.map { |f| Pathname.new(f) }.each do |pn|
         unless pn.symlink?
           if pn.directory? then possibles += scour(pn)
-          elsif pn.mach_o_signature? then possibles << pn
+          elsif pn.mach_o_signature_at?(0) or pn.ar_signature_at?(0) then possibles << pn
           end
         end # unless symlink?
       end # each |pn|
@@ -188,100 +184,96 @@ module Homebrew
       end
     end # cpu_valid
 
-    thorough_flag = ARGV.include? '--thorough'
-    requested = (thorough_flag ? ARGV.versioned_kegs : ARGV.kegs)
-    raise KegUnspecifiedError if requested.empty?
-    no_archs_msg = false; got_generic_ppc = false
+    def report_1_arch_at(pname, offset)
+      # Generate a key from a one‐architecture (sub‐)file:
+      return [nil, nil] unless pname.size > offset + 12
+      cpu_type, cpu_subtype = pname.binread(8, offset + 4).unpack('H8H8')
+      if arch = cpu_valid(cpu_type, cpu_subtype) then key = [Trm.in_br_cyan(arch)]; alien_report = nil
+      else # alien arch
+        ct = (CPU_TYPES[cpu_type] or cpu_type)
+        key = [Trm.in_cyan("#{ct}:#{cpu_subtype}")]
+        alien_report = \
+          "File #{Trm.in_white(pname)}:\n  [foreign CPU type #{Trm.in_cyan(ct)} with subtype #{Trm.in_cyan(cpu_subtype)}].\n"
+      end # native arch?
+      return [key, alien_report]
+    end
+
     requested.each do |keg|
       max_arch_count = 0; arch_reports = {}; alien_reports = []
-      scour(keg.to_s).each do |mo|
-        sig = mo.mach_o_signature?
-        if sig == :FAT_MAGIC
-          arch_count = mo.binread(4,4).unpack('N').first
-          # False positives happen, especially with Java files; if the number of architectures is
-          #   negative, zero, or implausibly large, it probably isn’t actually a fat binary.
-          # Pick an upper limit of 7 in case we ever handle ARM|ARM64|ARM64/32 builds or whatever.
-          if (arch_count >= 1 and arch_count <= 7)
-        # Generate a key describing this set of architectures.  First, extract the list of them:
-            parts = []
-            0.upto(arch_count - 1) do |i|
-              parts << {
-                :type => mo.binread(4, 8 + 20*i).unpack('H8').first,
-                :subtype => mo.binread(4, 12 + 20*i).unpack('H8').first
-              }
-            end # do each |i|
-            native_parts = []
-            foreign_parts = []
-            parts.each do |part|
-              if arch = cpu_valid(part[:type], part[:subtype])
-                native_parts << Term_seq.in_br_cyan(arch)
-              else
-                ct = (CPU_TYPES[part[:type]] or part[:type])
-                foreign_parts << {
-                  [ct, part[:subtype]] =>
-                    "[foreign CPU type #{Term_seq.in_cyan(ct)} with subtype #{Term_seq.in_cyan(part[:subtype])}.]"
-                }
-              end # arch?
-            end # do each |part|
-        # Second, sort the list:
-            native_parts.sort! do |a, b|
-              # the ꜱɢʀ sequences at beginning and end are 5 characters each
-              if (a[5..7] == 'ppc' and b[5..7] == 'ppc')
-                # sort ppc64 after all other ppc types
-                if a[8..-6] == '64' then 1
-                elsif b[8..-6] == '64' then -1
-                else a <=> b
-                end
-              else a <=> b
-              end # ppc_x_?
-            end # sort! native parts
-            foreign_parts.sort! do |a, b|
-              if a.keys.first[0] < b.keys.first[0] then -1
-              elsif a.keys.first[0] > b.keys.first[0] then 1
-              else a.keys.first[1] <=> b.keys.first[1]
-              end # compare CPUtype or else compare subtype
-            end # sort! foreign parts
-            parts = native_parts + foreign_parts.map { |h| Term_seq.in_cyan("#{h.keys.first[0]}:#{h.keys.first[1]}") }
-        # Third, use the sorted list as a search key:
-            key = parts
-            alien_reports << "File #{Term_seq.in_white(mo)}:\n  #{foreign_parts.map { |fp| fp.values.first }.join("\n  ")}\n" if foreign_parts != []
-          end # (1 <= arch_count <= 7)?
-        elsif sig # :MH_MAGIC, :MH_MAGIC_64
-        # Generate a key from a one‐architecture file:
-          cpu = {
-            :type => mo.binread(4, 4).unpack('H8').first,
-            :subtype => mo.binread(4, 8).unpack('H8').first
-          }
-          if arch = cpu_valid(cpu[:type], cpu[:subtype]) then key = [Term_seq.in_br_cyan(arch)]
-          else # alien arch
-            ct = (CPU_TYPES[cpu[:type]] or cpu[:type])
-            key = [Term_seq.in_cyan("#{ct}:#{cpu[:subtype]}")]
-            alien_reports << "File #{Term_seq.in_white(mo)}:\n  [foreign CPU type #{Term_seq.in_cyan(ct)} with subtype #{Term_seq.in_cyan(cpu[:subtype])}.\n"
-          end # native arch?
-        end # Fat / Mach-O sig?
-        if arch_reports[key] then arch_reports[key] += 1
-        else arch_reports[key] = 1
+      scour(keg.to_s).each do |pn|
+        if offset = pn.ar_sigseek_from(0) # ‘ar’ archive:  Only look until the first Mach-O signature.
+          key, alien_report = report_1_arch_at(pn, offset)
+          alien_reports << alien_report if alien_report
+        elsif sig = pn.mach_o_signature_at?(0)
+          if sig == :FAT_MAGIC  # only returns this if we have 7 or fewer fat_archs
+            if (arch_count = pn.fat_count_at(0)) > 0
+              # Generate a key describing this set of architectures.  First, extract the list of them:
+              parts = []
+              arch_count.times { |i| parts << pn.binread(8, 8 + 20*i).unpack('H8H8') }
+              native_parts = []
+              foreign_parts = []
+              parts.each do |part|
+                cpu_type, cpu_subtype = part
+                if arch = cpu_valid(cpu_type, cpu_subtype)
+                  native_parts << Trm.in_br_cyan(arch)
+                else
+                  ct = (CPU_TYPES[cpu_type] or cpu_type)
+                  foreign_parts << {
+                    { :type => ct, :subtype => cpu_subtype } =>
+                      "[foreign CPU type #{Trm.in_cyan(ct)} with subtype #{Trm.in_cyan(cpu_subtype)}.]"
+                  }
+                end # valid arch?
+              end # do each |part|
+              # Second, sort the list:
+              native_parts.uniq!
+              native_parts.sort! do |a, b|
+                # the ꜱɢʀ sequences at beginning and end are 5 characters each
+                if (a[5..7] == 'ppc' and b[5..7] == 'ppc') # sort ppc64 after all other ppc types
+                  if a[8..-6] == '64' then 1
+                  elsif b[8..-6] == '64' then -1
+                  else a <=> b; end  # sort other ppc types
+                else a <=> b; end  # sort all other types
+              end if native_parts.length > 1
+              foreign_parts.uniq!
+              foreign_parts.sort! do |a, b|
+                if a.keys.first[:type] < b.keys.first[:type] then -1
+                elsif a.keys.first[:type] > b.keys.first[:type] then 1
+                else a.keys.first[:subtype] <=> b.keys.first[:subtype]; end
+              end if foreign_parts.length > 1
+              # Third, use the sorted list as a search key:
+              key = native_parts + foreign_parts.map { |fp| "#{Trm.in_cyan(fp.keys.first[:type])}:#{Trm.in_cyan(fp.keys.first[:subtype])}" }
+              alien_reports << "File #{Trm.in_white(pn)}:\n  #{foreign_parts.map { |fp| fp.values.first } * "\n  "}\n" \
+                                                                             if foreign_parts != []
+            end # (arch_count > 0)?
+          elsif sig # :MH_MAGIC, :MH_MAGIC_64
+            key, alien_report = report_1_arch_at(pn, 0)
+            alien_reports << alien_report if alien_report
+          end # Fat / Mach-O sig?
+        end # ‘ar’ or Mach-O?
+        if key
+          if arch_reports[key] then arch_reports[key] += 1
+          else arch_reports[key] = 1; end
         end
-      end # do each |mo|
+      end # do each |pn|
 
       if arch_reports == {}
-        oho "#{Term_seq.in_white(keg.name)} appears to contain #{Term_seq.in_yellow('no valid Mach-O files')}."
+        oho "#{Trm.in_white(keg.name)} appears to contain #{Trm.in_yellow('no valid Mach-O files')}."
         no_archs_msg = true
       else
-        ohey("#{Term_seq.in_white(keg.name)} appears to contain some foreign code:", alien_reports * '') if alien_reports != []
+        ohey("#{Trm.in_white(keg.name)} appears to contain some foreign code:", alien_reports * '') if alien_reports != []
         unless thorough_flag
           combo_incidence = arch_reports.values.max  # How often did we see the most common arch combinations?
-          arch_reports = arch_reports.select { |k, v| v == combo_incidence }  # Only report those most‐common combos
+          arch_reports.select! { |k, v| v == combo_incidence }  # Only report those most‐common combos
           if arch_reports.length > 1
             arch_count = arch_reports.keys.map { |k| k.length }.max  # How many archs appear in the most complex combos?
-            arch_reports = arch_reports.select { |k, v| k.length == arch_count }  # only report those most‐complex combos
+            arch_reports.select! { |k, v| k.length == arch_count }  # only report those most‐complex combos
           end
-          arch_reports = arch_reports.reject { |r| r.any? { |rr| rr =~ /ppc‐\*/ } } if arch_reports.length > 1
+          arch_reports.reject! { |r| r.any? { |rr| rr =~ /ppc‐\*/ } } if arch_reports.length > 1
         end # not thorough?
-        oho "#{Term_seq.in_white("#{keg.name} #{keg.root.basename}")} is built for ",
-          "#{Term_seq.in_br_white(arch_reports.length)} combination#{plural(arch_reports.length)} of architectures:  ",
+        oho "#{Trm.in_white("#{keg.name} #{keg.root.basename}")} is built for ",
+          "#{Trm.in_br_white(arch_reports.length)} combination#{plural(arch_reports.length)} of architectures:  ",
           arch_reports.keys.sort { |a, b| b.length <=> a.length }.map {
-              |k| "#{k * Term_seq.in_white('/')} (#{'×' + arch_reports[k].to_s})"
+              |k| "#{k * Trm.in_white('/')} (#{'×' + arch_reports[k].to_s})"
             } * ', ', '.'
       end # any archs found?
     end # do each |keg|
