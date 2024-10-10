@@ -7,11 +7,12 @@ module HomebrewArgvExtension
     build_from_source?
     debug?
     homebrew_developer?
+    quieter?
     sandbox?
     verbose?
   ].freeze
 
-  ENV_ARG_HASH = {'build_universal?' => '--universal'}.freeze
+  ENV_ARG_HASH = { 'build_universal?' => '--universal' }.freeze
 
   SWITCHES = {
     '1' => '--1', # (“do not recurse”)
@@ -20,7 +21,7 @@ module HomebrewArgvExtension
     'g' => '--git',
     'i' => '--interactive',
     'n' => '--dry-run',
-    'q' => '--quieter'
+  # 'q' => '--quieter'  (already handled as an ENV_ARG)
   # 's' => '--build-from-source' (already handled as an ENV_ARG)
   # 'u' => '--universal' (already handled as an ENV_ARG)
   # 'v' => '--verbose' (already handled as an ENV_ARG)
@@ -51,11 +52,11 @@ module HomebrewArgvExtension
   end
 
   def options_only
-    select { |arg| arg.start_with?('-') }
+    select { |arg| arg.to_s.starts_with?('-') }
   end
 
   def flags_only
-    select { |arg| arg.start_with?('--') }
+    select { |arg| arg.to_s.starts_with?('--') }
   end
 
   def effective_flags
@@ -117,8 +118,6 @@ module HomebrewArgvExtension
       f = Formulary.factory(name, ss)
       ss = f.active_spec_sym if ss == :stable and f.active_spec_sym != ss  # --HEAD- or --devel-only formula
       rackname = f.rack.basename
-      oh1 ['f.active_spec_sym == ', f.active_spec_sym.inspect, '; ss == ', ss.inspect,
-           '; f.spec_prefix(ss) == ', f.spec_prefix(ss)] * '' if DEBUG
       raise NoSuchKegError.new(rackname/f.spec_prefix(ss).basename) unless ss == :stable or
                         (f.spec_prefix(ss).directory? and (f.spec_prefix(ss)/Tab::FILENAME).exists?)
       dirs = f.rack.directory? ? f.rack.subdirs : []
@@ -180,7 +179,7 @@ module HomebrewArgvExtension
   end
 
   def quieter?
-    flag? '--quieter'
+    flag? '--quieter' or not ENV['HOMEBREW_QUIET'].nil?
   end
 
   def interactive?
