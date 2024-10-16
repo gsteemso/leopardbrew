@@ -75,7 +75,7 @@ class Llvm < Formula
   deprecated_option "rtti" => "with-rtti"
   deprecated_option "disable-assertions" => "without-assertions"
 
-  depends_on MinimumGccRequirement => '4.7'
+  depends_on Cxx11Requirement
 
   if MacOS.version <= :snow_leopard
     depends_on :python
