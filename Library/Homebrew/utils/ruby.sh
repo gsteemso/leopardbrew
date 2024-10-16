@@ -4,7 +4,7 @@ setup-ruby-path() {
   local vendor_ruby_path
   local ruby_version_major
 
-  vendor_dir="$HOMEBREW_LIBRARY/Homebrew/vendor"
+  vendor_dir="$HOMEBREW_LIBRARY_PATH/vendor"
   vendor_ruby_current_version="$vendor_dir/portable-ruby/current"
   vendor_ruby_path="$vendor_ruby_current_version/bin/ruby"
 

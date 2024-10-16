@@ -1,12 +1,15 @@
-#: @hide_from_man_page
-#:  * `vendor-install` [<target>]:
-#:     Install vendor version of Homebrew dependencies.
+#:
+#:  Usage:  brew vendor-install /target/
+#:
+#:Install the vendor version of Homebrew dependencies.  Currently, /target/ must
+#:be exactly one of “curl” or “ruby”.
+#:
 
 # Hide shellcheck complaint:
 # shellcheck source=/dev/null
-source "$HOMEBREW_LIBRARY/Homebrew/utils/lock.sh"
+source "$HOMEBREW_LIBRARY_PATH/utils/lock.sh"
 
-VENDOR_DIR="$HOMEBREW_LIBRARY/Homebrew/vendor"
+VENDOR_DIR="$HOMEBREW_LIBRARY_PATH/vendor"
 
 # Built from https://github.com/Homebrew/homebrew-portable.
 if [[ -n "$HOMEBREW_OSX" ]]
@@ -22,7 +25,7 @@ then
     ruby_SHA="7f4f13348d583bc9e8594d2b094c6b0140ce0a32a226a145b8b7f9993fca8c28"
   fi
 
-  # Curl used on older OS Xs to download software
+  # Curl used on older Mac OSes (Darwins) to download software
   # PPC-only 10.4 build
   if [[ "$HOMEBREW_PROCESSOR" != "Intel" ]]
   then
@@ -44,8 +47,8 @@ fetch() {
   local sha
   local temporary_path
 
-  echo "==> Please wait... tigers are now brewing"
-  echo "Downloading Tigerbrew's ${VENDOR_NAME}; this may take some time"
+  echo "==> Please wait... leopards are now brewing"
+  echo "Downloading Leopardbrew's ${VENDOR_NAME}; this may take some time"
   echo ""
 
   curl_args=(
