@@ -42,7 +42,7 @@ class Llvm342 < Formula
   depends_on :python if MacOS.version < :leopard  # need python 2.5 or later
                                                   # this is only used by the big test-suite package
 
-  keg_only :provided_by_osx if MacOS.version >= :snow_leopard
+  keg_only :provided_by_osx if MacOS.version > :leopard
 
   def install
     if build.universal?
@@ -61,19 +61,19 @@ class Llvm342 < Formula
     mkdir 'build'
     cd 'build' do
       system '../configure', "--prefix=#{prefix}",
-                             '--enable-optimized',  # build the release version
                              '--enable-debug-runtime',  # leave symbols in the runtime libraries
-                             '--enable-jit',  # mostly useful for the `lli` tool that directly
-                                              # executes LLVM bitcode
+                             '--enable-jit',    # mostly useful for the `lli` tool that directly
+                                                # executes LLVM bitcode
+                             '--enable-optimized',  # build the release version
                              '--enable-targets=arm,powerpc,x86,x86_64'  # the useful ones on Darwin
       system 'make'
-      system 'make', 'check-all'            # runs quick built-in tests (not the big test suite)
+      system 'make', 'check-all'                # runs quick built-in tests (not the big test suite)
       system 'make', 'install'
     end
 
     system 'make', '-C', 'runtime', 'install-bytecode', "DSTROOT=#{prefix}"
-    system 'make', '-C', 'projects/libcxx', 'install',
-      "DSTROOT=#{prefix}", "SYMROOT=#{buildpath}/projects/libcxx"
+    system 'make', '-C', 'projects/libcxx', 'install', "DSTROOT=#{prefix}",
+                                                       "SYMROOT=#{buildpath}/projects/libcxx"
 
     (share/'clang/tools').install Dir['tools/clang/tools/scan-{build,view}']
     inreplace "#{share}/clang/tools/scan-build/scan-build", '$RealBin/bin/clang', "#{bin}/clang"
