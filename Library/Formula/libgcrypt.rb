@@ -28,11 +28,19 @@ class Libgcrypt < Formula
   end
 
   test do
-    arch_system bin/'mpicalc', '--version'
-    arch_system bin/'mpicalc', '--print-config'
-    arch_system bin/'hmac256', '--version'
-    arch_outputs(bin/'hmac256', "'test key' #{HOMEBREW_LIBRARY_PATH}/test/fixtures/test.pdf").each \
-      { |a_o| assert_match '0b81e0b2f9f9522b045f0016e03abae259b1dca38713630695be05deb82aea88', a_o }
+    for_archs bin/'mpicalc' do |a|
+      cmd_set = (a.nil? ? [] : ['arch', '-arch', a.to_s])
+      cmd_set << bin/'mpicalc'
+      system *cmd_set, '--version'
+      system *cmd_set, '--print-config'
+    end
+    for_archs bin/'hmac256' do |a|
+      cmd_set = (a.nil? ? [] : ['arch', '-arch', a.to_s])
+      cmd_set << bin/'hmac256'
+      system *cmd_set, '--version'
+      cmd_set << "'test key' #{HOMEBREW_LIBRARY_PATH}/test/fixtures/test.pdf"
+      assert_match '0b81e0b2f9f9522b045f0016e03abae259b1dca38713630695be05deb82aea88', shell_output(cmd_set * ' ')
+    end
   end
 end
 
