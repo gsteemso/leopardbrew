@@ -198,27 +198,27 @@ def quiet_system(cmd, *args)
   end
 end
 
-# repeats cmd for each of its fat‐binary architectures (useful for `test` blocks)
+# useful for `test` blocks:
+
+# repeats cmd for each of its fat‐binary architectures
 def arch_system(cmd, *args)
-  if (arch_cmd = which 'arch')
-    cmd = which(cmd) unless cmd.to_s =~ %r{/}
-    cmd = Pathname.new(cmd) unless cmd.class == Pathname
-    cmd.archs.select { |a| Hardware::CPU.can_run?(a) }.each do |a|
-      if VERBOSE
-        system arch_cmd, '-arch', a.to_s, cmd, *args
-      else
-        quiet_system arch_cmd, '-arch', a.to_s, cmd, *args
-      end
-    end
-  else
-    opoo "Can’t find the “arch” command.  Running #{cmd} with the default architecture only:"
-    if VERBOSE
-      system cmd, *args
-    else
-      quiet_system cmd, *args
-    end
+  for_archs cmd do |a|
+    arch_cmd = (a.nil? ? [] : ['arch', '-arch', a.to_s])
+    system *arch_cmd, cmd, *args
   end
 end # arch_system
+
+# repeats &block for each of cmd’s fat‐binary architectures
+def for_archs (cmd, &block)
+  cmd = which(cmd) unless cmd.to_s[0] == '/'
+  cmd = Pathname.new(cmd) unless cmd.class == Pathname
+  if (is_univ = cmd.universal?) and (arch_cmd = which 'arch')
+    cmd.archs.select { |a| Hardware::CPU.can_run?(a) }.each(&block)
+  else
+    opoo "Can’t find the “arch” command; running #{cmd} with the default architecture only." if is_univ
+    block.call(nil)
+  end
+end # for_archs
 
 def curl(*args)
   curl = Pathname.new ENV["HOMEBREW_CURL"]
@@ -319,7 +319,7 @@ end
 # Returns array of architectures that the given command or library is built for.
 # Expects a bare string.  If you have a Pathname just use its #archs method.
 def archs_for_command(cmd)
-  cmd = which(cmd) unless cmd.to_s.start_with? '/'
+  cmd = which(cmd) unless cmd.to_s[0] == '/'
   Pathname.new(cmd).archs
 end
 
