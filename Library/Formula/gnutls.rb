@@ -1,74 +1,94 @@
-# GnuTLS has previous, current, and next stable branches, we use current.
+# GnuTLS has current stable and next stable branches, we use current.
 class Gnutls < Formula
-  desc "GNU Transport Layer Security (TLS) Library"
-  homepage "http://gnutls.org"
-  url "https://www.gnupg.org/ftp/gcrypt/gnutls/v3.7/gnutls-3.7.10.tar.xz"
-  mirror "http://www.mirrorservice.org/sites/ftp.gnupg.org/gcrypt/gnutls/v3.7/gnutls-3.7.10.tar.xz"
-  sha256 "b6e4e8bac3a950a3a1b7bdb0904979d4ab420a81e74de8636dd50b467d36f5a9"
+  desc 'GNU Transport Layer Security (TLS) Library'
+  homepage 'http://gnutls.org'
+  url 'https://www.gnupg.org/ftp/gcrypt/gnutls/v3.7/gnutls-3.7.11.tar.xz'
+  mirror 'http://www.mirrorservice.org/sites/ftp.gnupg.org/gcrypt/gnutls/v3.7/gnutls-3.7.11.tar.xz'
+  sha256 '90e337504031ef7d3077ab1a52ca8bac9b2f72bc454c95365a1cd1e0e81e06e9'
 
-  bottle do
-    cellar :any
+  option :universal
+  option 'with-guile', 'Enable extensions written in Scheme'
+  option 'with-more-compressors', 'Enable the Brotli and ZStandard compression schemes'
+  option 'with-unbound', 'Use the Unbound secure domain‐name resolver'
+
+  depends_on 'pkg-config' => :build
+  depends_on 'curl-ca-bundle'
+  depends_on 'gmp'
+  depends_on 'libev'
+  depends_on 'libiconv'
+  depends_on 'libidn2'
+  depends_on 'libtasn1'
+  depends_on 'libunistring'
+  depends_on 'nettle'
+  depends_on 'p11-kit'
+  depends_on 'python3'
+  depends_on 'zlib'
+  if build.with? 'more-compressors'
+    depends_on 'brotli'
+    depends_on 'zstd'
   end
+  depends_on 'guile' => :optional
+  depends_on 'unbound' => :optional
 
-  # Need a C11/C++11 compiler
-  fails_with :gcc_4_0
-  fails_with :gcc
+  # threads can’t be disabled, but thread-local storage is, apparently, unsupported on PowerPC (or
+  #   at least on ppc64) as of GCC 4.2
+  fails_with [:gcc, :gcc4_0, :llvm]
 
   # Availability.h appeared in Leopard
-  patch :p0, :DATA
-
-  depends_on "pkg-config" => :build
-  depends_on "curl-ca-bundle"
-  depends_on "libtasn1"
-  depends_on "gmp"
-  depends_on "nettle"
-  depends_on "libunistring"
-  depends_on "libidn2"
-  depends_on "p11-kit"
-  depends_on "zlib"
-  depends_on "guile" => :optional
-  depends_on "unbound" => :optional
+  patch :DATA
 
   def install
+    ENV.universal_binary if build.universal?
+    # make sysconfdir explicit for gnutlsdir
+    # disable-doc + enable-manpages works around the gtk-doc dependency
+    # openssl compatibility because why not
     args = %W[
-      --disable-dependency-tracking
-      --disable-silent-rules
-      --disable-static
       --prefix=#{prefix}
       --sysconfdir=#{etc}
+      --disable-dependency-tracking
+      --disable-silent-rules
+      --disable-doc
+      --enable-manpages
+      --enable-openssl-compatibility
       --with-default-trust-store-file=#{gnutlsdir}
-      --disable-heartbeat-support
     ]
-
-    if build.with? "guile"
-      args << "--enable-guile"
-      args << "--with-guile-site-dir=no"
+    if build.with? 'guile'
+      args << '--with-guile-site-dir=no'
+    else
+      args << '--disable-guile'
     end
-
-    system "./configure", *args
-    system "make", "install"
-
+    if build.without? 'unbound'
+      args << '--disable-libdane'
+    end
+    ENV['GMP_CFLAGS'] = "-I#{Formula['gmp'].opt_include}"
+    ENV['GMP_LIBS'] = "-L#{Formula['gmp'].opt_lib}"
+    # autotools configuration tests for universal builds by checking for -arch flags in _$CC_, of
+    #   all places!  So, give it what it wants (under stdenv it already is):
+    ENV['CC'] = "#{ENV['HOMEBREW_CC']} #{ENV['HOMEBREW_ARCHFLAGS']}".strip if build.universal? and superenv?
+    system './configure', *args
+    system 'make', 'install'
     # certtool shadows the OS X certtool utility
-    mv bin/"certtool", bin/"gnutls-certtool"
-    mv man1/"certtool.1", man1/"gnutls-certtool.1"
-  end
+    mv bin/'certtool', bin/'gnutls-certtool'
+    mv man1/'certtool.1', man1/'gnutls-certtool.1'
+  end # install
 
   def gnutlsdir
-    etc/"gnutls"
+    etc/'gnutls'
   end
 
   def post_install
-    rm_f gnutlsdir/"cert.pem"
-    gnutlsdir.install_symlink Formula["curl-ca-bundle"].opt_share/"ca-bundle.crt" => "cert.pem"
+    rm_f gnutlsdir/'cert.pem'
+    gnutlsdir.install_symlink Formula['curl-ca-bundle'].opt_share/'ca-bundle.crt' => 'cert.pem'
   end
 
   test do
-    system bin/"gnutls-cli", "--version"
+    system bin/'gnutls-cli', '--version'
   end
 end
+
 __END__
---- lib/system/certs.c.orig	2023-11-28 15:21:28.000000000 +0000
-+++ lib/system/certs.c	2023-11-28 15:20:40.000000000 +0000
+--- old/lib/system/certs.c	2023-11-28 15:21:28 +0000
++++ new/lib/system/certs.c	2023-11-28 15:20:40 +0000
 @@ -47,8 +47,12 @@
  #ifdef __APPLE__
  # include <CoreFoundation/CoreFoundation.h>
