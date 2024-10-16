@@ -2,7 +2,7 @@
 #:  Usage:  brew reinstall [/formula options/] /installed formula/ [...]
 #:
 #:Reïnstall each listed /installed formula/, with the same options each used
-#:before.  Further options may be added, but will apply to every formula.
+#:before.  Further options may be added, but will apply to every given formula.
 #:
 #:If multiple current specifications are installed (in the extreme case, all
 #:three of stable, devel, and HEAD), do clarify which one to reïnstall using or
@@ -40,16 +40,16 @@ module Homebrew
   def reinstall_formula(f)
     reinstalling = false
     existing_prefixes = f.installed_current_prefixes.values
-    ohai 'installed current prefixes:', existing_prefixes * ' ' if DEBUG
+    puts 'installed current prefixes:', existing_prefixes * ' ' if DEBUG
     named_spec = (ARGV.build_head? ? :head :
                    (ARGV.build_devel? ? :devel :
                      (ARGV.include?('--stable') ? :stable :
                        nil) ) )
-    oh1 "Named spec = #{named_spec or '[nil]'}" if DEBUG
+    puts "Named spec = #{named_spec or '[nil]'}" if DEBUG
     f.set_active_spec named_spec if named_spec  # otherwise use the default
     tab = Tab.for_formula(f)
     options = tab.used_options
-    oh1 "Original spec = #{tab[:source][:spec] or '[nil]'}" if DEBUG
+    puts "Original spec = #{tab[:source][:spec] or '[nil]'}" if DEBUG
     case tab[:source][:spec]
       when :head then options += Option.new('HEAD')
       when :devel then options += Option.new('devel')
@@ -59,7 +59,7 @@ module Homebrew
     oh1 "New spec = #{new_spec or '[nil]'}" if DEBUG
     f.set_active_spec new_spec
     keep_other_current_kegs = existing_prefixes.include?(f.prefix)
-    oh1 "Replace other current kegs?  #{keep_other_current_kegs ? 'NO' : 'YES'}" if DEBUG
+    puts "Remove other current kegs?  #{keep_other_current_kegs ? 'NO' : 'YES'}" if DEBUG
 
     notice  = "Reinstalling #{f.full_name}"
     notice += " with #{options * ', '}" unless options.empty?
