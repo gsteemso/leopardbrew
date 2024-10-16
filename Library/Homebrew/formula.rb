@@ -310,6 +310,7 @@ class Formula
         end
       end
     oh1 "Formula #{name}’s old name was #{@oldname}" if DEBUG and @oldname
+    @oldname
   end
 
   # The {Resource}s for the currently active {SoftwareSpec}.
