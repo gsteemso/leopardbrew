@@ -8,14 +8,14 @@ class Gdbm < Formula
   option :universal
   option 'without-libgdbm-compat', 'Omit the libgdbm_compat library, which provides old‐style dbm/ndbm interfaces'
 
-  depends_on 'coreutils'
-  depends_on 'readline'
-
   depends_on 'autoconf' => :build
   depends_on 'automake' => :build
   depends_on 'm4'       => :build
 
-  keg_only :provided_by_osx  # technically untrue if built without libgdbm-compat
+  depends_on 'coreutils'
+  depends_on 'readline'
+
+  keg_only :provided_by_osx if build.with? 'libgdbm-compat'
 
   # A libintl dependency was missing from the test Makefile.  Patch from upstream.
   patch :DATA
@@ -35,14 +35,17 @@ class Gdbm < Formula
     system 'make'
     system 'make', 'check'
     system 'make', 'install'
-  end
+  end # instill
 
   test do
-    pipe_output("#{bin}/gdbmtool --norc --newdb test", "store 1 2\nquit\n")
-    assert File.exist?("test")
-    assert_match /2/, pipe_output("#{bin}/gdbmtool --norc test", "fetch 1\nquit\n")
-  end
-end
+    for_archs(bin/'gdbmtool') do |a|
+      arch_cmd = (a.nil? ? '' : "arch -arch #{a} ")
+      pipe_output("#{arch_cmd}#{bin}/gdbmtool --norc --newdb test", "store 1 2\nquit\n")
+      assert File.exist?('test')
+      assert_match /2/, pipe_output("#{arch_cmd}#{bin}/gdbmtool --norc test", "fetch 1\nquit\n")
+    end
+  end # test
+end # Gdbm
 
 __END__
 --- a/tests/Makefile.am
