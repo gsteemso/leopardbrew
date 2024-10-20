@@ -218,7 +218,7 @@ class BuildError < RuntimeError
   end
 
   def dump
-    if !ARGV.verbose?
+    if !VERBOSE
       puts
       puts "#{Tty.red}READ THIS#{Tty.reset}: #{Tty.em}#{OS::ISSUES_URL}#{Tty.reset}"
       if formula.tap?
