@@ -18,8 +18,6 @@
 require 'formula_installer'
 
 module Homebrew
-  @the_formulae = @the_rest = []
-
   def reinstall
     FormulaInstaller.prevent_build_flags unless MacOS.has_apple_developer_tools?
 
@@ -56,7 +54,7 @@ module Homebrew
     end
     options = blenderize_options(options, f)
     new_spec = (options.include?('HEAD') ? :head : (options.include?('devel') ? :devel : :stable) )
-    oh1 "New spec = #{new_spec or '[nil]'}" if DEBUG
+    puts "New spec = #{new_spec or '[nil]'}" if DEBUG
     f.set_active_spec new_spec
     keep_other_current_kegs = existing_prefixes.include?(f.prefix)
     puts "Remove other current kegs?  #{keep_other_current_kegs ? 'NO' : 'YES'}" if DEBUG
@@ -173,5 +171,5 @@ module Homebrew
       end # option is defined?
     end # each ARGV flag
     use_opts - anti_opts
-  end # puree_options
+  end # blenderize_options
 end # Homebrew
