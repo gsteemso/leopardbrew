@@ -20,7 +20,7 @@ class SoftwareSpec
 
   attr_reader :name, :full_name, :owner
   attr_reader :build, :resources, :patches, :options
-  attr_reader :deprecated_flags, :deprecated_options
+  attr_reader :deprecated_actuals, :deprecated_options
   attr_reader :dependency_collector
   attr_reader :bottle_specification
   attr_reader :compiler_failures
@@ -38,7 +38,7 @@ class SoftwareSpec
     @patches = []
     @options = Options.new
     @flags = ARGV.effective_flags
-    @deprecated_flags = []
+    @deprecated_actuals = []
     @deprecated_options = []
     @build = BuildOptions.new(Options.create(@flags), options)
     @compiler_failures = []
@@ -128,23 +128,22 @@ class SoftwareSpec
 
   def deprecated_option(hash)
     raise ArgumentError, "deprecated_option hash must not be empty" if hash.empty?
-    hash.each do |old_options, new_options|
-      Array(old_options).each do |old_option|
-        Array(new_options).each do |new_option|
-          deprecated_option = DeprecatedOption.new(old_option, new_option)
-          deprecated_options << deprecated_option
+    hash.each do |old_optstrings, new_optstrings|
+      Array(old_optstrings).each do |old_optstring|
+        new_optstring = Array(new_optstrings).first
+        d_o = DeprecatedOption.new(old_optstring, new_optstring)
+        deprecated_options << d_o
 
-          old_flag = deprecated_option.old_flag
-          new_flag = deprecated_option.current_flag
-          if @flags.include? old_flag
-            @flags -= [old_flag]
-            @flags |= [new_flag]
-            @deprecated_flags << deprecated_option
-          end
+        old_flag = d_o.old_flag
+        new_flag = d_o.current_flag
+        if @flags.include? old_flag
+          @flags -= [old_flag]
+          @flags |= [new_flag]
+          @deprecated_actuals << d_o
         end
+        @build.fix_deprecation(d_o)  # does nothing unless the old flag is actually present
       end
     end
-    @build = BuildOptions.new(Options.create(@flags), options)
   end
 
   def depends_on(spec)

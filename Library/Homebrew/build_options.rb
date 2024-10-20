@@ -2,10 +2,20 @@ class BuildOptions
   attr_accessor :s_args
 
   # @private
-  def initialize(args, options)
-    @o_args = args
-    @s_args = args.map { |o| o.to_s }.extend(HomebrewArgvExtension)
-    @options = options
+  def initialize(arg_options, defined_options)
+    @o_args = arg_options
+    @s_args = @o_args.map { |o| o.to_s }.extend(HomebrewArgvExtension)
+    @defined_options = defined_options
+  end
+
+  def fix_deprecation(deprecated_option)
+    old_name, new_name = deprecated_option.old, deprecated_option.current
+    if include? old_name
+      @o_args -= [Option.new(old_name)]
+      s_args -= ["--#{old_name}"]
+      @o_args << Option.new(new_name)
+      s_args << "--#{new_name}"
+    end
   end
 
   # True if a {Formula} is being built with a specific option
@@ -27,8 +37,8 @@ class BuildOptions
   #   args << '--with-example1'
   # end</pre>
   def with?(val)
-    name = val.respond_to?(:option_name) ? val.option_name : val
-
+    name = val.respond_to?(:name) ? val.name : val  # if we’re being asked about an Option rather
+                                                    # than about a string, use its name
     if option_defined? "with-#{name}"
       include? "with-#{name}"
     elsif option_defined? "without-#{name}"
@@ -93,17 +103,17 @@ class BuildOptions
 
   # @private
   def used_options
-    @options & @o_args
+    @defined_options & @o_args
   end
 
   # @private
   def unused_options
-    @options - @o_args
+    @defined_options - @o_args
   end
 
   private
 
   def option_defined?(name)
-    @options.include? name
+    @defined_options.include? name
   end
 end
