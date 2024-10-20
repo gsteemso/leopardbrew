@@ -2,7 +2,7 @@ module HomebrewArgvExtension
 
   private
 
-  ENV_ARGS = %w[
+  ENV_FLAGS = %w[
     build_bottle?
     build_from_source?
     debug?
@@ -12,7 +12,7 @@ module HomebrewArgvExtension
     verbose?
   ].freeze
 
-  ENV_ARG_HASH = { 'build_universal?' => '--universal' }.freeze
+  ENV_F_FLAG_HASH = { 'build_universal?' => '--universal' }.freeze
 
   SWITCHES = {
     '1' => '--1', # (“do not recurse”)
@@ -61,11 +61,11 @@ module HomebrewArgvExtension
 
   def effective_flags
     flags = flags_only
-    ENV_ARGS.each do |a|
+    ENV_FLAGS.each do |a|
       flag = "--#{a.gsub('_', '-').chop}"
       flags << flag if (not(include? flag) and send a.to_sym)
     end
-    ENV_ARG_HASH.each { |method, flag| flags << flag if (not(include? flag) and send method.to_sym) }
+    ENV_F_FLAG_HASH.each { |method, flag| flags << flag if (not(include? flag) and send method.to_sym) }
     SWITCHES.each do |s, flag|
       flags << flag if (switch?(s) and not include? flag)
     end
@@ -74,7 +74,7 @@ module HomebrewArgvExtension
 
   def effective_formula_flags
     flags = flags_only.reject { |f| BREW_EQS.any? { |eq| f =~ /^#{eq}/ } }
-    ENV_ARG_HASH.each { |method, flag| flags << flag if (not(include? flag) and send method.to_sym) }
+    ENV_F_FLAG_HASH.each { |method, flag| flags << flag if (not(include? flag) and send method.to_sym) }
     flags - BREW_FLAGS
   end
 

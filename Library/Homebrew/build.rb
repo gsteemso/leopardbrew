@@ -14,9 +14,9 @@ require "fcntl"
 class Build
   attr_reader :formula, :deps, :reqs
 
-  def initialize(formula, options)
+  def initialize(formula, args)
     @formula = formula
-    @formula.build = BuildOptions.new(options, formula.options)
+    @formula.build = BuildOptions.new(Options.create(args), formula.options)
 
     if ARGV.ignore_deps?
       @deps = []
@@ -36,9 +36,9 @@ class Build
   end
 
   def effective_build_options_for(dependent)
-    args  = dependent.build.used_options
-    args |= Tab.for_formula(dependent).used_options
-    BuildOptions.new(args, dependent.options)
+    opt_args  = dependent.build.used_options
+    opt_args |= Tab.for_formula(dependent).used_options
+    BuildOptions.new(opt_args, dependent.options)
   end
 
   def expand_reqs
@@ -170,8 +170,7 @@ begin
   trap("INT", old_trap)
 
   formula = ARGV.formulae.first
-  options = Options.create(ARGV.effective_flags)
-  build   = Build.new(formula, options)
+  build   = Build.new(formula, ARGV.effective_flags)
   build.install
 rescue Exception => e
   Marshal.dump(e, error_pipe)
