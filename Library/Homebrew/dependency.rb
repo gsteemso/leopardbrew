@@ -70,21 +70,23 @@ class Dependency
     # the list.
     # The default filter, which is applied when a block is not given, omits
     # optionals and recommendeds based on what the dependent has asked for.
-    def expand(dependent, deps = dependent.deps, &block)
+    def expand(dependent, deps = dependent.deps, original_dependent = dependent, &block)
       expanded_deps = []
 
       deps.each do |dep|
-        raise "The formula #{dep.name} depends on itself!" if dependent.name == dep.name
-
+        raise "The formula #{dep.name} depends on itself!" if dep.name == dependent.name
+        raise "The formula #{dependent.name} circularly depends on #{original_dependent.name}!" \
+                                                             if dep.name == original_dependent.name
+        f = dep.to_formula
         case action(dependent, dep, &block)
         when :prune
           next
         when :skip
-          expanded_deps.concat(expand(dep.to_formula, &block))
+          expanded_deps.concat(expand(f, f.deps, original_dependent, &block))
         when :keep_but_prune_recursive_deps
           expanded_deps << dep
         else
-          expanded_deps.concat(expand(dep.to_formula, &block))
+          expanded_deps.concat(expand(f, f.deps, original_dependent, &block))
           expanded_deps << dep
         end
       end
