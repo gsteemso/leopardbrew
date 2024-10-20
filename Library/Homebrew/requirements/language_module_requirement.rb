@@ -3,10 +3,11 @@ require "requirement"
 class LanguageModuleRequirement < Requirement
   fatal true
 
-  def initialize(language, module_name, import_name = nil)
+  def initialize(language, module_name, import_name = nil, brewed = false)
     @language = language
     @module_name = module_name
     @import_name = import_name || module_name
+    @require_brewed = brewed
     super([language, module_name, import_name])
   end
 
@@ -27,11 +28,19 @@ class LanguageModuleRequirement < Requirement
     when :lua51 then %W[/usr/bin/env luarocks-5.1 show #{@import_name}]
     when :node then %W[/usr/bin/env node -e require('#{@import_name}');]
     when :ocaml then %W[/usr/bin/env opam list --installed #{@import_name}]
-    when :perl then %W[/usr/bin/env perl -e use\ #{@import_name}]
-    when :python then %W[/usr/bin/env python -c import\ #{@import_name}]
-    when :python3 then %W[/usr/bin/env python3 -c import\ #{@import_name}]
-    when :ruby then %W[/usr/bin/env ruby -rubygems -e require\ '#{@import_name}']
+    when :perl
+      if @require_brewed then %W[#{Formula['perl'].opt_bin}/perl -e use\ #{@import_name}]
+      else %W[/usr/bin/env perl -e use\ #{@import_name}]; end
+    when :python
+      if @require_brewed then %W[#{Formula['python'].opt_bin}/python -c import\ #{@import_name}]
+      else %W[/usr/bin/env python -c import\ #{@import_name}]; end
+    when :python3
+      if @require_brewed then %W[#{Formula['python3'].opt_bin}/python3 -c import\ #{@import_name}]
+      else %W[/usr/bin/env python3 -c import\ #{@import_name}]; end
     when :rbx then %W[/usr/bin/env rbx -rubygems -e require\ '#{@import_name}']
+    when :ruby
+      if @require_brewed then %W[#{Formula['ruby'].opt_bin}/ruby -rubygems -e require\ '#{@import_name}']
+      else %W[/usr/bin/env ruby -rubygems -e require\ '#{@import_name}']; end
     end
   end
 
@@ -43,11 +52,19 @@ class LanguageModuleRequirement < Requirement
     when :lua51   then "luarocks-5.1 install"
     when :node    then "npm install"
     when :ocaml   then "opam install"
-    when :perl    then "cpan -i"
-    when :python  then "pip install"
-    when :python3 then "pip3 install"
+    when :perl
+      if @require_brewed then "#{Formula['perl'].opt_bin}/cpan -i"
+      else 'cpan -i'; end
+    when :python
+      if @require_brewed then "#{Formula['python'].opt_bin}/pip install"
+      else 'pip install'; end
+    when :python3
+      if @require_brewed then "#{Formula['python3'].opt_bin}/pip3 install"
+      else 'pip3 install'; end
     when :rbx     then "rbx gem install"
-    when :ruby    then "gem install"
+    when :ruby
+      if @require_brewed then "#{Formula['ruby'].opt_bin}/gem install"
+      else 'gem install'; end
     end
   end
 end
