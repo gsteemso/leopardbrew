@@ -360,10 +360,10 @@ class Formula
     active_spec.deprecated_options
   end
 
-  # The deprecated option flags for the currently active {SoftwareSpec}.
+  # The deprecated options _used_ for the currently active {SoftwareSpec}.
   # @private
-  def deprecated_flags
-    active_spec.deprecated_flags
+  def deprecated_args
+    active_spec.deprecated_actuals
   end
 
   # If a named option is defined for the currently active {SoftwareSpec}.
@@ -1334,13 +1334,12 @@ class Formula
   # # If there is a "make", "install" available, please use it!
   # system "make", "install"</pre>
   def system(cmd, *args)
-    verbose = ARGV.verbose?
     verbose_using_dots = !ENV["HOMEBREW_VERBOSE_USING_DOTS"].nil?
 
     # remove "boring" arguments so that the important ones are more likely to
     # be shown considering that we trim long ohai lines to the terminal width
     pretty_args = args.dup
-    if cmd == "./configure" && !verbose
+    if cmd == "./configure" && !VERBOSE
       pretty_args.delete "--disable-dependency-tracking"
       pretty_args.delete "--disable-debug"
     end
@@ -1360,7 +1359,7 @@ class Formula
       log.puts Time.now, "", cmd, args, ""
       log.flush
 
-      if verbose
+      if VERBOSE
         rd, wr = IO.pipe
         begin
           pid = fork do
@@ -1404,7 +1403,7 @@ class Formula
         log_lines ||= "15"
 
         log.flush
-        if !verbose || verbose_using_dots
+        if !VERBOSE || verbose_using_dots
           puts "Last #{log_lines} lines from #{logfn}:"
           Kernel.system "/usr/bin/tail", "-n", log_lines, logfn
         end
@@ -1795,8 +1794,8 @@ class Formula
 
     # @!attribute [w] option
     # Options can be used as arguments to `brew install`.
-    # To switch features on/off: `"with-something"` or `"with-otherthing"`.
-    # To use other software: `"with-other-software"` or `"without-foo"`
+    # To use, or refrain from using, features or other software:
+    #   `"with-foo"` or `"without-bar"`.
     # Note, that for {.depends_on} that are `:optional` or `:recommended`, options
     # are generated automatically.
     #

@@ -176,7 +176,7 @@ class FormulaInstaller
       raise "Unrecognized architecture for --bottle-arch: #{arch}"
     end
 
-    formula.deprecated_flags.each do |deprecated_option|
+    formula.deprecated_args.each do |deprecated_option|
       old_flag = deprecated_option.old_flag
       new_flag = deprecated_option.current_flag
       opoo "#{formula.full_name}: #{old_flag} was deprecated; using #{new_flag} instead!"
@@ -336,10 +336,10 @@ class FormulaInstaller
   end
 
   def effective_build_options_for(dependent, inherited_options = [])
-    args  = dependent.build.used_options
-    args |= dependent == formula ? options : inherited_options
-    args |= Tab.for_formula(dependent).used_options
-    BuildOptions.new(args, dependent.options)
+    opt_args  = dependent.build.used_options
+    opt_args |= dependent == formula ? options : inherited_options
+    opt_args |= Tab.for_formula(dependent).used_options
+    BuildOptions.new(opt_args, dependent.options)
   end
 
   def inherited_options_for(dep)
