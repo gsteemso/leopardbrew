@@ -26,8 +26,8 @@ module Homebrew
         install_formula(brew_cask) unless brew_cask.installed?
         args = []
         args << '--force' if ARGV.force?
-        args << '--debug' if ARGV.debug?
-        args << '--verbose' if ARGV.verbose?
+        args << '--debug' if DEBUG
+        args << '--verbose' if VERBOSE
 
         ARGV.casks.each do |c|
           cmd = 'brew', 'cask', 'install', c, *args
@@ -158,9 +158,9 @@ module Homebrew
     fi.force_bottle        = ARGV.force_bottle?
     fi.interactive         = ARGV.interactive?
     fi.git                 = ARGV.git?
-    fi.verbose             = ARGV.verbose?
+    fi.verbose             = VERBOSE
     fi.quieter             = ARGV.quieter?
-    fi.debug               = ARGV.debug?
+    fi.debug               = DEBUG
     fi.prelude
     fi.install
     fi.finish

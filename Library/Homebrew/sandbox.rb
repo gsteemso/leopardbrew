@@ -10,7 +10,7 @@ class Sandbox
 
   # there are times the sandbox cannot be used.
   def self.auto_disable?
-    @auto_disable ||= ARGV.interactive? || ARGV.debug?
+    @auto_disable ||= ARGV.interactive? || DEBUG
   end
 
   def self.print_autodisable_warning
@@ -115,7 +115,7 @@ class Sandbox
         log.close
       end
 
-      if @failed && ARGV.verbose?
+      if @failed && VERBOSE
         ohai "Sandbox log"
         puts logs
         $stdout.flush # without it, brew test-bot would fail to catch the log

@@ -34,7 +34,7 @@ begin
   # (this lets the optimization flags be noticed; otherwise, 64‐bit and universal builds fail)
   ENV.refurbish_args if superenv?
 
-  if ARGV.debug?  # can’t use a timeout and run a debugging shell at the same time
+  if DEBUG  # can’t use a timeout and run a debugging shell at the same time
     f.extend(Debrew::Formula)
     raise 'test returned false' if f.run_test == false
   else

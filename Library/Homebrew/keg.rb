@@ -404,7 +404,7 @@ class Keg
       begin
         keg = Keg.for(src)
       rescue NotAKegError
-        puts "Won't resolve conflicts for symlink #{dst} as it doesn't resolve into the Cellar" if ARGV.verbose?
+        puts "Won't resolve conflicts for symlink #{dst} as it doesn't resolve into the Cellar" if VERBOSE
         return
       end
 
@@ -416,7 +416,7 @@ class Keg
 
   def make_relative_symlink(dst, src, mode)
     if dst.symlink? && src == dst.resolved_path
-      puts "Skipping; link already exists: #{dst}" if ARGV.verbose?
+      puts "Skipping; link already exists: #{dst}" if VERBOSE
       return
     end
 

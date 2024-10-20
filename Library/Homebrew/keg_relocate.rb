@@ -69,12 +69,12 @@ class Keg
   end
 
   def change_dylib_id(id, file)
-    puts "Changing dylib ID of #{file}\n  from #{file.dylib_id}\n    to #{id}" if ARGV.debug?
+    puts "Changing dylib ID of #{file}\n  from #{file.dylib_id}\n    to #{id}" if DEBUG
     install_name_tool("-id", id, file)
   end
 
   def change_install_name(old, new, file)
-    puts "Changing install name in #{file}\n  from #{old}\n    to #{new}" if ARGV.debug?
+    puts "Changing install name in #{file}\n  from #{old}\n    to #{new}" if DEBUG
     install_name_tool("-change", old, new, file)
   end
 

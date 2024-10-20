@@ -31,7 +31,7 @@ module Homebrew
         # need to exclude --flags, because they choke `ls`
         exec "ls", *(ARGV.options_only - ARGV.flags_only), HOMEBREW_CELLAR
       end
-    elsif ARGV.verbose? || !$stdout.tty?
+    elsif VERBOSE || !$stdout.tty?
       exec "find", *ARGV.kegs.map(&:to_s) + %w[-not -type d -print]
     else
       ARGV.kegs.each { |keg| PrettyListing.new keg }

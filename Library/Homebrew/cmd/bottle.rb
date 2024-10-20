@@ -67,7 +67,7 @@ module Homebrew
         linked_libraries = []
       end
 
-      if ARGV.verbose?
+      if VERBOSE
         print_filename(string, file) if linked_libraries.any?
         linked_libraries.each do |lib|
           puts " #{Tty.gray}-->#{Tty.reset} links to #{lib}"
@@ -90,7 +90,7 @@ module Homebrew
         end
       end
 
-      if ARGV.verbose? && text_matches.any?
+      if VERBOSE && text_matches.any?
         print_filename string, file
         text_matches.first(MAXIMUM_STRING_MATCHES).each do |match, offset|
           puts " #{Tty.gray}-->#{Tty.reset} match '#{match}' at offset #{Tty.em}0x#{offset}#{Tty.reset}"
@@ -116,7 +116,7 @@ module Homebrew
       end
     end
 
-    if ARGV.verbose?
+    if VERBOSE
       if absolute_symlinks_start_with_string.any?
         opoo "Absolute symlink starting with #{string}:"
         absolute_symlinks_start_with_string.each do |pn|
@@ -210,7 +210,7 @@ module Homebrew
         relocatable = !keg_contains(prefix_check, keg, ignores)
         relocatable = !keg_contains(cellar, keg, ignores) && relocatable
         skip_relocation = relocatable && !keg.require_install_name_tool?
-        puts if !relocatable && ARGV.verbose?
+        puts if !relocatable && VERBOSE
       rescue Interrupt
         ignore_interrupts { bottle_path.unlink if bottle_path.exist? }
         raise

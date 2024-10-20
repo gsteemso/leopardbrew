@@ -40,7 +40,7 @@ module Homebrew
     migrate_taps :force => true unless ARGV.dry_run?
 
     if ObserverPathnameExtension.total.zero?
-      puts "Nothing pruned" if ARGV.verbose?
+      puts "Nothing pruned" if VERBOSE
     else
       n, d = ObserverPathnameExtension.counts
       print "Pruned #{n} symbolic links "

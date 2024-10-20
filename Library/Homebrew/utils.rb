@@ -34,13 +34,13 @@ class Tty
 end
 
 def ohai(title, *sput)
-  title = Tty.truncate(title) if $stdout.tty? && !ARGV.verbose?
+  title = Tty.truncate(title) if $stdout.tty? && !VERBOSE
   puts "#{Tty.blue}==>#{Tty.white} #{title}#{Tty.reset}"
   puts sput
 end
 
 def oh1(title)
-  title = Tty.truncate(title) if $stdout.tty? && !ARGV.verbose?
+  title = Tty.truncate(title) if $stdout.tty? && !VERBOSE
   puts "#{Tty.green}==>#{Tty.white} #{title}#{Tty.reset}"
 end
 
@@ -113,7 +113,7 @@ module Homebrew
   end
 
   def self.system(cmd, *args)
-    puts "#{cmd} #{args*" "}" if ARGV.verbose?
+    puts "#{cmd} #{args*" "}" if VERBOSE
     _system(cmd, *args)
   end
 
@@ -225,7 +225,7 @@ def curl(*args)
   raise "#{curl} is not executable" unless curl.exist? && curl.executable?
 
   flags = HOMEBREW_CURL_ARGS
-  flags = flags.delete("#") if ARGV.verbose?
+  flags = flags.delete("#") if VERBOSE
 
   args = [flags, HOMEBREW_USER_AGENT_CURL, *args]
   # See https://github.com/Homebrew/homebrew/issues/6103
@@ -333,7 +333,7 @@ ensure
 end
 
 def nostdout
-  if ARGV.verbose?
+  if VERBOSE
     yield
   else
     begin

@@ -116,9 +116,9 @@ class Resource
 
   def verify_download_integrity(fn)
     if fn.file?
-      ohai "Verifying #{fn.basename} checksum" if ARGV.verbose?
+      ohai "Verifying #{fn.basename} checksum" if VERBOSE
       fn.verify_checksum(checksum)
-      ohai "Checksum matches" if ARGV.verbose?
+      ohai "Checksum matches" if VERBOSE
     end
   rescue ChecksumMissingError
     opoo "Cannot verify integrity of #{fn.basename}"

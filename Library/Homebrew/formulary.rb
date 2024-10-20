@@ -80,7 +80,7 @@ class Formulary
     private
 
     def load_file
-      STDERR.puts "#{$0} (#{self.class.name}): loading #{path}" if ARGV.debug?
+      STDERR.puts "#{$0} (#{self.class.name}): loading #{path}" if DEBUG
       raise FormulaUnavailableError.new(name) unless path.file?
       Formulary.load_formula_from_path(name, path)
     end
@@ -191,7 +191,7 @@ class Formulary
     end
 
     def klass
-      STDERR.puts "#{$0} (#{self.class.name}): loading #{path}" if ARGV.debug?
+      STDERR.puts "#{$0} (#{self.class.name}): loading #{path}" if DEBUG
       namespace = "FormulaNamespace#{Digest::MD5.hexdigest(contents)}"
       Formulary.load_formula(name, path, contents, namespace)
     end

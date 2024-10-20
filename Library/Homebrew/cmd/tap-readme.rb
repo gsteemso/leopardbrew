@@ -24,7 +24,7 @@ module Homebrew
     `brew help`, `man brew` or check [Tigerbrew's documentation](https://github.com/mistydemeo/tigerbrew/tree/master/share/doc/homebrew#readme).
     EOS
 
-    puts template if ARGV.verbose?
+    puts template if VERBOSE
     path = HOMEBREW_LIBRARY/"Taps/homebrew/homebrew-#{name}/README.md"
     raise "#{path} already exists" if path.exist?
     path.write template

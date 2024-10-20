@@ -55,7 +55,7 @@ class Cleaner
     # actual files gets removed correctly.
     dirs.reverse_each do |d|
       if d.children.empty?
-        puts "rmdir: #{d} (empty)" if ARGV.verbose?
+        puts "rmdir: #{d} (empty)" if VERBOSE
         d.rmdir
       end
     end
@@ -92,7 +92,7 @@ class Cleaner
         else
           0444
         end
-        if ARGV.debug?
+        if DEBUG
           old_perms = path.stat.mode & 0777
           if perms != old_perms
             puts "Fixing #{path} permissions from #{old_perms.to_s(8)} to #{perms.to_s(8)}"

@@ -36,7 +36,7 @@ class AbstractDownloadStrategy
     args = args.dup
     args.each_with_index do |arg, ii|
       if arg.is_a? Hash
-        unless ARGV.verbose?
+        unless VERBOSE
           args[ii] = arg[:quiet_flag]
         else
           args.delete_at ii
@@ -45,7 +45,7 @@ class AbstractDownloadStrategy
       end
     end
     # 2 as default because commands are eg. svn up, git pull
-    args.insert(2, "-q") unless ARGV.verbose?
+    args.insert(2, "-q") unless VERBOSE
     args
   end
 
@@ -379,7 +379,7 @@ class CurlApacheMirrorDownloadStrategy < CurlDownloadStrategy
     end
     wr.close
 
-    rd.readline if ARGV.verbose? # Remove Homebrew output
+    rd.readline if VERBOSE # Remove Homebrew output
     buf << rd.read until rd.eof?
     rd.close
     Process.wait(pid)

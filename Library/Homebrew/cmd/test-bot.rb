@@ -140,7 +140,7 @@ module Homebrew
         return
       end
 
-      verbose = ARGV.verbose?
+      verbose = VERBOSE
       @output = ""
       working_dir = Pathname.new(@command.first == "git" ? @repository : Dir.pwd)
       read, write = IO.pipe

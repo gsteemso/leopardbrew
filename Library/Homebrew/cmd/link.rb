@@ -32,7 +32,7 @@ module Homebrew
 
       keg.lock do
         print "Linking #{keg}... "
-        puts if ARGV.verbose?
+        puts if VERBOSE
 
         begin
           n = keg.link(mode)

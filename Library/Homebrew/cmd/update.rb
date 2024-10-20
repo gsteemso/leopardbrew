@@ -189,7 +189,7 @@ class Updater
 
   def pull!(options = {})
     quiet = []
-    quiet << "--quiet" unless ARGV.verbose?
+    quiet << "--quiet" unless VERBOSE
 
     unless system "git", "diff", "--quiet"
       unless options[:silent]
@@ -334,7 +334,7 @@ class Updater
       $stderr.puts(out) unless out.empty?
       raise ErrorDuringExecution.new(cmd)
     end
-    ohai(cmd, out) if ARGV.verbose?
+    ohai(cmd, out) if VERBOSE
     out
   end
 end
