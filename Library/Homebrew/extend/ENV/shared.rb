@@ -78,21 +78,21 @@ module SharedEnvExtension
     end
   end
 
-  def already_in?(key, path)
+  def not_already_in?(key, query)
     old = self[key]
-    not old.nil? and not old.empty? and old =~ Regexp.new(path.to_s.dump)
+    old.nil? or old.empty? or old.index(query.to_s).nil?
   end
 
-  def append_path(key, path)
-    append key, path, File::PATH_SEPARATOR if File.directory? path and not already_in?(key, path)
+  def append_path(key, dirname)
+    append key, dirname, File::PATH_SEPARATOR if File.directory?(dirname) and not_already_in?(key, dirname)
   end
 
   # Prepends a directory to `PATH`.
   # Is the formula struggling to find the pkgconfig file? Point it to it.
   # This is done automatically for `keg_only` formulae.
   # <pre>ENV.prepend_path "PKG_CONFIG_PATH", "#{Formula["glib"].opt_lib}/pkgconfig"</pre>
-  def prepend_path(key, path)
-    prepend key, path, File::PATH_SEPARATOR if File.directory? path and not already_in?(key, path)
+  def prepend_path(key, dirname)
+    prepend key, dirname, File::PATH_SEPARATOR if File.directory?(dirname) and not_already_in?(key, dirname)
   end
 
   def prepend_create_path(key, path)
