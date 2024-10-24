@@ -20,6 +20,13 @@ esac
 arg0=$1
 shift
 
+# did we set an environment variable for this command?
+var="HOMEBREW_${arg0}"
+exe="${!var}"
+if [ -n "$exe" ] && [ -x "$exe" ]; then
+  exec "$exe" "@"
+fi
+
 # try a command in /usr/bin/
 exe="/usr/bin/${arg0}"
 

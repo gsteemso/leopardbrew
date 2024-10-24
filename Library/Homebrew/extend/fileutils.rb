@@ -1,8 +1,14 @@
 require "fileutils"
 require "tmpdir"
 
-# Homebrew extends Ruby's `FileUtils` to make our code more readable.
-# @see http://ruby-doc.org/stdlib-1.8.7/libdoc/fileutils/rdoc/FileUtils.html Ruby's FileUtils API
+# Leopardbrew extends Ruby's `File ` and `FileUtils` to make our code more readable.
+# @see Ruby's FileUtils API at http://docs.ruby-lang.org/
+class File
+  class << self
+    alias_method :exists?, :exist? unless method_defined? :exists?
+  end
+end
+
 module FileUtils
   # Create a temporary directory then yield. When the block returns,
   # recursively delete the temporary directory.
@@ -97,16 +103,22 @@ module FileUtils
   end
 
   # Run `make` 3.81 or newer.  Uses system make from Leopard onward, otherwise brewed make.
+  # Adapts as appropriate to stdenv/superenv (otherwise no superenv argument refurbishement).
   def make(*args)
-    if Utils.popen_read("/usr/bin/make", "--version").match(/Make (\d\.\d+)/)[1] > "3.80"
-      _make = "/usr/bin/make"
-    elsif Formula["make"].installed?
-      _make = Formula["make"].opt_bin/"make"
-      _make = _make.exist? ? _make.to_s : Formula["make"].opt_bin/"gmake".to_s
+    if Utils.popen_read('/usr/bin/make', '--version').match(/Make (\d\.\d+)/)[1] > '3.80'
+      _make = '/usr/bin/make'
+    elsif Formula['make'].installed?
+      _make = Formula['make'].opt_bin/'make'
+      _make = _make.exist? ? _make.to_s : Formula['make'].opt_bin/'gmake'.to_s
     else
-      abort "Your system’s Make program is too old.  Please `brew install make`."
+      abort 'Your system’s Make program is too old.  Please `brew install make`.'
     end
-    system _make, *args
+    if superenv?
+      ENV['HOMEBREW_make'] = _make
+      system 'make', *args
+    else
+      system _make, *args
+    end
   end
 
   if method_defined?(:ruby)
