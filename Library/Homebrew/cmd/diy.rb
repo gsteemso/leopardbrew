@@ -1,20 +1,20 @@
-require "formula"
+require 'formula'
 
 module Homebrew
   def diy
     path = Pathname.getwd
 
-    version = ARGV.value("version") || detect_version(path)
-    name = ARGV.value("name") || detect_name(path, version)
+    version = ARGV.value('version') || detect_version(path)
+    name = ARGV.value('name') || detect_name(path, version)
 
     prefix = HOMEBREW_CELLAR/name/version
 
-    if File.file? "CMakeLists.txt"
+    if File.file? 'CMakeLists.txt'
       puts "-DCMAKE_INSTALL_PREFIX=#{prefix}"
-    elsif File.file? "configure"
+    elsif File.file? 'configure'
       puts "--prefix=#{prefix}"
     else
-      raise "Couldn't determine build system"
+      raise 'Couldn’t determine build system'
     end
   end
 
@@ -22,7 +22,7 @@ module Homebrew
     version = path.version.to_s
 
     if version.empty?
-      raise "Couldn't determine version, set it with --version=<version>"
+      raise 'Couldn’t determine version.  Set it with --version=<version>.'
     else
       version
     end
