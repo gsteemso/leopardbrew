@@ -15,7 +15,7 @@ module HomebrewArgvExtension
   ENV_F_FLAG_HASH = { 'build_universal?' => '--universal' }.freeze
 
   SWITCHES = {
-    '1' => '--1', # (“do not recurse”)
+    '1' => '--1', # (“do not recurse” – only used by the `deps` command)
   # 'd' => '--debug' (already handled as an ENV_ARG)
     'f' => '--force',
     'g' => '--git',
@@ -27,14 +27,14 @@ module HomebrewArgvExtension
   # 'v' => '--verbose' (already handled as an ENV_ARG)
   }.freeze
 
-  BREW_EQS = %w[
+  BREW_SYSTEM_EQS = %w[
     --bottle-arch=
     --cc=
     --env=
     --json=
   ].freeze
 
-  BREW_FLAGS = %w[
+  BREW_SYSTEM_FLAGS = %w[
     --force-bottle
     --ignore-dependencies
     --only-dependencies
@@ -70,12 +70,12 @@ module HomebrewArgvExtension
       flags << flag if (switch?(s) and not include? flag)
     end
     flags
-  end
+  end # effective_flags
 
   def effective_formula_flags
-    flags = flags_only.reject { |f| BREW_EQS.any? { |eq| f =~ /^#{eq}/ } }
+    flags = flags_only.reject { |f| BREW_SYSTEM_EQS.any? { |eq| f =~ /^#{eq}/ } }
     ENV_F_FLAG_HASH.each { |method, flag| flags << flag if (not(include? flag) and send method.to_sym) }
-    flags - BREW_FLAGS
+    flags - BREW_SYSTEM_FLAGS
   end
 
   def formulae
@@ -87,7 +87,7 @@ module HomebrewArgvExtension
         Formulary.find_with_priority(name, spec)
       end
     end
-  end
+  end # formulae
 
   def resolved_formulae
     require 'formula'
@@ -104,39 +104,40 @@ module HomebrewArgvExtension
         Formulary.from_rack(rack, spec(default=nil))
       end
     end
-  end
+  end # resolved_formulae
 
   def casks
     @casks ||= downcased_unique_named.grep HOMEBREW_CASK_TAP_FORMULA_REGEX
   end
 
+  # this also gathers “kegs” that have no install receipt, so the uninstall command still sees them
   def kegs
     require 'keg'
     require 'formula'
     @kegs ||= downcased_unique_named.collect do |name|
       ss = spec
       f = Formulary.factory(name, ss)
-      ss = f.active_spec_sym if ss == :stable and f.active_spec_sym != ss  # --HEAD- or --devel-only formula
-      rackname = f.rack.basename
-      raise NoSuchKegError.new(rackname/f.spec_prefix(ss).basename) unless ss == :stable or
-                        (f.spec_prefix(ss).directory? and (f.spec_prefix(ss)/Tab::FILENAME).exists?)
-      dirs = f.rack.directory? ? f.rack.subdirs : []
+      rack = f.rack
+      dirs = rack.directory? ? rack.subdirs : []
+      rackname = rack.basename
       raise NoSuchKegError.new(rackname) if dirs.empty?
+      ss = f.active_spec_sym
+      raise NoSuchKegError.new(rackname/sip.basename) unless (sip = f.spec_iprefix(ss)).directory?
       if f.installed?(ss)
-        Keg.new(f.spec_prefix(ss))
-      elsif f.opt_prefix.symlink? and f.opt_prefix.directory? and (f.opt_prefix/Tab::FILENAME).exists?
-        Keg.new(f.opt_prefix.resolved_path)
-      elsif f.linked_keg.symlink? and f.linked_keg.directory? and (f.linked_keg/Tab::FILENAME).exists?
-        Keg.new(f.linked_keg.resolved_path)
-      elsif dirs.length == 1 and ((dirs.first)/Tab::FILENAME).exists?
+        Keg.new(sip)
+      elsif (var = f.opt_prefix).symlink? and var.directory?
+        Keg.new(var.resolved_path)
+      elsif (var = f.linked_keg).symlink? and var.directory?
+        Keg.new(var.resolved_path)
+      elsif dirs.length == 1
         Keg.new(dirs.first)
-      elsif f.prefix.directory? and (f.prefix/Tab::FILENAME).exists?
-        Keg.new(f.prefix)
+      elsif f.iprefix.directory?
+        Keg.new(f.iprefix)
       else
         raise MultipleVersionsInstalledError.new(rackname)
       end
     end
-  end
+  end # kegs
 
   def versioned_kegs
     require 'keg'
@@ -255,7 +256,7 @@ module HomebrewArgvExtension
   end
 
   def flag?(flag)
-    options_only.include?(flag) or switch?(flag[2, 1])
+    include?(flag) or switch?(flag[2, 1])
   end
 
   def force_bottle?
@@ -265,7 +266,7 @@ module HomebrewArgvExtension
   # eg. `foo -ns -i --bar` has three switches, n, s and i
   def switch?(char)
     return false if char.length > 1
-    options_only.any? { |arg| arg[1, 1] != '-' && arg.include?(char) }
+    options_only.any? { |arg| arg[1, 1] != '-' and arg.include?(char) }
   end
 
   def usage
@@ -293,7 +294,7 @@ module HomebrewArgvExtension
     build_flags << '--build-from-source' if build_from_source?
 
     build_flags
-  end
+  end # collect_build_flags
 
   private
 
@@ -305,7 +306,7 @@ module HomebrewArgvExtension
     else
       default
     end
-  end
+  end # spec
 
   def downcased_unique_named
     # Only lowercase names, not paths, bottle filenames or URLs
@@ -316,5 +317,5 @@ module HomebrewArgvExtension
         arg.downcase
       end
     end.uniq
-  end
-end
+  end # downcased_unique_named
+end # HomebrewArgvExtension
