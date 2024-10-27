@@ -1,3 +1,5 @@
+# this file is loaded before `global.rb`, so must eschew most Homebrew things
+
 module OS
   def self.mac?
     /darwin/i === RUBY_PLATFORM  # TODO:  need to disambiguate Mac OS from bare Darwin

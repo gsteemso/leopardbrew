@@ -1,3 +1,5 @@
+# this file is loaded before `global.rb`, so must eschew most Homebrew things
+
 class UsageError < RuntimeError; end
 class FormulaUnspecifiedError < UsageError; end
 class KegUnspecifiedError < UsageError; end
