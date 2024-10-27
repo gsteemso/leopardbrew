@@ -41,19 +41,20 @@ module Homebrew
                                                             unless upgrade_pinned? or pinned.empty?
 
     outdated.each { |f| upgrade_formula(f) }
-  end
+  end # upgrade
 
   def upgrade_pinned?
     not ARGV.named.empty?
   end
 
   def upgrade_formula(f)
-    outdated_keg = Keg.new(f.linked_keg.resolved_path) if f.linked_keg.directory?
     oh1 "Upgrading #{f.full_name}"
-    # First we unlink the currently active keg for this formula.  Otherwise it is
-    # possible for the existing build to interfere with the build we are about to
-    # do!  Seriously, it happens!
-    outdated_keg.unlink if outdated_keg
+
+    # this correctly unlinks things no matter what version is linked
+    if f.linked_keg.directory?
+      previously_linked = Keg.new(f.linked_keg.resolved_path)
+      previously_linked.unlink
+    end
 
     tab = Tab.for_formula(f)
     fi = FormulaInstaller.new(f)
@@ -61,15 +62,33 @@ module Homebrew
     fi.ignore_deps         = ARGV.ignore_deps?
     fi.only_deps           = ARGV.only_deps?
     fi.build_from_source   = ARGV.build_from_source?
-    fi.build_bottle        = ARGV.build_bottle? || (!f.bottled? && tab.build_bottle?)
+    fi.build_bottle        = ARGV.build_bottle? or (not(f.bottled?) and tab.build_bottle?)
     fi.force_bottle        = ARGV.force_bottle?
     fi.interactive         = ARGV.interactive?
     fi.git                 = ARGV.git?
     fi.verbose             = VERBOSE
-    fi.quieter             = ARGV.quieter?
+    fi.quieter             = QUIETER
     fi.debug               = DEBUG
     fi.prelude
-    fi.install
+    fi.install  # if successful, this renames the new keg into its installed prefix
+  rescue FormulaInstallationAlreadyAttemptedError
+    # next
+  rescue CannotInstallFormulaError => e
+    ofail e
+  rescue BuildError => e
+    ofail e.dump
+  rescue DownloadError => e
+    ofail e
+  ensure
+    # Restore the previous installation state if the build failed.
+    unless f.installed?
+      if f.cprefix.exists?
+        oh1 "Cleaning up failed #{f.cprefix}" if DEBUG
+        ignore_interrupts { f.cprefix.rmtree }
+      end
+      ignore_interrupts { previously_linked.link } if previously_linked
+    end rescue nil
+  else
     fi.finish
 
     # If the formula was pinned and we were force-upgrading it, unpin and
@@ -77,19 +96,5 @@ module Homebrew
     if f.pinned? then f.unpin; f.pin; end
 
     fi.insinuate
-  rescue FormulaInstallationAlreadyAttemptedError
-    # We already attempted to upgrade f as part of the dependency tree of
-    # another formula. In that case, don't generate an error, just move on.
-  rescue CannotInstallFormulaError => e
-    ofail e
-  rescue BuildError => e
-    e.dump
-    puts
-    Homebrew.failed = true
-  rescue DownloadError => e
-    ofail e
-  ensure
-    # Restore the previous installation state if the build failed.
-    outdated_keg.link if outdated_keg && !f.installed? rescue nil
-  end
-end
+  end # upgrade_formula
+end # Homebrew
