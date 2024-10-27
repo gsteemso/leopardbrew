@@ -46,7 +46,7 @@ module OS
     # Locates a (working) copy of install_name_tool, guaranteed to function
     # whether the user has developer tools installed or not.
     def install_name_tool
-      if (path = HOMEBREW_PREFIX/"opt/cctools/bin/install_name_tool").executable?
+      if (path = OPTDIR/'cctools/bin/install_name_tool').executable?
         path
       else
         locate("install_name_tool")
@@ -56,7 +56,7 @@ module OS
     # Locates a (working) copy of lipo, guaranteed to function whether the user
     # has developer tools installed or not.
     def lipo
-      if (path = HOMEBREW_PREFIX/"opt/cctools/bin/lipo").executable?
+      if (path = OPTDIR/'cctools/bin/lipo').executable?
         path
       else
         locate("lipo")
@@ -66,7 +66,7 @@ module OS
     # Locates a (working) copy of otool, guaranteed to function whether the user
     # has developer tools installed or not.
     def otool
-      if (path = HOMEBREW_PREFIX/"opt/cctools/bin/otool").executable?
+      if (path = OPTDIR/'cctools/bin/otool').executable?
         path
       else
         locate("otool")
@@ -136,7 +136,7 @@ module OS
     def gcc_42_build_version
       @gcc_42_build_version ||=
         begin
-          gcc = MacOS.locate("gcc-4.2") || HOMEBREW_PREFIX.join("opt/apple-gcc42/bin/gcc-4.2")
+          gcc = MacOS.locate("gcc-4.2") || OPTDIR/'apple-gcc42/bin/gcc-4.2'
           if gcc.exist? && gcc.realpath.basename.to_s !~ /^llvm/
             `#{gcc} --version`[/build (\d{4,})/, 1].to_i
           end
@@ -167,7 +167,7 @@ module OS
 
     def non_apple_gcc_version(cc)
       (@non_apple_gcc_version ||= {}).fetch(cc) do
-        path = HOMEBREW_PREFIX.join("opt", "gcc", "bin", cc)
+        path = OPTDIR/'gcc/bin/cc'
         path = locate(cc) unless path.exist?
         version = `#{path} --version`[/gcc(?:-\d(?:\.\d)? \(.+\))? (\d\.\d\.\d)/, 1] if path
         @non_apple_gcc_version[cc] = version

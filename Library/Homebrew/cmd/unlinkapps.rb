@@ -25,7 +25,7 @@ module Homebrew
 
   def should_unlink?(file)
     if ARGV.named.empty?
-      file.match(HOMEBREW_CELLAR) || file.match("#{HOMEBREW_PREFIX}/opt")
+      file.match(HOMEBREW_CELLAR) || file.match(OPTDIR)
     else
       ARGV.kegs.any? { |keg| file.match(keg.to_s) || file.match(keg.opt_record.to_s) }
     end

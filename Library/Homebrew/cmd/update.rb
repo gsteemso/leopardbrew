@@ -290,7 +290,7 @@ class Updater
             old_version = FormulaVersions.new(formula).formula_at_revision(@initial_revision, &:pkg_version)
             next if new_version == old_version
           rescue FormulaUnavailableError, *FormulaVersions::IGNORED_EXCEPTIONS => e
-            onoe e if ARGV.homebrew_developer?
+            onoe e if DEVELOPER
           end
           map[:M] << file
         when /^R\d{0,3}/

@@ -58,7 +58,7 @@ module Homebrew
   end
 
   def print_outdated(formulae)
-    verbose = ($stdout.tty? || VERBOSE) and not ARGV.quieter?
+    verbose = ($stdout.tty? or VERBOSE) and not QUIETER
 
     outdated_brews(formulae) do |f, versions|
       if verbose

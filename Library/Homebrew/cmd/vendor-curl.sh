@@ -3,7 +3,7 @@ setup-curl-path() {
   local vendor_curl_current_version
   local vendor_curl_path
 
-  vendor_dir="$HOMEBREW_LIBRARY/Homebrew/vendor"
+  vendor_dir="$HOMEBREW_LIBRARY_PATH/vendor"
   vendor_curl_current_version="$vendor_dir/portable-curl/current"
   vendor_curl_path="$vendor_curl_current_version/bin/curl"
 

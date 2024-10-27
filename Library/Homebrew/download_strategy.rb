@@ -56,26 +56,26 @@ class AbstractDownloadStrategy
   private
 
   def lhapath
-    "#{HOMEBREW_PREFIX}/opt/lha/bin/lha"
+    OPTDIR/'lha/bin/lha'
   end
 
   def lzippath
-    "#{HOMEBREW_PREFIX}/opt/lzip/bin/lzip"
+    OPTDIR/'lzip/bin/lzip'
   end
 
   def xzpath
-    "#{HOMEBREW_PREFIX}/opt/xz/bin/xz"
+    OPTDIR/'xz/bin/xz'
   end
 
   def zstdpath
-    "#{HOMEBREW_PREFIX}/opt/zstd/bin/zstd"
+    OPTDIR/'zstd/bin/zstd'
   end
 
   def cvspath
     @cvspath ||= %W[
       /usr/bin/cvs
       #{HOMEBREW_PREFIX}/bin/cvs
-      #{HOMEBREW_PREFIX}/opt/cvs/bin/cvs
+      #{OPTDIR}/cvs/bin/cvs
       #{which("cvs")}
     ].find { |p| File.executable? p }
   end
@@ -84,7 +84,7 @@ class AbstractDownloadStrategy
     @hgpath ||= %W[
       #{which("hg")}
       #{HOMEBREW_PREFIX}/bin/hg
-      #{HOMEBREW_PREFIX}/opt/mercurial/bin/hg
+      #{OPTDIR}/mercurial/bin/hg
     ].find { |p| File.executable? p }
   end
 
@@ -92,7 +92,7 @@ class AbstractDownloadStrategy
     @bzrpath ||= %W[
       #{which("bzr")}
       #{HOMEBREW_PREFIX}/bin/bzr
-      #{HOMEBREW_PREFIX}/opt/bazaar/bin/bzr
+      #{OPTDIR}/bazaar/bin/bzr
     ].find { |p| File.executable? p }
   end
 
@@ -100,7 +100,7 @@ class AbstractDownloadStrategy
     @fossilpath ||= %W[
       #{which("fossil")}
       #{HOMEBREW_PREFIX}/bin/fossil
-      #{HOMEBREW_PREFIX}/opt/fossil/bin/fossil
+      #{OPTDIR}/fossil/bin/fossil
     ].find { |p| File.executable? p }
   end
 end

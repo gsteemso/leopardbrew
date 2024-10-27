@@ -2,7 +2,7 @@ module Homebrew
   def commands
     if ARGV.include? "--quiet"
       cmds = internal_commands + external_commands
-      cmds += internal_development_commands if ARGV.homebrew_developer?
+      cmds += internal_development_commands if DEVELOPER
       cmds += HOMEBREW_INTERNAL_COMMAND_ALIASES.keys if ARGV.include? "--include-aliases"
       puts_columns cmds.sort
     else
@@ -11,7 +11,7 @@ module Homebrew
       puts_columns internal_commands
 
       # Find commands in Homebrew/dev-cmd
-      if ARGV.homebrew_developer?
+      if DEVELOPER
         puts
         puts "Built-in development commands"
         puts_columns internal_development_commands

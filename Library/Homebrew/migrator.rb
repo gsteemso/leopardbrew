@@ -110,8 +110,8 @@ class Migrator
       @new_linked_keg_record = HOMEBREW_CELLAR/"#{newname}/#{File.basename(old_linked_keg)}"
     end
 
-    @old_pin_record = HOMEBREW_LIBRARY/"PinnedKegs"/oldname
-    @new_pin_record = HOMEBREW_LIBRARY/"PinnedKegs"/newname
+    @old_pin_record = PINDIR/oldname
+    @new_pin_record = PINDIR/newname
     @pinned = old_pin_record.symlink?
     @old_pin_link_record = old_pin_record.readlink if @pinned
   end
@@ -265,7 +265,7 @@ class Migrator
     end
   end
 
-  # After migtaion every INSTALL_RECEIPT.json has wrong path to the formula
+  # After migration every INSTALL_RECEIPT.json has wrong path to the formula
   # so we must update INSTALL_RECEIPTs
   def update_tabs
     new_tabs = new_cellar.subdirs.map { |d| Tab.for_keg(Keg.new(d)) }

@@ -15,7 +15,7 @@ module Homebrew
       "#{HOMEBREW_LIBRARY}/.rubocop.yml",
     ]
 
-    args << "--auto-correct" if ARGV.homebrew_developer? && ARGV.flag?("--fix")
+    args << "--auto-correct" if DEVELOPER && ARGV.flag?("--fix")
 
     args += target
 

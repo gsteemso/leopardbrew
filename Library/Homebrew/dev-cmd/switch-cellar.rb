@@ -103,7 +103,7 @@ module Homebrew
         sever_racklist(HOMEBREW_CELLAR.subdirs, mode)
         if mode.dry_run?
           puts "Would rename #{HOMEBREW_CELLAR} to #{cellar_stash}"
-          puts "Would rename #{HOMEBREW_LIBRARY}/PinnedKegs to #{pin_stash}" if got_pins
+          puts "Would rename #{PINDIR} to #{pin_stash}" if got_pins
         else
           begin
             HOMEBREW_CELLAR.rename cellar_stash
@@ -113,11 +113,11 @@ module Homebrew
           end
           if got_pins
             begin
-              (HOMEBREW_LIBRARY/'PinnedKegs').rename pin_stash
+              PINDIR.rename pin_stash
             rescue
               cellar_stash.rename HOMEBREW_CELLAR
               unsever_racklist(HOMEBREW_CELLAR.subdirs, mode)
-              raise RuntimeError "Couldn’t rename #{HOMEBREW_LIBRARY}/PinnedKegs"
+              raise RuntimeError "Couldn’t rename #{PINDIR}"
             end
           end
         end
