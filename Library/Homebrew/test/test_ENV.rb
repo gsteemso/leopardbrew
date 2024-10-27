@@ -79,6 +79,8 @@ module SharedEnvTests
     assert_equal "1", @env["foo"]
   end
 
+  # NOTE: this may be a wrong behavior; we should probably reject objects that
+  # do not respond to #to_str. For now this documents existing behavior.
   def test_append_coerces_value_to_string
     @env.append "foo", 42
     assert_equal "42", @env["foo"]
