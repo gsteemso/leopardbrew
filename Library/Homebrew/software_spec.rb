@@ -279,7 +279,7 @@ end
 class BottleSpecification
   DEFAULT_PREFIX = "/usr/local".freeze
   DEFAULT_CELLAR = "/usr/local/Cellar".freeze
-  DEFAULT_DOMAIN = (ENV["HOMEBREW_BOTTLE_DOMAIN"] || "https://ia904500.us.archive.org/24/items/tigerbrew").freeze
+  DEFAULT_DOMAIN = (ENV["HOMEBREW_BOTTLE_DOMAIN"] or "https://ia904500.us.archive.org/24/items/tigerbrew").freeze
 
   attr_rw :prefix, :cellar, :revision
   alias_method :rebuild, :revision
@@ -302,7 +302,7 @@ class BottleSpecification
   end
 
   def compatible_cellar?
-    cellar == :any || cellar == :any_skip_relocation || cellar == HOMEBREW_CELLAR.to_s
+    [:any, :any_skip_relocation, HOMEBREW_CELLAR.to_s].any? { |c| cellar == c }
   end
 
   # Does the Bottle this BottleSpecification belongs to need to be relocated?
