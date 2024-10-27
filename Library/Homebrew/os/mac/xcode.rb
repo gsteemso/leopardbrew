@@ -21,7 +21,7 @@ module OS
           if MacOS.version > "10.11"
             "7.0"
           else
-            raise "OS X '#{MacOS.version}' is invalid"
+            raise "Mac OS '#{MacOS.version}' is unknown"
           end
         end
       end
@@ -31,25 +31,21 @@ module OS
       end
 
       def without_clt?
-        installed? && version >= "4.3" && !MacOS::CLT.installed?
+        installed? and version >= "4.3" and not MacOS::CLT.installed?
       end
 
       def prefix
-        @prefix ||=
-          begin
-            dir = MacOS.active_developer_dir
-
-            if dir.empty? || dir == CLT::MAVERICKS_PKG_PATH || !File.directory?(dir)
-              path = bundle_path
-              path.join("Contents", "Developer") if path
-            else
-              Pathname.new(dir)
-            end
+        dir = MacOS.active_developer_dir
+        @prefix ||= if dir.empty? or dir == CLT::MAVERICKS_PKG_PATH or not File.directory?(dir)
+            path = bundle_path
+            path.join("Contents", "Developer") if path
+          else
+            Pathname.new(dir)
           end
       end
 
       def toolchain_path
-        Pathname.new("#{prefix}/Toolchains/XcodeDefault.xctoolchain") if installed? && version >= "4.3"
+        Pathname.new("#{prefix}/Toolchains/XcodeDefault.xctoolchain") if installed? and version >= "4.3"
       end
 
       # Ask Spotlight where Xcode is. If the user didn't install the
@@ -76,7 +72,7 @@ module OS
 
         return "0" unless OS.mac?
 
-        return nil if !MacOS::Xcode.installed? && !MacOS::CLT.installed?
+        return nil unless MacOS::Xcode.installed? or MacOS::CLT.installed?
 
         %W[#{prefix}/usr/bin/xcodebuild #{which("xcodebuild")}].uniq.each do |path|
           if File.file? path
