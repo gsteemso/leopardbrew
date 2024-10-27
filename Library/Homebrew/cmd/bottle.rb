@@ -223,8 +223,6 @@ module Homebrew
     end
 
     root_url = ARGV.value("root-url")
-    # Use underscored version for legacy reasons. Remove at some point.
-    root_url ||= ARGV.value("root_url")
 
     bottle = BottleSpecification.new
     bottle.root_url(root_url) if root_url
@@ -242,7 +240,7 @@ module Homebrew
     bottle.sha256 bottle_path.sha256 => bottle_tag
 
     old_spec = f.bottle_specification
-    if ARGV.include?("--keep-old") && !old_spec.checksums.empty?
+    if ARGV.include?("--keep-old") and not old_spec.checksums.empty?
       bad_fields = [:root_url, :prefix, :cellar, :revision].select do |field|
         old_spec.send(field) != bottle.send(field)
       end
