@@ -22,8 +22,8 @@ class Pathname
     const_set("O_#{const}".to_sym, (File::Constants.const_defined?(const) ? eval("File::#{const}") : 0).to_i)
   end
 
-  alias :exists? :exist? unless method_defined? :exists?
-  alias :to_str :to_s unless method_defined? :to_str  # we don’t wanna, but Ruby 1.8.x doesn’t care
+  alias_method :exists?, :exist? unless method_defined? :exists?
+  alias_method :to_str, :to_s unless method_defined? :to_str  # we don’t wanna, but Ruby 1.8.x doesn’t care
 
   # Moves a file from the original location to the {Pathname}'s.
   def install(*sources)
