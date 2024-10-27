@@ -37,7 +37,7 @@ module ArchitectureListExtension
   protected
 
   def intersects_all?(*set); set.all? { |archset| archset.any? { |a| self.include? a } }; end
-end
+end # ArchitectureListExtension
 
 # only useable when included in Pathname
 module MachO
@@ -65,9 +65,6 @@ module MachO
     0x0000000b => :MH_KEXT_BUNDLE,  # X86_64 kernel extension
     0x0000000c => :MH_FILESET       # “set of Mach‐Os”
   }.freeze
-
-  # @private
-  OTOOL_RX = /\t(.*) \(compatibility version (?:\d+\.)*\d+, current version (?:\d+\.)*\d+\)/
 
   # Mach-O binary methods, see:
   # <mach-o/loader.h>
@@ -126,6 +123,7 @@ module MachO
       rescue # from error during @mach_data construction
         []
       end # @mach_data construction
+
     @mach_data
   end # mach_data
 
@@ -193,7 +191,8 @@ module MachO
     extent = (header.b[48, 10] =~ %r{^(\d+)} ? $1.to_i : 0)
     return [startpoint, nil] if size < (endpoint = body_offset + extent)
     endpoint += (endpoint & 1)                                  # pad to an even number of bytes
-    return [startpoint, (size > endpoint ? endpoint : nil)]
+
+    [startpoint, (size > endpoint ? endpoint : nil)]
   end # ar_walk_from
 
   # Returns either the offset of the first valid Mach-O ‘ar’ member, or ‘nil’.
@@ -209,11 +208,14 @@ module MachO
                 sig != :FAT_MAGIC                               # skip malformed data
       candidate = nil
     end
+
     candidate
-  end
+  end # ar_sigseek_from
 
   # @private
   class Metadata
+    OTOOL_RX = /\t(.*) \(compatibility version (?:\d+\.)*\d+, current version (?:\d+\.)*\d+\)/
+
     attr_reader :path, :dylib_id, :dylibs
 
     def initialize(path)
@@ -228,17 +230,15 @@ module MachO
         raise ErrorDuringExecution.new(MacOS.otool,
           ["-L", ENV["HOMEBREW_MACH_O_FILE"]])
       end
-
       libs.shift # first line is the filename
-
       id = libs.shift[OTOOL_RX, 1] if path.dylib?
       libs.map! { |lib| lib[OTOOL_RX, 1] }.compact!
 
       return id, libs
     ensure
       ENV.delete "HOMEBREW_MACH_O_FILE"
-    end
-  end
+    end # parse_otool_L_output
+  end # Mach::Metadata
 
   # @private
   def mach_metadata; @mach_metadata ||= Metadata.new(self); end
@@ -253,4 +253,4 @@ module MachO
 
   # @private
   def dylib_id; mach_metadata.dylib_id; end
-end
+end # MachO
