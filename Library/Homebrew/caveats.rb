@@ -18,7 +18,7 @@ class Caveats
     caveats << app_caveats
     caveats << elisp_caveats
     caveats.compact.join("\n")
-  end
+  end # caveats
 
   def empty?
     caveats.empty?
@@ -37,13 +37,13 @@ class Caveats
 
     s = "This formula is keg-only, which means it was not symlinked into #{HOMEBREW_PREFIX}."
     s << "\n\n#{f.keg_only_reason}"
-    if f.lib.directory? || f.include.directory?
+    if f.lib.directory? or f.include.directory?
       s <<
         <<-EOS.undent_________________________________________________________72
 
 
         Generally there are no consequences of this for you. If you build your
-        own software and it requires this formula, you'll need to add to your
+        own software and it requires this formula, you’ll need to add to your
         build variables:
 
         EOS
@@ -51,31 +51,31 @@ class Caveats
       s << "    CPPFLAGS: -I#{f.opt_include}\n" if f.include.directory?
     end
     s << "\n"
-  end
+  end # keg_only_text
 
   def bash_completion_caveats
-    if keg && keg.completion_installed?(:bash) then <<-EOS.undent
-      Bash completion has been installed to:
-        #{HOMEBREW_PREFIX}/etc/bash_completion.d
+    if keg and keg.completion_installed?(:bash) then <<-EOS.undent
+      Bash completion is installed to:
+          #{HOMEBREW_PREFIX}/etc/bash_completion.d
       EOS
     end
-  end
+  end # bash_completion_caveats
 
   def zsh_completion_caveats
-    if keg && keg.completion_installed?(:zsh) then <<-EOS.undent
-      zsh completion has been installed to:
-        #{HOMEBREW_PREFIX}/share/zsh/site-functions
+    if keg and keg.completion_installed?(:zsh) then <<-EOS.undent
+      zsh completion is installed to:
+          #{HOMEBREW_PREFIX}/share/zsh/site-functions
       EOS
     end
-  end
+  end # zsh_completion_caveats
 
   def fish_completion_caveats
-    if keg && keg.completion_installed?(:fish) && which("fish") then <<-EOS.undent
-      fish completion has been installed to:
-        #{HOMEBREW_PREFIX}/share/fish/vendor_completions.d
+    if keg and keg.completion_installed?(:fish) and which("fish") then <<-EOS.undent
+      fish completion is installed to:
+          #{HOMEBREW_PREFIX}/share/fish/vendor_completions.d
       EOS
     end
-  end
+  end # fish_completion_caveats
 
   def python_caveats
     return unless keg
@@ -85,7 +85,7 @@ class Caveats
     homebrew_site_packages = Language::Python.homebrew_site_packages
     user_site_packages = Language::Python.user_site_packages "python"
     pth_file = user_site_packages/"homebrew.pth"
-    instructions = <<-EOS.undent.gsub(/^/, "  ")
+    instructions = <<-EOS.undent.gsub(/^/, "    ")
       mkdir -p #{user_site_packages}
       echo 'import site; site.addsitedir("#{homebrew_site_packages}")' >> #{pth_file}
     EOS
@@ -95,7 +95,7 @@ class Caveats
       unless Language::Python.in_sys_path?("python", keg_site_packages)
         s = <<-EOS.undent
           If you need Python to find bindings for this keg-only formula, run:
-            echo #{keg_site_packages} >> #{homebrew_site_packages/f.name}.pth
+              echo #{keg_site_packages} >> #{homebrew_site_packages/f.name}.pth
         EOS
         s += instructions unless Language::Python.reads_brewed_pth_files?("python")
       end
@@ -106,51 +106,51 @@ class Caveats
 
     if !Language::Python.in_sys_path?("python", homebrew_site_packages)
       s = <<-EOS.undent
-        Python modules have been installed and Homebrew's site-packages is not
+        Python modules are installed and Leopardbrew’s site-packages is not
         in your Python sys.path, so you will not be able to import the modules
-        this formula installed. If you plan to develop with these modules,
+        this formula installs.  If you plan to develop with these modules,
         please run:
       EOS
       s += instructions
     elsif keg.python_pth_files_installed?
       s = <<-EOS.undent
-        This formula installed .pth files to Homebrew's site-packages and your
-        Python isn't configured to process them, so you will not be able to
-        import the modules this formula installed. If you plan to develop
-        with these modules, please run:
+        This formula installs .pth files to Leopardbrew’s site-packages and
+        your Python isn’t configured to process them, so you will not be able to
+        import the modules this formula installs. If you plan to develop with
+        these modules, please run:
       EOS
       s += instructions
     end
     s
-  end
+  end # python_caveats
 
   def app_caveats
-    if keg && keg.app_installed?
+    if keg and keg.app_installed?
       <<-EOS.undent
-        .app bundles were installed.
-        Run `brew linkapps #{keg.name}` to symlink these to /Applications.
+        .app bundles are installed.
+        Run “brew linkapps #{keg.name}” to symlink these to /Applications.
       EOS
     end
-  end
+  end # app_caveats
 
   def elisp_caveats
     return if f.keg_only?
-    if keg && keg.elisp_installed?
+    if keg and keg.elisp_installed?
       <<-EOS.undent
-        Emacs Lisp files have been installed to:
+        Emacs Lisp files are installed to:
         #{HOMEBREW_PREFIX}/share/emacs/site-lisp/
 
-        Add the following to your init file to have packages installed by
+        Add the following to your init file to have Lisp packages installed by
         Homebrew added to your load-path:
         (let ((default-directory "#{HOMEBREW_PREFIX}/share/emacs/site-lisp/"))
           (normal-top-level-add-subdirs-to-load-path))
       EOS
     end
-  end
+  end # elisp_caveats
 
   def plist_caveats
     s = []
-    if f.plist || (keg && keg.plist_installed?)
+    if f.plist or (keg and keg.plist_installed?)
       destination = if f.plist_startup
         "/Library/LaunchDaemons"
       else
@@ -171,47 +171,47 @@ class Caveats
       # occurs before the link step of installation
       # Yosemite security measures mildly tighter rules:
       # https://github.com/Homebrew/homebrew/issues/33815
-      if !plist_path.file? || !plist_path.symlink?
+      if not (plist_path.file? and plist_path.symlink?)
         if f.plist_startup
           s << "To have launchd start #{f.full_name} at startup:"
-          s << "  sudo mkdir -p #{destination}" unless destination_path.directory?
-          s << "  sudo cp -fv #{f.opt_prefix}/*.plist #{destination}"
-          s << "  sudo chown root #{plist_link}"
+          s << "    sudo mkdir -p #{destination}" unless destination_path.directory?
+          s << "    sudo cp -fv #{f.opt_prefix}/*.plist #{destination}"
+          s << "    sudo chown root #{plist_link}"
         else
           s << "To have launchd start #{f.full_name} at login:"
-          s << "  mkdir -p #{destination}" unless destination_path.directory?
-          s << "  ln -sfv #{f.opt_prefix}/*.plist #{destination}"
+          s << "    mkdir -p #{destination}" unless destination_path.directory?
+          s << "    ln -sfv #{f.opt_prefix}/*.plist #{destination}"
         end
         s << "Then to load #{f.full_name} now:"
         if f.plist_startup
-          s << "  sudo launchctl load #{plist_link}"
+          s << "    sudo launchctl load #{plist_link}"
         else
-          s << "  launchctl load #{plist_link}"
+          s << "    launchctl load #{plist_link}"
         end
       # For startup plists, we cannot tell whether it's running on launchd,
       # as it requires for `sudo launchctl list` to get real result.
       elsif f.plist_startup
         s << "To reload #{f.full_name} after an upgrade:"
-        s << "  sudo launchctl unload #{plist_link}"
-        s << "  sudo cp -fv #{f.opt_prefix}/*.plist #{destination}"
-        s << "  sudo chown root #{plist_link}"
-        s << "  sudo launchctl load #{plist_link}"
+        s << "    sudo launchctl unload #{plist_link}"
+        s << "    sudo cp -fv #{f.opt_prefix}/*.plist #{destination}"
+        s << "    sudo chown root #{plist_link}"
+        s << "    sudo launchctl load #{plist_link}"
       elsif Kernel.system "/bin/launchctl list #{plist_domain} &>/dev/null"
         s << "To reload #{f.full_name} after an upgrade:"
-        s << "  launchctl unload #{plist_link}"
-        s << "  launchctl load #{plist_link}"
+        s << "    launchctl unload #{plist_link}"
+        s << "    launchctl load #{plist_link}"
       else
         s << "To load #{f.full_name}:"
-        s << "  launchctl load #{plist_link}"
+        s << "    launchctl load #{plist_link}"
       end
 
       if f.plist_manual
         s << "Or, if you don't want/need launchctl, you can just run:"
-        s << "  #{f.plist_manual}"
+        s << "    #{f.plist_manual}"
       end
 
       s << "" << "WARNING: launchctl will fail when run under tmux." if ENV["TMUX"]
     end
     s.join("\n") unless s.empty?
-  end
-end
+  end # plist_caveats
+end # Caveats
