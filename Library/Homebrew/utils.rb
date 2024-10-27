@@ -1,3 +1,5 @@
+# this file is loaded before `global.rb`, so must eschew most Homebrew things
+
 require "pathname"
 require "exceptions"
 require "os/mac"
@@ -208,7 +210,12 @@ def arch_system(cmd, *args)
   end
 end # arch_system
 
-# repeats &block for each of cmd’s fat‐binary architectures
+# Repeats &block for each of cmd’s fat‐binary architectures.  Caller must be prepared for the case
+# where `nil` is returned, meaning that the “arch” command shouldn’t – or can’t – be called:
+#   for_archs cmd do |a|
+#     arch_args = (a ? ['arch', '-arch', a.to_s] : [])
+#     system *arch_args, cmd, args ...
+#   end # each arch |a|
 def for_archs (cmd, &block)
   cmd = which(cmd) unless cmd.to_s[0] == '/'
   cmd = Pathname.new(cmd) unless cmd.class == Pathname
