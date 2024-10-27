@@ -50,7 +50,7 @@ module Language
         system "cabal", "install", "--jobs=#{ENV.make_jobs}", *opts
       end
 
-      # install the tools passed in parameter and remove the packages that where
+      # install the tools passed in parameter and remove the packages that were
       # used so they won't be in the way of the dependency solver for the main
       # package. The tools are installed sequentially in order to make possible
       # to install several tools that depends on each other

@@ -103,7 +103,7 @@ module FileUtils
   end
 
   # Run `make` 3.81 or newer.  Uses system make from Leopard onward, otherwise brewed make.
-  # Adapts as appropriate to stdenv/superenv (otherwise no superenv argument refurbishement).
+  # Adapts as appropriate to stdenv/superenv (required for superenv argument refurbishement).
   def make(*args)
     if Utils.popen_read('/usr/bin/make', '--version').match(/Make (\d\.\d+)/)[1] > '3.80'
       _make = '/usr/bin/make'
