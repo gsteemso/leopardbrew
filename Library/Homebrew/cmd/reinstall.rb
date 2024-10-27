@@ -1,7 +1,7 @@
 #:
 #:  Usage:  brew reinstall [/formula options/] /installed formula/ [...]
 #:
-#:Reïnstall each listed /installed formula/, with the same options each used
+#:Reïnstall each listed /installed formula/, using the same options each used
 #:before.  Further options may be added, but will apply to every given formula.
 #:
 #:If multiple current specifications are installed (in the extreme case, all
@@ -19,9 +19,11 @@ require 'formula_installer'
 
 module Homebrew
   def reinstall
-    FormulaInstaller.prevent_build_flags unless MacOS.has_apple_developer_tools?
-
+    raise FormulaUnspecifiedError if ARGV.named.empty?
     raise 'Specify “--HEAD” in uppercase to build from the latest source code.' if ARGV.include? '--head'
+    raise '--ignore-dependencies and --only-dependencies are mutually exclusive.' \
+                                                           if ARGV.ignore_deps? and ARGV.only_deps?
+    FormulaInstaller.prevent_build_flags unless MacOS.has_apple_developer_tools?
 
     ARGV.resolved_formulae.each do |f|
       if f.installed?
@@ -36,26 +38,39 @@ module Homebrew
   end # reinstall
 
   def reinstall_formula(f)
-    reinstalling = false
     existing_prefixes = f.installed_current_prefixes.values
     puts 'installed current prefixes:', existing_prefixes * ' ' if DEBUG
     named_spec = (ARGV.build_head? ? :head :
                    (ARGV.build_devel? ? :devel :
                      (ARGV.include?('--stable') ? :stable :
                        nil) ) )
-    puts "Named spec = #{named_spec or '[nil]'}" if DEBUG
+    puts "Named spec = #{named_spec or '[none]'}" if DEBUG
+    case named_spec
+      when nil, :stable
+        if f.stable.nil?
+          if f.devel.nil?
+            raise "#{f.full_name} is a head‐only formula, please specify --HEAD"
+          elsif f.head.nil?
+            raise "#{f.full_name} is a development‐only formula, please specify --devel"
+          else
+            raise "#{f.full_name} has no stable download, please choose --devel or --HEAD"
+          end
+        end
+      when :head then raise "No head is defined for #{f.full_name}" if f.head.nil?
+      when :devel then raise "No devel block is defined for #{f.full_name}" if f.devel.nil?
+    end
     f.set_active_spec named_spec if named_spec  # otherwise use the default
-    tab = Tab.for_formula(f)
+    tab = Tab.for_formula(f) # this gets the tab for the correct installed keg
     options = tab.used_options
-    puts "Original spec = #{tab[:source][:spec] or '[nil]'}" if DEBUG
+    puts "Original spec = #{tab[:source][:spec] or '[none]'}" if DEBUG
     case tab[:source][:spec]
       when :head then options += Option.new('HEAD')
       when :devel then options += Option.new('devel')
     end
     options = blenderize_options(options, f)
     new_spec = (options.include?('HEAD') ? :head : (options.include?('devel') ? :devel : :stable) )
-    puts "New spec = #{new_spec or '[nil]'}" if DEBUG
-    f.set_active_spec new_spec
+    puts "New spec = #{new_spec}" if DEBUG
+    f.set_active_spec new_spec # now install to this spec; we don’t care about the Tab any more
     keep_other_current_kegs = existing_prefixes.include?(f.prefix)
     puts "Remove other current kegs?  #{keep_other_current_kegs ? 'NO' : 'YES'}" if DEBUG
 
@@ -63,12 +78,12 @@ module Homebrew
     notice += " with #{options * ', '}" unless options.empty?
     oh1 notice
 
-    keg = Keg.new(tab.tabfile.parent)
-    raise NoSuchKegError unless keg
-    proper_name = keg.to_s
-    keg.unlink if (was_linked = keg.linked?)
-    ignore_interrupts { keg.rename "#{keg}.reinstall" }
-    reinstalling = true
+    # this correctly unlinks things no matter what version is linked
+    if f.linked_keg.directory?
+      previously_linked = Keg.new(f.linked_keg.resolved_path)
+      previously_linked.unlink
+    end
+    ignore_interrupts { (previously_installed = Keg.new tab.tabfile.parent).rename }
 
     fi = FormulaInstaller.new(f)
     fi.options             = options
@@ -77,44 +92,29 @@ module Homebrew
     fi.build_from_source   = ARGV.build_from_source?
     fi.build_bottle        = ARGV.build_bottle? or (!f.bottled? and tab.build_bottle?)
     fi.force_bottle        = ARGV.force_bottle?
-    fi.interactive         = ARGV.interactive?
+    fi.interactive         = ARGV.interactive? or ARGV.git?
     fi.git                 = ARGV.git?
-    fi.verbose             = VERBOSE
-    fi.quieter             = ARGV.quieter?
+    fi.verbose             = VERBOSE or QUIETER
+    fi.quieter             = QUIETER
     fi.debug               = DEBUG
     fi.prelude
     fi.install
-    fi.finish
-    fi.insinuate
 
   rescue FormulaInstallationAlreadyAttemptedError
     # next
   rescue Exception
     # leave no trace of the failed installation
-    if reinstalling and f.prefix.exists?
+    if f.prefix.exists?
       oh1 "Cleaning up failed #{f.prefix}" if DEBUG
-      f.prefix.rmtree
+      ignore_interrupts { f.prefix.rmtree }
     end
-    if keg
-      ignore_interrupts { keg.rename proper_name }
-      keg.link if was_linked
-    end
+    ignore_interrupts { previously_installed.rename } if previously_installed
+    ignore_interrupts { previously_linked.link } if previously_linked
     raise
   else
-    if f.prefix.exists?
-      # delete the old version if both are present and they aren’t the same
-      if keg.exists? and keg.root != f.prefix
-        oh1 "Deleting superfluous #{keg}" if DEBUG
-        keg.root.rmtree
-      end
-      # also delete other current specifications if the one we just installed wasn’t among them
-      unless keep_other_current_kegs
-        existing_prefixes.each do |p|
-          oh1 "Deleting replaced #{p}" if DEBUG
-          p.rmtree
-        end
-      end
-    end
+    fi.finish  # this links the new keg
+    fi.insinuate
+    # if either of these throws an exception, they’ll just have to handle it themselves
   end # reinstall_formula
 
   def blenderize_options(use_opts, formula)
