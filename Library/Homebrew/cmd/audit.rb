@@ -643,8 +643,8 @@ class FormulaAuditor
       problem "Try not to concatenate paths in string interpolation:\n   #{$1}"
     end
 
-    # Prefer formula path shortcuts in Pathname+
-    if line =~ %r{\(\s*(prefix\s*\+\s*(['"])(bin|include|libexec|lib|sbin|share|Frameworks)[/'"])}
+    # Prefer formula path shortcuts in Pathname+ or Pathname/
+    if line =~ %r{\(\s*(prefix\s*[+/]\s*(['"])(bin|include|libexec|lib|sbin|share|Frameworks)[/'"])}
       problem "\"(#{$1}...#{$2})\" should be \"(#{$3.downcase}+...)\""
     end
 
