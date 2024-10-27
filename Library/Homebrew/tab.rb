@@ -14,7 +14,7 @@ class Tab < OpenStruct
     attributes = {
       "used_options" => build.used_options.as_flags,
       "unused_options" => build.unused_options.as_flags,
-      "tabfile" => formula.prefix.join(FILENAME),
+      "tabfile" => formula.prefix/FILENAME,
       "built_as_bottle" => build.bottle?,
       "poured_from_bottle" => false,
       "time" => Time.now.to_i,
@@ -41,7 +41,7 @@ class Tab < OpenStruct
     attributes["source"] ||= {}
 
     tapped_from = attributes["tapped_from"]
-    unless tapped_from.nil? || tapped_from == "path or URL"
+    unless tapped_from.nil? or tapped_from == "path or URL"
       attributes["source"]["tap"] = attributes.delete("tapped_from")
     end
 
@@ -61,14 +61,8 @@ class Tab < OpenStruct
     new(attributes)
   end
 
-  def self.for_keg(keg)
-    path = keg.join(FILENAME)
-
-    if path.exist?
-      from_file(path)
-    else
-      empty
-    end
+  def self.for_keg(kegpath)
+    (path = kegpath/FILENAME).exists? ? from_file(path) : empty
   end
 
   def self.for_name(name)
@@ -88,15 +82,15 @@ class Tab < OpenStruct
   def self.for_formula(f)
     paths = []
 
-    if f.opt_prefix.symlink? && f.opt_prefix.directory?
+    if f.opt_prefix.symlink? and f.opt_prefix.directory?
       paths << f.opt_prefix.resolved_path
     end
 
-    if f.linked_keg.symlink? && f.linked_keg.directory?
+    if f.linked_keg.symlink? and f.linked_keg.directory?
       paths << f.linked_keg.resolved_path
     end
 
-    if f.rack.directory? && (dirs = f.rack.subdirs).length == 1
+    if f.rack.directory? and (dirs = f.rack.subdirs).length == 1
       paths << dirs.first
     end
 
@@ -139,7 +133,7 @@ class Tab < OpenStruct
 
   def with?(val)
     name = val.respond_to?(:option_name) ? val.option_name : val
-    include?("with-#{name}") || unused_options.include?("without-#{name}")
+    include?("with-#{name}") or unused_options.include?("without-#{name}")
   end
 
   def without?(name)
@@ -171,7 +165,7 @@ class Tab < OpenStruct
   end
 
   def compiler
-    super || MacOS.default_compiler
+    super or MacOS.default_compiler
   end
 
   def cxxstdlib
@@ -181,7 +175,7 @@ class Tab < OpenStruct
   end
 
   def build_bottle?
-    built_as_bottle && !poured_from_bottle
+    built_as_bottle and not poured_from_bottle
   end
 
   def bottle?
