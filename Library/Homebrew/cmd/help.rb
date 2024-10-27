@@ -32,24 +32,20 @@ EOS
 # NOTE The reason the string is at the top is so 25 lines is easy to measure!
 
 module Homebrew
-  def help
-    puts HOMEBREW_HELP
-  end
+  def help; puts HOMEBREW_HELP; end
 
-  def help_s
-    HOMEBREW_HELP
-  end
+  def help_s; HOMEBREW_HELP; end
 
   def help_for_command(cmd)
-    cmd_path = if File.exist?(HOMEBREW_LIBRARY_PATH/"cmd/#{cmd}.sh")
-      HOMEBREW_LIBRARY_PATH/"cmd/#{cmd}.sh"
-    elsif ARGV.homebrew_developer? && File.exist?(HOMEBREW_LIBRARY_PATH/"dev-cmd/#{cmd}.sh")
-      HOMEBREW_LIBRARY_PATH/"dev-cmd/#{cmd}.sh"
-    elsif File.exist?(HOMEBREW_LIBRARY_PATH/"cmd/#{cmd}.rb")
-      HOMEBREW_LIBRARY_PATH/"cmd/#{cmd}.rb"
-    elsif ARGV.homebrew_developer? && File.exist?(HOMEBREW_LIBRARY_PATH/"dev-cmd/#{cmd}.rb")
-      HOMEBREW_LIBRARY_PATH/"dev-cmd/#{cmd}.rb"
-    end
+    cmd_path = if File.exists?(HOMEBREW_LIBRARY_PATH/"cmd/#{cmd}.sh")
+        HOMEBREW_LIBRARY_PATH/"cmd/#{cmd}.sh"
+      elsif DEVELOPER and File.exists?(HOMEBREW_LIBRARY_PATH/"dev-cmd/#{cmd}.sh")
+        HOMEBREW_LIBRARY_PATH/"dev-cmd/#{cmd}.sh"
+      elsif File.exists?(HOMEBREW_LIBRARY_PATH/"cmd/#{cmd}.rb")
+        HOMEBREW_LIBRARY_PATH/"cmd/#{cmd}.rb"
+      elsif DEVELOPER and File.exists?(HOMEBREW_LIBRARY_PATH/"dev-cmd/#{cmd}.rb")
+        HOMEBREW_LIBRARY_PATH/"dev-cmd/#{cmd}.rb"
+      end
     return if cmd_path.nil?
 
     cmd_path.read.
