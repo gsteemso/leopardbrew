@@ -22,7 +22,17 @@ class String
     s unless s.empty?
   end
 
-  alias :starts_with? :start_with? unless method_defined? :starts_with?
+  # String#chop, but for the front of the string instead of the back.
+  def pre_chop
+    self[1..-1]
+  end
+
+  # String#chomp, but for the front of the string instead of the back.
+  def pre_chomp(kill_this = "\n")
+    (self[0] == kill_this.to_s[0]) ? pre_chop : self
+  end
+
+  alias_method :starts_with?, :start_with? unless method_defined? :starts_with?
 end
 
 class NilClass
