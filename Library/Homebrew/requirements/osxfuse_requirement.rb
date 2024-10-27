@@ -13,7 +13,7 @@ class OsxfuseRequirement < Requirement
   end
 
   env do
-    ENV.append_path "PKG_CONFIG_PATH", HOMEBREW_PREFIX/"Library/ENV/pkgconfig/fuse"
+    ENV.append_path "PKG_CONFIG_PATH", HOMEBREW_REPOSITORY/"Library/ENV/pkgconfig/fuse"
   end
 end
 
