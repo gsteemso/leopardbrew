@@ -27,7 +27,7 @@ class Cleaner
     end
 
     prune
-  end
+  end # clean
 
   private
 
@@ -64,7 +64,7 @@ class Cleaner
     symlinks.reverse_each do |s|
       s.unlink unless s.resolved_path_exists?
     end
-  end
+  end # prune
 
   # Clean a top-level (bin, sbin, lib) directory, recursively, by fixing file
   # permissions and removing .la files, unless the files (or parent
@@ -101,5 +101,5 @@ class Cleaner
         path.chmod perms
       end
     end
-  end
-end
+  end # clean_dir
+end # Cleaner
