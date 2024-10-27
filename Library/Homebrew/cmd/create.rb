@@ -1,15 +1,15 @@
-require "formula"
-require "blacklist"
-require "digest"
-require "erb"
+require 'formula'
+require 'blacklist'
+require 'digest'
+require 'erb'
 
 module Homebrew
   # Create a formula from a tarball URL
   def create
     # Allow searching MacPorts or Fink.
-    if ARGV.include? "--macports"
+    if ARGV.include? '--macports'
       exec_browser "https://www.macports.org/ports.php?by=name&substr=#{ARGV.next}"
-    elsif ARGV.include? "--fink"
+    elsif ARGV.include? '--fink'
       exec_browser "http://pdb.finkproject.org/pdb/browse.php?summary=#{ARGV.next}"
     end
 
@@ -20,17 +20,17 @@ module Homebrew
 
     url = ARGV.named.first # Pull the first (and only) url from ARGV
 
-    version = ARGV.next if ARGV.include? "--set-version"
-    name = ARGV.next if ARGV.include? "--set-name"
+    version = ARGV.next if ARGV.include? '--set-version'
+    name = ARGV.next if ARGV.include? '--set-name'
 
     fc = FormulaCreator.new
     fc.name = name
     fc.version = version
     fc.url = url
 
-    fc.mode = if ARGV.include? "--cmake"
+    fc.mode = if ARGV.include? '--cmake'
       :cmake
-    elsif ARGV.include? "--autotools"
+    elsif ARGV.include? '--autotools'
       :autotools
     end
 
@@ -94,15 +94,15 @@ class FormulaCreator
   end
 
   def fetch?
-    !ARGV.include?("--no-fetch")
+    !ARGV.include?('--no-fetch')
   end
 
   def generate!
     raise "#{path} already exists" if path.exist?
 
     if version.nil?
-      opoo "Version cannot be determined from URL."
-      puts "You'll need to add an explicit 'version' to the formula."
+      opoo 'Version cannot be determined from URL.'
+      puts 'You’ll need to add an explicit “version” to the formula.'
     end
 
     if fetch? && version
@@ -113,12 +113,11 @@ class FormulaCreator
       @sha256 = r.fetch.sha256 if r.download_strategy == CurlDownloadStrategy
     end
 
-    path.write ERB.new(template, nil, ">").result(binding)
+    path.write ERB.new(template, nil, '>').result(binding)
   end
 
   def template; <<-EOS.undent
     # Documentation: https://github.com/Homebrew/homebrew/blob/master/share/doc/homebrew/Formula-Cookbook.md
-    #                http://www.rubydoc.info/github/Homebrew/homebrew/master/frames
     # PLEASE REMOVE ALL GENERATED COMMENTS BEFORE SUBMITTING YOUR PULL REQUEST!
 
     class #{Formulary.class_s(name)} < Formula
@@ -131,9 +130,9 @@ class FormulaCreator
       sha256 "#{sha256}"
 
     <% if mode == :cmake %>
-      depends_on "cmake" => :build
+      depends_on 'cmake' => :build
     <% elsif mode.nil? %>
-      # depends_on "cmake" => :build
+      # depends_on 'cmake' => :build
     <% end %>
       depends_on :x11 # if your formula requires any X11/XQuartz components
 
@@ -141,35 +140,35 @@ class FormulaCreator
         # ENV.deparallelize  # if your formula fails when building in parallel
 
     <% if mode == :cmake %>
-        system "cmake", ".", *std_cmake_args
+        system 'cmake', '.', *std_cmake_args
     <% elsif mode == :autotools %>
         # Remove unrecognized options if warned by configure
-        system "./configure", "--disable-debug",
-                              "--disable-dependency-tracking",
-                              "--disable-silent-rules",
-                              "--prefix=\#{prefix}"
+        system './configure', "--prefix=\#{prefix}",
+                              '--disable-debug',
+                              '--disable-dependency-tracking',
+                              '--disable-silent-rules'
     <% else %>
         # Remove unrecognized options if warned by configure
-        system "./configure", "--disable-debug",
-                              "--disable-dependency-tracking",
-                              "--disable-silent-rules",
-                              "--prefix=\#{prefix}"
-        # system "cmake", ".", *std_cmake_args
+        system './configure', "--prefix=\#{prefix}",
+                              '--disable-debug',
+                              '--disable-dependency-tracking',
+                              '--disable-silent-rules'
+        # system 'cmake', '.', *std_cmake_args
     <% end %>
-        system "make", "install" # if this fails, try separate make/make install steps
+        system 'make', 'install' # if this fails, try separate make/make install steps
       end
 
       test do
         # `test do` will create, run in and delete a temporary directory.
         #
         # This test will fail and we won't accept that! It's enough to just replace
-        # "false" with the main program this formula installs, but it'd be nice if you
+        # 'false' with the main program this formula installs, but it'd be nice if you
         # were more thorough. Run the test with `brew test #{name}`. Options passed
         # to `brew install` such as `--HEAD` also need to be provided to `brew test`.
         #
         # The installed folder is not in the path, so use the entire path to any
-        # executables being tested: `system "\#{bin}/program", "do", "something"`.
-        system "false"
+        # executables being tested: `system bin/'program', 'do', 'something'`.
+        system 'false'
       end
     end
     EOS
