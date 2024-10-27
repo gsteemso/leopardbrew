@@ -14,29 +14,29 @@ module FormulaCellarChecks
       #{prefix_bin} is not in your PATH
       You can amend this by altering your #{shell_profile} file
     EOS
-  end
+  end # check_PATH
 
   def check_manpages
     # Check for man pages that aren't in share/man
-    return unless (formula.prefix+"man").directory?
+    return unless (formula.prefix/'man').directory?
 
     <<-EOS.undent
       A top-level "man" directory was found
-      Tigerbrew requires that man pages live under share.
+      Leopardbrew requires that man pages live under share.
       This can often be fixed by passing "--mandir=\#{man}" to configure.
     EOS
-  end
+  end # check_manpages
 
   def check_infopages
     # Check for info pages that aren't in share/info
-    return unless (formula.prefix+"info").directory?
+    return unless (formula.prefix/'info').directory?
 
     <<-EOS.undent
       A top-level "info" directory was found
-      Tigerbrew suggests that info pages live under share.
+      Leopardbrew suggests that info pages live under share.
       This can often be fixed by passing "--infodir=\#{info}" to configure.
     EOS
-  end
+  end # check_infopages
 
   def check_jars
     return unless formula.lib.directory?
@@ -52,7 +52,7 @@ module FormulaCellarChecks
       The offending files are:
         #{jars * "\n        "}
     EOS
-  end
+  end # check_jars
 
   def check_non_libraries
     return unless formula.lib.directory?
@@ -71,7 +71,7 @@ module FormulaCellarChecks
       The offending files are:
         #{non_libraries * "\n        "}
     EOS
-  end
+  end # check_non_libraries
 
   def check_non_executables(bin)
     return unless bin.directory?
@@ -84,7 +84,7 @@ module FormulaCellarChecks
       The offending files are:
         #{non_exes * "\n        "}
     EOS
-  end
+  end # check_non_executables
 
   def check_generic_executables(bin)
     return unless bin.directory?
@@ -101,7 +101,7 @@ module FormulaCellarChecks
       The offending files are:
         #{generics * "\n        "}
     EOS
-  end
+  end # check_generic_executables
 
   def check_shadowed_headers
     ["libtool", "subversion", "berkeley-db"].each do |formula_name|
@@ -124,7 +124,7 @@ module FormulaCellarChecks
       The offending files are:
         #{files * "\n        "}
     EOS
-  end
+  end # check_shadowed_headers
 
   def check_easy_install_pth(lib)
     pth_found = Dir["#{lib}/python{2.7,3}*/site-packages/easy-install.pth"].map { |f| File.dirname(f) }
@@ -137,7 +137,7 @@ module FormulaCellarChecks
       The offending files are
         #{pth_found * "\n        "}
     EOS
-  end
+  end # check_easy_install_pth
 
   def check_openssl_links
     return unless formula.prefix.directory?
@@ -151,10 +151,10 @@ module FormulaCellarChecks
     <<-EOS.undent
       object files were linked against system openssl
       These object files were linked against the deprecated system OpenSSL.
-      Adding `depends_on "openssl"` to the formula may help.
+      Adding `depends_on "openssl3"` to the formula may help.
         #{system_openssl * "\n        "}
     EOS
-  end
+  end # check_openssl_links
 
   def check_python_framework_links(lib)
     python_modules = Pathname.glob lib/"python*/site-packages/**/*.so"
@@ -171,7 +171,7 @@ module FormulaCellarChecks
       instead of -lpython or -framework Python.
         #{framework_links * "\n        "}
     EOS
-  end
+  end # check_python_framework_links
 
   def check_emacs_lisp(share, name)
     return unless (share/"emacs/site-lisp").directory?
@@ -191,7 +191,7 @@ module FormulaCellarChecks
       The offending files are:
         #{elisps * "\n        "}
     EOS
-  end
+  end # check_emacs_lisp
 
   def audit_installed
     audit_check_output(check_manpages)
@@ -207,11 +207,11 @@ module FormulaCellarChecks
     audit_check_output(check_openssl_links)
     audit_check_output(check_python_framework_links(formula.lib))
     audit_check_output(check_emacs_lisp(formula.share, formula.name))
-  end
+  end # audit_installed
 
   private
 
   def relative_glob(dir, pattern)
     File.directory?(dir) ? Dir.chdir(dir) { Dir[pattern] } : []
   end
-end
+end # FormulaCellarChecks
