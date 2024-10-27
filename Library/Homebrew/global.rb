@@ -35,7 +35,7 @@ HOMEBREW_CACHE          = Pathname.new(ENV['HOMEBREW_CACHE'])
                           # Where downloads (bottles, source tarballs, etc.) are cached
   HOMEBREW_CACHE_FORMULA =  HOMEBREW_CACHE/'Formula'
                             # Where brews installed via URL are cached
-HOMEBREW_CELLAR         = Pathname.new(ENV['HOMEBREW_CELLAR'])
+HOMEBREW_CELLAR         = Pathname.new(ENV['HOMEBREW_CELLAR']).realpath
 HOMEBREW_CURL           = Pathname.new(ENV['HOMEBREW_CURL'])
 HOMEBREW_LIBRARY        = Pathname.new(ENV['HOMEBREW_LIBRARY'])
   HOMEBREW_CONTRIB      =   HOMEBREW_LIBRARY/'Contributions'
@@ -52,7 +52,7 @@ HOMEBREW_RUBY_PATH      = Pathname.new(ENV['HOMEBREW_RUBY_PATH'])   # Our intern
   HOMEBREW_RUBY_BIN     =   HOMEBREW_RUBY_PATH.parent               # Where it lives
 SYSTEM_RUBY_PATH        = Pathname.new('/usr/bin/ruby')             # The system Ruby binary
   SYSTEM_RUBY_BIN       =   SYSTEM_RUBY_PATH.parent                 # Where it lives
-gtar = HOMEBREW_PREFIX/'opt/gnu-tar/bin/gtar'
+gtar = OPTDIR/'gnu-tar/bin/gtar'
 TAR_PATH                = Pathname.new(gtar.executable? ? gtar : which('tar'))
 
 # Predefined regular expressions:
@@ -95,6 +95,7 @@ HOMEBREW_INTERNAL_COMMAND_ALIASES = \
                                 'environment' => '--env',
                                 '--config'    => 'config'
                               }
+HOMEBREW_OUTDATED_LIMIT     = 1209600 # 60 s * 60 * 24 * 14:  two weeks
 HOMEBREW_SYSTEM             = ENV['HOMEBREW_SYSTEM']
 HOMEBREW_USER_AGENT         = ENV['HOMEBREW_USER_AGENT']
 HOMEBREW_USER_AGENT_CURL    = ENV['HOMEBREW_USER_AGENT_CURL']
@@ -112,38 +113,44 @@ BREW_NICE_LEVEL = ENV['HOMEBREW_NICE_LEVEL']  # Do we `nice` our build process?
 DEBUG           = ARGV.debug?                 # Checks all of “-d”, “--debug”, & $HOMEBREW_DEBUG
 DEVELOPER       = ARGV.homebrew_developer?    # Enable developer commands (checks both
                                               #   “--homebrew-developer” & $HOMEBREW_DEVELOPER)
-HOMEBREW_GITHUB_API_TOKEN = ENV['HOMEBREW_GITHUB_API_TOKEN']    # For unthrottled Github access
+HOMEBREW_GITHUB_API_TOKEN = ENV['HOMEBREW_GITHUB_API_TOKEN'] # For unthrottled Github access
+HOMEBREW_INSTALL_BADGE = ENV['HOMEBREW_INSTALL_BADGE'] or "\xf0\x9f\x8d\xba"
+                                              # Default is the beer emoji (see `formula_installer.rb`)
 HOMEBREW_LOGS   = Pathname.new(ENV.fetch 'HOMEBREW_LOGS', '~/Library/Logs/Homebrew/').expand_path
                   # Where build, postinstall, and test logs of formulæ are written to
 HOMEBREW_TEMP   = Pathname.new(ENV.fetch 'HOMEBREW_TEMP', '/tmp')
                   # Where temporary folders for building and testing formulæ are created
-NO_COMPAT       = ENV['HOMEBREW_NO_COMPAT']
+NO_COMPAT       = ENV['HOMEBREW_NO_COMPAT']   # Don’t bother with backwards‐compatibility cruft
+NO_EMOJI        = ENV['HOMEBREW_NO_EMOJI']    # Don’t show badge at all (see `formula_installer.rb`)
 ORIGINAL_PATHS  = ENV['PATH'].split(File::PATH_SEPARATOR).map { |p| Pathname.new(p).expand_path rescue nil }.compact.freeze
-QUIETER         = ARGV.quieter?               # Give as little feedback as possible
+QUIETER         = ARGV.quieter?               # Give less-verbose feedback when VERBOSE (checks all
+                                              #   of “-q”, “--quieter”, and $HOMEBREW_QUIET)
 VERBOSE         = ARGV.verbose?               # Give lots of feedback (checks all of “-v”,
                                               #   “--verbose”, $HOMEBREW_VERBOSE, & $VERBOSE)
 
 # Further housekeeping:
-require 'compat' unless ARGV.include?('--no-compat') || NO_COMPAT
+require 'compat' unless NO_COMPAT or ARGV.include?('--no-compat')
 
 # Environment variables that affect ARGV and/or builds (unless noted, see `extend/ARGV.rb`):
-# HOMEBREW_BUILD_BOTTLE      # Always build a bottle instead of a normal installation
-# HOMEBREW_BUILD_FROM_SOURCE # Force building from source even when there is a bottle
-# HOMEBREW_BUILD_UNIVERSAL   # If there’s a :universal option, always use it
-# HOMEBREW_PREFER_64_BIT     # Build 64‐bit by default (required to build --universal; see `os/mac.rb`)
-# HOMEBREW_QUIET             # Show as little as possible
-# HOMEBREW_SANDBOX           # hells if I know
-# HOMEBREW_VERBOSE           # Show build messages
-#   VERBOSE                  #   Same thing but system‐wide
+# HOMEBREW_BUILD_BOTTLE       # Always build a bottle instead of a normal installation
+# HOMEBREW_BUILD_FROM_SOURCE  # Force building from source even when there is a bottle
+# HOMEBREW_BUILD_UNIVERSAL    # If there’s a :universal option, always use it
+# HOMEBREW_FAIL_LOG_LINES     # How many lines of system output to log on failure (see `formula.rb`)
+# HOMEBREW_PREFER_64_BIT      # Build 64‐bit by default (required to build --universal; see `os/mac.rb`)
+# HOMEBREW_QUIET              # Be less verbose
+# HOMEBREW_SANDBOX            # hells if I know
+# HOMEBREW_VERBOSE            # Show build messages
+#   VERBOSE                   #   Same thing but system‐wide
+# HOMEBREW_VERBOSE_USING_DOTS # Print keepalive dots during long system calls (see `formula.rb`)
 
 # Environment variables that can be used to control Superenv:
-# HOMEBREW_CC_LOG_PATH    # This is set by `formula.rb` whenever it executes a Superenv build tool
 # HOMEBREW_FORCE_FLAGS    # When argument refurbishment is performed, these are always inserted
 # HOMEBREW_INCLUDE_PATHS  # These are how -I flags reach ENV/*/cc
 # HOMEBREW_ISYSTEM_PATHS  # These are how -isystem flags reach ENV/*/cc
 # HOMEBREW_LIBRARY_PATHS  # These are how -L flags reach ENV/*/cc
 
 # Other environment variables:
+# HOMEBREW_CC_LOG_PATH    # This is set by `formula.rb` whenever it executes a Superenv build tool
 # HOMEBREW_MACH_O_FILE    # Briefly exists during `otool -L` parsing; see `mach.rb`
 
 module Homebrew
