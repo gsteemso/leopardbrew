@@ -4,19 +4,19 @@ require "extend/ARGV"
 
 def built_as_bottle?(f)
   return false unless f.installed?
-  tab = Tab.for_keg(f.installed_prefix)
+  tab = Tab.for_keg(f.prefix)
   tab.built_as_bottle
 end
 
 def bottle_file_outdated?(f, file)
   filename = file.basename.to_s
-  return unless f.bottle && filename.match(Pathname::BOTTLE_EXTNAME_RX)
+  return unless f.bottle and filename.match(Pathname::BOTTLE_EXTNAME_RX)
 
   bottle_ext = filename[bottle_native_regex, 1]
   bottle_url_ext = f.bottle.url[bottle_native_regex, 1]
 
-  bottle_ext && bottle_url_ext && bottle_ext != bottle_url_ext
-end
+  bottle_ext and bottle_url_ext and bottle_ext != bottle_url_ext
+end # bottle_file_outdated?
 
 def bottle_native_regex
   /(\.#{bottle_tag}\.bottle\.(\d+\.)?tar\.gz)$/o
@@ -30,13 +30,12 @@ def bottle_tag
   else
     # Return, e.g., :tiger_g3, :leopard_g5_64, :leopard_64 (which is Intel)
     if Hardware::CPU.type == :ppc
-      tag = "#{MacOS.cat}_#{Hardware::CPU.family}".to_sym
+      "#{MacOS.cat}_#{Hardware::CPU.family}".to_sym
     else
-      tag = MacOS.cat
+      MacOS.prefer_64_bit? ? "#{MacOS.cat}_64".to_sym : MacOS.cat
     end
-    MacOS.prefer_64_bit? ? "#{tag}_64".to_sym : tag
   end
-end
+end # bottle_tag
 
 def bottle_receipt_path(bottle_file)
   Utils.popen_read(TAR_PATH, "-tzf", bottle_file, "*/*/INSTALL_RECEIPT.json").chomp
@@ -47,65 +46,48 @@ def bottle_resolve_formula_names(bottle_file)
   receipt_file = Utils.popen_read(TAR_PATH, "-xOzf", bottle_file, receipt_file_path)
   name = receipt_file_path.split("/").first
   tap = Tab.from_file_content(receipt_file, "#{bottle_file}/#{receipt_file_path}").tap
-
-  if tap.nil? || tap == "Homebrew/homebrew"
+  if tap.nil? or tap == "Homebrew/homebrew"
     full_name = name
   else
     full_name = "#{tap.sub("homebrew-", "")}/#{name}"
   end
 
   [name, full_name]
-end
+end # bottle_resolve_formula_names
 
 def bottle_resolve_version(bottle_file)
   PkgVersion.parse bottle_receipt_path(bottle_file).split("/")[1]
 end
 
 class Bintray
-  def self.package(formula_name)
-    formula_name.to_s.tr("+", "x")
-  end
+  def self.package(formula_name); formula_name.to_s.tr("+", "x"); end
 
   def self.repository(tap = nil)
-    return "bottles" if tap.nil? || tap == "Homebrew/homebrew"
+    return "bottles" if tap.nil? or tap == "Homebrew/homebrew"
     "bottles-#{tap.sub(%r{^homebrew/(homebrew-)?}i, "")}"
   end
-end
+end # Bintray
 
 class BottleCollector
-  def initialize
-    @checksums = {}
-  end
+  def initialize; @checksums = {}; end
 
   def fetch_checksum_for(tag)
     tag = find_matching_tag(tag)
     return self[tag], tag if tag
   end
 
-  def keys
-    @checksums.keys
-  end
+  def keys; @checksums.keys; end
 
-  def [](key)
-    @checksums[key]
-  end
+  def [](key); @checksums[key]; end
 
-  def []=(key, value)
-    @checksums[key] = value
-  end
+  def []=(key, value); @checksums[key] = value; end
 
-  def key?(key)
-    @checksums.key?(key)
-  end
+  def key?(key); @checksums.key?(key); end
 
   private
 
   def find_matching_tag(tag)
-    if key?(tag)
-      tag
-    else
-      find_altivec_tag(tag) || find_or_later_tag(tag)
-    end
+    key?(tag) ? tag : (find_altivec_tag(tag) or find_or_later_tag(tag))
   end
 
   # This allows generic Altivec PPC bottles to be supported in some
@@ -117,7 +99,7 @@ class BottleCollector
       altivec_tag = "#{$1}_altivec".to_sym
       altivec_tag if key?(altivec_tag)
     end
-  end
+  end # find_altivec_tag
 
   # Allows a bottle tag to specify a specific OS or later,
   # so the same bottle can target multiple OSs.
@@ -135,5 +117,5 @@ class BottleCollector
         MacOS::Version.from_symbol(later_tag) <= tag_version
       end
     end
-  end
-end
+  end # find_or_later_tag
+end # BottleCollector
