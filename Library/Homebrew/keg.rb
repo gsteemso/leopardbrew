@@ -7,11 +7,11 @@ class Keg
   class AlreadyLinkedError < RuntimeError
     def initialize(keg)
       super <<-EOS.undent
-        Cannot link #{keg.name}
-        Another version is already linked: #{keg.linked_keg_record.resolved_path}
+          Cannot link #{keg.name}
+          Another version is already linked: #{keg.linked_keg_record.resolved_path}
         EOS
-    end
-  end
+    end # initialize
+  end # AlreadyLinkedError
 
   class LinkError < RuntimeError
     attr_reader :keg, :src, :dst
@@ -23,8 +23,8 @@ class Keg
       @cause = cause
       super(cause.message)
       set_backtrace(cause.backtrace)
-    end
-  end
+    end # initialize
+  end # LinkError
 
   class ConflictError < LinkError
     def suggestion
@@ -33,25 +33,25 @@ class Keg
       "already exists. You may want to remove it:\n  rm '#{dst}'\n"
     else
       <<-EOS.undent
-      is a symlink belonging to #{conflict.name}. You can unlink it:
-        brew unlink #{conflict.name}
+        is a symlink belonging to #{conflict.name}. You can unlink it:
+            brew unlink #{conflict.name}
       EOS
-    end
+    end # suggestion
 
     def to_s
       s = []
       s << "Could not symlink #{src}"
       s << "Target #{dst}" << suggestion
       s << <<-EOS.undent
-        To force the link and overwrite all conflicting files:
-          brew link --overwrite #{keg.name}
+          To force the link and overwrite all conflicting files:
+              brew link --overwrite #{keg.name}
 
-        To list all files that would be deleted:
-          brew link --overwrite --dry-run #{keg.name}
+          To list all files that would be deleted:
+              brew link --overwrite --dry-run #{keg.name}
         EOS
       s.join("\n")
-    end
-  end
+    end # to_s
+  end # ConflictError
 
   class DirectoryNotWritableError < LinkError
     def to_s; <<-EOS.undent
@@ -59,15 +59,14 @@ class Keg
       #{dst.dirname} is not writable.
       EOS
     end
-  end
+  end # DirectoryNotWritableError
 
+  INFOFILE_RX = %r{info/([^.].*?\.info|dir)$}
   # locale-specific directories have the form language[_territory][.codeset][@modifier]
   LOCALEDIR_RX = /(locale|man)\/([a-z]{2}|C|POSIX)(_[A-Z]{2})?(\.[a-zA-Z\-0-9]+(@.+)?)?/
-  INFOFILE_RX = %r{info/([^.].*?\.info|dir)$}
   TOP_LEVEL_DIRECTORIES = %w[bin etc include lib sbin share var Frameworks]
-  PRUNEABLE_DIRECTORIES = %w[bin etc include lib sbin share Frameworks LinkedKegs].map do |d|
-    case d when "LinkedKegs" then HOMEBREW_LIBRARY/d else HOMEBREW_PREFIX/d end
-  end
+  PRUNEABLE_DIRECTORIES = %w[bin etc include lib sbin share Frameworks].map { |d| HOMEBREW_PREFIX/d }
+  PRUNEABLE_DIRECTORIES << LINKDIR
 
   # These paths relative to the keg's share directory should always be real
   # directories in the prefix, never symlinks.
@@ -81,93 +80,81 @@ class Keg
     mime-info pixmaps sounds
   ]
 
+  # During reïnstallations, the new keg must have a temporary name in order for the old one to
+  # remain in service – otherwise, it becomes impossible to reïnstall anything used during brewing.
+  REINSTALL_SUFFIX = '.being_reinstalled'
+
   # if path is a file in a keg then this will return the containing Keg object
   def self.for(path)
     path = path.realpath
-    until path.root?
-      return Keg.new(path) if path.parent.parent == HOMEBREW_CELLAR.realpath
-      path = path.parent.realpath # realpath() prevents root? failing
+    until path.root?  # this is the filesystem root, not Keg#root
+      return Keg.new(path) if path.parent.parent == HOMEBREW_CELLAR
+      path = path.parent.realpath # realpath() prevents .root? failing
     end
     raise NotAKegError, "#{path} is not inside a keg"
-  end
+  end # Keg::for
 
   attr_reader :path, :name, :linked_keg_record, :opt_record
   protected :path
 
+  # requires a Pathname object; a bare string won’t work
   def initialize(path)
-    raise "#{path} is not a valid keg" unless path.parent.parent.realpath == HOMEBREW_CELLAR.realpath
+    raise "#{path} is not a valid keg" unless path.parent.parent.realpath == HOMEBREW_CELLAR
     raise "#{path} is not a directory" unless path.directory?
     @path = path
     @name = path.parent.basename.to_s
-    @linked_keg_record = HOMEBREW_LIBRARY.join("LinkedKegs", name)
-    @opt_record = HOMEBREW_PREFIX.join("opt", name)
-  end
+    @linked_keg_record = LINKDIR/name
+    @opt_record = OPTDIR/name
+  end # initialize
 
 #  def fname
 #    opoo "Keg#fname is a deprecated alias for Keg#name and will be removed soon"
 #    name
 #  end
 
-  def to_s
-    path.to_s
-  end
+  def to_s; path.to_s; end
+  alias_method :to_path, :to_s
 
-  def rack
-    path.parent
-  end
+  def rack; path.parent; end
 
-  def root
-    path
-  end
+  def root; path; end
 
-  alias_method :to_path, :to_s if Pathname.method_defined?(:to_path)
+  def inspect; "#<#{self.class.name}:#{path}>"; end
 
-  def inspect
-    "#<#{self.class.name}:#{path}>"
-  end
-
-  def ==(other)
-    instance_of?(other.class) && path == other.path
-  end
+  def ==(other); instance_of?(other.class) && path == other.path; end
   alias_method :eql?, :==
 
-  def hash
-    path.hash
-  end
+  def hash; path.hash; end
 
-  def abv
-    path.abv
-  end
+  def abv; path.abv; end
 
-  def directory?
-    path.directory?
-  end
+  def directory?; path.directory?; end
 
-  def exist?
-    path.exist?
-  end
+  def exist?; path.exist?; end
   alias :exists? :exist?
 
-  def /(other)
-    path / other
+  def /(other); path/other; end
+
+  def join(*args); path.join(*args); end
+
+  private
+
+  def reinstall_nameflip
+    (path.extname == REINSTALL_SUFFIX) ? (path.dirname/path.basename REINSTALL_SUFFIX).to_s : "#{path.to_s}#{REINSTALL_SUFFIX}"
   end
 
-  def join(*args)
-    path.join(*args)
-  end
+  public
 
-  def rename(new_name)
+  def rename(new_name = reinstall_nameflip)
     unlink if was_linked = linked?
     path.rename new_name            # rename the physical directory
     @path = Pathname.new new_name   # change our record of the name
     optlink                         # always regenerate the optlink
     link if was_linked
-  end
+  end # rename
 
   def linked?
-    linked_keg_record.symlink? &&
-      linked_keg_record.directory? &&
-      path == linked_keg_record.resolved_path
+    linked_keg_record.symlink? and linked_keg_record.directory? and path == linked_keg_record.resolved_path
   end
 
   def remove_linked_keg_record
@@ -175,9 +162,7 @@ class Keg
     linked_keg_record.parent.rmdir_if_possible
   end
 
-  def optlinked?
-    opt_record.symlink? && path == opt_record.resolved_path
-  end
+  def optlinked?; opt_record.symlink? and path == opt_record.resolved_path; end
 
   def remove_opt_record
     opt_record.unlink
@@ -189,21 +174,17 @@ class Keg
     path.parent.rmdir_if_possible
     remove_opt_record if optlinked?
     remove_oldname_opt_record
-  end
+  end # uninstall
 
   def unlink(mode = OpenStruct.new)
     ObserverPathnameExtension.reset_counts!
-
     dirs = []
-
     TOP_LEVEL_DIRECTORIES.map { |d| path.join(d) }.each do |dir|
       next unless dir.exist?
       dir.find do |src|
         dst = HOMEBREW_PREFIX + src.relative_path_from(path)
         dst.extend(ObserverPathnameExtension)
-
         dirs << dst if dst.directory? && !dst.symlink?
-
         # check whether the file to be unlinked is from the current keg first
         if dst.symlink? && src == dst.resolved_path
           if mode.dry_run
@@ -211,21 +192,19 @@ class Keg
             Find.prune if src.directory?
             next
           end
-
           dst.uninstall_info if dst.to_s =~ INFOFILE_RX
           dst.unlink
           Find.prune if src.directory?
         end
       end
     end
-
     unless mode.dry_run
       remove_linked_keg_record if linked?
       dirs.reverse_each(&:rmdir_if_possible)
     end
 
     ObserverPathnameExtension.total
-  end
+  end # unlink
 
   def lock
     FormulaLock.new(name).with_lock do
@@ -235,7 +214,7 @@ class Keg
         yield
       end
     end
-  end
+  end # lock
 
   def completion_installed?(shell)
     dir = case shell
@@ -244,44 +223,31 @@ class Keg
           when :fish then path.join("share", "fish", "vendor_completions.d")
           end
     dir && dir.directory? && dir.children.any?
-  end
+  end # completion_installed?
 
-  def plist_installed?
-    Dir["#{path}/*.plist"].any?
-  end
+  def plist_installed?; Dir["#{path}/*.plist"].any?; end
 
-  def python_site_packages_installed?
-    path.join("lib", "python2.7", "site-packages").directory?
-  end
+  def python_site_packages_installed?; (path/'lib/python2.7/site-packages').directory?; end
 
-  def python_pth_files_installed?
-    Dir["#{path}/lib/python2.7/site-packages/*.pth"].any?
-  end
+  def python_pth_files_installed?; Dir["#{path}/lib/python2.7/site-packages/*.pth"].any?; end
 
-  def app_installed?
-    Dir["#{path}/{,libexec/}*.app"].any?
-  end
+  def app_installed?; Dir["#{path}/{,libexec/}*.app"].any?; end
 
-  def elisp_installed?
-    Dir["#{path}/share/emacs/site-lisp/**/*.el"].any?
-  end
+  def elisp_installed?; Dir["#{path}/share/emacs/site-lisp/**/*.el"].any?; end
 
   def version
     require "pkg_version"
     PkgVersion.parse(path.basename.to_s)
   end
 
-  def find(*args, &block)
-    path.find(*args, &block)
-  end
+  def find(*args, &block); path.find(*args, &block); end
 
   def oldname_opt_record
-    @oldname_opt_record ||= if (opt_dir = HOMEBREW_PREFIX/"opt").directory?
-      opt_dir.subdirs.detect do |dir|
-        dir.symlink? && dir != opt_record && path.parent == dir.resolved_path.parent
-      end
-    end
-  end
+    @oldname_opt_record ||= \
+      OPTDIR.subdirs.detect do |dir|
+        dir.symlink? and dir != opt_record and path.parent == dir.resolved_path.parent
+      end if OPTDIR.directory?
+  end # oldname_opt_record
 
   def link(mode = OpenStruct.new)
     raise AlreadyLinkedError.new(self) if linked_keg_record.directory?
@@ -357,7 +323,7 @@ class Keg
     raise
   else
     ObserverPathnameExtension.total
-  end
+  end # link
 
   def remove_oldname_opt_record
     return unless oldname_opt_record
@@ -365,33 +331,27 @@ class Keg
     @oldname_opt_record.unlink
     @oldname_opt_record.parent.rmdir_if_possible
     @oldname_opt_record = nil
-  end
+  end # remove_oldname_opt_record
 
   def optlink(mode = OpenStruct.new)
     opt_record.delete if opt_record.symlink? || opt_record.exist?
     make_relative_symlink(opt_record, path, mode)
-
     if oldname_opt_record
       oldname_opt_record.delete
       make_relative_symlink(oldname_opt_record, path, mode)
     end
-  end
+  end # optlink
 
-  def delete_pyc_files!
-    find { |pn| pn.delete if pn.extname == ".pyc" }
-  end
+  def delete_pyc_files!; find { |pn| pn.delete if pn.extname == ".pyc" }; end
 
   private
 
   def resolve_any_conflicts(dst, mode)
     return unless dst.symlink?
-
     src = dst.resolved_path
-
     # src itself may be a symlink, so check lstat to ensure we are dealing with
     # a directory, and not a symlink pointing at a directory (which needs to be
     # treated as a file). In other words, we only want to resolve one symlink.
-
     begin
       stat = src.lstat
     rescue Errno::ENOENT
@@ -399,7 +359,6 @@ class Keg
       dst.unlink unless mode.dry_run
       return
     end
-
     if stat.directory?
       begin
         keg = Keg.for(src)
@@ -407,35 +366,31 @@ class Keg
         puts "Won't resolve conflicts for symlink #{dst} as it doesn't resolve into the Cellar" if VERBOSE
         return
       end
-
       dst.unlink unless mode.dry_run
       keg.link_dir(src, mode) { :mkpath }
       return true
     end
-  end
+  end # resolve_any_conflicts
 
   def make_relative_symlink(dst, src, mode)
     if dst.symlink? && src == dst.resolved_path
       puts "Skipping; link already exists: #{dst}" if VERBOSE
       return
     end
-
-    # cf. git-clean -n: list files to delete, don't really link or delete
-    if mode.dry_run && mode.overwrite
-      if dst.symlink?
-        puts "#{dst} -> #{dst.resolved_path}"
-      elsif dst.exist?
-        puts dst
-      end
-      return
-    end
-
-    # list all link targets
     if mode.dry_run
+      # cf. git-clean -n: list files to delete, don't really link or delete
+      if mode.overwrite
+        if dst.symlink?
+          puts "#{dst} -> #{dst.resolved_path}"
+        elsif dst.exist?
+          puts dst
+        end
+        return
+      end # is mode “overwrite”?
+      # list all link targets
       puts dst
       return
     end
-
     dst.delete if mode.overwrite && (dst.exist? || dst.symlink?)
     dst.make_relative_symlink(src)
   rescue Errno::EEXIST => e
@@ -444,12 +399,12 @@ class Keg
     elsif dst.symlink?
       dst.unlink
       retry
-    end
+    end # is dst real?
   rescue Errno::EACCES => e
     raise DirectoryNotWritableError.new(self, src.relative_path_from(path), dst, e)
   rescue SystemCallError => e
     raise LinkError.new(self, src.relative_path_from(path), dst, e)
-  end
+  end # make_relative_symlink
 
   protected
 
@@ -501,5 +456,5 @@ class Keg
         end
       end
     end
-  end
-end
+  end # link_dir
+end # Keg
