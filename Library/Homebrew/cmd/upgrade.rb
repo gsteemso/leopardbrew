@@ -62,15 +62,15 @@ module Homebrew
     fi.ignore_deps         = ARGV.ignore_deps?
     fi.only_deps           = ARGV.only_deps?
     fi.build_from_source   = ARGV.build_from_source?
-    fi.build_bottle        = ARGV.build_bottle? or (not(f.bottled?) and tab.build_bottle?)
+    fi.build_bottle        = ARGV.build_bottle?
     fi.force_bottle        = ARGV.force_bottle?
-    fi.interactive         = ARGV.interactive?
+    fi.interactive         = ARGV.interactive? or ARGV.git?
     fi.git                 = ARGV.git?
-    fi.verbose             = VERBOSE
+    fi.verbose             = VERBOSE or QUIETER
     fi.quieter             = QUIETER
     fi.debug               = DEBUG
     fi.prelude
-    fi.install  # if successful, this renames the new keg into its installed prefix
+    fi.install
   rescue FormulaInstallationAlreadyAttemptedError
     # next
   rescue CannotInstallFormulaError => e
@@ -82,14 +82,14 @@ module Homebrew
   ensure
     # Restore the previous installation state if the build failed.
     unless f.installed?
-      if f.cprefix.exists?
-        oh1 "Cleaning up failed #{f.cprefix}" if DEBUG
-        ignore_interrupts { f.cprefix.rmtree }
+      if f.prefix.exists?
+        oh1 "Cleaning up failed #{f.prefix}" if DEBUG
+        ignore_interrupts { f.prefix.rmtree }
       end
       ignore_interrupts { previously_linked.link } if previously_linked
     end rescue nil
   else
-    fi.finish
+    fi.finish  # this links the new keg
 
     # If the formula was pinned and we were force-upgrading it, unpin and
     # pin it again to get a symlink pointing to the correct keg.
