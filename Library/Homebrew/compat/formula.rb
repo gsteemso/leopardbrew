@@ -23,10 +23,10 @@ class Formula
   def self.bottle_sha1(*)
   end
 
-  def self.all
-    opoo "Formula.all is deprecated, use Formula.map instead"
-    map
-  end
+#  def self.all
+#    opoo "Formula.all is deprecated, use Formula.map instead"
+#    map
+#  end
 
   def self.canonical_name(name)
     Formulary.canonical_name(name)
@@ -54,11 +54,11 @@ class Formula
     {}
   end
 
-  def python(_options = {}, &block)
-    opoo "Formula#python is deprecated and will go away shortly."
-    block.call if block_given?
-    PythonRequirement.new
-  end
-  alias_method :python2, :python
-  alias_method :python3, :python
+#  def python(_options = {}, &block)
+#    opoo "Formula#python is deprecated and will go away shortly."
+#    block.call if block_given?
+#    PythonRequirement.new
+#  end
+#  alias_method :python2, :python
+#  alias_method :python3, :python
 end
