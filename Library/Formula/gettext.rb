@@ -7,9 +7,8 @@ class Gettext < Formula
   # use NLS (internationalization) without forming a dependency loop.  It’s also much smaller.
   sha256 "caa44aed29c9b4900f1a401d68f6599a328a3744569484dc95f62081e80ad6cb"
 
-  unless MacOS.version <= :leopard  # what Mac OS version would be correct here?
-    keg_only :shadowed_by_osx, "OS X has the BSD gettext library; some software is confused if both are in the library path"
-  end
+  # Neither gettext nor libintl are included with any version of Mac OS!  Why did they think this
+  # needed to be keg‐only?
 
   option :universal
   option 'without-tests', 'Skip the self‐testing (not recommended for a first install)'
