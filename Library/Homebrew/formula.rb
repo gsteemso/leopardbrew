@@ -1011,7 +1011,6 @@ class Formula
   # @private
   def test; end
 
-  # @private
   def test_fixtures(file); (HOMEBREW_LIBRARY_PATH/'test/fixtures')/file; end
 
   # This method is overriden in {Formula} subclasses to provide the installation instructions.
