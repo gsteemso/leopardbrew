@@ -83,7 +83,8 @@ module Homebrew
       previously_linked = Keg.new(f.linked_keg.resolved_path)
       previously_linked.unlink
     end
-    ignore_interrupts { (previously_installed = Keg.new tab.tabfile.parent).rename }
+    previously_installed = Keg.new(tab.tabfile.parent)
+    ignore_interrupts { previously_installed.rename }
 
     fi = FormulaInstaller.new(f)
     fi.options             = options
@@ -99,7 +100,8 @@ module Homebrew
     fi.debug               = DEBUG
     fi.prelude
     fi.install
-
+    fi.finish  # this links the new keg
+    fi.insinuate
   rescue FormulaInstallationAlreadyAttemptedError
     # next
   rescue Exception
@@ -112,9 +114,7 @@ module Homebrew
     ignore_interrupts { previously_linked.link } if previously_linked
     raise
   else
-    fi.finish  # this links the new keg
-    fi.insinuate
-    # if either of these throws an exception, they’ll just have to handle it themselves
+    ignore_interrupts { previously_installed.root.rmtree }
   end # reinstall_formula
 
   def blenderize_options(use_opts, formula)

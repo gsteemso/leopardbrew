@@ -3,7 +3,6 @@ class Keg
   CELLAR_PLACEHOLDER = "@@HOMEBREW_CELLAR@@".freeze
 
   def fix_install_names
-    installing_path = installed_path.to_s + INSTALL_EXTENSION
     mach_o_files.each do |file|
       file.ensure_writable do
         change_dylib_id(dylib_id_for(file), file) if file.dylib?

@@ -358,12 +358,16 @@ class FormulaInstaller
     df = dep.to_formula
     tab = Tab.for_formula(df)
     # this correctly unlinks things even if a different version is linked
+    previously_linked = nil
     if df.linked_keg.directory?
       previously_linked = Keg.new(df.linked_keg.resolved_path)
       previously_linked.unlink
     end
-    ignore_interrupts { (previously_installed = Keg.new(df.spec_prefix tss)).rename } \
-                                                        if df.installed?(tss = tab[:source][:spec])
+    previously_installed = nil
+    if df.installed?(tss = tab[:source][:spec])
+      previously_installed = Keg.new(df.spec_prefix tss)
+      ignore_interrupts { previously_installed.rename }
+    end
     fi = DependencyInstaller.new(df)
     fi.options           |= tab.used_options
     fi.options           |= Tab.remap_deprecated_options(df.deprecated_options, dep.options)
@@ -374,6 +378,7 @@ class FormulaInstaller
     fi.prelude
     oh1 "Installing #{formula.full_name} dependency: #{Tty.green}#{dep.name}#{Tty.reset}"
     fi.install
+    fi.finish  # this links the new keg
   rescue Exception
     # leave no trace of the failed installation
     if df.prefix.exists?
@@ -381,14 +386,15 @@ class FormulaInstaller
       ignore_interrupts { df.prefix.rmtree }
     end
     ignore_interrupts { previously_installed.rename } if previously_installed
-    ignore_interrupts { previously_linked.link } if previously_linked
+    previously_linked.link if previously_linked
     raise
   else
-    src = Tab.for_keg(previously_installed.root)[:source]
-    Formulary.factory(src[:path], src[:spec]).uninsinuate rescue nil
-    previously_installed.root.rmtree
-    fi.finish  # this links the new keg
-    fi.insinuate
+    if previously_installed
+      src = Tab.for_keg(previously_installed.root)[:source]
+      Formulary.factory(src[:path], src[:spec]).uninsinuate rescue nil
+      previously_installed.root.rmtree
+    end
+    df.insinuate
   end # install_dependency
 
   def caveats

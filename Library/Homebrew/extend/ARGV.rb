@@ -122,7 +122,7 @@ module HomebrewArgvExtension
       rackname = rack.basename
       raise NoSuchKegError.new(rackname) if dirs.empty?
       ss = f.active_spec_sym
-      raise NoSuchKegError.new(rackname/sip.basename) unless (sip = f.spec_iprefix(ss)).directory?
+      raise NoSuchKegError.new(rackname/sip.basename) unless (sip = f.spec_prefix(ss)).directory?
       if f.installed?(ss)
         Keg.new(sip)
       elsif (var = f.opt_prefix).symlink? and var.directory?
@@ -131,8 +131,8 @@ module HomebrewArgvExtension
         Keg.new(var.resolved_path)
       elsif dirs.length == 1
         Keg.new(dirs.first)
-      elsif f.iprefix.directory?
-        Keg.new(f.iprefix)
+      elsif f.prefix.directory?
+        Keg.new(f.prefix)
       else
         raise MultipleVersionsInstalledError.new(rackname)
       end

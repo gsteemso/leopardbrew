@@ -80,8 +80,8 @@ class Keg
     mime-info pixmaps sounds
   ]
 
-  # During reïnstallations, the new keg must have a temporary name in order for the old one to
-  # remain in service – otherwise, it becomes impossible to reïnstall anything used during brewing.
+  # During reïnstallations, the old keg must be temporarily renamed in order to remain in service –
+  # otherwise, it becomes impossible to reïnstall anything used during brewing.
   REINSTALL_SUFFIX = '.being_reinstalled'
 
   # if path is a file in a keg then this will return the containing Keg object
@@ -140,7 +140,7 @@ class Keg
   private
 
   def reinstall_nameflip
-    (path.extname == REINSTALL_SUFFIX) ? (path.dirname/path.basename REINSTALL_SUFFIX).to_s : "#{path.to_s}#{REINSTALL_SUFFIX}"
+    (path.extname == REINSTALL_SUFFIX) ? (path.dirname/path.basename(REINSTALL_SUFFIX)).to_s : "#{path.to_s}#{REINSTALL_SUFFIX}"
   end
 
   public
