@@ -20,13 +20,13 @@ class Python3 < Formula
 
   skip_clean 'bin/pip3', 'bin/pip-3.4', 'bin/pip-3.5', 'bin/pip-3.6', 'bin/pip-3.7', 'bin/pip-3.10'
 
-  # Enable PPC‐only universal builds.
-  # Homebrew's tcl-tk is built in a standard unix fashion (due to link errors)
-  # so we have to stop python from searching for frameworks and linking against
-  # X11.
-  # Add Support for OS X before 10.6
-  # from macports/lang/python310/files/patch-threadid-older-systems.diff
-  # and macports/lang/python310/files/patch-no-copyfile-on-Tiger.diff
+  # - Enable PPC‐only universal builds.
+  # - Homebrew's tcl-tk is built in standard unix fashion (due to link errors)
+  #   so we have to stop python from searching for frameworks and linking
+  #   against X11.
+  # - Add Support for OS X before 10.6
+  #   from macports/lang/python310/files/patch-threadid-older-systems.diff
+  #   and macports/lang/python310/files/patch-no-copyfile-on-Tiger.diff
   patch :p0, :DATA
 
   # setuptools remembers the build flags python is built with and uses them to
@@ -121,21 +121,14 @@ class Python3 < Formula
     # Any .app get a “ 3” attached, so it does not conflict with python 2.x.
     Dir.glob(prefix/'*.app') { |app| mv app, app.sub('.app', ' 3.app') }
 
-    # A fix, because python and python3 both want to install Python.framework
-    # and therefore we can't link both into HOMEBREW_PREFIX/Frameworks
-    # https://github.com/Homebrew/homebrew/issues/15943
-    ['Headers', 'Python', 'Resources'].each { |f| rm frameworks/"Python.framework/#{f}" }
-    rm frameworks/'Python.framework/Versions/Current'
-
     # Symlink the pkgconfig files into HOMEBREW_PREFIX so they're accessible.
-    (lib/'pkgconfig').install_symlink Dir[frameworks/"Python.framework/Versions/#{xy}/lib/pkgconfig/*"]
+    (lib/'pkgconfig').install_symlink Dir[cellar_framework/'lib/pkgconfig/*']
 
     # No need to remove 2to3 – while python2 includes it, the python 2 formula already deletes it
     # rm bin/'2to3'
 
-    # Remove the site-packages that Python created in its Cellar.  We keep them in HOMEBREW_PREFIX
-    # so they will survive small Python upgrades (e.g. 3.10.14 → 3.10.15).
-    (frameworks/"Python.framework/Versions/#{xy}/lib/python#{xy}/site-packages").rmtree
+    # Remove the site-packages that Python created in its Cellar.  See below in post_install.
+    cellar_site_packages.rmtree
 
     # Install unversioned symlinks in libexec/bin.
     { 'idle' => 'idle3',
@@ -145,18 +138,13 @@ class Python3 < Formula
     }.each do |unversioned_name, versioned_name|
       (libexec/'bin').install_symlink (bin/versioned_name).realpath => unversioned_name
     end
-  end
+  end # install
 
   def post_install
     ENV.delete 'PYTHONPATH'
 
-    site_packages = HOMEBREW_PREFIX/"lib/python#{xy}/site-packages"
-    cellar_framework = frameworks/"Python.framework/Versions/#{xy}"
-    cellar_site_packages = cellar_framework/"lib/python#{xy}/site-packages"
-
-    # Fix up the site-packages so that user-installed Python software survives
-    # minor updates, such as going from 3.3.2 to 3.3.3:
-    # Create a site-packages in HOMEBREW_PREFIX/lib/python#{xy}/site-packages
+    # Create a site-packages in HOMEBREW_PREFIX/lib/python#{xy}/site-packages so that user‐
+    # installed Python software survives minor updates, such as going from 3.3.2 to 3.3.3:
     site_packages.mkpath
     # Symlink it into the cellar
     cellar_site_packages.rmtree if cellar_site_packages.exists?
@@ -165,8 +153,8 @@ class Python3 < Formula
     # redo the Pip3 install, which gets smurfed up by the site-packages shenanigans above
     system bin/'python3', '-m', 'ensurepip', '--upgrade'
 
-    # upgrade pip and the setuptools it dragged in
-    ['pip', 'setuptools', 'wheel'].each do |pkg|
+    # upgrade the stuff pip dragged in
+    ['setuptools', 'wheel'].each do |pkg|
       system bin/'pip3', 'install', '--force-reinstall', '--upgrade', '--no-warn-script-location', pkg
     end
     rm_rf cellar_framework/'bin/pip'
@@ -176,6 +164,11 @@ class Python3 < Formula
     # Write our sitecustomize.py
     rm_rf Dir[site_packages/'sitecustomize.py[co]']
     (site_packages/'sitecustomize.py').atomic_write(sitecustomize)
+
+    # Fix up the LINKFORSHARED configuration variable
+    inreplace Dir[cellar_framework/"lib/python#{xy}/_sysconfigdata_*.py"],
+              %r{('LINKFORSHARED':\s+'.+?(?:'\n\s+')?)(Python.framework/Versions/#{xy}/Python',)},
+              "\\1#{opt_frameworks}/\\2"
 
     # Install unversioned symlinks in libexec/bin.
     { 'pip' => 'pip3',
@@ -205,7 +198,13 @@ class Python3 < Formula
       include_dirs=#{include_dirs.join ':'}
       library_dirs=#{library_dirs.join ':'}
     EOS
-  end
+  end # post_install
+
+  def cellar_framework; frameworks/"Python.framework/Versions/#{xy}"; end
+
+  def cellar_site_packages; cellar_framework/"lib/python#{xy}/site-packages"; end
+
+  def site_packages; HOMEBREW_PREFIX/"lib/python#{xy}/site-packages"; end
 
   def xy; XY; end
 
@@ -247,27 +246,27 @@ class Python3 < Formula
           # Set the sys.executable to use the opt_prefix
           sys.executable = '#{opt_bin}/python#{xy}'
     EOS
-  end
+  end # sitecustomize
 
   def caveats
     text = <<-EOS.undent
       Python is installed as
-        #{HOMEBREW_PREFIX}/bin/python3
+          #{HOMEBREW_PREFIX}/bin/python3
 
       Unversioned symlinks `python`, `python-config`, `pip` etc. pointing to
       `python3`, `python3-config`, `pip3` etc., respectively, are installed into
-        #{opt_libexec}/bin
+          #{opt_libexec}/bin
 
-      If you need Homebrew’s Python 2.7 run
-        brew install python
+      If you need Leopardbrew’s Python 2.7 run
+          brew install python
 
       Pip and wheel are installed. To update them run
-        pip3 install --upgrade pip wheel
+          pip3 install --upgrade pip wheel
 
       You can install Python packages with
-        pip3 install <package>
+          pip3 install <package>
       They will install into the site-package directory
-        #{HOMEBREW_PREFIX/"lib/python#{xy}/site-packages"}
+          #{HOMEBREW_PREFIX/"lib/python#{xy}/site-packages"}
 
       See: https://docs.brew.sh/Homebrew-and-Python
     EOS
@@ -279,7 +278,7 @@ class Python3 < Formula
     EOS
 
     text
-  end
+  end # caveats
 
   test do
     # Check if sqlite is ok, because we build with --enable-loadable-sqlite-extensions
@@ -288,8 +287,8 @@ class Python3 < Formula
     # Check if some other modules import. Then the linked libs are working.
     system bin/"python#{xy}", '-c', 'import tkinter; root = tkinter.Tk()'
     system bin/'pip3', 'list'
-  end
-end
+  end # test
+end # Python3
 
 __END__
 --- configure	2024-09-06 17:20:06 -0700
