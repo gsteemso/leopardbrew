@@ -272,7 +272,7 @@ class Formula
           formula_renames.to_a.rassoc(name).first
         end
       end
-    oh1 "Formula #{name}’s old name was #{@oldname}" if DEBUG and @oldname
+      puts "Formula #{name}’s old name was #{@oldname}" if DEBUG and @oldname
 
     @oldname
   end # oldname
@@ -721,8 +721,8 @@ class Formula
   def lock
     @lock = FormulaLock.new(name)
     @lock.lock
-    if oldname && (oldname_rack = HOMEBREW_CELLAR/oldname).exist? && oldname_rack.resolved_path == rack
-      @oldname_lock = FormulaLock.new(oldname)
+    if (on = oldname) and (on_rack = HOMEBREW_CELLAR/on).exists? and on_rack.resolved_path == rack
+      @oldname_lock = FormulaLock.new(on)
       @oldname_lock.lock
     end
   end # lock
