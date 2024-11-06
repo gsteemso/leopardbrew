@@ -21,8 +21,6 @@ class Python < Formula
     depends_on 'sphinx-doc' => [:build, :optional]
   end
 
-  deprecated_option 'quicktest' => 'with-quicktest'
-
   depends_on 'pkg-config' => :build
   depends_on 'openssl'
   depends_on 'tcl-tk'
@@ -49,11 +47,11 @@ class Python < Formula
   def pour_bottle
     reason <<-EOS.undent
       The bottle needs the Apple Command Line Tools to be installed.
-        You can install them, if desired, with:
+      You can install them, if desired, with:
           xcode-select --install
     EOS
     satisfy { MacOS::CLT.installed? }
-  end
+  end # pour_bottle
 
   def install
     # Unset these so that installing pip and setuptools puts them where we want
@@ -153,11 +151,18 @@ class Python < Formula
     # Prevent third-party packages from building against fragile Cellar paths
     inreplace [cellar_framework/'lib/python2.7/_sysconfigdata.py',
                cellar_framework/'lib/python2.7/config/Makefile',
-               frameworks/'Python.framework/Versions/Current/lib/pkgconfig/python-2.7.pc'],
+               cellar_framework/'lib/pkgconfig/python-2.7.pc'],
               prefix, opt_prefix
 
+    # A fix, because python and python3 both want to install Python.framework
+    # and therefore we can't link both into HOMEBREW_PREFIX/Frameworks
+    # https://github.com/Homebrew/homebrew/issues/15943
+    # In 2024, Python 3 is the norm; thus, remove these from Python rather than from Python3
+    ['Headers', 'Python', 'Resources'].each { |f| rm frameworks/"Python.framework/#{f}" }
+    rm frameworks/'Python.framework/Versions/Current'
+
     # Symlink the pkgconfig files into HOMEBREW_PREFIX so they're accessible.
-    (lib/'pkgconfig').install_symlink Dir[frameworks/'Python.framework/Versions/Current/lib/pkgconfig/*']
+    (lib/'pkgconfig').install_symlink Dir[cellar_framework/'lib/pkgconfig/*']
 
     # Remove 2to3 because Python 3 also installs it
     rm bin/'2to3'
@@ -171,7 +176,7 @@ class Python < Formula
         doc.install Dir['build/html/*']
       end
     end
-  end
+  end # install
 
   def post_install
     # Avoid conflicts with lingering unversioned files from Python 3
@@ -203,7 +208,7 @@ class Python < Formula
     rm_rf Dir["#{site_packages}/distribute*"]
     rm_rf Dir["#{site_packages}/pip[-_.][0-9]*", "#{site_packages}/pip"]
 
-    # (Re‐)install pip (and setuptools) and wheel, which would have gotten smurfed up by the site‐
+    # (Re‐)install pip (and setuptools) and wheel, which will have gotten smurfed up by the site‐
     # packages shenanigans above
     system bin/'python', '-m', 'ensurepip', '--upgrade'
     ['pip', 'setuptools'].each do |pkg|
@@ -233,7 +238,7 @@ class Python < Formula
       include_dirs=#{include_dirs.join ':'}
       library_dirs=#{library_dirs.join ':'}
     EOS
-  end
+  end # post_install
 
   def cellar_framework; frameworks/'Python.framework/Versions/2.7/'; end
 
@@ -288,21 +293,21 @@ class Python < Formula
           # Set the sys.executable to use the opt_prefix
           sys.executable = '#{opt_bin}/python2.7'
     EOS
-  end
+  end # sitecustomize
 
   def caveats; <<-EOS.undent
       Pip and setuptools are installed. To update them
-        pip install --upgrade pip setuptools
+          pip install --upgrade pip setuptools
 
       You can install Python packages with
-        pip install <package>
+          pip install <package>
 
       They will install into the site-package directory
-        #{site_packages}
+          #{site_packages}
 
       See: https://docs.brew.sh/Homebrew-and-Python
     EOS
-  end
+  end # caveats
 
   test do
     # Check if sqlite is ok, because we build with --enable-loadable-sqlite-extensions
@@ -311,8 +316,8 @@ class Python < Formula
     # Check if some other modules import. Then the linked libs are working.
     system cellar_framework/'bin/python2.7', '-c', 'import Tkinter; root = Tkinter.Tk()'
     system cellar_framework/'bin/pip', 'list', '--format=columns'
-  end
-end
+  end # test
+end # Python
 
 __END__
 --- old/configure	2020-04-19 14:13:39 -0700
