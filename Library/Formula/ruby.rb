@@ -1,145 +1,84 @@
 class Ruby < Formula
-  desc "Powerful, clean, object-oriented scripting language"
-  homepage "https://www.ruby-lang.org/"
-  url "https://cache.ruby-lang.org/pub/ruby/2.4/ruby-2.4.1.tar.bz2"
-  sha256 "ccfb2d0a61e2a9c374d51e099b0d833b09241ee78fc17e1fe38e3b282160237c"
-  revision 1
+  desc 'Held at version 2.4 of the scripting language, required to build more modern versions'
+  homepage 'https://www.ruby-lang.org/'
+  url 'https://cache.ruby-lang.org/pub/ruby/2.4/ruby-2.4.10.tar.xz'
+  sha256 'd5668ed11544db034f70aec37d11e157538d639ed0d0a968e2f587191fc530df'
 
-  bottle do
-  end
-
-  head do
-    url "http://svn.ruby-lang.org/repos/ruby/trunk/"
-    depends_on "autoconf" => :build
-  end
+  RV = '2.4'
 
   option :universal
-  option "with-suffix", "Suffix commands with '24'"
-  option "with-doc", "Install documentation"
-  option "with-tcltk", "Install with Tcl/Tk support"
 
-  depends_on "pkg-config" => :build
-  depends_on "readline" => :recommended
-  depends_on "gdbm" => :optional
-  depends_on "gmp" => :optional
-  depends_on "libffi" => :optional
-  depends_on "libyaml"
-  depends_on "openssl"
-  depends_on :x11 if build.with? "tcltk"
+  depends_on 'pkg-config' => :build
 
-  if true# MacOS.version <= :leopard
-    # fix for https://bugs.ruby-lang.org/issues/11054
-    patch do
-      url "https://github.com/ruby/ruby/commit/1c80c388d5bd48018c419a2ea3ed9f7b7514dfa3.patch?full_index=1"
-      sha256 "8ba0a24a36702d2cbc94aa73cb6f0b11793348b0158c11c8608e073c71601bb5"
-    end
+  depends_on 'gdbm'
+  depends_on 'gmp'
+  depends_on 'libffi'
+  depends_on 'libyaml'
+  depends_on 'openssl'
+  depends_on 'readline'
+  depends_on :x11
 
-    # fix for https://bugs.ruby-lang.org/issues/13247
-    patch do
-      url "https://github.com/ruby/ruby/commit/9e1a9858c84142e32b1bc51b23fa06a025f98b46.patch?full_index=1"
-      sha256 "300f13461385804ddfb314d9b0880bb47ad4f53f48209681d193a800418c31e6"
-    end
-
-    # fix for ext/fiddle/libffi-3.2.1/src/x86/win32.S
-    # based on https://github.com/macports/macports-ports/blob/8964c98f0e33e4aaabc851d8b684f4c709edceef/devel/libffi/files/PR-44170.patch
-    patch :DATA
-  end
-
-  # fails_with :llvm do
-  #   build 2326
-  # end
+  # fix for ext/fiddle/libffi-3.2.1/src/x86/win32.S
+  # based on https://github.com/macports/macports-ports/blob/8964c98f0e33e4aaabc851d8b684f4c709edceef/devel/libffi/files/PR-44170.patch
+  patch :DATA
 
   def install
-    # mcontext types had a member named `ss` instead of `__ss`
-    # prior to Leopard; see
-    # https://github.com/mistydemeo/tigerbrew/issues/473
-    if Hardware::CPU.intel? && MacOS.version < :leopard
-      inreplace "signal.c" do |s|
-        s.gsub! "->__ss.", "->ss."
-        s.gsub! "__rsp", "rsp"
-        s.gsub! "__rbp", "rbp"
-        s.gsub! "__esp", "esp"
-        s.gsub! "__ebp", "ebp"
-      end
-
-      inreplace "vm_dump.c" do |s|
-        s.gsub! /uc_mcontext->__(ss)\.__(r\w\w)/,
-                "uc_mcontext->\1.\2"
-        s.gsub! "mctx->__ss.__##reg",
-                "mctx->ss.reg"
-        # missing include in vm_dump; this is an ugly solution
-        s.gsub! '#include "iseq.h"',
-                %{#include "iseq.h"\n#include <ucontext.h>}
-      end
-    end
-
-    system "autoconf" if build.head?
-
-    args = %W[
-      --prefix=#{prefix} --enable-shared --disable-silent-rules
-      --with-sitedir=#{HOMEBREW_PREFIX}/lib/ruby/site_ruby
-      --with-vendordir=#{HOMEBREW_PREFIX}/lib/ruby/vendor_ruby
+    args = [
+      "--prefix=#{prefix}",
+      "--program-suffix=-#{RV}",
+      '--disable-dependency-tracking',
+      '--enable-debug-env',  # this enables an environment variable, not a debug build
+      '--enable-load-relative',
+      '--with-mantype=man',
+      '--enable-shared',
+      '--disable-silent-rules',
+      "--with-sitedir=#{HOMEBREW_PREFIX}/lib/ruby/site_ruby",
+      "--with-vendordir=#{HOMEBREW_PREFIX}/lib/ruby/vendor_ruby",
+#      'CFLAGS=-force_cpusubtype_ALL'
     ]
 
     if build.universal?
       ENV.universal_binary
-      args << "--with-arch=#{Hardware::CPU.universal_archs.join(",")}"
+      args << "--with-arch=#{Hardware::CPU.universal_archs.join(',')}"
     end
 
-    args << "--program-suffix=24" if build.with? "suffix"
-    args << "--with-out-ext=tk" if build.without? "tcltk"
-    args << "--disable-install-doc" if build.without? "doc"
-    args << "--disable-dtrace" unless MacOS::CLT.installed?
-    args << "--without-gmp" if build.without? "gmp"
+    args << '--disable-dtrace' unless MacOS::CLT.installed?
 
-    # Reported upstream: https://bugs.ruby-lang.org/issues/10272
-    args << "--with-setjmp-type=setjmp" if MacOS.version == :lion
+    # Older Darwins do not implement this function as Ruby expects, and are missing at least one
+    # definition in the header as well.
+    args << 'ac_cv_func_fcopyfile=no' if MacOS.version < :snow_leopard  # is this the right cutoff?
 
-    paths = [
-      Formula["libyaml"].opt_prefix,
-      Formula["openssl"].opt_prefix
-    ]
+    system './configure', *args
 
-    %w[readline gdbm gmp libffi].each do |dep|
-      paths << Formula[dep].opt_prefix if build.with? dep
+    # Ruby has been configured to look in the HOMEBREW_PREFIX for the sitedir and vendordir
+    # directories; however we don't actually want to create them during the install, after which
+    # they are empty anyway.  sitedir is used for non-rubygems third‐party libraries, and
+    # vendordir is used for packager-provided libraries.
+    inreplace 'tool/rbinstall.rb' do |s|
+      s.gsub! 'prepare "extension scripts", sitelibdir', ''
+      s.gsub! 'prepare "extension scripts", vendorlibdir', ''
+      s.gsub! 'prepare "extension objects", sitearchlibdir', ''
+      s.gsub! 'prepare "extension objects", vendorarchlibdir', ''
     end
 
-    args << "--with-opt-dir=#{paths.join(":")}"
-
-    system "./configure", *args
-
-    # Ruby has been configured to look in the HOMEBREW_PREFIX for the
-    # sitedir and vendordir directories; however we don't actually want to create
-    # them during the install.
-    #
-    # These directories are empty on install; sitedir is used for non-rubygems
-    # third party libraries, and vendordir is used for packager-provided libraries.
-    inreplace "tool/rbinstall.rb" do |s|
-      s.gsub! 'prepare "extension scripts", sitelibdir', ""
-      s.gsub! 'prepare "extension scripts", vendorlibdir', ""
-      s.gsub! 'prepare "extension objects", sitearchlibdir', ""
-      s.gsub! 'prepare "extension objects", vendorarchlibdir', ""
-    end
-
-    system "make"
-    system "make", "install"
-  end
+    system 'make'
+    system 'make', 'update-gems'
+    system 'make', 'extract-gems'
+    system 'make', 'install'
+  end # install
 
   def post_install
-    # Customize rubygems to look/install in the global gem directory
-    # instead of in the Cellar, making gems last across reinstalls
+    # Customize rubygems to look/install in the global gem directory instead of in the Cellar,
+    # making gems last across reinstalls:
     config_file = lib/"ruby/#{abi_version}/rubygems/defaults/operating_system.rb"
     config_file.unlink if config_file.exist?
     config_file.write rubygems_config
+    # Create the sitedir and vendordir that were skipped during install:
+    mkdir_p `#{bin}/ruby-#{RV} -e 'require "rbconfig"; print RbConfig::CONFIG["sitearchdir"]'`
+    mkdir_p `#{bin}/ruby-#{RV} -e 'require "rbconfig"; print RbConfig::CONFIG["vendorarchdir"]'`
+  end # post_install
 
-    # Create the sitedir and vendordir that were skipped during install
-    mkdir_p `#{bin}/ruby -e 'require "rbconfig"; print RbConfig::CONFIG["sitearchdir"]'`
-    mkdir_p `#{bin}/ruby -e 'require "rbconfig"; print RbConfig::CONFIG["vendorarchdir"]'`
-  end
-
-  def abi_version
-    "2.2.0"
-  end
+  def abi_version; "#{RV}.0"; end
 
   def rubygems_config; <<-EOS.undent
     module Gem
@@ -148,73 +87,46 @@ class Ruby < Formula
         alias :old_default_path :default_path
         alias :old_default_bindir :default_bindir
         alias :old_ruby :ruby
-      end
 
-      def self.default_dir
-        path = [
-          "#{HOMEBREW_PREFIX}",
-          "lib",
-          "ruby",
-          "gems",
-          "#{abi_version}"
-        ]
+        def default_dir; @default_dir ||= "#{HOMEBREW_PREFIX}/lib/ruby/gems/#{abi_version}"; end
 
-        @default_dir ||= File.join(*path)
-      end
-
-      def self.private_dir
-        path = if defined? RUBY_FRAMEWORK_VERSION then
-                 [
-                   File.dirname(RbConfig::CONFIG['sitedir']),
-                   'Gems',
-                   RbConfig::CONFIG['ruby_version']
-                 ]
-               elsif RbConfig::CONFIG['rubylibprefix'] then
-                 [
-                  RbConfig::CONFIG['rubylibprefix'],
-                  'gems',
-                  RbConfig::CONFIG['ruby_version']
-                 ]
-               else
-                 [
-                   RbConfig::CONFIG['libdir'],
-                   ruby_engine,
-                   'gems',
-                   RbConfig::CONFIG['ruby_version']
-                 ]
-               end
-
-        @private_dir ||= File.join(*path)
-      end
-
-      def self.default_path
-        if Gem.user_home && File.exist?(Gem.user_home)
-          [user_dir, default_dir, private_dir]
-        else
-          [default_dir, private_dir]
+        def private_dir; @private_dir ||= \
+          if defined? RUBY_FRAMEWORK_VERSION
+            [ File.dirname(RbConfig::CONFIG['sitedir']), 'Gems', RbConfig::CONFIG['ruby_version'] ]
+          elsif RbConfig::CONFIG['rubylibprefix']
+            [ RbConfig::CONFIG['rubylibprefix'],         'gems', RbConfig::CONFIG['ruby_version'] ]
+          else
+            [ RbConfig::CONFIG['libdir'],   ruby_engine, 'gems', RbConfig::CONFIG['ruby_version'] ]
+          end
         end
-      end
 
-      def self.default_bindir
-        "#{HOMEBREW_PREFIX}/bin"
-      end
+        def default_path
+          if Gem.user_home and File.exist?(Gem.user_home)
+            [user_dir, default_dir, private_dir]
+          else
+            [default_dir, private_dir]
+          end
+        end
 
-      def self.ruby
-        "#{opt_bin}/ruby#{"24" if build.with? "suffix"}"
+        def default_bindir; "#{HOMEBREW_PREFIX}/bin"; end
+
+        def ruby; "#{opt_bin}/ruby-#{RV}"; end
       end
     end
     EOS
-  end
+  end # rubygems_config
 
   test do
-    output = `#{bin}/ruby -e "puts 'hello'"`
-    assert_equal "hello\n", output
-    assert_equal 0, $?.exitstatus
-  end
-end
+    for_archs bin/"ruby-#{RV}" do |a|
+      arch_cmd = (a.nil? ? '' : "arch -arch #{a.to_s} ")
+      assert_equal "hello\n", shell_output("#{arch_cmd}#{bin}/ruby-#{RV} -e 'puts \"hello\"'")
+    end
+  end # test
+end # Ruby
+
 __END__
---- a/ext/fiddle/libffi-3.2.1/src/x86/win32.S	2017-04-04 11:14:27.000000000 +0200
-+++ b/ext/fiddle/libffi-3.2.1/src/x86/win32.S	2017-04-04 11:16:20.000000000 +0200
+--- a/ext/fiddle/libffi-3.2.1/src/x86/win32.S	2017-04-04 11:14:27 +0200
++++ b/ext/fiddle/libffi-3.2.1/src/x86/win32.S	2017-04-04 11:16:20 +0200
 @@ -528,7 +528,7 @@
          .text
   
