@@ -667,7 +667,6 @@ class FormulaInstaller
     @show_summary_heading = true
   end # post_install
 
-  # this is called while the formula is using the construction prefix, not the installed one
   def pour
     if Homebrew::Hooks::Bottles.formula_has_bottle?(formula)
       return if Homebrew::Hooks::Bottles.pour_formula_bottle(formula)
