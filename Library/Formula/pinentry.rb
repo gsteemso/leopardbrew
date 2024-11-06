@@ -22,6 +22,8 @@ class Pinentry < Formula
                           '--disable-pinentry-gnome3',
                           '--disable-pinentry-gtk2',
                           '--disable-pinentry-qt4'
+    system 'make'
+#    system 'make', 'check'  # This doesn’t actually do anything.
     system 'make', 'install'
   end
 

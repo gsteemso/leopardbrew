@@ -16,6 +16,8 @@ class Ntbtls < Formula
                           '--disable-dependency-tracking',
                           '--disable-silent-rules',
                           '--enable-static'
+    system 'make'
+#    system 'make', 'check'  # this doesn’t actually do anything
     system 'make', 'install'
   end
 end
