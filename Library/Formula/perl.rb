@@ -22,22 +22,32 @@ class Perl < Formula
   option 'with-dtrace', 'Build with DTrace probes' if MacOS.version >= :leopard
   option 'with-tests', 'Run the build-test suite (fails on ppc64 when built with older GCCs)'
 
+  if (build.with?('tests') or build.bottle?) and (build.universal? or
+                                                     (MacOS.prefer_64_bit? and Hardware::CPU.ppc?))
+    fails_with :gcc
+    fails_with :gcc_4_0
+  end
+
   # installperl:  .packlist files are sometimes created without write permissions (undocumented)
   # t/04-xs-rpath-darwin.t:  Need Darwin 9 minimum
   #   see https://github.com/Perl-Toolchain-Gang/ExtUtils-MakeMaker/pull/446
-  #   ″  :  Dummy library build needs to match Perl build, especially on 64-bit (undocumented)
+  # (same file):  Dummy library build needs to match bit width(s) of Perl build (undocumented)
   patch :DATA unless build.head?
 
   def install
+    if (f = Formula['curl']).installed?
+      ENV.prepend_path 'PATH', f.opt_bin    # Without this, extension modules will try to use
+    end                                     # system curl, failing messily due to its obsolescence.
+
     if build.universal?
       ENV.permit_arch_flags if superenv?
-      ENV.un_m64 if Hardware::CPU.family == :g5_64
       archs = Hardware::CPU.universal_archs
       stashdir = buildpath/'arch-stashes'
     else
       archs = [MacOS.preferred_arch]
     end # universal?
 
+    # set installation directories for pure‐Perl extensions to the shared location $HOMEBREW_PREFIX
     args = %W[
       -des
       -Dprefix=#{prefix}
@@ -47,10 +57,12 @@ class Perl < Formula
       -Dman1dir=#{man1}
       -Dman3dir=#{man3}
       -Dman3ext=3pl
-      -Dsitelib=#{lib}/site_perl
-      -Dsitearch=#{lib}/site_perl
-      -Dsiteman1dir=#{man1}
-      -Dsiteman3dir=#{man3}
+      -Dsitebin=#{HOMEBREW_PREFIX}/site_perl/bin
+      -Dsitescript=#{HOMEBREW_PREFIX}/site_perl/bin
+      -Dsitelib=#{HOMEBREW_PREFIX}/site_perl/lib
+      -Dsitearch=#{lib}
+      -Dsiteman1dir=#{HOMEBREW_PREFIX}/site_perl/man1
+      -Dsiteman3dir=#{HOMEBREW_PREFIX}/site_perl/man3
       -Dperladmin=none
       -Dstartperl='\#!#{opt_bin}/perl'
       -Duseshrplib
@@ -62,15 +74,7 @@ class Perl < Formula
     args << '-Dusedtrace' if build.with? 'dtrace'
 
     archs.each do |arch|
-      case arch
-        when :ppc, :i386 then bitness = 32; ENV.m32
-        when :ppc64, :x86_64 then bitness = 64; ENV.m64
-      end
-
-      arch_args = %W[
-        -Acppflags=-m#{bitness}
-      ]
-      if bitness == 64
+      if arch == :ppc64 or arch == :x86_64
         arch_args << '-Duse64bitall'
       elsif Hardware::CPU.family == :g5 or Hardware::CPU.family == :g5_64
         arch_args << '-Duse64bitint'
@@ -78,36 +82,30 @@ class Perl < Formula
 
       system './Configure', *args, *arch_args
       system 'make'
-      system 'make', 'test' if build.with?('tests') || build.bottle?
+      system 'make', 'test' if build.with?('tests') or build.bottle?
       system 'make', 'install'
 
       if build.universal?
         ENV.deparallelize { system 'make', 'veryclean' }
         Merge.scour_keg(prefix, stashdir/"bin-#{arch}")
-        # undo architecture-specific tweaks before next run
-        case bitness
-          when 32 then ENV.un_m32
-          when 64 then ENV.un_m64
-        end # case bitness
       end # universal?
     end # each |arch|
 
     Merge.binaries(prefix, stashdir, archs) if build.universal?
   end # install
 
-  def caveats
-    the_text = <<-EOS.undent
+  def caveats; <<-EOS.undent
       By default Perl installs modules in your HOME dir. If this is an issue run:
         `#{bin}/cpan o conf init`
-      and tell it to put them in, for example, #{opt_lib}/site_perl instead.
+      and tell it to put them in, for example, #{HOMEBREW_PREFIX}/site_perl instead.
+
+      Perl will take advantage of brewed cURL, if it is present.  If it is _not_
+      present, the system `curl` will be used by those extension modules that require
+      it; on older Mac OSes, this will fail messily in use, due to its obsolescence.
+      (Due to a circular dependency, a newer cURL cannot be automatically brewed for
+      you.  If you have extension modules which require a newer cURL, it must be
+      brewed separately, and then Perl reïnstalled.)
     EOS
-    the_text += <<-_.undent if (build.with?('tests') and Hardware::CPU.ppc? and (build.universal? or MacOS.prefer_64_bit?))
-      Perl is known to fail one test (t/io/sem) when built for 64-bit PowerPC.  This
-      failure, being expected, is ignored.  However, any other errors that may occur
-      also get ignored.  You must check the test summary produced during compilation
-      to verify that no other failures took place.
-    _
-    the_text
   end # caveats
 
   test do
@@ -118,32 +116,6 @@ class Perl < Formula
 end # Perl
 
 class Merge
-  module Pathname_extension
-    def is_bare_mach_o?
-      def got_valid_mach_o_header?(words)
-        # header word 0, magic signature:
-        #   MH_MAGIC    = 'feedface' – value with lowest‐order bit clear
-        #   MH_MAGIC_64 = 'feedfacf' – same value with lowest‐order bit set
-        # low‐order 24 bits of header word 1, CPU type:  7 is x86, 12 is ARM, 18 is PPC
-        # header word 3, file type:  no types higher than 10 are defined
-        # header word 5, net size of load commands, is far smaller than the filesize
-        raise('Fat binary found where bare Mach-O file expected') if words[0] == 0xcafebabe
-        ((words[0] & 0xfffffffe == 0xfeedface) and
-          [7, 12, 18].detect { |item| words[1] & 0x00ffffff == item } and
-          words[3] < 11 and
-          words[5] < self.size)
-      end # got_valid_mach_o_header?
-      self.file? and (not self.symlink?) and
-        (self.size >= 28 and
-          got_valid_mach_o_header?(self.binread(24).unpack('N6'))) or
-        (self.binread(8) == "!<arch>\x0a" and self.size >= 72 and
-          (self.binread(16, 8) !~ %r|^#1/\d+|   and
-            got_valid_mach_o_header?(self.binread(24, 68).unpack('N6'))) or
-          (self.binread(16, 8) =~ %r|^#1/(\d+)| and
-            got_valid_mach_o_header?(self.binread(24, 68+($1.to_i)).unpack('N6'))))
-    end unless method_defined?(:is_bare_mach_o?)
-  end # Pathname_extension
-
   class << self
     include FileUtils
 
@@ -160,7 +132,7 @@ class Merge
         if pn.directory?
           scour_keg(keg_prefix, stash_root, spb)
         # the number of things that look like Mach-O files but aren’t is horrifying, so test
-        elsif ((not pn.symlink?) and pn.is_bare_mach_o?)
+        elsif not(pn.symlink?) and (pn.mach_o_signature_at?(0) or pn.ar_sigseek_from 0)
           cp pn, stash_root/spb
         end # what is pn?
       end # each pathname
