@@ -126,7 +126,15 @@ module Homebrew
       end
     end # whinge_re_unrecognized
 
+    d_o_list = formula.deprecated_options
     anti_opts = Options.new
+    use_opts.each do |o|
+      if (ix = d_o_list.find_index { |d_o| d_o.old == o.name })
+        o = Option.new(d_o_list[ix].current)
+      elsif not formula.option_defined?(o)
+        anti_opts << o
+      end
+    end
     ARGV.effective_formula_flags.each do |flag|
       flag =~ /^--([^=]+=?)(.+)?$/
       o = Option.new($1)
