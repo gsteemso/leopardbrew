@@ -17,10 +17,11 @@ class Gnupg < Formula
   depends_on 'libksba'
   depends_on 'npth'
   depends_on 'ntbtls'
+  depends_on 'openssh' # for one of the tests – older systems may have an outdated ssh-add program
   depends_on 'pinentry'
   depends_on 'readline'
   depends_on 'sqlite'
-  depends_on 'libusb' => :recommended
+  depends_on 'libusb' => :optional
   depends_on 'gnutls' => :optional
 
   patch :DATA
@@ -37,16 +38,11 @@ class Gnupg < Formula
         '--enable-g13',
         '--disable-ldap',  # Leopard stock LDAP predates some of the expected functions
         '--disable-silent-rules',
-        '--disable-tests'  # hopefully this will stop it from trying to run its faulty Scheme
       ]
       args << '--disable-gnutls' if build.without? 'gnutls'
       system '../configure', *args
       system 'make'
-      begin
-        system 'make', 'check'
-      rescue
-        # `make check` WILL crash due to faulty Scheme interpreter, but we want to keep going
-      end
+      system 'make', 'check'
       system 'make', 'install'
     end
   end
