@@ -42,7 +42,7 @@ class SoftwareSpec
     @deprecated_options = []
     @build = BuildOptions.new(Options.create(@flags), options)
     @compiler_failures = []
-  end
+  end # SoftwareSpec.initialize
 
   def owner=(owner)
     @name = owner.name
@@ -55,7 +55,7 @@ class SoftwareSpec
       r.version ||= version
     end
     patches.each { |p| p.owner = self }
-  end
+  end # owner=
 
   def url(val = nil, specs = {})
     return @resource.url if val.nil?
@@ -86,7 +86,7 @@ class SoftwareSpec
     else
       bottle_specification.instance_eval(&block)
     end
-  end
+  end # bottle
 
   def resource_defined?(name)
     resources.key?(name)
@@ -101,7 +101,7 @@ class SoftwareSpec
     else
       resources.fetch(name) { raise ResourceMissingError.new(owner, name) }
     end
-  end
+  end # resource
 
   def go_resource(name, &block)
     resource name, Resource::Go, &block
@@ -124,7 +124,7 @@ class SoftwareSpec
       Option.new(name, description)
     end
     options << opt
-  end
+  end # option
 
   def deprecated_option(hash)
     raise ArgumentError, "deprecated_option hash must not be empty" if hash.empty?
@@ -134,17 +134,15 @@ class SoftwareSpec
         d_o = DeprecatedOption.new(old_optstring, new_optstring)
         deprecated_options << d_o
 
-        old_flag = d_o.old_flag
-        new_flag = d_o.current_flag
-        if @flags.include? old_flag
-          @flags -= [old_flag]
-          @flags |= [new_flag]
+        if @flags.include? d_o.old_flag
+          @flags -= [d_o.old_flag]
+          @flags |= [d_o.current_flag]
           @deprecated_actuals << d_o
         end
         @build.fix_deprecation(d_o)  # does nothing unless the old flag is actually present
       end
     end
-  end
+  end # deprecated_option
 
   def depends_on(spec)
     dep = dependency_collector.add(spec)
@@ -187,8 +185,8 @@ class SoftwareSpec
     elsif dep.recommended? && !option_defined?("without-#{name}")
       options << Option.new("without-#{name}", "Build without #{name} support")
     end
-  end
-end
+  end # add_dep_option
+end # SoftwareSpec
 
 class HeadSoftwareSpec < SoftwareSpec
   def initialize
@@ -199,7 +197,7 @@ class HeadSoftwareSpec < SoftwareSpec
   def verify_download_integrity(_fn)
     nil
   end
-end
+end # HeadSoftwareSpec
 
 class Bottle
   class Filename
@@ -215,7 +213,7 @@ class Bottle
       @version = version
       @tag = tag
       @revision = revision
-    end
+    end # Bottle::Filename.initialize
 
     def to_s
       prefix + suffix
@@ -229,7 +227,7 @@ class Bottle
       s = revision > 0 ? ".#{revision}" : ""
       ".bottle#{s}.tar.gz"
     end
-  end
+  end # Bottle::Filename
 
   extend Forwardable
 
@@ -254,7 +252,7 @@ class Bottle
     @prefix = spec.prefix
     @cellar = spec.cellar
     @revision = spec.revision
-  end
+  end # Bottle.initialize
 
   def compatible_cellar?
     @spec.compatible_cellar?
@@ -274,7 +272,7 @@ class Bottle
   def build_url(root_url, filename)
     "#{root_url}/#{filename}"
   end
-end
+end # Bottle
 
 class BottleSpecification
   DEFAULT_PREFIX = "/usr/local".freeze
@@ -291,7 +289,7 @@ class BottleSpecification
     @prefix = DEFAULT_PREFIX
     @cellar = DEFAULT_CELLAR
     @collector = BottleCollector.new
-  end
+  end # BottleSpecification.initialize
 
   def root_url(var = nil)
     if var.nil?
@@ -299,7 +297,7 @@ class BottleSpecification
     else
       @root_url = var
     end
-  end
+  end # root_url
 
   def compatible_cellar?
     [:any, :any_skip_relocation, HOMEBREW_CELLAR.to_s].any? { |c| cellar == c }
@@ -321,7 +319,7 @@ class BottleSpecification
       digest, tag = val.shift
       collector[tag] = Checksum.new(cksum, digest)
     end
-  end
+  end # each Checksum::TYPES |cksum|
 
   def checksum_for(tag)
     collector.fetch_checksum_for(tag)
@@ -338,5 +336,5 @@ class BottleSpecification
       checksums[checksum.hash_type] << { checksum => osx }
     end
     checksums
-  end
-end
+  end # checksums
+end # BottleSpecification
