@@ -19,7 +19,6 @@ class LibgpgError < Formula
     ENV.append_to_cflags '-D__DARWIN_UNIX03' if MacOS.version == :tiger
     system './configure', "--prefix=#{prefix}",
                           '--disable-dependency-tracking',
-                          '--enable-install-gpg-error-config',
                           '--disable-silent-rules',
                           '--enable-static',
                           '--enable-threads',
@@ -37,7 +36,7 @@ end
 
 __END__
 --- old/src/spawn-posix.c	2024-06-19 00:33:41 -0700
-+++ new/src/spawn-posix.c	2024-10-02 18:34:07.000000000 -0700
++++ new/src/spawn-posix.c	2024-10-02 18:34:07 -0700
 @@ -36,6 +36,7 @@
  # include <signal.h>
  #endif
