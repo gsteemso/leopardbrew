@@ -78,25 +78,19 @@ module MacCPUs
     end
   end
 
-  def extmodel
-    sysctl_int("machdep.cpu.extmodel")
-  end
+  def extmodel; sysctl_int("machdep.cpu.extmodel"); end
 
-  def cores
-    sysctl_int("hw.ncpu")
-  end
+  def cores; sysctl_int("hw.ncpu"); end
 
-  def bits
-    sysctl_bool("hw.cpu64bit_capable") ? 64 : 32
-  end
+  def bits; sysctl_bool("hw.cpu64bit_capable") ? 64 : 32; end
 
-  def arch_32_bit
-    intel? ? :i386 : :ppc
-  end
+  def arch_32_bit; intel? ? :i386 : :ppc; end
 
-  def arch_64_bit
-    intel? ? :x86_64 : :ppc64
-  end
+  def arch_64_bit; intel? ? :x86_64 : :ppc64; end
+
+  def _32b_archs; [:i386, :ppc]; end
+
+  def _64b_archs; [:ppc64, :x86_64]; end
 
   # Returns an array that's been extended with ArchitectureListExtension,
   # which provides helpers like #as_arch_flags and #as_cmake_arch_flags.
@@ -132,47 +126,27 @@ module MacCPUs
     ).split(" ").map { |s| s.downcase.to_sym }
   end
 
-  def aes?
-    sysctl_bool("hw.optional.aes")
-  end
+  def aes?; sysctl_bool("hw.optional.aes"); end
 
-  def altivec?
-    sysctl_bool("hw.optional.altivec")
-  end
+  def altivec?; sysctl_bool("hw.optional.altivec"); end
 
-  def avx?
-    sysctl_bool("hw.optional.avx1_0")
-  end
+  def avx?; sysctl_bool("hw.optional.avx1_0"); end
 
-  def avx2?
-    sysctl_bool("hw.optional.avx2_0")
-  end
+  def avx2?; sysctl_bool("hw.optional.avx2_0"); end
 
-  def sse3?
-    sysctl_bool("hw.optional.sse3")
-  end
+  def sse3?; sysctl_bool("hw.optional.sse3"); end
 
-  def ssse3?
-    sysctl_bool("hw.optional.supplementalsse3")
-  end
+  def ssse3?; sysctl_bool("hw.optional.supplementalsse3"); end
 
-  def sse4?
-    sysctl_bool("hw.optional.sse4_1")
-  end
+  def sse4?; sysctl_bool("hw.optional.sse4_1"); end
 
-  def sse4_2?
-    sysctl_bool("hw.optional.sse4_2")
-  end
+  def sse4_2?; sysctl_bool("hw.optional.sse4_2"); end
 
   private
 
-  def sysctl_bool(key)
-    sysctl_int(key) == 1
-  end
+  def sysctl_bool(key); sysctl_int(key) == 1; end
 
-  def sysctl_int(key)
-    sysctl_n(key).to_i
-  end
+  def sysctl_int(key); sysctl_n(key).to_i; end
 
   def sysctl_n(*keys)
     (@properties ||= {}).fetch(keys) do
