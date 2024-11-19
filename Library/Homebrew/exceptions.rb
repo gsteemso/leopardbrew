@@ -206,37 +206,21 @@ class BuildError < RuntimeError
     @env = env
     args = args.map { |arg| arg.to_s.gsub " ", "\\ " }.join(" ")
     super "Failed executing: #{cmd} #{args}"
-  end
+  end # initialize
 
-  def issues
-    @issues ||= fetch_issues
-  end
+  def issues; @issues ||= fetch_issues; end
 
   def fetch_issues
     GitHub.issues_for_formula(formula.name)
   rescue GitHub::RateLimitExceededError => e
     opoo e.message
     []
-  end
+  end # fetch_issues
 
   def dump
-    if !VERBOSE
-      puts
-      puts "#{Tty.red}READ THIS#{Tty.reset}: #{Tty.em}#{OS::ISSUES_URL}#{Tty.reset}"
-      if formula.tap?
-        case formula.tap
-        when "homebrew/homebrew-boneyard"
-          puts "#{formula} was moved to homebrew-boneyard because it has unfixable issues."
-          puts "Please do not file any issues about this. Sorry!"
-        else
-          puts "If reporting this issue please do so at (not mistydemeo/tigerbrew):"
-          puts "  https://github.com/#{formula.tap}/issues"
-        end
-      end
-    else
+    if VERBOSE
       require "cmd/config"
       require "cmd/--env"
-
       ohai "Formula"
       puts "Tap: #{formula.tap}" if formula.tap?
       puts "Path: #{formula.path}"
@@ -250,19 +234,30 @@ class BuildError < RuntimeError
         puts "Logs:"
         puts logs.map { |fn| "     #{fn}" }.join("\n")
       end
-    end
+    else # not VERBOSE
+      puts "\n#{Tty.red}READ THIS#{Tty.reset}: #{Tty.em}#{ISSUES_URL}#{Tty.reset}"
+      if formula.tap?
+        case formula.tap
+          when "homebrew/homebrew-boneyard"
+            puts "#{formula} was moved to homebrew-boneyard because it has unfixable issues."
+            puts "Please do not file any issues about this. Sorry!"
+          else
+            puts "If reporting this issue please do so not at the address above, but rather at"
+            puts "  https://github.com/#{formula.tap}/issues"
+        end
+      end
+    end # VERBOSE?
     puts
     if RUBY_VERSION >= "1.8.7" && issues && issues.any?
       puts "These open issues may also help:"
       puts issues.map { |i| "#{i["title"]} #{i["html_url"]}" }.join("\n")
     end
-
     if MacOS.version >= "10.11"
       require "cmd/doctor"
       opoo Checks.new.check_for_unsupported_osx
     end
-  end
-end
+  end # dump
+end # BuildError
 
 # raised by FormulaInstaller.check_dependencies_bottled and
 # FormulaInstaller.install if the formula or its dependencies are not bottled
@@ -305,7 +300,7 @@ class BuildToolsError < RuntimeError
     super <<-EOS.undent
       The following #{formula_text}:
         #{formulae.join(", ")}
-      cannot be installed as a #{package_text} and must be built from source.
+      cannot be installed as #{package_text} and must be built from source.
       #{xcode_text}
     EOS
   end
