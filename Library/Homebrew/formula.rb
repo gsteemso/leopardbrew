@@ -454,8 +454,8 @@ class Formula
   #
   # No `make install` available?
   # <pre>man1.install "example.1"</pre>
-  [1..8].each do |n|
-    define_method("man#{n}") { man/"man#{n}" }
+  1.upto(8).each do |n|
+    define_method("man#{n}".to_sym) { man/"man#{n}" }
   end
 
   # The directory where the formula's `sbin` binaries should be installed.
