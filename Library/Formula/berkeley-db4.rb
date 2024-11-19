@@ -22,7 +22,6 @@ class BerkeleyDb4 < Formula
 
     if build.universal?
       ENV.permit_arch_flags if superenv?
-      ENV.un_m64 if Hardware::CPU.family == :g5_64
       archs = Hardware::CPU.universal_archs
       stashdir = buildpath/'arch-stashes'
       the_binaries = %w[
@@ -58,12 +57,7 @@ class BerkeleyDb4 < Formula
     ]
 
     archs.each do |arch|
-      if build.universal?
-        case arch
-          when :i386, :ppc then ENV.m32
-          when :ppc64, :x86_64 then ENV.m64
-        end
-      end # universal?
+      ENV.append_to_cflags "-arch #{arch}" if build.universal?
 
       # BerkeleyDB requires you to build everything from a build subdirectory
       cd 'build_unix' do
@@ -74,11 +68,8 @@ class BerkeleyDb4 < Formula
         if build.universal?
           system 'make', 'clean'
           Merge.prep(prefix, stashdir/"bin-#{arch}", the_binaries)
-          # undo architecture-specific tweaks before next run
-          case arch
-            when :i386, :ppc then ENV.un_m32
-            when :ppc64, :x86_64 then ENV.un_m64
-          end # case arch
+          # undo architecture-specific tweak before next run
+          ENV.remove_from_cflags "-arch #{arch}"
         end # universal?
       end # cd build_unix
     end # each |arch|
@@ -87,7 +78,7 @@ class BerkeleyDb4 < Formula
   end # install
 
   test do
-    system bin/'db_stat', '-V'
+    arch_system bin/'db_stat', '-V'
   end # test
 end # BerkeleyDb4
 

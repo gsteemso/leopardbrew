@@ -10,7 +10,6 @@ class Mpg123 < Formula
   def install
     if build.universal?
       ENV.permit_arch_flags if superenv?
-      ENV.un_m64 if Hardware::CPU.family == :g5_64
       archs = Hardware::CPU.universal_archs
       stashdir = buildpath/'arch-stashes'
       the_binaries = %w[
@@ -44,12 +43,7 @@ class Mpg123 < Formula
     ]
 
     archs.each do |arch|
-      if build.universal?
-        case arch
-          when :i386, :ppc then ENV.m32
-          when :ppc64, :x86_64 then ENV.m64
-        end
-      end # universal?
+      ENV.append_to_cflags "-arch #{arch}" if build.universal?
 
       case arch
         when :i386 then arch_args = ['--with-cpu=x86']  # include it all, could be Hackintosh or VM
@@ -62,13 +56,10 @@ class Mpg123 < Formula
       system 'make', 'install'
 
       if build.universal?
-        system 'make', 'clean'
+        system 'make', 'distclean'
         Merge.prep(prefix, stashdir/"bin-#{arch}", the_binaries)
-        # undo architecture-specific tweaks before next run
-        case arch
-          when :i386, :ppc then ENV.un_m32
-          when :ppc64, :x86_64 then ENV.un_m64
-        end # case arch
+        # undo architecture-specific tweak before next run
+        ENV.remove_from_cflags "-arch #{arch}"
       end # universal?
     end # each |arch|
 
@@ -76,7 +67,7 @@ class Mpg123 < Formula
   end # install
 
   test do
-    system bin/'mpg123', test_fixtures('test.mp3')
+    arch_system bin/'mpg123', test_fixtures('test.mp3')
   end
 end # Mpg123
 

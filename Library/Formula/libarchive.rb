@@ -21,7 +21,6 @@ class Libarchive < Formula
   def install
     if build.universal?
       ENV.permit_arch_flags if superenv?
-      ENV.un_m64 if Hardware::CPU.family == :g5_64
       archs = Hardware::CPU.universal_archs
       stashdir = buildpath/'arch-stashes'
       the_binaries = %w[
@@ -37,12 +36,7 @@ class Libarchive < Formula
     end # universal?
 
     archs.each do |arch|
-      if build.universal?
-        case arch
-          when :i386, :ppc then ENV.m32
-          when :ppc64, :x86_64 then ENV.m64
-        end
-      end # universal?
+      ENV.append_to_cflags "-arch #{arch}" if build.universal?
 
     system "./configure", "--prefix=#{prefix}",
                           "--disable-dependency-tracking",
@@ -54,16 +48,14 @@ class Libarchive < Formula
                           "--without-expat",
                           "ac_cv_header_sys_queue_h=no" # Use its up‐to‐date copy to obtain STAILQ_FOREACH
       system 'make'
+      system 'make', 'check'  # verify this
       system "make", "install"
 
       if build.universal?
-        system 'make', 'clean'
+        system 'make', 'distclean'
         Merge.prep(prefix, stashdir/"bin-#{arch}", the_binaries)
-        # undo architecture-specific tweaks before next run
-        case arch
-          when :i386, :ppc then ENV.un_m32
-          when :ppc64, :x86_64 then ENV.un_m64
-        end # case arch
+        # undo architecture-specific tweak before next run
+        ENV.remove_from_cflags "-arch #{arch}"
       end # universal?
     end # each |arch|
 
@@ -71,33 +63,17 @@ class Libarchive < Formula
   end # install
 
   test do
-    (testpath/"test").write("test")
-    system bin/"bsdtar", "-czvf", "test.tar.gz", "test"
-    assert_match /test/, shell_output("#{bin}/bsdtar -xOzf test.tar.gz")
+    (testpath/'test').write('test')
+    for_archs bin/'bsdtar' do |a|
+      arch_cmd = (a.nil? ? [] : ['arch', '-arch', a.to_s])
+      system *arch_cmd, "#{bin}/bsdtar", '-czvf', 'test.tar.gz', 'test'
+      assert_match /test/, shell_output("#{bin}/bsdtar -xOzf test.tar.gz")
+      rm 'test.tar.gz'
+    end
   end # test
 end # Libarchive
 
 class Merge
-  module Pathname_extension
-    def is_bare_mach_o?
-      # header word 0, magic signature:
-      #   MH_MAGIC    = 'feedface' – value with lowest‐order bit clear
-      #   MH_MAGIC_64 = 'feedfacf' – same value with lowest‐order bit set
-      # low‐order 24 bits of header word 1, CPU type:  7 is x86, 12 is ARM, 18 is PPC
-      # header word 3, file type:  no types higher than 10 are defined
-      # header word 5, net size of load commands, is far smaller than the filesize
-      if (self.file? and self.size >= 28 and mach_header = self.binread(24).unpack('N6'))
-        raise('Fat binary found where bare Mach-O file expected') if mach_header[0] == 0xcafebabe
-        ((mach_header[0] & 0xfffffffe) == 0xfeedface and
-          [7, 12, 18].detect { |item| (mach_header[1] & 0x00ffffff) == item } and
-          mach_header[3] < 11 and
-          mach_header[5] < self.size)
-      else
-        false
-      end
-    end unless method_defined?(:is_bare_mach_o?)
-  end # Pathname_extension
-
   class << self
     include FileUtils
 
