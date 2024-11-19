@@ -1,17 +1,17 @@
 class Openssl3 < Formula
-  desc "Cryptography and SSL/TLS Toolkit"
-  homepage "https://openssl.org/"
-  url "https://openssl.org/source/openssl-3.3.1.tar.gz"
-  sha256 "777cd596284c883375a2a7a11bf5d2786fc5413255efab20c50d6ffe6d020b7e"
-  license "Apache-2.0"
+  desc 'Cryptography and SSL/TLS Toolkit'
+  homepage 'https://openssl.org/'
+  url 'https://openssl.org/source/openssl-3.3.1.tar.gz'
+  sha256 '777cd596284c883375a2a7a11bf5d2786fc5413255efab20c50d6ffe6d020b7e'
+  license 'Apache-2.0'
 
   option :universal
   option 'without-tests', 'Skip the self-test procedure (not recommended for a first install)'
 
   keg_only :provided_by_osx
 
-  depends_on "curl-ca-bundle"
-  depends_on "perl"
+  depends_on 'curl-ca-bundle'
+  depends_on 'perl'
 
   def arg_format(arch)
     case arch
@@ -26,19 +26,18 @@ class Openssl3 < Formula
     # Build breaks passing -w
     ENV.enable_warnings if ENV.compiler == :gcc_4_0
     # Leopard and newer have the crypto framework
-    ENV.append_to_cflags "-DOPENSSL_NO_APPLE_CRYPTO_RANDOM" if MacOS.version == :tiger
+    ENV.append_to_cflags '-DOPENSSL_NO_APPLE_CRYPTO_RANDOM' if MacOS.version == :tiger
     # This could interfere with how we expect OpenSSL to build.
-    ENV.delete("OPENSSL_LOCAL_CONFIG_DIR")
+    ENV.delete('OPENSSL_LOCAL_CONFIG_DIR')
     # This ensures where Homebrew's Perl is needed the Cellar path isn't
     # hardcoded into OpenSSL's scripts, causing them to break every Perl update.
     # Whilst our env points to opt_bin, by default OpenSSL resolves the symlink.
-    ENV["PERL"] = Formula["perl"].opt_bin/"perl" if which("perl") == Formula["perl"].opt_bin/"perl"
+    ENV['PERL'] = Formula['perl'].opt_bin/'perl' if which('perl') == Formula['perl'].opt_bin/'perl'
 
     if build.universal?
       ENV.permit_arch_flags if superenv?
-      ENV.un_m64 if Hardware::CPU.family == :g5_64
       archs = Hardware::CPU.universal_archs
-      stashdir = 'arch-stashes'
+      stashdir = buildpath/'arch-stashes'
       the_binaries = %w[
         bin/openssl
         lib/engines-3/capi.dylib
@@ -54,65 +53,59 @@ class Openssl3 < Formula
       ]
     else
       archs = [MacOS.preferred_arch]
-    end
+    end # universal?
 
     openssldir.mkpath
 
+    args = [
+      "--prefix=#{prefix}",
+      "--openssldir=#{openssldir}",
+      'no-atexit',  # maybe this will stop the segfaults?
+      'no-legacy',  # for no apparent reason, the legacy provider fails `make test`
+      'enable-trace',
+      'zlib-dynamic'
+    ]
+    args << 'sctp' if MacOS.version > :leopard  # pre‐Snow Leopard lacks these system headers
+    args << 'enable-brotli-dynamic' if Formula['brotli'].installed?
+    args << 'enable-zstd-dynamic' if Formula['zstd'].installed?
+    # No {get,make,set}context support before Leopard
+    args << 'no-async' if MacOS.version < :leopard
+
     archs.each do |arch|
-      if build.universal?
-        case arch
-          when :i386, :ppc then ENV.m32
-          when :x86_64, :ppc64 then ENV.m64
-        end
-      end
+      ENV.append_to_cflags "-arch #{arch}" if build.universal?
 
-      configure_args = [
-        "--prefix=#{prefix}",
-        "--openssldir=#{openssldir}",
+      arch_args = [
         arg_format(arch),
-        'no-atexit',  # maybe this will stop the segfaults?
-        'no-legacy',  # for no apparent reason, the legacy provider fails `make test`
-#       'sctp',  # can't do SCTP because Mac OS 10.4–10.5 don’t have the system headers etc. for it
-        'enable-trace',
-        'zlib-dynamic'
       ]
-      configure_args << 'enable-brotli-dynamic' if Formula['brotli'].installed?
-      configure_args << 'enable-zstd-dynamic' if Formula['zstd'].installed?
       # the assembly routines don’t work right on Tiger or on 32‐bit PowerPC G5
-      is_32b_G5 = (arch == :ppc and (Hardware::CPU.family == :g5 or Hardware::CPU.family == :g5_64))
-      configure_args << "no-asm" if (MacOS.version < :leopard or is_32b_G5)
-      # No {get,make,set}context support before Leopard
-      configure_args << "no-async" if MacOS.version < :leopard
+      arch_args << 'no-asm' if MacOS.version < :leopard or (arch == :ppc and Hardware::CPU.model == :g5)
 
-      system "perl", "./Configure", *configure_args
-      system "make"
-      system "make", "test" if build.with? 'tests'
-      system "make", "install", "MANSUFFIX=ssl"
+      system 'perl', './Configure', *args, *arch_args
+      system 'make'
+      system 'make', 'test' if build.with? 'tests'
+      system 'make', 'install', 'MANSUFFIX=ssl'
 
       if build.universal?
-        system 'make', 'clean'
-        Merge.prep(prefix, buildpath/"arch-stashes/bin-#{arch}", the_binaries)
-        Merge.prep(include, buildpath/"arch-stashes/h-#{arch}", the_headers)
-        # undo architecture-specific tweaks before next run
-        case arch
-          when :i386, :ppc then ENV.un_m32
-          when :ppc64, :x86_64 then ENV.un_m64
-        end # case arch
+        system 'make', 'distclean'
+        Merge.prep(prefix, stashdir/"bin-#{arch}", the_binaries)
+        Merge.prep(include, stashdir/"h-#{arch}", the_headers)
+        # undo architecture-specific tweak before next run
+        ENV.remove_from_cflags "-arch #{arch}"
       end # universal?
-    end # archs.each
+    end # each |arch|
     if build.universal?
-      Merge.mach_o(prefix, stashdir, archs)
+      Merge.binaries(prefix, stashdir, archs)
       Merge.c_headers(include, stashdir, archs)
     end # universal?
   end # install
 
   def openssldir
-    etc/"openssl@3"
+    etc/'openssl@3'
   end
 
   def post_install
-    rm_f openssldir/"cert.pem"
-    openssldir.install_symlink Formula["curl-ca-bundle"].opt_share/"ca-bundle.crt" => "cert.pem"
+    rm_f openssldir/'cert.pem'
+    openssldir.install_symlink Formula['curl-ca-bundle'].opt_share/'ca-bundle.crt' => 'cert.pem'
   end
 
   def caveats
@@ -131,16 +124,19 @@ class Openssl3 < Formula
 
   test do
     # Make sure the necessary .cnf file exists, otherwise OpenSSL gets moody.
-    assert_predicate openssldir/"openssl.cnf", :exist?,
-            "OpenSSL requires the .cnf file for some functionality"
+    assert_predicate openssldir/'openssl.cnf', :exist?,
+            'OpenSSL requires the .cnf file for some functionality'
 
     # Check OpenSSL itself functions as expected.
-    (testpath/"testfile.txt").write("This is a test file")
-    expected_checksum = "e2d0fe1585a63ec6009c8016ff8dda8b17719a637405a4e23c0ff81339148249"
-    system bin/"openssl", "dgst", "-sha256", "-out", "checksum.txt", "testfile.txt"
-    open("checksum.txt") do |f|
-      checksum = f.read(100).split("=").last.strip
-      assert_equal checksum, expected_checksum
+    (testpath/'testfile.txt').write('This is a test file')
+    expected_checksum = 'e2d0fe1585a63ec6009c8016ff8dda8b17719a637405a4e23c0ff81339148249'
+    for_archs bin/'openssl' do |a|
+      arch_cmd = (a.nil? ? [] : ['arch', '-arch', a.to_s])
+      system *arch_cmd, bin/'openssl', 'dgst', '-sha256', '-out', 'checksum.txt', 'testfile.txt'
+      open('checksum.txt') do |f|
+        checksum = f.read(100).split('=').last.strip
+        assert_equal checksum, expected_checksum
+      end
     end
   end # test
 end # Openssl3
@@ -155,10 +151,42 @@ class Merge
       list.each do |item|
         source = keg_prefix/item
         dest = stash_root/item
-        mkpath dest.parent
-        cp source, dest
+        cp_mkp source, dest
       end # each binary
-    end # prep
+    end # Merge.prep
+
+    # The keg_prefix is expected to be a Pathname object.  The rest are just strings.
+    def binaries(keg_prefix, stash_root, archs, sub_path = '')
+      # don’t suffer a double slash when sub_path is null:
+      s_p = (sub_path == '' ? '' : sub_path + '/')
+      # generate a full list of files, even if some are not present on all architectures; bear in
+      # mind that the current _directory_ may not even exist on all archs
+      basename_list = []
+      arch_dirs = archs.map {|a| "bin-#{a}"}
+      arch_dir_list = arch_dirs.join(',')
+      Dir["#{stash_root}/{#{arch_dir_list}}/#{s_p}*"].map { |f|
+        File.basename(f)
+      }.each { |b|
+        basename_list << b unless basename_list.count(b) > 0
+      }
+      basename_list.each do |b|
+        spb = s_p + b
+        the_arch_dir = arch_dirs.detect { |ad| File.exist?("#{stash_root}/#{ad}/#{spb}") }
+        pn = Pathname("#{stash_root}/#{the_arch_dir}/#{spb}")
+        if pn.directory?
+          binaries(keg_prefix, stash_root, archs, spb)
+        else
+          arch_files = Dir["#{stash_root}/{#{arch_dir_list}}/#{spb}"]
+          if arch_files.length > 1
+            system 'lipo', '-create', *arch_files, '-output', keg_prefix/spb
+          else
+            # presumably there's a reason this only exists for one architecture, so no error;
+            # the same rationale would apply if it only existed in, say, two out of three
+            cp arch_files.first, keg_prefix/spb
+          end # if > 1 file?
+        end # if directory?
+      end # each basename |b|
+    end # Merge.binaries
 
     def c_headers(include_dir, stash_root, archs, sub_path = '')
       # Architecture-specific <header>.<extension> files need to be surgically combined and were
@@ -206,12 +234,12 @@ class Merge
           end # each arch |a|
           # Ideally, the logic would account for overlapping and/or different-displacement hunks at
           # this point; but since most packages do not seem to generate such in the first place, it
-          # can wait.  That said, packages exist (e.g. both Python 2 and Python 3) which can and do
-          # generate quad fat binaries, so it can’t be ignored forever.
+          # can wait.  That said, packages exist (e.g. the originals of both Python 2 and Python 3)
+          # which can and do generate quad fat binaries (and we want to some day support generating
+          # them by default), so it can’t be ignored forever.
           basis_lines = []
           File.open(basis_file, 'r') { |text| basis_lines = text.read.lines[0..-1] }
-          # Bear in mind that the line-array indices are one less than the line numbers.
-          #
+          # Don’t forget, the line-array indices are one less than the line numbers.
           # Start with the last diff point so the insertions don’t screw up our line numbering:
           diffpoints.keys.sort.reverse.each do |index_string|
             diff_start = index_string.to_i - 1
@@ -229,39 +257,7 @@ class Merge
           File.new("#{include_dir}/#{spb}", 'w').syswrite(basis_lines.join(''))
         end # if not a directory
       end # each |basis_file|
-    end # c_headers
+    end # Merge.c_headers
 
-    # The keg_prefix is expected to be a Pathname object.  The rest are just strings.
-    def mach_o(keg_prefix, stash_root, archs, sub_path = '')
-      # don’t suffer a double slash when sub_path is null:
-      s_p = (sub_path == '' ? '' : sub_path + '/')
-      # generate a full list of files, even if some are not present on all architectures; bear in
-      # mind that the current _directory_ may not even exist on all archs
-      basename_list = []
-      arch_dirs = archs.map {|a| "bin-#{a}"}
-      arch_dir_list = arch_dirs.join(',')
-      Dir["#{stash_root}/{#{arch_dir_list}}/#{s_p}*"].map { |f|
-        File.basename(f)
-      }.each { |b|
-        basename_list << b unless basename_list.count(b) > 0
-      }
-      basename_list.each do |b|
-        spb = s_p + b
-        the_arch_dir = arch_dirs.detect { |ad| File.exist?("#{stash_root}/#{ad}/#{spb}") }
-        pn = Pathname("#{stash_root}/#{the_arch_dir}/#{spb}")
-        if pn.directory?
-          mach_o(keg_prefix, stash_root, archs, spb)
-        else
-          arch_files = Dir["#{stash_root}/{#{arch_dir_list}}/#{spb}"]
-          if arch_files.length > 1
-            system 'lipo', '-create', *arch_files, '-output', keg_prefix/spb
-          else
-            # presumably there's a reason this only exists for one architecture, so no error;
-            # the same rationale would apply if it only existed in, say, two out of three
-            cp arch_files.first, keg_prefix/spb
-          end # if > 1 file?
-        end # if directory?
-      end # each basename |b|
-    end # mach_o
   end # << self
 end # Merge
