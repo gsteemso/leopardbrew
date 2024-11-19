@@ -58,9 +58,8 @@ class Python3 < Formula
     if build.universal? then
       ENV.permit_arch_flags if superenv?
       bitness = ''
-    elsif Hardware::CPU.is_32_bit? then bitness = '-32'
-    else bitness = '-64'; end
-    args << "--with-universal-archs=#{Hardware::CPU.ppc? ? 'ppc' : 'intel'}#{bitness}"
+    else bitness = "-#{Hardware::CPU.bits}"; end
+    args << "--with-universal-archs=#{Hardware::CPU.type}#{bitness}"
 
     cflags   = []
     ldflags  = []
@@ -76,7 +75,7 @@ class Python3 < Formula
     # There is no simple way to extract a “ppc” slice from a universal file.  We have to
     # specify the exact sub‐architecture we actually put in there in the first place.
     if Hardware::CPU.ppc?
-      our_ppc_flavour = Hardware::CPU.optimization_flags[Hardware::CPU.family][/^-mcpu=(\d+)/, 1]
+      our_ppc_flavour = Hardware::CPU.optimization_flags[Hardware::CPU.model][/^-mcpu=(\d+)/, 1]
       inreplace 'configure' do |s| s.gsub! '-extract ppc7400', "-extract ppc#{our_ppc_flavour}" end
     end
 
@@ -283,10 +282,10 @@ class Python3 < Formula
   test do
     # Check if sqlite is ok, because we build with --enable-loadable-sqlite-extensions
     # and it can occur that building sqlite silently fails if OSX's sqlite is used.
-    system bin/"python#{xy}", '-c', 'import sqlite3'
+    arch_system bin/"python#{xy}", '-c', 'import sqlite3'
     # Check if some other modules import. Then the linked libs are working.
-    system bin/"python#{xy}", '-c', 'import tkinter; root = tkinter.Tk()'
-    system bin/'pip3', 'list'
+    arch_system bin/"python#{xy}", '-c', 'import tkinter; root = tkinter.Tk()'
+    system bin/'pip3', 'list'  # pip3 is not a binary
   end # test
 end # Python3
 

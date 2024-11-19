@@ -21,7 +21,7 @@ class Gmp < Formula
           'powerpc7400'
         when :g4e
           'powerpc7450'
-        when :g5, :g5_64
+        when :g5
           'powerpc970'
         when :core
           'pentiumm'
@@ -36,12 +36,11 @@ class Gmp < Formula
       end
     end # cpu_lookup
 
-    build_cpu = Hardware::CPU.family
+    build_cpu = Hardware::CPU.model
     tuple_trailer = "apple-darwin#{`uname -r`.to_i}"
 
     if build.universal?
       ENV.permit_arch_flags if superenv?
-      ENV.un_m64 if Hardware::CPU.family == :g5_64
       archs = Hardware::CPU.universal_archs
       stashdir = buildpath/'arch-stashes'
       the_binaries = %w[
@@ -79,7 +78,7 @@ class Gmp < Formula
         when :ppc
           case host_sym
             when :g3, :g4 then ['ABI=32']
-            when :g5, :g5_64 then ['ABI=mode32']
+            when :g5 then ['ABI=mode32']
           end
         when :ppc64 then ['ABI=mode64']
         when :x86_64 then ['ABI=64']

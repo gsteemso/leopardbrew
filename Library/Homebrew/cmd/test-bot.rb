@@ -34,7 +34,7 @@ require "rexml/cdata"
 require "cmd/tap"
 
 module Homebrew
-  EMAIL_SUBJECT_FILE = "brew-test-bot.#{MacOS.cat}.email.txt"
+  EMAIL_SUBJECT_FILE = "brew-test-bot.#{MacOS.codename}.email.txt"
   BYTES_IN_1_MEGABYTE = 1024*1024
 
   def resolve_test_tap
@@ -948,7 +948,7 @@ module Homebrew
 
       tests.each do |test|
         testsuite = testsuites.add_element "testsuite"
-        testsuite.add_attribute "name", "brew-test-bot.#{MacOS.cat}"
+        testsuite.add_attribute "name", "brew-test-bot.#{MacOS.codename}"
         testsuite.add_attribute "tests", test.steps.count
 
         test.steps.each do |step|

@@ -242,13 +242,7 @@ module Superenv
     #   ""
     # ...that "elsewhere" appears to not yet exist, so, optimize here:
     else
-      hw_family = Hardware::CPU.family
-      if hw_family == :g5_64
-        hw_family = :g5
-        permit_arch_flags
-        self['HOMEBREW_ARCHFLAGS'] = '-arch ppc64'
-      end
-      Hardware::CPU.optimization_flags.fetch(hw_family)
+      Hardware::CPU.optimization_flags.fetch(Hardware::CPU.model)
     end
   end # determine_optflags
 

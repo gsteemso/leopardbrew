@@ -12,7 +12,7 @@ module OS
     # This can be compared to numerics, strings, or symbols
     # using the standard Ruby Comparable methods.
     def version
-      @version ||= Version.new(full_version.to_s[/10\.\d+/])
+      @version ||= Version.new(MACOS_VERSION)
     end
 
     # This can be compared to numerics, strings, or symbols
@@ -21,9 +21,7 @@ module OS
       @full_version ||= Version.new(MACOS_FULL_VERSION)
     end
 
-    def cat
-      version.to_sym
-    end
+    def codename; version.to_sym; end
 
     def locate(tool)
       # Don't call tools (cc, make, strip, etc.) directly!
@@ -41,7 +39,7 @@ module OS
           Pathname.new(path) if File.executable?(path)
         end
       end
-    end
+    end # locate(tool)
 
     # Locates a (working) copy of install_name_tool, guaranteed to function
     # whether the user has developer tools installed or not.
@@ -51,7 +49,7 @@ module OS
       else
         locate("install_name_tool")
       end
-    end
+    end # install_name_tool
 
     # Locates a (working) copy of lipo, guaranteed to function whether the user
     # has developer tools installed or not.
@@ -61,7 +59,7 @@ module OS
       else
         locate("lipo")
       end
-    end
+    end # lipo
 
     # Locates a (working) copy of otool, guaranteed to function whether the user
     # has developer tools installed or not.
@@ -71,21 +69,19 @@ module OS
       else
         locate("otool")
       end
-    end
+    end # otool
 
     # Checks if the user has any developer tools installed, either via Xcode
     # or the CLT. Convenient for guarding against formula builds when building
     # is impossible.
-    def has_apple_developer_tools?
-      Xcode.installed? || CLT.installed?
-    end
+    def has_apple_developer_tools?; Xcode.installed? or CLT.installed?; end
 
     def active_developer_dir
       # xcode-select was introduced in Xcode 3 on Leopard
       return "/Developer" if MacOS.version < :leopard
 
       @active_developer_dir ||= Utils.popen_read("/usr/bin/xcode-select", "-print-path").strip
-    end
+    end # active_developer_dir
 
     def sdk_path(v = version)
       (@sdk_path ||= {}).fetch(v.to_s) do |key|
@@ -98,7 +94,7 @@ module OS
         opts << "/Developer/SDKs/MacOSX#{v}.sdk"
         @sdk_path[key] = opts.map { |a| Pathname.new(a) }.detect(&:directory?)
       end
-    end
+    end # sdk_path
 
     def default_cc
       cc = locate "cc"
@@ -107,72 +103,67 @@ module OS
 
     def default_compiler
       case default_cc
-      # if GCC 4.2 is installed, e.g. via Tigerbrew, prefer it
-      # over the system's GCC 4.0
-      when /^gcc-4.0/ then gcc_42_build_version ? :gcc : :gcc_4_0
-      when /^gcc/ then :gcc
-      when /^llvm/ then :llvm
-      when "clang" then :clang
-      else
-        # guess :(
-        if Xcode.version >= "4.3"
-          :clang
-        elsif Xcode.version >= "4.2"
-          :llvm
-        else
-          :gcc
-        end
+        # if GCC 4.2 is installed, e.g. via Tigerbrew, prefer it
+        # over the system's GCC 4.0
+        when /^gcc-4.0/ then gcc_42_build_version ? :gcc : :gcc_4_0
+        when /^gcc-4.2/ then :gcc
+        when /^llvm/ then :llvm
+        when "clang" then :clang
+        else # guess :(
+          if    Xcode.version >= "4.3" then :clang
+          elsif Xcode.version >= "4.2" then :llvm
+          else :gcc
+          end
       end
-    end
+    end # default_compiler
 
     def gcc_40_build_version
       @gcc_40_build_version ||=
         if (path = locate("gcc-4.0"))
-        `#{path} --version`[/build (\d{4,})/, 1].to_i
+          `#{path} --version`[/build (\d{4,})/, 1].to_i
         end
-    end
+    end # gcc_40_build_version
     alias_method :gcc_4_0_build_version, :gcc_40_build_version
 
     def gcc_42_build_version
       @gcc_42_build_version ||=
         begin
           gcc = MacOS.locate("gcc-4.2") || OPTDIR/'apple-gcc42/bin/gcc-4.2'
-          if gcc.exist? && gcc.realpath.basename.to_s !~ /^llvm/
-            `#{gcc} --version`[/build (\d{4,})/, 1].to_i
-          end
+          `#{gcc} --version`[/build (\d{4,})/, 1].to_i \
+                        if gcc.exist? and gcc.realpath.basename.to_s !~ /^llvm/
         end
-    end
+    end # gcc_42_build_version
     alias_method :gcc_build_version, :gcc_42_build_version
 
     def llvm_build_version
       @llvm_build_version ||=
-        if (path = locate("llvm-gcc")) && path.realpath.basename.to_s !~ /^clang/
-        `#{path} --version`[/LLVM build (\d{4,})/, 1].to_i
+        if (path = locate("llvm-gcc")) and path.realpath.basename.to_s !~ /^clang/
+          `#{path} --version`[/LLVM build (\d{4,})/, 1].to_i
         end
-    end
+    end # llvm_build_version
 
     def clang_version
       @clang_version ||=
         if (path = locate("clang"))
-        `#{path} --version`[/(?:clang|LLVM) version (\d\.\d)/, 1]
+          `#{path} --version`[/(?:clang|LLVM) version (\d\.\d)/, 1]
         end
-    end
+    end # clang_version
 
     def clang_build_version
       @clang_build_version ||=
         if (path = locate("clang"))
-        `#{path} --version`[/clang-(\d{2,})/, 1].to_i
+          `#{path} --version`[/clang-(\d{2,})/, 1].to_i
         end
-    end
+    end # clang_build_version
 
     def non_apple_gcc_version(cc)
       (@non_apple_gcc_version ||= {}).fetch(cc) do
-        path = OPTDIR/'gcc/bin/cc'
-        path = locate(cc) unless path.exist?
-        version = `#{path} --version`[/gcc(?:-\d(?:\.\d)? \(.+\))? (\d\.\d\.\d)/, 1] if path
-        @non_apple_gcc_version[cc] = version
-      end
-    end
+          path = OPTDIR/'gcc/bin/cc'
+          path = locate(cc) unless path.exist?
+          version = `#{path} --version`[/gcc(?:-\d\d?(?:\.\d)? \(.+\))? (\d\d?\.\d\.\d)/, 1] if path
+          @non_apple_gcc_version[cc] = version
+        end
+    end # non_apple_gcc_version
 
     def clear_version_cache
       @gcc_40_build_version = @gcc_42_build_version = @llvm_build_version = nil
@@ -186,14 +177,12 @@ module OS
     # https://github.com/Homebrew/homebrew/issues/48
     def macports_or_fink
       paths = []
-
       # First look in the path because MacPorts is relocatable and Fink
       # may become relocatable in the future.
       %w[port fink].each do |ponk|
         path = which(ponk)
         paths << path unless path.nil?
       end
-
       # Look in the standard locations, because even if port or fink are
       # not in the path they can still break builds if the build scripts
       # have these paths baked in.
@@ -201,9 +190,8 @@ module OS
         path = Pathname.new(ponk)
         paths << path if path.exist?
       end
-
-      # Finally, some users make their MacPorts or Fink directorie
-      # read-only in order to try out Homebrew, but this doens't work as
+      # Finally, some users make their MacPorts or Fink directories
+      # read-only in order to try out Homebrew, but this doesn't work as
       # some build scripts error out when trying to read from these now
       # unreadable paths.
       %w[/sw /opt/local].map { |p| Pathname.new(p) }.each do |path|
@@ -211,7 +199,7 @@ module OS
       end
 
       paths.uniq
-    end
+    end # macports_or_fink
 
     def prefer_64_bit?
       Hardware::CPU.is_64_bit? and version > :leopard or
@@ -224,7 +212,25 @@ module OS
       else
         Hardware::CPU.arch_32_bit
       end
-    end
+    end # preferred_arch
+
+    def counterpart_arch
+      case preferred_arch
+        when :arm64  then :x86_64
+        when :i386   then :ppc
+        when :ppc    then :i386
+        when :ppc64  then :x86_64
+        when :x86_64 then (version >= :catalina ? :arm64 : :ppc64)
+      end
+    end # counterpart_arch
+
+    def counterpart_type(main_type)
+      case main_type
+        when :arm, :ppc then :intel
+        when :intel then (version >= :catalina ? :arm : :ppc)
+        else :dunno
+      end
+    end # counterpart_type
 
     STANDARD_COMPILERS = {
       "2.0"   => { :gcc_40_build => 4061 },
@@ -263,7 +269,7 @@ module OS
       "6.3.2" => { :clang => "6.1", :clang_build => 602 },
       "6.4"   => { :clang => "6.1", :clang_build => 602 },
       "7.0"   => { :clang => "7.0", :clang_build => 700 }
-    }
+    }.freeze
 
     def compilers_standard?
       STANDARD_COMPILERS.fetch(Xcode.version.to_s).all? do |method, build|
@@ -280,7 +286,7 @@ module OS
 
         Thanks!
       EOS
-    end
+    end # compilers_standard?
 
     def app_with_bundle_id(*ids)
       path = mdfind(*ids).first
@@ -292,7 +298,7 @@ module OS
       (@mdfind ||= {}).fetch(ids) do
         @mdfind[ids] = Utils.popen_read("/usr/bin/mdfind", mdfind_query(*ids)).split("\n")
       end
-    end
+    end # mdfind
 
     def pkgutil_info(id)
       (@pkginfo ||= {}).fetch(id) do |key|
@@ -303,5 +309,5 @@ module OS
     def mdfind_query(*ids)
       ids.map! { |id| "kMDItemCFBundleIdentifier == #{id}" }.join(" || ")
     end
-  end
-end
+  end # ::MacOS
+end # OS

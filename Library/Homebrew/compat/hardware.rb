@@ -3,7 +3,7 @@ class Hardware
     # We won't change the name because of backward compatibility.
     # So disable rubocop here.
     def is_32_bit? # rubocop:disable Style/PredicateName
-      !CPU.is_64_bit?
+      CPU.is_32_bit?
     end
 
     # We won't change the name because of backward compatibility.
@@ -21,7 +21,7 @@ class Hardware
     end
 
     def cpu_family
-      Hardware::CPU.family
+      Hardware::CPU.model
     end
     alias_method :intel_family, :cpu_family
     alias_method :ppc_family, :cpu_family

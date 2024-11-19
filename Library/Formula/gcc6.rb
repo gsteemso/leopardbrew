@@ -10,31 +10,36 @@ class Gcc6 < Formula
   #   https://gcc.gnu.org/bugzilla/show_bug.cgi?id=46986 – and there’s no way
   #   to bootstrap Ada.
   option 'with-all-languages', 'Build for all supported languages (no Ada or Go), plus JIT'
-  option 'with-check', 'Run the in‐build test suite (very slow; depends on “autogen” & “deja-gnu”)'
+  option 'with-checks', 'Run the in‐build test suite (very slow; depends on “autogen” & “deja-gnu”)'
+  option 'with-cross-compiler', 'Build the complementary compiler for building fat binaries'
+  option 'with-fortran', 'Build the gfortran compiler'
   option 'with-java', 'Build the gcj compiler (depends on “ecj”)'
   option 'with-jit', 'Build the experimental just-in-time compiler'
-  option 'with-nls', 'Build with native language support (localization)'
   option 'with-profiled-build', 'Use profile‐guided optimization when bootstrapping GCC (even slower)'
-  option 'without-fortran', 'Build without the gfortran compiler'
   # Enabling multilib on a host that can't run 64-bit results in build failures.
   option 'without-multilib', 'Build without multilib support' if MacOS.prefer_64_bit?
+  option 'without-nls', 'Build without native language support (localization)'
 
   depends_on :ld64
   depends_on 'gmp'
   depends_on 'libmpc'
   depends_on 'mpfr'
   depends_on 'isl016'
-  if build.with? 'check'
+  depends_on 'zlib'
+  if build.with? 'checks'
     depends_on 'autogen'
     depends_on 'deja-gnu'
   end
   if build.with?('java') or build.with?('all-languages')
     depends_on 'ecj'
+    depends_on :python
     depends_on :x11
   end
+  depends_on 'gettext' if build.with? 'nls'
+
   # The as that comes with Tiger isn't capable of dealing with the PPC asm
   # found in libitm.
-  depends_on 'cctools' => :build if MacOS.version < :leopard
+  depends_on :cctools => :build if MacOS.version < :leopard
 
   # The bottles are built on systems with the CLT installed, and do not work
   # out of the box on Xcode-only systems due to an incorrect sysroot.
@@ -89,8 +94,8 @@ class Gcc6 < Formula
 END_OF_PATCH
 
   def install
-    def arch
-      case MacOS.preferred_arch
+    def arch_word(this_arch)
+      case this_arch
         when :i386   then 'i686'
         when :ppc    then 'powerpc'
         when :ppc64  then 'powerpc64'
@@ -99,10 +104,10 @@ END_OF_PATCH
     end
 
     def osmajor
-      `uname -r`.chomp
+      `uname -r`.match(/^(\d+)\./)[1]
     end
 
-    version_suffix = version.to_s.slice(/\d/)
+    version_suffix = version.to_s.slice(/\d\d?/)
 
     # GCC will suffer build errors if forced to use a particular linker.
     ENV.delete 'LD'
@@ -124,16 +129,16 @@ END_OF_PATCH
 
     # Otherwise libstdc++ will be incorrectly tagged with cpusubtype 10 (G4e)
     #   https://github.com/mistydemeo/tigerbrew/issues/538
-    ENV.append_to_cflags '-force_cpusubtype_ALL' if Hardware::CPU.family == :g3
+    ENV.append_to_cflags '-force_cpusubtype_ALL' if Hardware::CPU.model == :g3 \
+                              and [:gcc, :gcc_4_0, :llvm].include? ENV.compiler
 
-    if MacOS.version < :leopard
-      ENV['AS'] = ENV['AS_FOR_TARGET'] = Formula['cctools'].bin/'as'
-    end
+    ENV['AS'] = ENV['AS_FOR_TARGET'] = Formula['cctools'].bin/'as' \
+                                                    if MacOS.version < :leopard
 
     # Ensure correct install names when linking against libgcc_s;
     # see discussion in https://github.com/Homebrew/homebrew/pull/34303
     inreplace 'libgcc/config/t-slibgcc-darwin', '@shlib_slibdir@',
-                                "#{HOMEBREW_PREFIX}/lib/gcc/#{version_suffix}"
+                                 "#{HOMEBREW_PREFIX}/lib/gcc/#{version_suffix}"
 
     # When unspecified, GCC 6’s default compilers are C/C++/Fortran/Java/ObjC/
     #   ObjC++ – plus link‐time optimization (which for some reason is handled
@@ -143,7 +148,7 @@ END_OF_PATCH
     # Ada would require a pre-existing GCC Ada compiler (gnat) to bootstrap.
     # GCC 4.6.0 onward support Go, but gccgo doesn’t build on Darwin.
     if build.with? 'all-languages'
-      languages << %w[fortran java jit]
+      languages += %w[fortran java jit]
     else
       languages << 'fortran' if build.with? 'fortran'
       languages << 'java' if build.with? 'java'
@@ -151,10 +156,13 @@ END_OF_PATCH
       languages << 'jit' if build.with? 'jit'
     end
 
+    mkdir 'build'
+
     args = [
-      "--build=#{arch}-apple-darwin#{osmajor}",
+      "--build=#{arch_word(MacOS.preferred_arch)}-apple-darwin#{osmajor}",
       "--prefix=#{prefix}",
       "--libdir=#{lib}/gcc/#{version_suffix}",
+      "--datadir=#{pkgshare}",
       "--enable-languages=#{languages.join(',')}",
       # Make most executables versioned to avoid conflicts.
       "--program-suffix=-#{version_suffix}",
@@ -162,15 +170,17 @@ END_OF_PATCH
       "--with-mpfr=#{Formula['mpfr'].opt_prefix}",
       "--with-mpc=#{Formula['libmpc'].opt_prefix}",
       "--with-isl=#{Formula['isl016'].opt_prefix}",
-      '--with-system-zlib',
-      '--enable-stage1-checking=all',
-#     '--enable-checking=release',  # These are the defaults.
-#     '--enable-lto',               #
-      '--disable-werror',  # Note that “-Werror” is removed by superenv anyway.
-      '--disable-libada',
+      "--with-bugurl=#{ISSUES_URL}",
+      '--enable-checking=release',  # This is the default.
       '--enable-default-pie',
-      "--with-pkgversion=Tigerbrew #{name} #{pkg_version} #{build.used_options * ' '}".strip,
-      '--with-bugurl=https://github.com/gsteemso/leopardbrew/issues',
+      '--enable-default-ssp',
+      '--disable-libada',
+      '--enable-lto',               # This is the default.
+      "--with-pkgversion=Leopardbrew #{name} #{pkg_version} #{build.used_options * ' '}".strip,
+      '--with-system-zlib',
+      '--enable-target-optspace',
+      '--enable-threads',
+      '--disable-werror',  # Note that “-Werror” is removed by superenv anyway.
     ]
 
     # “Building GCC with plugin support requires a host that supports -fPIC,
@@ -185,45 +195,88 @@ END_OF_PATCH
 
     # Use 'bootstrap-debug' build configuration to force stripping of object
     # files prior to comparison during bootstrap (broken by Xcode 6.3 – OS X
-    # Mavericks and later).
-    build_config = 'bootstrap-debug'  # like “bootstrap” but supposedly faster, and tests more
-    build_config += ' bootstrap-debug-lib' if build.with? 'check'
+    # Mavericks and later).  Also is supposedly faster, and tests more.
+    # 'bootstrap-time' logs tool‐run durations to the build directory.
+    build_config = 'bootstrap-debug'
+    build_config += ' bootstrap-time' if DEBUG
+    build_config += ' bootstrap-debug-lib' if build.with? 'checks'
     args << "--with-build-config=#{build_config}"
 
     args << '--disable-nls' if build.without? 'nls'
 
     if build.with?('java') or build.with?('all-languages')
       args << "--with-ecj-jar=#{Formula['ecj'].opt_share}/java/ecj.jar"
+      args << '--enable-libgcj-multifile'
+      args << "--with-python-dir=#{HOMEBREW_PREFIX}/lib/python2.7/site-packages"
       args << '--with-x' << '--enable-java-awt=xlib'
+      args << '--disable-gtktest' << '--disable-glibtest' << '--disable-libarttest'
     end
 
-    if build.without?('multilib') or not MacOS.prefer_64_bit?
-      args << '--disable-multilib'
-    else
+    if MacOS.prefer_64_bit? and build.with?('multilib')
       args << '--enable-multilib'
+    else
+      args << '--disable-multilib'
     end
 
     args << '--enable-host-shared' if build.with?('jit') or build.with?('all-languages')
 
+    sysroot = nil
+
     unless MacOS::CLT.installed?
-      # For Xcode-only systems, we need to tell the sysroot path.
+      # For Xcode-only systems, we need to specify the sysroot path.
       # “native-system-headers” will be appended.
       args << '--with-native-system-header-dir=/usr/include'
-      args << "--with-sysroot=#{MacOS.sdk_path}"
+      args << "--with-sysroot=#{sysroot = MacOS.sdk_path}"
     end
 
-    mkdir 'build' do
-      system '../configure', *args
+    arch_args = [
+      '--enable-stage1-checking=all',
+    ]
+
+    arch_args << case Hardware.type
+        when :ppc then [
+            "--with-cpu-32=#{Hardware::CPU.optimization_flags(Hardware::CPU.model).match(/(\d+)/)[1]}",
+            '--with-cpu-64=970'
+          ]
+        when :intel then [
+            '--with-arch-32=prescott', '--with-arch-64=core2',
+            "--with-fpmath=#{Hardware::CPU.avx? ? 'avx' : 'sse'}"
+          ]
+        else [] # no good defaults here for :arm
+      end
+
+    mktemp do
+      system builddir/'configure', *args, *arch_args
       if build.with? 'profiled-build'
-        # Takes longer to build, and may bug out.  Provided for those who want
-        # to optimise all the way to 11.
+        # Takes longer to build, and may bug out.  Provided for those who
+        # want to optimise all the way to 11.
         system 'make', 'profiledbootstrap'
       else
         system 'make', 'bootstrap'
       end
-      ENV.deparallelize { system 'make', 'check' } if build.with? 'check'
+      ENV.deparallelize { system 'make', 'check' } if build.with? 'checks'
       system 'make', 'install'
-    end
+    end # regular compiler
+
+    mktemp do
+      ENV.cc = bin/"gcc-#{version_suffix}"
+      arch_args = [
+        "--target=#{arch_word(MacOS.counterpart_arch)}-apple-darwin#{osmajor}",
+        '--enable-shared',
+      ]
+      # On a Mac everything is fat binaries, so normally no special paths
+      # needed.  (Obviously if we already set this don’t do it twice.)
+      arch_args << '--with-sysroot=/' unless sysroot
+      arch_args << case MacOS.counterpart_type
+          when :ppc then ['--with-cpu-32=7400', '--with-cpu-64=970']
+          when :intel then ['--with-arch-32=prescott', '--with-arch-64=core2']
+          else [] # no good defaults here for :arm
+        end
+      system builddir/'configure', *args, *arch_args
+      system 'make'
+      system 'make', 'install'
+    end if build.with? 'cross-compiler'
+
     # Handle conflicts between GCC formulae.
     # - (Since GCC 4.8 libffi stuff are no longer shipped.)
     # - (Since GCC 4.9 java properties are properly sandboxed.)
@@ -264,7 +317,7 @@ END_OF_PATCH
         return 0;
       }
     EOS
-    system bin/'gcc-6', '-o', 'hello-c', 'hello-c.c'
+    system bin/"gcc-#{version_suffix}", '-o', 'hello-c', 'hello-c.c'
     assert_equal "Hello, world!\n", `./hello-c`
   end # test
 end # Gcc6

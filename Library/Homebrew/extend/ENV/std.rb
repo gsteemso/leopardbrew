@@ -342,13 +342,13 @@ module Stdenv
   def effective_arch
     if ARGV.build_bottle?
       ARGV.bottle_arch || Hardware.oldest_cpu
-    elsif Hardware::CPU.intel? && !Hardware::CPU.sse4?
+    elsif Hardware::CPU.intel? and not Hardware::CPU.sse4?
       # If the CPU doesn't support SSE4, we cannot trust -march=native or
       # -march=<cpu family> to do the right thing because we might be running
       # in a VM or on a Hackintosh.
       Hardware.oldest_cpu
     else
-      Hardware::CPU.family
+      Hardware::CPU.model
     end
   end
 

@@ -22,7 +22,7 @@ class X264 < Formula
 
   depends_on :ld64
   # reports that ASM causes a crash on G3; works on G4
-  depends_on "yasm" => :build unless Hardware::CPU.family == :g3
+  depends_on "yasm" => :build unless Hardware::CPU.model == :g3
 
   option "with-10-bit", "Build a 10-bit x264 (default: 8-bit)"
   option "with-mp4=", "Select mp4 output: none (default), l-smash or gpac"
@@ -37,7 +37,7 @@ class X264 < Formula
   def install
     # On Darwin/PPC x264 always uses -fastf,
     # which isn't supported by FSF GCC.
-    if ![:gcc, :llvm, :gcc_4_0].include? ENV.compiler
+    unless [:gcc, :llvm, :gcc_4_0].include? ENV.compiler
       inreplace "configure", "-fastf", ""
     end
     
@@ -54,7 +54,7 @@ class X264 < Formula
     end
 
     args << "--bit-depth=10" if build.with? "10-bit"
-    args << "--disable-asm" if Hardware::CPU.family == :g3
+    args << "--disable-asm" if Hardware::CPU.model == :g3
 
     system "./configure", *args
     system "make", "install"

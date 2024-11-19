@@ -85,7 +85,7 @@ class Gcc < Formula
 
     # Otherwise libstdc++ will be incorrectly tagged with cpusubtype 10 (G4e)
     # https://github.com/mistydemeo/tigerbrew/issues/538
-    if Hardware::CPU.family == :g3 || ARGV.bottle_arch == :g3
+    if Hardware::CPU.model == :g3 || ARGV.bottle_arch == :g3
       ENV.append_to_cflags "-force_cpusubtype_ALL"
     end
 

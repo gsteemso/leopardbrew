@@ -11,7 +11,6 @@ end
 def bottle_file_outdated?(f, file)
   filename = file.basename.to_s
   return unless f.bottle and filename.match(Pathname::BOTTLE_EXTNAME_RX)
-
   bottle_ext = filename[bottle_native_regex, 1]
   bottle_url_ext = f.bottle.url[bottle_native_regex, 1]
 
@@ -23,16 +22,24 @@ def bottle_native_regex
 end
 
 def bottle_tag
-  if MacOS.version >= :lion
-    MacOS.cat
+  if MacOS.version >= :big_sur
+    if Hardware::CPU.arm?
+      "#{MacOS.codename}_arm".to_sym
+    else
+      "#{MacOS.codename}_intel".to_sym
+    end
+  elsif MacOS.version >= :lion  # Everything up to Catalina can run 32‐bit, but
+    MacOS.codename           # from Lion onward we only build 64‐bit
   elsif MacOS.version == :snow_leopard
     Hardware::CPU.is_64_bit? ? :snow_leopard : :snow_leopard_32
   else
-    # Return, e.g., :tiger_g3, :leopard_g5_64, :leopard_64 (which is Intel)
-    if Hardware::CPU.type == :ppc
-      "#{MacOS.cat}_#{Hardware::CPU.family}".to_sym
-    else
-      MacOS.prefer_64_bit? ? "#{MacOS.cat}_64".to_sym : MacOS.cat
+    # Return, e.g., :tiger_g3, :leopard_g5_64, :leopard_intel_64
+    case Hardware::CPU.arch
+      when :i386   then "#{MacOS.codename}_intel".to_sym
+      when :ppc    then "#{MacOS.codename}_#{Hardware::CPU.model}".to_sym
+      when :ppc64  then "#{MacOS.codename}_g5_64".to_sym
+      when :x86_64 then "#{MacOS.codename}_intel_64".to_sym
+      else "#{MacOS.codename}_unknown".to_sym
     end
   end
 end # bottle_tag
