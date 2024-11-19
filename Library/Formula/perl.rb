@@ -19,7 +19,8 @@ class Perl < Formula
   end
 
   option :universal
-  option 'with-dtrace', 'Build with DTrace probes' if MacOS.version >= :leopard
+  option 'with-dtrace', 'Build with DTrace probes' if (MacOS.version >= :leopard and not MacOS.prefer_64_bit?) \
+                                                      or MacOS.version >= :lion
   option 'with-tests', 'Run the build-test suite (fails on ppc64 when built with older GCCs)'
 
   if (build.with?('tests') or build.bottle?) and (build.universal? or
@@ -37,8 +38,8 @@ class Perl < Formula
   def install
     if (f = Formula['curl']).installed?
       ENV.prepend_path 'PATH', f.opt_bin    # Without this, extension modules will try to use
-    end                                     # system curl, failing messily due to its obsolescence.
-
+    end                                     # system curl, failing messily due to its obsolescence
+                                            # on older Mac OSes.
     if build.universal?
       ENV.permit_arch_flags if superenv?
       archs = Hardware::CPU.universal_archs
@@ -47,7 +48,8 @@ class Perl < Formula
       archs = [MacOS.preferred_arch]
     end # universal?
 
-    # set installation directories for pure‐Perl extensions to the shared location $HOMEBREW_PREFIX
+    # set installation directories for pure‐Perl extensions to the shared
+    # location $HOMEBREW_PREFIX/site_perl
     args = %W[
       -des
       -Dprefix=#{prefix}
@@ -74,9 +76,12 @@ class Perl < Formula
     args << '-Dusedtrace' if build.with? 'dtrace'
 
     archs.each do |arch|
+      ENV.append_to_cflags "-arch #{arch}" if build.universal?
+
+      arch_args = []
       if arch == :ppc64 or arch == :x86_64
         arch_args << '-Duse64bitall'
-      elsif Hardware::CPU.family == :g5 or Hardware::CPU.family == :g5_64
+      elsif Hardware::CPU.model == :g5
         arch_args << '-Duse64bitint'
       end
 
@@ -88,6 +93,8 @@ class Perl < Formula
       if build.universal?
         ENV.deparallelize { system 'make', 'veryclean' }
         Merge.scour_keg(prefix, stashdir/"bin-#{arch}")
+        # undo architecture-specific tweak before next run
+        ENV.remove_from_cflags "-arch #{arch}"
       end # universal?
     end # each |arch|
 
@@ -111,7 +118,7 @@ class Perl < Formula
   test do
     perl = (stable? ? bin/'perl' : Dir.glob("#{bin}/perl5.*").first)
     (testpath/'test.pl').write "print 'Perl is not an acronym, but JAPH is a Perl acronym!';"
-    system perl, 'test.pl'
+    arch_system perl, 'test.pl'
   end # test
 end # Perl
 
@@ -127,7 +134,7 @@ class Merge
       stash_p = stash_root/s_p
       mkdir_p stash_p unless stash_p.directory?
       Dir["#{keg_prefix}/#{s_p}*"].each do |f|
-        pn = Pathname(f).extend(Pathname_extension)
+        pn = Pathname.new(f)
         spb = s_p + pn.basename
         if pn.directory?
           scour_keg(keg_prefix, stash_root, spb)
