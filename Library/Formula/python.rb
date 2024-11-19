@@ -312,10 +312,10 @@ class Python < Formula
   test do
     # Check if sqlite is ok, because we build with --enable-loadable-sqlite-extensions
     # and it can occur that building sqlite silently fails if OSX's sqlite is used.
-    system cellar_framework/'bin/python2.7', '-c', 'import sqlite3'
+    arch_system cellar_framework/'bin/python2.7', '-c', 'import sqlite3'
     # Check if some other modules import. Then the linked libs are working.
-    system cellar_framework/'bin/python2.7', '-c', 'import Tkinter; root = Tkinter.Tk()'
-    system cellar_framework/'bin/pip', 'list', '--format=columns'
+    arch_system cellar_framework/'bin/python2.7', '-c', 'import Tkinter; root = Tkinter.Tk()'
+    system cellar_framework/'bin/pip', 'list', '--format=columns'  # pip is not a binary
   end # test
 end # Python
 

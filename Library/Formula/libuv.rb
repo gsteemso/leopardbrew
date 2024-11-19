@@ -21,8 +21,8 @@ class Libuv < Formula
   depends_on "automake" => :build
   depends_on "autoconf" => :build
   depends_on "libtool" => :build
-  # the build script passes --gnu to m4, which is only understood by GNU M4 1.4.12 or later.  Stock
-  # M4 on Leopard is GNU version 1.4.6.
+  # The build script passes --gnu to m4, which is only understood by GNU M4
+  # 1.4.12 or later.  Stock M4 on Leopard is GNU version 1.4.6.
   depends_on 'm4' => :build if MacOS.version < :snow_leopard  # adjust this when correct value is learnt
   depends_on :python => :build if MacOS.version <= :snow_leopard && build.with?("docs")
 
@@ -139,8 +139,8 @@ class Libuv < Formula
     EOS
 
     ENV.universal_binary if build.universal?
-    system ENV.cc, "test.c", "-luv", "-o", "test"
-    system "./test"
+    system ENV.cc, 'test.c', '-luv', '-o', 'test'
+    arch_system './test'
   end
 end
 

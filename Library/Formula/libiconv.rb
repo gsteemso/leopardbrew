@@ -51,7 +51,7 @@ class Libiconv < Formula
   end
 
   test do
-    system bin/"iconv", "--help"
+    arch_system bin/"iconv", "--help"
   end
 end
 
