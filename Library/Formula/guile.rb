@@ -26,18 +26,6 @@ class Guile < Formula
   depends_on 'libunistring'
   depends_on 'readline'
 
-  # does it still?  hells if I know
-  fails_with :llvm do
-    build 2336
-    cause 'Segfaults during compilation'
-  end
-
-  # does it still?  hells if I know
-  fails_with :clang do
-    build 211
-    cause 'Segfaults during compilation'
-  end
-
   # - GCC 4.x can’t handle a repeated typedef if one of the iterations uses a structure declaration
   #   and the other uses its definition.
   # - Older Macs don’t have dprintf().
@@ -60,8 +48,18 @@ class Guile < Formula
       lib.install_symlink dylib.basename => "#{dylib.basename(".dylib")}.so"
     end
 
-    (share/"gdb/auto-load").install Dir["#{lib}/*-gdb.scm"]
+    (share/'gdb/auto-load').install Dir["#{lib}/*-gdb.scm"]
   end # install
+
+  def caveats; <<-_.undent
+      Guile 3.0.10 is known to not build on 32‐bit PowerPC, and may also fail to
+      build on other platforms (though, weirdly, it builds just fine as part of a
+      universal install, albeit with a great many unit‐test failures).  If you can’t
+      build it 64‐bit or universal, the {guile2} package allows you to keep using
+      legacy Guile 2.  Sadly, to use it for brewing, you’ll need to temporarily edit
+      any formulæ that depend on {guile} so that they use {guile2} instead.
+    _
+  end # caveats
 
   test do
     hello = testpath/"hello.scm"
