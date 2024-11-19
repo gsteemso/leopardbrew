@@ -78,6 +78,13 @@ class CompilerFailure
     :openmp => [
       create(:clang),
       create(:llvm)
+    ],
+    :tls => [
+      create(:gcc_4_0),
+      create(:gcc),
+      create(:clang),
+      create(:llvm)
+      # there are undoubtedly others
     ]
   }
 end
