@@ -122,7 +122,8 @@ module HomebrewArgvExtension
       rackname = rack.basename
       raise NoSuchKegError.new(rackname) if dirs.empty?
       ss = f.active_spec_sym
-      raise NoSuchKegError.new(rackname/sip.basename) unless (sip = f.spec_prefix(ss)).directory?
+      sip = f.spec_prefix(ss)
+      raise NoSuchKegError.new(rackname/sip.basename) unless sip.directory?
       if f.installed?(ss)
         Keg.new(sip)
       elsif (var = f.opt_prefix).symlink? and var.directory?
