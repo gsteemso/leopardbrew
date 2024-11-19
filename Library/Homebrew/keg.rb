@@ -94,23 +94,20 @@ class Keg
     raise NotAKegError, "#{path} is not inside a keg"
   end # Keg::for
 
-  attr_reader :path, :name, :linked_keg_record, :opt_record
+  attr_reader :path, :installed_prefix, :name, :linked_keg_record, :opt_record
   protected :path
+  private :installed_prefix
 
   # requires a Pathname object; a bare string won’t work
   def initialize(path)
-    raise "#{path} is not a valid keg" unless path.parent.parent.realpath == HOMEBREW_CELLAR
-    raise "#{path} is not a directory" unless path.directory?
+    raise "#{path} is not a valid keg" unless path.directory? and
+                                              path.realpath.parent.parent == HOMEBREW_CELLAR
     @path = path
+    @installed_prefix = path.dirname/path.basename(REINSTALL_SUFFIX)
     @name = path.parent.basename.to_s
     @linked_keg_record = LINKDIR/name
     @opt_record = OPTDIR/name
   end # initialize
-
-#  def fname
-#    opoo "Keg#fname is a deprecated alias for Keg#name and will be removed soon"
-#    name
-#  end
 
   def to_s; path.to_s; end
   alias_method :to_path, :to_s
@@ -126,12 +123,12 @@ class Keg
 
   def hash; path.hash; end
 
-  def abv; path.abv; end
+  def abv; path.abv; end  # Prints a summary:  number of files, & how much storage they occupy.
 
   def directory?; path.directory?; end
 
-  def exist?; path.exist?; end
-  alias :exists? :exist?
+  def exists?; path.exists?; end
+  alias :exist? :exists?
 
   def /(other); path/other; end
 
@@ -140,7 +137,7 @@ class Keg
   private
 
   def reinstall_nameflip
-    (path.extname == REINSTALL_SUFFIX) ? (path.dirname/path.basename(REINSTALL_SUFFIX)).to_s : "#{path.to_s}#{REINSTALL_SUFFIX}"
+    (path.extname == REINSTALL_SUFFIX) ? installed_prefix.to_s : "#{path.to_s}#{REINSTALL_SUFFIX}"
   end
 
   public
