@@ -153,25 +153,25 @@ module SharedEnvExtension
   #   ENV.append_to_cflags "-I ./missing/includes"
   # end</pre>
   def compiler
-    @compiler ||= if (cc = ARGV.cc)
-      warn_about_non_apple_gcc($&) if cc =~ GNU_GCC_REGEXP
-      fetch_compiler(cc, "--cc")
-    elsif (cc = homebrew_cc)
-      warn_about_non_apple_gcc($&) if cc =~ GNU_GCC_REGEXP
-      compiler = fetch_compiler(cc, "HOMEBREW_CC")
+    @compiler ||= \
+      if (cc = ARGV.cc)
+        warn_about_non_apple_gcc($&) if cc =~ GNU_GCC_REGEXP
+        fetch_compiler(cc, "--cc")
+      elsif (cc = homebrew_cc)
+        warn_about_non_apple_gcc($&) if cc =~ GNU_GCC_REGEXP
+        compiler = fetch_compiler(cc, "HOMEBREW_CC")
+        if @formula
+          compilers = [compiler] + CompilerSelector.compilers
+          compiler = CompilerSelector.select_for(@formula, compilers)
+        end
 
-      if @formula
-        compilers = [compiler] + CompilerSelector.compilers
-        compiler = CompilerSelector.select_for(@formula, compilers)
+        compiler
+      elsif @formula
+        CompilerSelector.select_for(@formula)
+      else
+        MacOS.default_compiler
       end
-
-      compiler
-    elsif @formula
-      CompilerSelector.select_for(@formula)
-    else
-      MacOS.default_compiler
-    end
-  end
+  end # compiler
 
   # @private
   def determine_cc
@@ -184,7 +184,7 @@ module SharedEnvExtension
       self.cc  = determine_cc
       self.cxx = determine_cxx
     end
-  end
+  end # define a method for each |compiler| in COMPILERS
 
   def supports_c11?
     cc =~ GNU_C11_REGEXP or cc =~ /clang/
