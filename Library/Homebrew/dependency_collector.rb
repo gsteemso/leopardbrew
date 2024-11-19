@@ -100,6 +100,7 @@ class DependencyCollector
     when :apr        then AprRequirement.new(tags)
     when :arch       then ArchRequirement.new(tags)
     when :c11        then C11Requirement.new(tags)
+    when :cctools    then CctoolsRequirement.new(tags)
     when :cxx11      then Cxx11Requirement.new(tags)
     when :emacs      then EmacsRequirement.new(tags)
     when :expat      then Dependency.new('expat', tags) if MacOS.version < :leopard
