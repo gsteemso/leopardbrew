@@ -1,6 +1,8 @@
 # This file contains backports of assorted things found in Rubies newer than Leopard’s 1.8.6.
 # Items pertaining to the Pathname class are handled separately (QV).
 
+require 'extend/tiger' if RUBY_VERSION == '1.8.2'
+
 class Dir
   # This definition comes from Ruby 1.8.7
   def Dir.mktmpdir(prefix_suffix=nil, tmpdir=nil)
