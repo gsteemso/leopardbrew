@@ -2,8 +2,7 @@ require 'pathname'  #
 require 'rbconfig'  # Ruby libraries
 require 'set'       #
 # all these others are Homebrew libraries
-require 'extend/leopard' if RUBY_VERSION <= '1.8.6'
-require 'extend/tiger' if RUBY_VERSION == '1.8.2'
+require 'extend/leopard' if RUBY_VERSION <= '1.8.6'  # also does tiger if needed
 require 'extend/ARGV'
 require 'extend/fileutils'
 require 'extend/module'
@@ -144,12 +143,14 @@ require 'compat' unless NO_COMPAT or ARGV.include?('--no-compat')
 # HOMEBREW_VERBOSE_USING_DOTS # Print keepalive dots during long system calls (see `formula.rb`)
 
 # Environment variables that can be used to control Superenv:
+# (also see HOMEBREW_CC below)
 # HOMEBREW_FORCE_FLAGS    # When argument refurbishment is performed, these are always inserted
 # HOMEBREW_INCLUDE_PATHS  # These are how -I flags reach ENV/*/cc
 # HOMEBREW_ISYSTEM_PATHS  # These are how -isystem flags reach ENV/*/cc
 # HOMEBREW_LIBRARY_PATHS  # These are how -L flags reach ENV/*/cc
 
 # Other environment variables:
+# HOMEBREW_CC             # Tracks the selected compiler (see `extend/ENV/*.rb`)
 # HOMEBREW_CC_LOG_PATH    # This is set by `formula.rb` whenever it executes a Superenv build tool
 # HOMEBREW_MACH_O_FILE    # Briefly exists during `otool -L` parsing; see `mach.rb`
 
