@@ -7,6 +7,7 @@ class Gdbm < Formula
 
   option :universal
   option 'without-libgdbm-compat', 'Omit the libgdbm_compat library, which provides old‐style dbm/ndbm interfaces'
+  option 'without-nls', 'Build without native language support (localization)'
 
   depends_on 'autoconf' => :build
   depends_on 'automake' => :build
@@ -14,8 +15,10 @@ class Gdbm < Formula
 
   depends_on 'coreutils'
   depends_on 'readline'
+  depends_on 'gettext' if build.with? 'nls'
 
-  keg_only :provided_by_osx if build.with? 'libgdbm-compat'
+  # technically only true if built with libgdbm-compat, but conditional keg‐onliness leads to chaos
+  keg_only :shadowed_by_osx
 
   # A libintl dependency was missing from the test Makefile.  Patch from upstream.
   patch :DATA
@@ -30,12 +33,13 @@ class Gdbm < Formula
       "BASE64_BIN=#{Formula['coreutils'].opt_bin/'gbase64'}"
     ]
     args << '--enable-libgdbm-compat' if build.with? 'libgdbm-compat'
+    args << '--disable-nls' if build.without? 'nls'
 
     system './configure', *args
     system 'make'
     system 'make', 'check'
     system 'make', 'install'
-  end # instill
+  end # install
 
   test do
     for_archs(bin/'gdbmtool') do |a|
