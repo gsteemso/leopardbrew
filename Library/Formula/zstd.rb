@@ -20,8 +20,7 @@ class Zstd < Formula
     # For some reason, type `long long` is not understood unless this is made explicit:
     ENV.append_to_cflags '-std=c99'
     if build.universal?
-      ENV.permit_arch_flags
-      ENV.delete('HOMEBREW_ARCHFLAGS')
+      ENV.permit_arch_flags if superenv?
       archs = Hardware::CPU.universal_archs
       stashdir = buildpath/'arch-stashes'
       the_binaries = %w[
