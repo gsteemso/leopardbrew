@@ -29,15 +29,18 @@ class Zlib < Formula
     ENV.enable_warnings if ENV.compiler == :gcc_4_0
     system "./configure", "--prefix=#{prefix}"
     system "make", "install"
-  end
+  end # install
 
   test do
-    testpath.install resource("test_artifact")
-    system ENV.cc, "zpipe.c", "-I#{include}", "-L#{lib}", "-lz", "-o", "zpipe"
-
-    touch "foo.txt"
-    output = "./zpipe < foo.txt > foo.txt.z"
-    system output
-    assert File.exist?("foo.txt.z")
-  end
-end
+    testpath.install resource('test_artifact')
+    ENV.universal_binary if build.universal?
+    system ENV.cc, 'zpipe.c', "-I#{include}", "-L#{lib}", '-lz', '-o', 'zpipe'
+    touch 'foo.txt'
+    for_archs './zpipe' do |a|
+      arch_cmd = (a.nil? ? '' : "arch -arch #{a.to_s} ")
+      system "#{arch_cmd}./zpipe < foo.txt > foo.txt.z"
+      assert File.exists?('foo.txt.z')
+      rm 'foo.txt.z'
+    end
+  end # test
+end # Zlib
