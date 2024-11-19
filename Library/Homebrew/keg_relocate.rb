@@ -7,8 +7,10 @@ class Keg
       file.ensure_writable do
         change_dylib_id(dylib_id_for(file), file) if file.dylib?
         each_install_name_for(file) do |bad_name|
-          # Don't fix absolute paths unless they are rooted in the build directory
-          next if bad_name.starts_with?('/') and not(bad_name.starts_with?(HOMEBREW_TEMP.to_s))
+          # Don't fix absolute paths unless they are rooted in the build directory or our installed
+          # keg (the latter fails catastrophically if we’re temporarily moved for reïnstallation).
+          next if bad_name.starts_with?('/') and not(bad_name.starts_with?(HOMEBREW_TEMP.to_s) or
+                                                     bad_name.starts_with?(installed_prefix.to_s))
           new_name = fixed_name(file, bad_name)
           change_install_name(bad_name, new_name, file) unless new_name == bad_name
         end
@@ -113,13 +115,15 @@ class Keg
       bad_name.sub(PREFIX_PLACEHOLDER, HOMEBREW_PREFIX.to_s)
     elsif bad_name.starts_with? CELLAR_PLACEHOLDER
       bad_name.sub(CELLAR_PLACEHOLDER, HOMEBREW_CELLAR.to_s)
+    elsif bad_name.starts_with? installed_prefix
+      bad_name.sub(installed_prefix.to_s, opt_record.to_s)
     # If file is a dylib or bundle itself, look for the dylib named by
     # bad_name relative to the lib directory, so that we can skip the more
     # expensive recursive search if possible.
     elsif (file.dylib? or file.mach_o_bundle?) and (file.parent/bad_name).exists?
       "@loader_path/#{bad_name}"
-    elsif file.mach_o_executable? and (lib/bad_name).exists?
-      "#{installed_lib}/#{bad_name}"
+    elsif (lib/bad_name).exists?
+      "#{opt_record}/lib/#{bad_name}"
     elsif (abs_name = find_dylib(Pathname.new(bad_name).basename)) and abs_name.exists?
       abs_name.to_s
     else
@@ -129,8 +133,6 @@ class Keg
   end # fixed_name
 
   def lib; path/'lib'; end
-
-  def installed_lib; installed_path/'lib'; end
 
   def each_install_name_for(file, &block)
     dylibs = file.dynamically_linked_libraries
@@ -143,13 +145,11 @@ class Keg
     dylib_basename = File.basename(file.dylib_id)
     # We want the same path WITHIN the keg.
     relative_dirname = file.dirname.relative_path_from(path)
-    # There was originally a shortcut implemented here which used the HOMEBREW_PREFIX path instead
-    # of the HOMEBREW_CELLAR one.  However, that technique made it impossible to use software that
-    # had been unlinked, making it impossible to upgrade anything used when brewing (e.g., support
-    # libraries for brewed GCC).  Upstream Homebrew later introduced the optlink here for keg‐only
-    # brews, reducing proliferation of identical versioned libraries (and facilitating the removal
-    # of old kegs).  Given that the similarly version‐agnostic HOMEBREW_PREFIX‐based links are not
-    # practical in this usage, the optlink‐based ones are an adequate replacement.
+    # A shortcut was once here using the HOMEBREW_CELLAR path instead of the HOMEBREW_PREFIX one.
+    # However, that technique failed with software that had been unlinked, making it impossible to
+    # upgrade anything used when brewing (like the support libraries for brewed GCC).  Worse, even
+    # Cellar-based links fail during a reïnstallation.  Happily, links based on the opt prefix do
+    # work here, though their nature as symlinks makes them a bit fragile.
     opt_record/relative_dirname/dylib_basename
   end # dylib_id_for
 
