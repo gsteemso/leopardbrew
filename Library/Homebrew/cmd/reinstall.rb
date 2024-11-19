@@ -107,7 +107,7 @@ module Homebrew
   rescue Exception
     # leave no trace of the failed installation
     if f.prefix.exists?
-      oh1 "Cleaning up failed #{f.prefix}" if DEBUG
+      oh1 "Cleaning up the failed installation #{f.prefix}" if DEBUG
       ignore_interrupts { f.prefix.rmtree }
     end
     ignore_interrupts { previously_installed.rename } if previously_installed
