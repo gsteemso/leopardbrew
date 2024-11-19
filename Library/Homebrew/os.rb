@@ -10,14 +10,14 @@ module OS
   end
 
   if OS.mac?
-    ISSUES_URL           = 'https://github.com/gsteemso/leopardbrew'
+    ::ISSUES_URL           = 'https://github.com/gsteemso/leopardbrew'
     ::MACOS_FULL_VERSION = ENV['HOMEBREW_OSX_VERSION'].chomp
     ::MACOS_VERSION      = ::MACOS_FULL_VERSION[/\d\d\.\d+/]
       ::MACOS_VERSION    =   ::MACOS_VERSION.slice(0, 2) if ::MACOS_VERSION.to_f >= 11
     PATH_OPEN = '/usr/bin/open'
     require 'os/mac'
   elsif OS.linux?
-    ISSUES_URL = 'https://github.com/Homebrew/linuxbrew/wiki/troubleshooting'
+    ::ISSUES_URL = 'https://github.com/Homebrew/linuxbrew/wiki/troubleshooting'
     ::MACOS_FULL_VERSION = ::MACOS_VERSION = '0'
     PATH_OPEN = 'xdg-open'
   else

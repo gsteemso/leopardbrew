@@ -146,7 +146,7 @@ rescue Exception => e
   onoe e
   if internal_cmd
     puts "#{Tty.white}Please report this bug:"
-    puts "    #{Tty.em}#{OS::ISSUES_URL}#{Tty.reset}"
+    puts "    #{Tty.em}#{ISSUES_URL}#{Tty.reset}"
   end
   puts e.backtrace
   exit 1
