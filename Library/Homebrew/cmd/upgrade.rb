@@ -1,5 +1,6 @@
 require "cmd/install"
 require "cmd/outdated"
+require 'cmd/reinstall'
 
 module Homebrew
   def upgrade
@@ -48,17 +49,26 @@ module Homebrew
   end
 
   def upgrade_formula(f)
-    oh1 "Upgrading #{f.full_name}"
-
     # this correctly unlinks things no matter what version is linked
     if f.linked_keg.directory?
       previously_linked = Keg.new(f.linked_keg.resolved_path)
       previously_linked.unlink
     end
+    tab = Tab.for_keg(f.greatest_installed_keg)
+    options = tab.used_options
+    puts "Original spec = #{tab[:source][:spec] or '[none]'}" if DEBUG
+    case tab[:source][:spec]
+      when :head then options += Option.new('HEAD')
+      when :devel then options += Option.new('devel')
+    end
+    options = Homebrew.blenderize_options(options, f)
 
-    tab = Tab.for_formula(f)
+    notice  = "Upgrading #{f.full_name}"
+    notice += " with #{options * ', '}" unless options.empty?
+    oh1 notice
+
     fi = FormulaInstaller.new(f)
-    fi.options             = tab.used_options
+    fi.options             = options
     fi.ignore_deps         = ARGV.ignore_deps?
     fi.only_deps           = ARGV.only_deps?
     fi.build_from_source   = ARGV.build_from_source?
@@ -79,15 +89,6 @@ module Homebrew
     ofail e.dump
   rescue DownloadError => e
     ofail e
-  ensure
-    # Restore the previous installation state if the build failed.
-    unless f.installed?
-      if f.prefix.exists?
-        oh1 "Cleaning up failed #{f.prefix}" if DEBUG
-        ignore_interrupts { f.prefix.rmtree }
-      end
-      ignore_interrupts { previously_linked.link } if previously_linked
-    end rescue nil
   else
     fi.finish  # this links the new keg
 
@@ -96,5 +97,13 @@ module Homebrew
     if f.pinned? then f.unpin; f.pin; end
 
     fi.insinuate
+  ensure # Restore the previous installation state if the build failed.
+    unless f.installed?
+      if f.prefix.exists?
+        oh1 "Cleaning up the failed installation #{f.prefix}" if DEBUG
+        ignore_interrupts { f.prefix.rmtree }
+      end
+      ignore_interrupts { previously_linked.link } if previously_linked
+    end
   end # upgrade_formula
 end # Homebrew
