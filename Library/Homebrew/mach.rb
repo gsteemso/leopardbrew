@@ -127,7 +127,7 @@ module MachO
     @mach_data
   end # mach_data
 
-  def archs; mach_data.map { |m| m.fetch :arch }.uniq.extend(ArchitectureListExtension); end
+  def archs; @archs ||= mach_data.map { |m| m.fetch :arch, :dunno }.uniq.extend(ArchitectureListExtension); end
 
   def arch
     case archs.length
