@@ -4,7 +4,7 @@ class Readline < Formula
   url "http://ftpmirror.gnu.org/readline/readline-8.2.tar.gz"
   mirror "https://ftp.gnu.org/gnu/readline/readline-8.2.tar.gz"
   sha256 "3feb7171f16a84ee82ca18a36d7b9be109a52c04f492a053331d7d1095007c35"
-  version '8.2_p10'
+  version '8.2.13'
 
   patch :p0 do
     url 'http://ftpmirror.gnu.org/readline/readline-8.2-patches/readline82-001'
@@ -64,6 +64,24 @@ class Readline < Formula
     url 'http://ftpmirror.gnu.org/readline/readline-8.2-patches/readline82-010'
     mirror 'https://ftp.gnu.org/gnu/readline/readline-8.2-patches/readline82-010'
     sha256 '758e2ec65a0c214cfe6161f5cde3c5af4377c67d820ea01d13de3ca165f67b4c'
+  end
+
+  patch :p0 do
+    url 'http://ftpmirror.gnu.org/readline/readline-8.2-patches/readline82-011'
+    mirror 'https://ftp.gnu.org/gnu/readline/readline-8.2-patches/readline82-011'
+    sha256 'e0013d907f3a9e6482cc0934de1bd82ee3c3c4fd07a9646aa9899af237544dd7'
+  end
+
+  patch :p0 do
+    url 'http://ftpmirror.gnu.org/readline/readline-8.2-patches/readline82-012'
+    mirror 'https://ftp.gnu.org/gnu/readline/readline-8.2-patches/readline82-012'
+    sha256 '6c8adf8ed4a2ca629f7fd11301ed6293a6248c9da0c674f86217df715efccbd3'
+  end
+
+  patch :p0 do
+    url 'http://ftpmirror.gnu.org/readline/readline-8.2-patches/readline82-013'
+    mirror 'https://ftp.gnu.org/gnu/readline/readline-8.2-patches/readline82-013'
+    sha256 '1ea434957d6ec3a7b61763f1f3552dad0ebdd6754d65888b5cd6d80db3a788a8'
   end
 
   keg_only :shadowed_by_osx, <<-EOS.undent
