@@ -1,19 +1,17 @@
 class Make < Formula
-  desc "Utility for directing compilation"
-  homepage "https://www.gnu.org/software/make/"
-  # URL edited to pacify audit --strict
-  url "http://ftpmirror.gnu.org/make/make-4.4.tar.gz"
-  mirror "https://ftp.gnu.org/gnu/make/make-4.4.tar.gz"
-  sha256 "581f4d4e872da74b3941c874215898a7d35802f03732bdccee1d4a7979105d18"
-
-  bottle do
-    sha256 "5093cd5a5970bd2e6cc71924da97099d49bedd0897f3b2a28bb4e7dcfcc30000" => :tiger_altivec
-  end
+  desc 'Utility for directing compilation'
+  homepage 'https://www.gnu.org/software/make/'
+  url 'http://ftpmirror.gnu.org/make/make-4.4.1.tar.lz'
+  mirror 'https://ftp.gnu.org/gnu/make/make-4.4.1.tar.lz'
+  sha256 '8814ba072182b605d156d7589c19a43b89fc58ea479b9355146160946f8cf6e9'
 
   option :universal
-  option "with-default-names", "Do not prepend 'g' to the binary"
+  option 'with-checks', 'Run the build‐time unit tests (requires Perl)'
+  option 'with-default-names', 'Do not prepend ‘g’ to the binary'
 
-  depends_on "guile" => :optional
+  depends_on 'gettext'
+  depends_on 'guile' => :optional
+  depends_on 'perl' if build.with? 'checks'
   depends_on 'pkg-config' if build.with? 'guile'
 
   def install
@@ -23,22 +21,25 @@ class Make < Formula
       --disable-silent-rules
       --prefix=#{prefix}
     ]
-    args << "--with-guile" if build.with? "guile"
-    args << "--program-prefix=g" if build.without? "default-names"
-
-    system "./configure", *args
-    system "make", "install"
-  end
+    args << '--with-guile' if build.with? 'guile'
+    args << '--program-prefix=g' if build.without? 'default-names'
+    system './configure', *args
+    system 'make'
+    system 'make', 'check' if build.with? 'checks'
+    system 'make', 'install'
+  end # install
 
   test do
-    (testpath/"Makefile").write <<-EOS.undent
+    (testpath/'Makefile').write <<-EOS.undent
       default:
       \t@echo Homebrew
     EOS
 
-    cmd = build.with?("default-names") ? "make" : "gmake"
+    cmd = build.with?('default-names') ? 'make' : 'gmake'
 
-    assert_equal "Homebrew\n",
-      shell_output("#{bin}/#{cmd}")
-  end
-end
+    for_archs bin/cmd do |a|
+      arch_cmd = (a.nil? ? [] : ['arch', '-arch', "#{a.to_s} "])
+      assert_equal "Homebrew\n", shell_output("#{arch_cmd * ' '}#{bin}/#{cmd}")
+    end
+  end # test
+end # Make
