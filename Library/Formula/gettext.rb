@@ -3,12 +3,13 @@ class Gettext < Formula
   homepage "https://www.gnu.org/software/gettext/"
   url "http://ftpmirror.gnu.org/gettext/gettext-0.22.5.tar.lz"
   mirror "https://ftp.gnu.org/gnu/gettext/gettext-0.22.5.tar.lz"
-  # Fetching the LZIPped version of this package, rather than the XZ-compressed one, allows {xz} to
-  # use NLS (internationalization) without forming a dependency loop.  It’s also much smaller.
+  # Fetching the LZIPped version of this package, rather than the XZ-compressed
+  # one, allows {xz} to use NLS (internationalization) without forming a
+  # dependency loop.  It’s also much smaller.
   sha256 "caa44aed29c9b4900f1a401d68f6599a328a3744569484dc95f62081e80ad6cb"
 
-  # Neither gettext nor libintl are included with any version of Mac OS!  Why did they think this
-  # needed to be keg‐only?
+  # Neither gettext nor libintl are included with any version of Mac OS!  Why
+  # did they think this needed to be keg‐only?
 
   option :universal
   option 'without-tests', 'Skip the self‐testing (not recommended for a first install)'
@@ -16,14 +17,13 @@ class Gettext < Formula
 
   # Fix lang-python-* failures when in a traditional French locale.
   # https://git.savannah.gnu.org/gitweb/?p=gettext.git;a=patch;h=3c7e67be7d4dab9df362ab19f4f5fa3b9ca0836b
-  # Also, skip the gnulib tests as they have their own set of problems, with nothing to do with
-  # what’s being built.
+  # Also, skip the gnulib tests as they have their own set of problems, with
+  # nothing to do with what’s being built.
   patch :p0, :DATA
 
   def install
     if build.universal?
       ENV.permit_arch_flags if superenv?
-      ENV.un_m64 if Hardware::CPU.family == :g5_64
       archs = Hardware::CPU.universal_archs
       stashdir = buildpath/'arch-stashes'
       the_binaries = %w[
@@ -86,12 +86,7 @@ class Gettext < Formula
     args << "--with-libiconv-prefix=#{lif.opt_prefix}" if lif.any_version_installed?
 
     archs.each do |arch|
-      if build.universal?
-        case arch
-          when :i386, :ppc then ENV.m32
-          when :ppc64, :x86_64 then ENV.m64
-        end
-      end # universal?
+      ENV.append_to_cflags "-arch #{arch}" if build.universal?
 
       system "./configure", *args
       system 'make'
@@ -104,11 +99,8 @@ class Gettext < Formula
       if build.universal?
         system 'make', 'clean'
         Merge.prep(prefix, stashdir/"bin-#{arch}", the_binaries)
-        # undo architecture-specific tweaks before next run
-        case arch
-          when :i386, :ppc then ENV.un_m32
-          when :ppc64, :x86_64 then ENV.un_m64
-        end # case arch
+        # undo architecture-specific tweak before next run
+        ENV.remove_from_cflags "-arch #{arch}"
       end # universal?
     end # each |arch|
     Merge.binaries(prefix, stashdir, archs) if build.universal?
@@ -122,15 +114,14 @@ class Gettext < Formula
     the full functionality of both packages, you should `brew reinstall gettext`
     after you have brewed libiconv.
 
-    They should be brewed in this order because older versions of Mac OS include
-    an outdated iconv that is enough to get by with, but do not include gettext at
-    all.
+    They should be brewed in this order because Mac OS includes an outdated iconv
+    that is enough to get by with, but does not include gettext at all.
   _
   end
 
   test do
-    system "#{bin}/gettext", '--version'
-    system "#{bin}/gettext", '--help'
+    arch_system "#{bin}/gettext", '--version'
+    arch_system "#{bin}/gettext", '--help'
   end # test
 end # Gettext
 
