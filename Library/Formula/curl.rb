@@ -1,27 +1,24 @@
 class Curl < Formula
   desc 'Get a file from an HTTP, HTTPS or FTP server'
   homepage 'https://curl.se/'
-  url 'https://curl.se/download/curl-8.10.1.tar.xz'
-  sha256 '73a4b0e99596a09fa5924a4fb7e4b995a85fda0d18a2c02ab9cf134bebce04ee'
+  url 'https://curl.se/download/curl-8.11.0.tar.xz'
+  sha256 'db59cf0d671ca6e7f5c2c5ec177084a33a79e04c97e71cf183a5cdea235054eb'
 
   keg_only :provided_by_osx
 
   option :universal
-  option 'with-c-ares',      'Use C-ARES asynchronous DNS resolution'
   option 'with-gnutls',      'Add GnuTLS security, independent of OpenSSL/LibreSSL'
   option 'with-libressl',    'Use LibreSSL security instead of OpenSSL'
   option 'with-rtmpdump',    'Add RTMP (streaming Flash) capability'
   option 'without-gsasl',    'Omit SASL SCRAM authentication'
   option 'without-libssh2',  'Omit scp and sFTP access'
-  option 'without-more-dns', 'Omit internationalized, public‐suffix‐aware DNS'
+  option 'without-more-dns', 'Omit asynchronous, internationalized, public‐suffix‐aware DNS'
   option 'without-ssl',      'Omit LibreSSL/OpenSSL security (recommend adding GnuTLS)'
   option 'without-zstd',     'Omit ZStandard compression'
 
-  deprecated_option 'with-ares'   => 'with-c-ares'
   deprecated_option 'with-rtmp'   => 'with-rtmpdump'
   deprecated_option 'with-ssh'    => 'with-libssh2'
 
-  depends_on 'c-ares'   => :optional
   depends_on 'gnutls'   => :optional
   depends_on 'libressl' => :optional
   depends_on 'rtmpdump' => :optional
@@ -29,6 +26,7 @@ class Curl < Formula
   depends_on 'gsasl'    => :recommended
   depends_on 'libssh2'  => :recommended
   if build.with? 'more-dns'
+    depends_on 'c-ares'
     depends_on 'libidn2'  # libPSL also depends on this
     depends_on 'libpsl'
   end
@@ -47,7 +45,6 @@ class Curl < Formula
     end
     if build.universal?
       ENV.permit_arch_flags if superenv?
-      ENV.un_m64 if Hardware::CPU.family == :g5_64
       archs = Hardware::CPU.universal_archs
       stashdir = buildpath/'arch-stashes'
       the_binaries = %w[
@@ -136,17 +133,16 @@ class Curl < Formula
       args << '--without-brotli'
     end
 
-    args << (build.with?('c-ares') ? '--enable-ares' : '--disable-ares')
-
     if build.with? 'libssh2'
       ENV.prepend_path 'PKG_CONFIG_PATH', "#{Formula['libssh2'].opt_lib}/pkgconfig"
       args << '--with-libssh2'
     end
 
     if build.with? 'more-dns'
+      args << '--enable-ares'
       ENV.prepend_path 'PKG_CONFIG_PATH', "#{Formula['libpsl'].opt_lib}/pkgconfig"
     else
-      args << '--without-libidn2' << '--without-libpsl'
+      args << '--disable-ares' << '--without-libidn2' << '--without-libpsl'
     end
 
     if build.with? 'rtmpdump'
