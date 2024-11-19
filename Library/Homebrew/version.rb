@@ -6,92 +6,63 @@ class Version
 
     attr_reader :value
 
-    def initialize(value)
-      @value = value
-    end
+    def initialize(value); @value = value; end
 
-    def inspect
-      "#<#{self.class.name} #{value.inspect}>"
-    end
+    def inspect; "#<#{self.class.name} #{value.inspect}>"; end
 
-    def to_s
-      value.to_s
-    end
+    def to_s; value.to_s; end
 
-    def numeric?
-      false
-    end
-  end
+    def numeric?; false; end
+  end # Token
 
   class NullToken < Token
-    def initialize(value = nil)
-      super
-    end
+    def initialize(value = nil); super; end
 
     def <=>(other)
       case other
-      when NullToken
-        0
-      when NumericToken
-        other.value == 0 ? 0 : -1
-      when AlphaToken, BetaToken, RCToken
-        1
-      else
-        -1
+        when NullToken    then 0
+        when NumericToken then other.value == 0 ? 0 : -1
+        when AlphaToken, BetaToken, RCToken then 1
+        else -1
       end
-    end
+    end # NullToken <=>
 
-    def inspect
-      "#<#{self.class.name}>"
-    end
-  end
+    def inspect; "#<#{self.class.name}>"; end
+  end # NullToken
 
   NULL_TOKEN = NullToken.new
 
   class StringToken < Token
     PATTERN = /[a-z]+[0-9]*/i
 
-    def initialize(value)
-      @value = value.to_s
-    end
+    def initialize(value); @value = value.to_s; end
 
     def <=>(other)
       case other
-      when StringToken
-        value <=> other.value
-      when NumericToken, NullToken
-        -Integer(other <=> self)
+        when StringToken             then value <=> other.value
+        when NumericToken, NullToken then -Integer(other <=> self)
       end
-    end
-  end
+    end # StringToken <=>
+  end # StringToken
 
   class NumericToken < Token
     PATTERN = /[0-9]+/i
 
-    def initialize(value)
-      @value = value.to_i
-    end
+    def initialize(value); @value = value.to_i; end
 
     def <=>(other)
       case other
-      when NumericToken
-        value <=> other.value
-      when StringToken
-        1
-      when NullToken
-        -Integer(other <=> self)
+        when NumericToken then value <=> other.value
+        when StringToken  then 1
+        when NullToken    then -Integer(other <=> self)
       end
-    end
+    end # NumericToken <=>
 
-    def numeric?
-      true
-    end
-  end
+    def numeric?; true; end
+  end # NumericToken
 
   class CompositeToken < StringToken
-    def rev
-      value[/[0-9]+/].to_i
-    end
+    def rev; value[/[0-9]+/].to_i; end
   end
 
   class AlphaToken < CompositeToken
@@ -99,62 +70,49 @@ class Version
 
     def <=>(other)
       case other
-      when AlphaToken
-        rev <=> other.rev
-      else
-        super
+        when AlphaToken then rev <=> other.rev
+        else super
       end
-    end
-  end
+    end # AlphaToken <=>
+  end # AlphaToken
 
   class BetaToken < CompositeToken
     PATTERN = /b(?:eta)?[0-9]*/i
 
     def <=>(other)
       case other
-      when BetaToken
-        rev <=> other.rev
-      when AlphaToken
-        1
-      when RCToken, PatchToken
-        -1
-      else
-        super
+        when BetaToken  then rev <=> other.rev
+        when AlphaToken then 1
+        when RCToken, PatchToken then -1
+        else super
       end
-    end
-  end
+    end # BetaToken <=>
+  end # BetaToken
 
   class RCToken < CompositeToken
     PATTERN = /rc[0-9]*/i
 
     def <=>(other)
       case other
-      when RCToken
-        rev <=> other.rev
-      when AlphaToken, BetaToken
-        1
-      when PatchToken
-        -1
-      else
-        super
+        when RCToken then rev <=> other.rev
+        when AlphaToken, BetaToken then 1
+        when PatchToken then -1
+        else super
       end
-    end
-  end
+    end # RCToken <=>
+  end # RCToken
 
   class PatchToken < CompositeToken
     PATTERN = /p[0-9]*/i
 
     def <=>(other)
       case other
-      when PatchToken
-        rev <=> other.rev
-      when AlphaToken, BetaToken, RCToken
-        1
-      else
-        super
+        when PatchToken then rev <=> other.rev
+        when AlphaToken, BetaToken, RCToken then 1
+        else super
       end
-    end
-  end
+    end # PatchToken <=>
+  end # PatchToken
 
   SCAN_PATTERN = Regexp.union(
     AlphaToken::PATTERN,
@@ -166,9 +124,7 @@ class Version
   )
 
   class FromURL < Version
-    def detected_from_url?
-      true
-    end
+    def detected_from_url?; true; end
   end
 
   def self.detect(url, specs)
@@ -177,7 +133,7 @@ class Version
     else
       FromURL.parse(url)
     end
-  end
+  end # ::detect
 
   def initialize(val)
     if val.respond_to?(:to_s)
@@ -185,15 +141,11 @@ class Version
     else
       raise TypeError, "Version value must be a string"
     end
-  end
+  end # initialize
 
-  def detected_from_url?
-    false
-  end
+  def detected_from_url?; false; end
 
-  def head?
-    version == "HEAD"
-  end
+  def head?; version == "HEAD"; end
 
   def <=>(other)
     return unless Version === other
@@ -228,43 +180,35 @@ class Version
     end
 
     0
-  end
+  end # Version <=>
   alias_method :eql?, :==
 
-  def hash
-    version.hash
-  end
+  def hash; version.hash; end
 
-  def to_s
-    version.dup
-  end
+  def to_s; version.dup; end
 
   protected
 
   attr_reader :version
 
-  def tokens
-    @tokens ||= tokenize
-  end
+  def tokens; @tokens ||= tokenize; end
 
   private
 
-  def max(a, b)
-    a > b ? a : b
-  end
+  def max(a, b); a > b ? a : b; end
 
   def tokenize
     version.scan(SCAN_PATTERN).map! do |token|
       case token
-      when /\A#{AlphaToken::PATTERN}\z/o   then AlphaToken
-      when /\A#{BetaToken::PATTERN}\z/o    then BetaToken
-      when /\A#{RCToken::PATTERN}\z/o      then RCToken
-      when /\A#{PatchToken::PATTERN}\z/o   then PatchToken
-      when /\A#{NumericToken::PATTERN}\z/o then NumericToken
-      when /\A#{StringToken::PATTERN}\z/o  then StringToken
+        when /\A#{AlphaToken::PATTERN}\z/o   then AlphaToken
+        when /\A#{BetaToken::PATTERN}\z/o    then BetaToken
+        when /\A#{RCToken::PATTERN}\z/o      then RCToken
+        when /\A#{PatchToken::PATTERN}\z/o   then PatchToken
+        when /\A#{NumericToken::PATTERN}\z/o then NumericToken
+        when /\A#{StringToken::PATTERN}\z/o  then StringToken
       end.new(token)
     end
-  end
+  end # tokenize
 
   def self.parse(spec)
     version = _parse(spec)
@@ -362,5 +306,5 @@ class Version
     # e.g. http://www.ijg.org/files/jpegsrc.v8d.tar.gz
     m = /\.v(\d+[a-z]?)/.match(stem)
     return m.captures.first unless m.nil?
-  end
-end
+  end # ::_parse
+end # Version
