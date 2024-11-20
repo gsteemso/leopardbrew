@@ -114,7 +114,7 @@ module Homebrew
     ignore_interrupts { previously_linked.link } if previously_linked
     raise
   else
-    ignore_interrupts { previously_installed.root.rmtree }
+    ignore_interrupts { previously_installed.root.rmtree } if previously_installed.root.exists?
   end # reinstall_formula
 
   def blenderize_options(use_opts, formula)
@@ -157,6 +157,7 @@ module Homebrew
           end # --without-xxxx?
         when '--single-arch'
           anti_opts << Option.new('universal')
+          ENV.delete 'HOMEBREW_BUILD_UNIVERSAL'
         when '--universal'
           # the formula doesn’t have a :universal option; ignore it
         when '--stable'
