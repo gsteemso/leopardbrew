@@ -80,11 +80,13 @@ class Keg
     mime-info pixmaps sounds
   ]
 
-  # During reïnstallations, the old keg must be temporarily renamed in order to remain in service –
-  # otherwise, it becomes impossible to reïnstall anything used during brewing.
+  # During reïnstallations, the old keg must remain in service or reïnstalling anything used during
+  # brewing becomes impossible.  We achieve this by temporarily renaming it (which is much easier &
+  # less fragile than installing the replacement to a temporary location, then permanently renaming
+  # that instead).
   REINSTALL_SUFFIX = '.being_reinstalled'
 
-  # if path is a file in a keg then this will return the containing Keg object
+  # If path leads to a file in a keg, this will return the containing Keg object.
   def self.for(path)
     path = path.realpath
     until path.root?  # this is the filesystem root, not Keg#root
@@ -98,8 +100,8 @@ class Keg
   protected :path
   private :installed_prefix
 
-  # requires a Pathname object; a bare string won’t work
   def initialize(path)
+    path = Pathname.new(path)
     raise "#{path} is not a valid keg" unless path.directory? and
                                               path.realpath.parent.parent == HOMEBREW_CELLAR
     @path = path
