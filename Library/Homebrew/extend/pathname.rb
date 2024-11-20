@@ -29,75 +29,55 @@ class Pathname
   def install(*sources)
     sources.each do |src|
       case src
-      when Resource
-        src.stage(self)
-      when Resource::Partial
-        src.resource.stage { install(*src.files) }
-      when Array
-        if src.empty?
-          opoo "tried to install empty array to #{self}"
-          return
-        end
-        src.each { |s| install_p(s, File.basename(s)) }
-      when Hash
-        if src.empty?
-          opoo "tried to install empty hash to #{self}"
-          return
-        end
-        src.each { |s, new_basename| install_p(s, new_basename) }
-      else
-        install_p(src, File.basename(src))
-      end
-    end
-  end
+        when Resource then src.stage(self)
+        when Resource::Partial then src.resource.stage { install(*src.files) }
+        when Array
+          if src.empty? then opoo "tried to install empty array to #{self}"; return; end
+          src.each { |s| install_p(s, File.basename(s)) }
+        when Hash
+          if src.empty? then opoo "tried to install empty hash to #{self}"; return; end
+          src.each { |s, new_basename| install_p(s, new_basename) }
+        else install_p(src, File.basename(src))
+      end # case src
+    end # each source |src|
+  end # install
 
   def install_p(src, new_basename)
-    raise Errno::ENOENT, src.to_s unless File.symlink?(src) || File.exist?(src)
-
+    raise Errno::ENOENT, src.to_s unless File.symlink?(src) or File.exists?(src)
     src = Pathname(src)
     dst = join(new_basename)
     dst = yield(src, dst) if block_given?
-
     mkpath
-
     # Use FileUtils.mv over File.rename to handle filesystem boundaries. If src
     # is a symlink, and its target is moved first, FileUtils.mv will fail:
     #   https://bugs.ruby-lang.org/issues/7707
     # In that case, use the system "mv" command.
-    if src.symlink?
-      raise unless Kernel.system "mv", src, dst
-    else
-      FileUtils.mv src, dst
-    end
-  end
+    if src.symlink? then raise unless Kernel.system "mv", src, dst
+    else FileUtils.mv src, dst; end
+  end # install_p
   private :install_p
 
   # Creates symlinks to sources in this folder.
   def install_symlink(*sources)
     sources.each do |src|
       case src
-      when Array
-        src.each { |s| install_symlink_p(s, File.basename(s)) }
-      when Hash
-        src.each { |s, new_basename| install_symlink_p(s, new_basename) }
-      else
-        install_symlink_p(src, File.basename(src))
+        when Array then src.each { |s| install_symlink_p(s, File.basename(s)) }
+        when Hash then src.each { |s, new_basename| install_symlink_p(s, new_basename) }
+        else install_symlink_p(src, File.basename(src))
       end
-    end
-  end
+    end # each source |src|
+  end # install_symlink
 
   def install_symlink_p(src, new_basename)
     src = Pathname(src).expand_path(self)
     dst = join(new_basename)
     mkpath
     FileUtils.ln_sf(src.relative_path_from(dst.parent), dst)
-  end
+  end # install_symlink_p
   private :install_symlink_p
 
-  if method_defined?(:write)
-    # @private
-    alias_method :old_write, :write
-  end
+  # @private
+  alias_method :old_write, :write if method_defined?(:write)
 
   # we assume this pathname object is a file obviously
   def write(content, *open_args)
@@ -108,19 +88,13 @@ class Pathname
 
   # this function does not exist in Leopard stock Ruby 1.8.6
   def binwrite(datum, offset = 0)
-    (d = dirname).mkpath unless d.exists?
-    open(O_BINARY|O_CREAT|O_RDWR) do |f|
-      f.pos = offset
-      f.write(datum)
-    end
+    dirname.mkpath
+    open(O_BINARY|O_CREAT|O_RDWR) { |f| f.pos = offset; f.write(datum) }
   end unless method_defined?(:binwrite)
 
   # this function does not exist in Leopard stock Ruby 1.8.6
   def binread(length = self.size, offset = 0)
-    open(O_BINARY|O_RDONLY) do |f|
-      f.pos = offset
-      f.read(length)
-    end
+    open(O_BINARY|O_RDONLY) { |f| f.pos = offset; f.read(length) }
   end unless method_defined?(:binread)
 
   # NOTE always overwrites
@@ -128,29 +102,23 @@ class Pathname
     require "tempfile"
     tf = Tempfile.new(basename.to_s, dirname)
     begin
-      tf.binmode
-      tf.write(content)
-
+      tf.binmode; tf.write(content)
       begin
         old_stat = stat
       rescue Errno::ENOENT
         old_stat = default_stat
       end
-
       uid = Process.uid
       gid = Process.groups.delete(old_stat.gid) { Process.gid }
-
       begin
-        tf.chown(uid, gid)
-        tf.chmod(old_stat.mode)
+        tf.chown(uid, gid); tf.chmod(old_stat.mode)
       rescue Errno::EPERM
       end
-
       File.rename(tf.path, self)
     ensure
       tf.close!
     end
-  end
+  end # atomic_write
 
   def default_stat
     sentinel = parent.join(".brew.#{Process.pid}.#{rand(Time.now.to_i)}")
@@ -158,36 +126,29 @@ class Pathname
     sentinel.stat
   ensure
     sentinel.unlink
-  end
+  end # default_stat
   private :default_stat
 
   # @private
   def cp(dst)
     opoo "Pathname#cp is deprecated, use FileUtils.cp"
-    if file?
-      FileUtils.cp to_s, dst
-    else
-      FileUtils.cp_r to_s, dst
-    end
+    if file? then FileUtils.cp to_s, dst
+    else FileUtils.cp_r to_s, dst; end
     dst
-  end
+  end # cp
 
   # @private
   def cp_path_sub(pattern, replacement)
     raise "#{self} does not exist" unless self.exist?
-
     dst = sub(pattern, replacement)
-
     raise "#{self} is the same file as #{dst}" if self == dst
-
-    if directory?
-      dst.mkpath
+    if directory? then dst.mkpath
     else
       dst.dirname.mkpath
       dst = yield(self, dst) if block_given?
       FileUtils.cp(self, dst)
     end
-  end
+  end # cp_path_sub
 
   # @private
   alias_method :extname_old, :extname
@@ -199,62 +160,43 @@ class Pathname
     /(\.(tar|cpio|pax)\.(gz|bz2|lz4?|xz|Z|zst))$/.match(path)
     return $1 if $1
     File.extname(path)
-  end
+  end # extname
 
   # for filetypes we support, basename without extension
-  def stem
-    File.basename((path = to_s), extname(path))
-  end
+  def stem; File.basename((path = to_s), extname(path)); end
 
   # I don't trust the children.length == 0 check particularly, not to mention
   # it is slow to enumerate the whole directory just to see if it is empty,
   # instead rely on good ol' libc and the filesystem
   # @private
   def rmdir_if_possible
-    rmdir
-    true
+    rmdir; true
   rescue Errno::ENOTEMPTY
-    if (ds_store = self+".DS_Store").exist? && children.length == 1
-      ds_store.unlink
-      retry
-    else
-      false
-    end
+    if (ds_store = self+".DS_Store").exists? && children.length == 1
+      ds_store.unlink; retry
+    else false; end
   rescue Errno::EACCES, Errno::ENOENT
     false
-  end
+  end # rmdir_if_possible
 
   # @private
   def chmod_R(perms)
-    opoo "Pathname#chmod_R is deprecated, use FileUtils.chmod_R"
-    require "fileutils"
-    FileUtils.chmod_R perms, to_s
+    opoo 'Pathname#chmod_R is deprecated, use FileUtils.chmod_R'
+    require 'fileutils'; FileUtils.chmod_R perms, to_s
   end
 
   # @private
-  def version
-    require "version"
-    Version.parse(self)
-  end
+  def version; require 'version'; Version.parse(self); end
 
   # @private
   def compression_type
     case extname
-      when ".bz2"
-        # If the filename ends with .bz2 not preceded by .tar
-        # then we want to bunzip2 but not untar
-        return :bzip2_only
-      when ".gz"
-        # If the filename ends with .gz not preceded by .tar
-        # then we want to gunzip but not untar
-        return :gzip_only
-      when ".jar", ".war"
-        # Don't treat jars or wars as compressed
-        return
-      when ".lha", ".lzh"
-        return :lha
-    end # extension
-
+      # If the filename ends with .bz2 or .gz not preceded by .tar, decompress but don’t untar.
+      when ".bz2" then return :bzip2_only
+      when ".gz" then return :gzip_only
+      when ".jar", ".war" then return  # Don't treat jars or wars as compressed
+      when ".lha", ".lzh" then return :lha
+    end # case extname
     # Get enough of the file to detect common file types.  Magic numbers
     #   stolen from /usr/share/file/magic, except for the Zstd number which
     #   comes from RFC 8878.  Modern tar magic has a 257 byte offset.
@@ -280,56 +222,41 @@ class Pathname
           when '.xz'          then :xz
           when '.zip'         then :zip
           when '.zst'         then :zstd
-        end # extension
+        end # case extname
     end # magic number
   end # compression_type
 
   # @private
-  def text_executable?
-    /^#!\s*\S+/ === open("r") { |f| f.read(1024) }
-  end
+  def text_executable?; /^#!\s*\S+/ === open("r") { |f| f.read(1024) }; end
 
   # @private
   def incremental_hash(klass)
     digest = klass.new
-    if digest.respond_to?(:file)
-      digest.file(self)
-    else
-      buf = ""
-      open("rb") { |f| digest << buf while f.read(16384, buf) }
-    end
+    if digest.respond_to?(:file) then digest.file(self)
+    else buf = ""; open("rb") { |f| digest << buf while f.read(16384, buf) }; end
     digest.hexdigest
-  end
+  end # incremental_hash
 
   # @private
-  def sha1
-    require "digest/sha1"
-    incremental_hash(Digest::SHA1)
-  end
+  def sha1; require "digest/sha1"; incremental_hash(Digest::SHA1); end
 
-  def sha256
-    require "digest/sha2"
-    incremental_hash(Digest::SHA256)
-  end
+  def sha256; require "digest/sha2"; incremental_hash(Digest::SHA256); end
 
   def verify_checksum(expected)
-    raise ChecksumMissingError if expected.nil? || expected.empty?
+    raise ChecksumMissingError if expected.nil? or expected.empty?
     actual = Checksum.new(expected.hash_type, send(expected.hash_type).downcase)
     raise ChecksumMismatchError.new(self, expected, actual) unless expected == actual
   end
 
-  def cd
-    Dir.chdir(self) { yield }
-  end
+  def cd; Dir.chdir(self) { yield }; end
 
-  def subdirs
-    children.select(&:directory?)
-  end
+  def subdirs; children.select(&:directory?); end
 
   # @private
-  def resolved_path
-    self.symlink? ? dirname+readlink : self
-  end
+  def resolved_path; self.symlink? ? dirname/readlink : self; end
+
+  # @private
+  def resolved_real_path; self.symlink? ? (dirname/readlink).realpath : self; end
 
   # @private
   def resolved_path_exists?
@@ -338,8 +265,8 @@ class Pathname
     # The link target contains NUL bytes
     false
   else
-    (dirname+link).exist?
-  end
+    (dirname/link).exists?
+  end # resolved_path_exists?
 
   # @private
   def make_relative_symlink(src)
@@ -348,7 +275,7 @@ class Pathname
   end
 
   def /(other)
-    unless other.respond_to?(:to_s) || other.respond_to?(:to_path)
+    unless other.respond_to?(:to_s) or other.respond_to?(:to_path)
       opoo "Pathname#/ called on #{inspect} with #{other.inspect} as an argument"
       puts "This behavior is deprecated, please pass either a String or a Pathname"
     end
@@ -358,14 +285,11 @@ class Pathname
   # @private
   def ensure_writable
     saved_perms = nil
-    unless writable_real?
-      saved_perms = stat.mode
-      chmod 0644
-    end
+    unless writable_real? then saved_perms = stat.mode; chmod 0644; end
     yield
   ensure
     chmod saved_perms if saved_perms
-  end
+  end # ensure_writable
 
   # @private
   def install_info
@@ -386,13 +310,13 @@ class Pathname
     end
     mkpath
     targets.each do |target|
-      target = Pathname.new(target) # allow pathnames or strings
+      target = Pathname.new(target)  # allow pathnames or strings
       (self+target.basename).write <<-EOS.undent
         #!/bin/bash
         exec "#{target}" "$@"
       EOS
-    end
-  end
+    end # each |target|
+  end # write_exec_script
 
   # Writes an exec script that sets environment variables
   def write_env_script(target, env)
@@ -400,10 +324,10 @@ class Pathname
     env.each { |key, value| env_export += "#{key}=\"#{value}\" " }
     dirname.mkpath
     write <<-EOS.undent
-    #!/bin/bash
-    #{env_export}exec "#{target}" "$@"
+      #!/bin/bash
+      #{env_export}exec "#{target}" "$@"
     EOS
-  end
+  end # write_env_script
 
   # Writes a wrapper env script and moves all files to the dst
   def env_script_all_files(dst, env)
@@ -413,8 +337,8 @@ class Pathname
       dst.install(file)
       new_file = dst+file.basename
       file.write_env_script(new_file, env)
-    end
-  end
+    end # each child |file|
+  end # env_script_all_files
 
   # Writes an exec script that invokes a java jar
   def write_jar_script(target_jar, script_name, java_opts = "")
@@ -423,7 +347,7 @@ class Pathname
       #!/bin/bash
       exec java #{java_opts} -jar #{target_jar} "$@"
     EOS
-  end
+  end # write_jar_script
 
   def install_metafiles(from = Pathname.pwd)
     Pathname(from).children.each do |p|
@@ -431,24 +355,25 @@ class Pathname
       next unless Metafiles.copy?(p.basename.to_s)
       # Some software symlinks these files (see help2man.rb)
       filename = p.resolved_path
-      # Some software links metafiles together, so by the time we iterate to one of them
-      # we may have already moved it. libxml2's COPYING and Copyright are affected by this.
+      # Some software links metafiles together, so by the time we iterate
+      # to one of them we may have already moved it.  libxml2's COPYING and
+      # Copyright are affected by this.
       next unless filename.exist?
       filename.chmod 0644
       install(filename)
-    end
-  end
+    end # each child pathname |p|
+  end # install_metafiles
 
   # @private
   def abv
     out = ""
     n = Utils.popen_read("find", expand_path.to_s, "-type", "f", "!", "-name", ".DS_Store").split("\n").size
     out << "#{n} files, " if n > 1
-    size = Utils.popen_read("/usr/bin/du", "-hs", expand_path.to_s).split("\t")[0]
-    size ||= "0B"
+    size = Utils.popen_read("/usr/bin/du", "-hs", expand_path.to_s).split("\t")[0] || '0B'
     out << size.strip
+
     out
-  end
+  end # abv
 
   # We redefine these private methods in order to add the /o modifier to
   # the Regexp literals, which forces string interpolation to happen only
@@ -459,11 +384,8 @@ class Pathname
 
     def chop_basename(path)
       base = File.basename(path)
-      if /\A#{Pathname::SEPARATOR_PAT}?\z/o =~ base
-        return nil
-      else
-        return path[0, path.rindex(base)], base
-      end
+      if /\A#{Pathname::SEPARATOR_PAT}?\z/o =~ base then return nil
+      else return path[0, path.rindex(base)], base; end
     end
     private :chop_basename
 
@@ -471,24 +393,17 @@ class Pathname
     alias_method :old_prepend_prefix, :prepend_prefix
 
     def prepend_prefix(prefix, relpath)
-      if relpath.empty?
-        File.dirname(prefix)
+      if relpath.empty? then File.dirname(prefix)
       elsif /#{SEPARATOR_PAT}/o =~ prefix
         prefix = File.dirname(prefix)
         prefix = File.join(prefix, "") if File.basename(prefix + "a") != "a"
         prefix + relpath
-      else
-        prefix + relpath
-      end
-    end
+      else prefix + relpath; end
+    end # prepend_prefix
     private :prepend_prefix
   elsif RUBY_VERSION == "2.0.0"
     # https://bugs.ruby-lang.org/issues/9915
-    prepend Module.new {
-      def inspect
-        super.force_encoding(@path.encoding)
-      end
-    }
+    prepend Module.new { def inspect; super.force_encoding(@path.encoding); end }
   end
 
   # This seems absolutely insane. Tiger's ruby (1.8.2) deals with
@@ -501,61 +416,42 @@ class Pathname
   # then treat the symlink as a *file* and raise Errno::EISDIR.
   if RUBY_VERSION <= "1.8.2"
     alias :oldunlink :unlink
-    def unlink
-      symlink? ? File.unlink(to_s) : oldunlink
-    end
+    def unlink; symlink? ? File.unlink(to_s) : oldunlink; end
     alias :delete :unlink
-  end
+  end # very old Ruby?
 
   # Not defined in Ruby 1.8.2. Definition taken from 1.8.7.
   def sub(pattern, *rest, &block)
-    if block
-      path = @path.sub(pattern, *rest) {|*args|
-        begin
-          old = Thread.current[:pathname_sub_matchdata]
-          Thread.current[:pathname_sub_matchdata] = $~
-          eval("$~ = Thread.current[:pathname_sub_matchdata]", block.binding)
-        ensure
-          Thread.current[:pathname_sub_matchdata] = old
-        end
-        yield(*args)
-      }
-    else
-      path = @path.sub(pattern, *rest)
-    end
+    if block then path = @path.sub(pattern, *rest) { |*args|
+                    begin
+                      old = Thread.current[:pathname_sub_matchdata]
+                      Thread.current[:pathname_sub_matchdata] = $~
+                      eval("$~ = Thread.current[:pathname_sub_matchdata]", block.binding)
+                    ensure
+                      Thread.current[:pathname_sub_matchdata] = old
+                    end
+                    yield(*args)
+                  }
+    else path = @path.sub(pattern, *rest); end
     self.class.new(path)
   end unless method_defined?(:sub)
-end
+end # Pathname
 
 # @private
 module ObserverPathnameExtension
   class << self
     attr_accessor :n, :d
 
-    def reset_counts!
-      @n = @d = 0
-    end
+    def reset_counts!; @n = @d = 0; end
 
-    def total
-      n + d
-    end
+    def total; n + d; end
 
-    def counts
-      [n, d]
-    end
-  end
+    def counts; [n, d]; end
+  end # << self
 
-  def unlink
-    super
-    puts "rm #{self}" if VERBOSE
-    ObserverPathnameExtension.n += 1
-  end
+  def unlink; super; puts "rm #{self}" if VERBOSE; ObserverPathnameExtension.n += 1; end
 
-  def rmdir
-    super
-    puts "rmdir #{self}" if VERBOSE
-    ObserverPathnameExtension.d += 1
-  end
+  def rmdir; super; puts "rmdir #{self}" if VERBOSE; ObserverPathnameExtension.d += 1; end
 
   def make_relative_symlink(src)
     super
@@ -563,13 +459,7 @@ module ObserverPathnameExtension
     ObserverPathnameExtension.n += 1
   end
 
-  def install_info
-    super
-    puts "info #{self}" if VERBOSE
-  end
+  def install_info; super; puts "info #{self}" if VERBOSE; end
 
-  def uninstall_info
-    super
-    puts "uninfo #{self}" if VERBOSE
-  end
-end
+  def uninstall_info; super; puts "uninfo #{self}" if VERBOSE; end
+end # ObserverPathnameExtension
