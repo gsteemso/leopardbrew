@@ -8,6 +8,8 @@ class Zstd < Formula
 
   option :universal
 
+  depends_on 'lz4'  # technically optional, but why wouldn’t you?
+
   if MacOS.version < :leopard
     depends_on 'apple-gcc42' => :build  # may not actually be true
     depends_on 'cctools'     => :build  # Needs a more recent "as".
@@ -47,7 +49,7 @@ class Zstd < Formula
       make *args
 
       if build.universal?
-        make 'clean'
+        make 'clean'  # not 'distclean'
         Merge.prep(prefix, stashdir/"bin-#{arch}", the_binaries)
         # undo architecture-specific tweak before next run
         ENV.remove_from_cflags "-arch #{arch}"
