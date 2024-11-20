@@ -7,22 +7,25 @@ class Keg
       file.ensure_writable do
         change_dylib_id(dylib_id_for(file), file) if file.dylib?
         each_install_name_for(file) do |bad_name|
-          # Don't fix absolute paths unless they are rooted in the build directory or our installed
-          # keg (the latter fails catastrophically if we’re temporarily moved for reïnstallation).
+          # Don't fix absolute paths unless rooted in one of:  - the build directory
+          #                                                    - the Cellar
+          #                                                    - a HOMEBREW_PREFIX symlink
+          # Either of those latter two can fail catastrophically when things are temporarily
+          # moved for a reïnstallation, as will the third if its target is not linked.
           next if bad_name.starts_with?('/') and not(bad_name.starts_with?(HOMEBREW_TEMP.to_s) or
-                                                     bad_name.starts_with?(installed_prefix.to_s))
+                                                     bad_name.starts_with?(HOMEBREW_CELLAR.to_s) or
+                                                     bad_name.starts_with?(HOMEBREW_PREFIX.to_s))
           new_name = fixed_name(file, bad_name)
           change_install_name(bad_name, new_name, file) unless new_name == bad_name
-        end
-      end
+        end # each install name |bad_name| in file
+      end # file.ensure_writable
     end # each Mach-O |file|
     symlink_files.each do |file|
       link = file.readlink
-      # Don't fix relative symlinks
-      next unless link.absolute?
-      if link.realpath.to_s.starts_with?(HOMEBREW_CELLAR.to_s) or link.to_s.starts_with?(HOMEBREW_PREFIX.to_s)
-        FileUtils.ln_sf(link.relative_path_from(file.parent), file)
-      end
+      next unless link.absolute?  # Don't fix relative symlinks
+      FileUtils.ln_sf(link.relative_path_from(file.parent), file) \
+        if link.realpath.to_s.starts_with?(HOMEBREW_CELLAR.to_s) \
+           or link.to_s.starts_with?(HOMEBREW_PREFIX.to_s)
     end # each symlink |file|
   end # fix_install_names
 
@@ -34,14 +37,12 @@ class Keg
           change_dylib_id(id, file)
         end
         each_install_name_for(file) do |old_name|
-          if old_name.starts_with? old_cellar
-            new_name = old_name.sub(old_cellar, new_cellar)
-          elsif old_name.starts_with? old_prefix
-            new_name = old_name.sub(old_prefix, new_prefix)
+          if old_name.starts_with? old_cellar then new_name = old_name.sub(old_cellar, new_cellar)
+          elsif old_name.starts_with? old_prefix then new_name = old_name.sub(old_prefix, new_prefix)
           end
           change_install_name(old_name, new_name, file) if new_name
-        end
-      end
+        end # each install name |old_name| in file
+      end # file.ensure_writable block
     end # each Mach-O |file|
   end # relocate_install_names
 
@@ -54,13 +55,11 @@ class Keg
       begin
         first.atomic_write(s)
       rescue SystemCallError
-        first.ensure_writable do
-          first.open("wb") { |f| f.write(s) }
-        end
+        first.ensure_writable do first.open("wb") { |f| f.write(s) }; end
       else
         rest.each { |file| FileUtils.ln(first, file, :force => true) }
       end if changed
-    end
+    end # each stat.ino group of files |first, *rest|
   end # relocate_text_files
 
   def change_dylib_id(id, file)
@@ -93,7 +92,6 @@ class Keg
   def each_unique_file_matching(string)
     Utils.popen_read("/usr/bin/fgrep", "-lr", string, to_s) do |io|
       hardlinks = Set.new
-
       until io.eof?
         file = Pathname.new(io.readline.chomp)
         next if file.symlink?
@@ -111,25 +109,39 @@ class Keg
   def require_install_name_tool?; !!@require_install_name_tool; end
 
   def fixed_name(file, bad_name)
+    # Before we can do anything, must get rid of placeholders.
     if bad_name.starts_with? PREFIX_PLACEHOLDER
-      bad_name.sub(PREFIX_PLACEHOLDER, HOMEBREW_PREFIX.to_s)
+      working_name = bad_name.sub(PREFIX_PLACEHOLDER, HOMEBREW_PREFIX.to_s)
     elsif bad_name.starts_with? CELLAR_PLACEHOLDER
-      bad_name.sub(CELLAR_PLACEHOLDER, HOMEBREW_CELLAR.to_s)
-    elsif bad_name.starts_with? installed_prefix
-      bad_name.sub(installed_prefix.to_s, opt_record.to_s)
-    # If file is a dylib or bundle itself, look for the dylib named by
-    # bad_name relative to the lib directory, so that we can skip the more
-    # expensive recursive search if possible.
-    elsif (file.dylib? or file.mach_o_bundle?) and (file.parent/bad_name).exists?
-      "@loader_path/#{bad_name}"
-    elsif (lib/bad_name).exists?
-      "#{opt_record}/lib/#{bad_name}"
-    elsif (abs_name = find_dylib(Pathname.new(bad_name).basename)) and abs_name.exists?
-      abs_name.to_s
-    else
-      opoo "Could not fix #{bad_name} in #{file}"
-      bad_name
-    end
+      working_name = bad_name.sub(CELLAR_PLACEHOLDER, HOMEBREW_CELLAR.to_s)
+    else working_name = bad_name; end
+    unless working_name.starts_with? '/'  # It’s relative and still equals bad_name.
+      # If file is a dylib or bundle itself, look for the dylib named by
+      # bad_name relative to the lib directory, so that we can skip the more
+      # expensive recursive search if possible.
+      if (file.dylib? or file.mach_o_bundle?) and (file.parent/bad_name).exists?
+        return "@loader_path/#{bad_name}"
+      elsif (lib/bad_name).exists? then return "#{opt_record}/lib/#{bad_name}"
+      elsif (abs_name = find_dylib(Pathname.new(bad_name).basename)) and abs_name.exists?
+        working_name = abs_name.to_s; end
+    end # working_name is relative?
+    # working_name is now definitely an absolute path.
+    # If it’s in our own installed prefix, or anywhere else in the Cellar, it
+    # will break if its referent has been moved for reïnstallation.
+    if working_name.starts_with? HOMEBREW_CELLAR.to_s
+      keg = Keg.for(working_name)
+      return working_name.sub(keg.root.to_s, keg.opt_record.to_s)
+    # If working_name is one of our symlinks in the PREFIX, it will break
+    # when its target is unlinked.
+    elsif working_name.starts_with? HOMEBREW_PREFIX.to_s
+      bad_path = Pathname.new(working_name)
+      if bad_path.symlink? and
+                    (real_bad = bad_path.resolved_real_path).to_s.starts_with? HOMEBREW_CELLAR.to_s
+        return working_name.sub(HOMEBREW_PREFIX.to_s, (Keg.for(real_bad)).opt_record.to_s)
+      else return working_name; end # It’s not one of ours; we have to assume it’s OK.
+    end # is it in the Cellar or in the PREFIX?
+    opoo "Could not fix #{bad_name} in #{file}"
+    bad_name
   end # fixed_name
 
   def lib; path/'lib'; end
