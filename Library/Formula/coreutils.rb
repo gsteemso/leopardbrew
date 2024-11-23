@@ -11,12 +11,15 @@ class Coreutils < Formula
     depends_on "autoconf" => :build
     depends_on "automake" => :build
     depends_on "bison" => :build
-    depends_on "gettext" => :build
     depends_on "texinfo" => :build
     depends_on "xz" => :build
     depends_on "wget" => :build
   end
 
+  option 'without-nls',   'Build without internationalization'
+  option 'without-tests', 'Build without running the unit tests'
+
+  depends_on "gettext" if build.with? 'nls'
   depends_on "gmp" => :optional
 
   conflicts_with "ganglia", :because => "both install `gstat` binaries"
@@ -46,8 +49,12 @@ class Coreutils < Formula
       --program-prefix=g
       --disable-silent-rules
     ]
+    args << '--disable-year2038' if MacOS.version <= :leopard or
+                                   (MacOS.version == :snow_leopard and Hardware::CPU.is_32_bit?)
     args << "--without-gmp" if build.without? "gmp"
     system "./configure", *args
+    system "make"
+    system "make", "check" if build.with? 'tests'
     system "make", "install"
 
     # Symlink all commands into libexec/gnubin without the 'g' prefix
