@@ -112,7 +112,6 @@ begin
   if internal_cmd
     Homebrew.send cmd.to_s.gsub("-", "_").downcase
   elsif which "brew-#{cmd}"
-    ENV['HOMEBREW_LIBRARY_PATH'] = Object.const_get('HOMEBREW_LIBRARY_PATH').to_s
     exec "brew-#{cmd}", *ARGV
   elsif (path = which("brew-#{cmd}.rb")) && require?(path)
     exit Homebrew.failed? ? 1 : 0
