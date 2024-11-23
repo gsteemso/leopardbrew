@@ -111,7 +111,7 @@ module Homebrew
       ignore_interrupts { f.prefix.rmtree }
     end
     ignore_interrupts { previously_installed.rename } if previously_installed
-    ignore_interrupts { previously_linked.link } if previously_linked
+    ignore_interrupts { previously_linked.link } if previously_linked and not f.linked_keg.directory?
     raise
   else
     ignore_interrupts { previously_installed.root.rmtree } if previously_installed.root.exists?
