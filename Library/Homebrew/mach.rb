@@ -155,6 +155,12 @@ module MachO
   # @private
   def mach_o_bundle?; mach_data.any? { |m| m.fetch(:type) == :MH_BUNDLE }; end
 
+  def tracked_mach_o?
+    mach_data.any? { |m| mtype = m.fetch(:type)
+      [:MH_EXECUTE, :MH_DYLIB, :MH_BUNDLE].any? { |mh| mh == mtype }
+    }
+  end
+
   # The universal‐binary file signature is also used by Java files, so we do extra sanity‐checking
   #   for that case.  If there are an implausibly large number of architectures, it is unlikely to
   #   be a real fat binary; Java files, for example, will produce a figure well in excess of 60
