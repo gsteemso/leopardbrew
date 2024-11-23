@@ -88,7 +88,7 @@ class Keg
 
   # If path leads to a file in a keg, this will return the containing Keg object.
   def self.for(path)
-    path = path.realpath
+    path = Pathname.new(path).realpath
     until path.root?  # this is the filesystem root, not Keg#root
       return Keg.new(path) if path.parent.parent == HOMEBREW_CELLAR
       path = path.parent.realpath # realpath() prevents .root? failing
