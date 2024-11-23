@@ -326,7 +326,7 @@ end
 # Returns array of architectures that the given command or library is built for.
 # Expects a bare string.  If you have a Pathname just use its #archs method.
 def archs_for_command(cmd)
-  cmd = which(cmd) unless cmd.to_s[0] == '/'
+  cmd = which(cmd) unless cmd =~ %r{^\.?/}
   Pathname.new(cmd).archs
 end
 
