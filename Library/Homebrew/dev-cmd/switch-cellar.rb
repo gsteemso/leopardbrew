@@ -1,5 +1,5 @@
 #:
-#:Unlink, switch out, and relink your Homebrew (Tigerbrew) Cellar.
+#:Unlink, switch out, and relink your Homebrew (Leopardbrew) Cellar.
 #:
 #:  Usage:
 #:
