@@ -1523,7 +1523,7 @@ class Formula
     # it unless {pkg-config} is also present).  Formally, “helped_by” takes
     # an array argument, but single strings also work thanks to silent type‐
     # coërcion to the correct thing.
-    def enhanced_by(aid); specs.each { |spec| spec.enhanced_by(aid) }; end
+    def enhanced_by(aid); specs.each { |spec| spec.enhanced_by(aid) } unless ARGV.ignore_aids?; end
 
     # @!attribute [w] option
     # Options can be used as arguments to `brew install`.

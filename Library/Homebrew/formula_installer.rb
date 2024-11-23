@@ -469,6 +469,7 @@ class FormulaInstaller
     args << "--verbose" if verbose?
     args << "--debug" if debug?
     args << "--cc=#{ARGV.cc}" if ARGV.cc
+    args << '--no-enhancements' if ARGV.ignore_aids?
 
     if ARGV.env
       args << "--env=#{ARGV.env}"

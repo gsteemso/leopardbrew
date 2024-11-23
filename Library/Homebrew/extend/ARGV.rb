@@ -16,15 +16,15 @@ module HomebrewArgvExtension
 
   SWITCHES = {
     '1' => '--1', # (“do not recurse” – only used by the `deps` command)
-  # 'd' => '--debug' (already handled as an ENV_ARG)
+  # 'd' => '--debug' (already handled as an ENV_FLAG)
     'f' => '--force',
     'g' => '--git',
     'i' => '--interactive',
     'n' => '--dry-run',
-  # 'q' => '--quieter'  (already handled as an ENV_ARG)
-  # 's' => '--build-from-source' (already handled as an ENV_ARG)
-  # 'u' => '--universal' (already handled as an ENV_ARG)
-  # 'v' => '--verbose' (already handled as an ENV_ARG)
+  # 'q' => '--quieter'  (already handled as an ENV_FLAG)
+  # 's' => '--build-from-source' (already handled as an ENV_FLAG)
+  # 'u' => '--universal' (already handled as an ENV_FLAG)
+  # 'v' => '--verbose' (already handled as an ENV_FLAG)
   }.freeze
 
   BREW_SYSTEM_EQS = %w[
@@ -37,6 +37,7 @@ module HomebrewArgvExtension
   BREW_SYSTEM_FLAGS = %w[
     --force-bottle
     --ignore-dependencies
+    --no-enhancements
     --only-dependencies
   ].freeze
 
