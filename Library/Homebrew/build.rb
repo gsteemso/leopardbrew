@@ -12,11 +12,11 @@ require "debrew"
 require "fcntl"
 
 class Build
-  attr_reader :formula, :deps, :reqs
+  attr_reader :formula, :deps, :reqs, :aids
 
-  def initialize(formula, args)
-    @formula = formula
-    @formula.build = BuildOptions.new(Options.create(args), formula.options)
+  def initialize(f, args)
+    @formula = f
+    @formula.build = BuildOptions.new(Options.create(args), f.options)
 
     if ARGV.ignore_deps?
       @deps = []
@@ -25,6 +25,7 @@ class Build
       @deps = expand_deps
       @reqs = expand_reqs
     end
+    @aids = (ARGV.ignore_aids? ? [] : f.enhancements)
   end # initialize
 
   def post_superenv_hacks
@@ -71,7 +72,7 @@ class Build
   end # expand_deps
 
   def install
-    _deps = deps.map(&:to_formula)
+    _deps = deps.map(&:to_formula) + aids
     keg_only_deps = _deps.select(&:keg_only?)
     _deps.each { |dep| fixopt(dep) unless dep.opt_prefix.directory? }
 
@@ -151,8 +152,8 @@ class Build
         f.linked_keg.resolved_path
       elsif f.prefix.directory?
         f.prefix
-      elsif (kids = f.rack.children).size == 1 and kids.first.directory?
-        kids.first
+      elsif (gik = f.greatest_installed_keg)
+        gik.root
       else
         raise
       end

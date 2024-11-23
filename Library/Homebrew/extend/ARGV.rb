@@ -208,6 +208,10 @@ module HomebrewArgvExtension
     include?('--sandbox') or not ENV['HOMEBREW_SANDBOX'].nil?
   end
 
+  def ignore_aids?
+    include? '--no-enhancements'
+  end
+
   def ignore_deps?
     include? '--ignore-dependencies'
   end

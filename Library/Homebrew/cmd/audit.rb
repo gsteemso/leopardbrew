@@ -176,6 +176,7 @@ class FormulaAuditor
       [/^  head do/,                       "head block"],
       [/^  option/,                        "option"],
       [/^  depends_on/,                    "depends_on"],
+      [/^  helped_by/,                     'helped_by'],
       [/^  def install/,                   "install method"],
       [/^  def caveats/,                   "caveats method"],
       [/^  test do/,                       "test block"]

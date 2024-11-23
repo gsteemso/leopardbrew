@@ -288,6 +288,21 @@ class Formula
   # @private
   def requirements; active_spec.requirements; end
 
+  # Any one member of a soft‐dependency group can be used to check for that
+  # group’s presence, as the individual formulæ are only recorded when every
+  # member of the group is present.
+  def enhanced_by?(aid); active_spec.enhanced_by?(aid); end
+
+  # The list of formulæ that, being known to be installed, will enhance the
+  # currently active {SoftwareSpec}.
+  # @private
+  def enhancements; active_spec.enhancements; end
+
+  # The complete list of formula‐groups that would enhance the currently
+  # active {SoftwareSpec} if already installed.
+  # @private
+  def named_enhancements; active_spec.named_enhancements; end
+
   # The cached download for the currently active {SoftwareSpec}.
   # @private
   def cached_download; active_spec.cached_download; end
@@ -1483,7 +1498,7 @@ class Formula
     # depends_on :arch => :x86_64 # If this formula only builds on Intel x86 64-bit.
     # depends_on :arch => :ppc # Only builds on PowerPC?
     # depends_on :ld64 # Sometimes ld fails on `MacOS.version < :leopard`. Then use this.
-    # depends_on :x11 # X11/XQuartz components. Non-optional X11 deps should go in Homebrew/Homebrew-x11
+    # depends_on :x11 # X11/XQuartz components.  Non-optional X11 deps should go in Homebrew/Homebrew-x11
     # depends_on :osxfuse # Permits the use of the upstream signed binary or our source package.
     # depends_on :tuntap # Does the same thing as above. This is vital for Yosemite and above.
     # depends_on :mysql => :recommended</pre>
@@ -1500,6 +1515,15 @@ class Formula
     # <pre># Python 3.x if the `--with-python3` is given to `brew install example`
     # depends_on :python3 => :optional</pre>
     def depends_on(dep); specs.each { |spec| spec.depends_on(dep) }; end
+
+    # Soft dependencies (those which can be omitted if need be, in order to
+    # avoid dependency loops) are to be indicated with “helped_by” commands.
+    # Each one specifies a dependency (or mutually necessary group thereof –
+    # – for example, {make} has a soft dependency on {guile}, but can’t use
+    # it unless {pkg-config} is also present).  Formally, “helped_by” takes
+    # an array argument, but single strings also work thanks to silent type‐
+    # coërcion to the correct thing.
+    def enhanced_by(aid); specs.each { |spec| spec.enhanced_by(aid) }; end
 
     # @!attribute [w] option
     # Options can be used as arguments to `brew install`.
