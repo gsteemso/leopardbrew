@@ -20,15 +20,11 @@ module Superenv
   attr_accessor :x11
   alias_method :x11?, :x11
 
-  def self.extended(base)
-    base.keg_only_deps = []
-    base.deps = []
-  end
+  def self.extended(base); base.keg_only_deps = []; base.deps = []; end
 
   # @private
   def self.bin
     return unless MacOS.has_apple_developer_tools?
-
     bin = (HOMEBREW_LIBRARY/'ENV').subdirs.reject { |d| d.basename.to_s > MacOS::Xcode.version }.max
     bin.realpath unless bin.nil?
   end
@@ -91,21 +87,13 @@ module Superenv
 
   private
 
-  def cc=(val)
-    self["HOMEBREW_CC"] = super
-  end
+  def cc=(val); self["HOMEBREW_CC"] = super; end
 
-  def cxx=(val)
-    self["HOMEBREW_CXX"] = super
-  end
+  def cxx=(val); self["HOMEBREW_CXX"] = super; end
 
-  def effective_sysroot
-    MacOS::Xcode.without_clt? ? MacOS.sdk_path.to_s : nil
-  end
+  def effective_sysroot; @effective_sysroot ||= MacOS::Xcode.without_clt? ? MacOS.sdk_path.to_s : nil; end
 
-  def determine_cxx
-    determine_cc.to_s.gsub("gcc", "g++").gsub("clang", "clang++")
-  end
+  def determine_cxx; determine_cc.to_s.gsub("gcc", "g++").gsub("clang", "clang++"); end
 
   def determine_path
     paths = [Superenv.bin]
@@ -159,28 +147,11 @@ module Superenv
     paths.to_path_s
   end # determine_aclocal_path
 
-  def determine_m4
-    m4 = Formula['m4']
-    if m4.installed?
-      m4.opt_bin/'m4'
-    else
-      MacOS.locate("m4")
-    end
-  end # determine_m4
+  def determine_m4; m4 = Formula['m4']; m4.installed? ? m4.opt_bin/'m4' : MacOS.locate("m4"); end
 
-  def determine_isystem_paths
-    paths = []
-    paths << "#{HOMEBREW_PREFIX}/include"
-    paths << "#{effective_sysroot}/usr/include/libxml2" unless deps.any? { |d| d.name == "libxml2" }
-    paths << "#{effective_sysroot}/usr/include/apache2" if MacOS::Xcode.without_clt?
-    paths << MacOS::X11.include.to_s << "#{MacOS::X11.include}/freetype2" if x11?
-    paths << "#{effective_sysroot}/System/Library/Frameworks/OpenGL.framework/Versions/Current/Headers"
-    paths.to_path_s
-  end # determine_isystem_paths
+  def determine_isystem_paths; (common_include_paths.unshift "#{HOMEBREW_PREFIX}/include").to_path_s; end
 
-  def determine_include_paths
-    keg_only_deps.map { |d| d.opt_include.to_s }.to_path_s
-  end
+  def determine_include_paths; keg_only_deps.map { |d| d.opt_include.to_s }.to_path_s; end
 
   def determine_library_paths
     paths = keg_only_deps.map { |d| d.opt_lib.to_s }
@@ -196,14 +167,7 @@ module Superenv
     paths.to_path_s
   end
 
-  def determine_cmake_include_path
-    paths = []
-    paths << "#{effective_sysroot}/usr/include/libxml2" unless deps.any? { |d| d.name == "libxml2" }
-    paths << "#{effective_sysroot}/usr/include/apache2" if MacOS::Xcode.without_clt?
-    paths << MacOS::X11.include.to_s << "#{MacOS::X11.include}/freetype2" if x11?
-    paths << "#{effective_sysroot}/System/Library/Frameworks/OpenGL.framework/Versions/Current/Headers"
-    paths.to_path_s
-  end
+  def determine_cmake_include_path; common_include_paths.to_path_s; end
 
   def determine_cmake_library_path
     paths = []
@@ -218,13 +182,7 @@ module Superenv
     paths.to_path_s
   end
 
-  def determine_make_jobs
-    if (j = self["HOMEBREW_MAKE_JOBS"].to_i) < 1
-      Hardware::CPU.cores
-    else
-      j
-    end
-  end # determine_make_jobs
+  def determine_make_jobs; ((j = self["HOMEBREW_MAKE_JOBS"].to_i) < 1) ? Hardware::CPU.cores : j; end
 
   def determine_optflags
     if ARGV.build_bottle?
@@ -255,37 +213,35 @@ module Superenv
     s
   end # determine_cccfg
 
+  def common_include_paths
+    paths = []
+    paths << "#{effective_sysroot}/usr/include/libxml2" unless deps.any? { |d| d.name == "libxml2" }
+    paths << "#{effective_sysroot}/usr/include/apache2" if MacOS::Xcode.without_clt?
+    paths << MacOS::X11.include.to_s << "#{MacOS::X11.include}/freetype2" if x11?
+    paths << "#{effective_sysroot}/System/Library/Frameworks/OpenGL.framework/Versions/Current/Headers"
+  end # common_include_paths
+
   public
 
   def cccfg_add(datum)
-    append 'HOMEBREW_CCCFG', datum, '' unless self['HOMEBREW_CCCFG'].include? datum
+    append('HOMEBREW_CCCFG', datum, '') unless self['HOMEBREW_CCCFG'].include? datum
   end
 
-  def cccfg_remove(datum)
-    remove 'HOMEBREW_CCCFG', datum if self['HOMEBREW_CCCFG'].include? datum
-  end
+  def cccfg_remove(datum); remove 'HOMEBREW_CCCFG', datum if self['HOMEBREW_CCCFG'].include? datum; end
 
-  def make_jobs
-    self["MAKEFLAGS"] =~ /-\w*j(\d)+/
-    [$1.to_i, 1].max
-  end
+  def make_jobs; self["MAKEFLAGS"] =~ %r{-\w*j(\d)+}; [$1.to_i, 1].max; end
 
   def universal_binary
     permit_arch_flags
     self["HOMEBREW_ARCHFLAGS"] = Hardware::CPU.universal_archs.as_arch_flags
-
     # GCC doesn't accept "-march" for a 32-bit CPU with "-arch x86_64"
-    if compiler != :clang && Hardware.is_32_bit?
-      self["HOMEBREW_OPTFLAGS"] = self["HOMEBREW_OPTFLAGS"].sub(
+    self["HOMEBREW_OPTFLAGS"] = self["HOMEBREW_OPTFLAGS"].sub(
         /-march=\S*/,
         "-Xarch_#{Hardware::CPU.arch_32_bit} \\0"
-      )
-    end
+      ) if compiler != :clang && Hardware.is_32_bit?
   end # universal_binary
 
-  def permit_arch_flags
-    cccfg_add 'K'
-  end
+  def permit_arch_flags; cccfg_add 'K'; end
 
   def m32
     permit_arch_flags
@@ -313,33 +269,21 @@ module Superenv
 
   def cxx11
     case homebrew_cc
-    when "clang"
-      cccfg_add 'x'
-      cccfg_add 'g'
-    when GNU_CXX11_REGEXP
-      cccfg_add 'x'
-    else
-      raise "The selected compiler doesn't support C++11:  #{homebrew_cc}"
+      when "clang" then cccfg_add 'x'; cccfg_add 'g'
+      when GNU_CXX11_REGEXP then cccfg_add 'x'
+      else raise "The selected compiler doesn't support C++11:  #{homebrew_cc}"
     end
   end # cxx11
 
-  def libcxx
-    cccfg_add 'g' if compiler == :clang
-  end
+  def libcxx; cccfg_add 'g' if compiler == :clang; end
 
-  def libstdcxx
-    cccfg_add 'h' if compiler == :clang
-  end
+  def libstdcxx; cccfg_add 'h' if compiler == :clang; end
 
   # @private
-  def refurbish_args
-    cccfg_add 'O'
-  end
+  def refurbish_args; cccfg_add 'O'; end
 
   %w[O3 O2 O1 O0 Os].each do |opt|
-    define_method opt do
-      self["HOMEBREW_OPTIMIZATION_LEVEL"] = opt
-    end
+    define_method opt do self['HOMEBREW_OPTIMIZATION_LEVEL'] = opt; end
   end
 
   # @private
