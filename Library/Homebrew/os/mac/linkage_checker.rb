@@ -17,18 +17,18 @@ class LinkageChecker
     @undeclared_deps = []
     @reverse_links = Hash.new { |h, k| h[k] = Set.new }
     check_dylibs
-  end
+  end # initialize
 
   def check_dylibs
     @keg.find do |file|
-      next if file.symlink? || file.directory?
-      next unless file.dylib? || file.mach_o_executable? || file.mach_o_bundle?
+      next if file.symlink? or file.directory?
+      next unless file.tracked_mach_o?
 
       # weakly loaded dylibs may not actually exist on disk, so skip them
       # when checking for broken linkage
       file.dynamically_linked_libraries.each do |dylib|
         @reverse_links[dylib] << file
-        if dylib.start_with? "@"
+        if dylib.starts_with? '@'
           @variable_dylibs << dylib
         else
           begin
@@ -39,44 +39,35 @@ class LinkageChecker
             @broken_dylibs << dylib
           else
             tap = Tab.for_keg(owner).tap
-            f = if tap.nil? || tap == "mistydemeo/tigerbrew"
-              owner.name
-            else
-              "#{tap}/#{owner.name}"
-            end
+            f = ((tap.nil? or tap == 'mistydemeo/tigerbrew') ? owner.name : "#{tap}/#{owner.name}")
             @brewed_dylibs[f] << dylib
           end
-        end
-      end
-    end
+        end # does dylib start with '@'?
+      end # each |dylib|
+    end # find keg |file|
 
     @undeclared_deps = check_undeclared_deps if formula
-  end
+  end # check_dylibs
 
   def check_undeclared_deps
-    filter_out = proc do |dep|
-      next true if dep.build?
-      next false unless dep.optional? || dep.recommended?
-      formula.build.without?(dep)
+    def filter_out(dep)
+      dep.build? or ((dep.optional? or dep.recommended?) and formula.build.without?(dep))
     end
-    declared_deps = formula.deps.reject { |dep| filter_out.call(dep) }.map(&:name)
-    declared_requirement_deps = formula.requirements.reject { |req| filter_out.call(req) }.map(&:default_formula).compact
-    declared_dep_names = (declared_deps + declared_requirement_deps).map { |dep| dep.split("/").last }
+    declared_deps = formula.deps.reject { |dep| filter_out(dep) }.map(&:name)
+    declared_req_deps = formula.requirements.reject { |req| filter_out(req) }.map(&:default_formula).compact
+    declared_aids = formula.helpful_formulae.select { |aid| aid.installed? }.map(&:name)
+    declared_dep_names = (declared_deps + declared_req_deps + declared_aids).map { |dep| dep.split("/").last }
     undeclared_deps = @brewed_dylibs.keys.select do |full_name|
       name = full_name.split("/").last
       next false if name == formula.name
       !declared_dep_names.include?(name)
     end
     undeclared_deps.sort do |a, b|
-      if a.include?("/") && !b.include?("/")
-        1
-      elsif !a.include?("/") && b.include?("/")
-        -1
-      else
-        a <=> b
-      end
+      if    a.include?("/") and not b.include?("/") then 1
+      elsif b.include?("/") and not a.include?("/") then -1
+      else a <=> b; end
     end
-  end
+  end # check_undeclared_deps
 
   def display_normal_output
     display_items "System libraries", @system_dylibs
@@ -84,7 +75,7 @@ class LinkageChecker
     display_items "Variable-referenced libraries", @variable_dylibs
     display_items "Missing libraries", @broken_dylibs
     display_items "Possible undeclared dependencies", @undeclared_deps
-  end
+  end # display_normal_output
 
   def display_reverse_output
     return if @reverse_links.empty?
@@ -92,25 +83,21 @@ class LinkageChecker
     sorted.each do |dylib, files|
       puts dylib
       files.each do |f|
-        unprefixed = f.to_s.strip_prefix "#{@keg}/"
+        unprefixed = f.to_s.sub %r{^#{@keg}/}, ''
         puts "  #{unprefixed}"
       end
       puts unless dylib == sorted.last[0]
-    end
-  end
+    end # each sorted |dylib, files|
+  end # display_reverse_output
 
   def display_test_output
     display_items "Missing libraries", @broken_dylibs
     puts "No broken dylib links" if @broken_dylibs.empty?
   end
 
-  def broken_dylibs?
-    !@broken_dylibs.empty?
-  end
+  def broken_dylibs?; !@broken_dylibs.empty?; end
 
-  def undeclared_deps?
-    !@undeclared_deps.empty?
-  end
+  def undeclared_deps?; !@undeclared_deps.empty?; end
 
   private
 
@@ -130,7 +117,7 @@ class LinkageChecker
         puts "  #{item}"
       end
     end
-  end
+  end # display_items
 
   def resolve_formula(keg)
     f = Formulary.from_rack(keg.rack)
@@ -138,5 +125,5 @@ class LinkageChecker
     f
   rescue FormulaUnavailableError
     opoo "Formula unavailable: #{keg.name}"
-  end
-end
+  end # resolve_formula
+end # LinkageChecker
