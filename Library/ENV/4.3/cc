@@ -5,7 +5,8 @@ require 'pathname'
 require 'set'
 
 if RUBY_VERSION < '1.8.7'
-  $:.unshift(ENV['HOMEBREW_LIBRARY_PATH'])
+  abort '$HOMEBREW_LIBRARY_PATH is unset!' unless ENV['HOMEBREW_LIBRARY_PATH']
+  $:.unshift ENV['HOMEBREW_LIBRARY_PATH']
   require 'extend/leopard'
   require 'vendor/backports/enumerator'
 end
