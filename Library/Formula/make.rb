@@ -8,9 +8,9 @@ class Make < Formula
   option :universal
   option 'with-default-names', 'Do not prepend ‘g’ to the binary'
   option 'with-tests',         'Run the unit tests while building (requires Perl)'
-  option 'without-nls',        'Build without internationalization'
+  option 'without-gettext',    'Build without NLS (internationalization)'
 
-  depends_on 'gettext' if build.with? 'nls'
+  depends_on 'gettext' => :recommended
   depends_on 'perl' if build.with? 'tests'
 
   enhanced_by ['guile', 'pkg-config']
@@ -28,7 +28,7 @@ class Make < Formula
       --disable-silent-rules
     ]
     args << '--program-prefix=g' if build.without? 'default-names'
-    args << '--disable-nls' if build.without? 'nls'
+    args << '--disable-nls' if build.without? 'gettext'
     args << '--with-guile' if enhanced_by? 'guile'
     system './configure', *args
     system 'make'
