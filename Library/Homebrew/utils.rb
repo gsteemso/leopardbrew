@@ -198,7 +198,10 @@ def quiet_system(cmd, *args)
     $stdout.reopen("/dev/null")
     $stderr.reopen("/dev/null")
   end
-end
+end # quiet_system
+
+# use this for running `make check`:
+def bombed_system?(cmd, *args); Homebrew._system(cmd, *args) ? false : $?.exitstatus; end
 
 # useful for `test` blocks:
 
