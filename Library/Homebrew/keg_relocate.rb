@@ -134,12 +134,12 @@ class Keg
     # If working_name is one of our symlinks in the PREFIX, it will break
     # when its target is unlinked.
     elsif working_name.starts_with? HOMEBREW_PREFIX.to_s
+      return working_name if working_name.starts_with? OPTDIR.to_s
       bad_path = Pathname.new(working_name)
-      if bad_path.symlink? and
+      return working_name unless bad_path.symlink? and
                     (real_bad = bad_path.resolved_real_path).to_s.starts_with? HOMEBREW_CELLAR.to_s
-        return working_name.sub(HOMEBREW_PREFIX.to_s, (Keg.for(real_bad)).opt_record.to_s)
-      else return working_name; end # It’s not one of ours; we have to assume it’s OK.
-    end # is it in the Cellar or in the PREFIX?
+      return working_name.sub(HOMEBREW_PREFIX.to_s, (Keg.for(real_bad)).opt_record.to_s)
+    end # is it in the Cellar or the PREFIX?
     opoo "Could not fix #{bad_name} in #{file}"
     bad_name
   end # fixed_name
