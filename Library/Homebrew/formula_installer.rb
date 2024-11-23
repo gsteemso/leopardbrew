@@ -541,7 +541,7 @@ class FormulaInstaller
       Process.wait(pid)
       raise Marshal.load(data) unless data.nil? or data.empty?
       raise Interrupt, "User interrupted build" if $?.exitstatus == 130
-      raise "Suspicious installation failure" unless $?.success?
+      raise "Suspicious installation failure (build process silently exited)" unless $?.success?
     end # quietly ignore interrupts
 
     raise "Empty installation" if Dir["#{formula.prefix}/*"].empty?
