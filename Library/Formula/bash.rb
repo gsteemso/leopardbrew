@@ -1,13 +1,12 @@
 class Bash < Formula
-  desc "Bourne-Again SHell, a UNIX command interpreter"
-  homepage "https://www.gnu.org/software/bash/"
-  url "http://ftpmirror.gnu.org/bash/bash-5.2.21.tar.gz"
-  mirror "https://mirrors.ocf.berkeley.edu/gnu/bash/bash-5.2.21.tar.gz"
-  mirror "https://mirrors.kernel.org/gnu/bash/bash-5.2.21.tar.gz"
-  sha256 "c8e31bdc59b69aaffc5b36509905ba3e5cbb12747091d27b4b977f078560d5b8"
-  revision 1
+  desc 'Bourne-Again SHell, a UNIX command interpreter'
+  homepage 'https://www.gnu.org/software/bash/'
+  url 'http://ftpmirror.gnu.org/bash/bash-5.2.37.tar.gz'
+  mirror 'https://mirrors.ocf.berkeley.edu/gnu/bash/bash-5.2.37.tar.gz'
+  mirror 'https://mirrors.kernel.org/gnu/bash/bash-5.2.37.tar.gz'
+  sha256 '9599b22ecd1d5787ad7d3b7bf0c59f312b3396d1e281175dd1f8a4014da621ff'
 
-  head "http://git.savannah.gnu.org/r/bash.git"
+  head 'http://git.savannah.gnu.org/r/bash.git'
 
   STANDARD_BASH = (MacOS.version < :leopard ? '2.05' : '3.2')  # true even on Mac OS 15
   SYSTEM_BASH = Pathname.new '/bin/bash'
@@ -15,22 +14,38 @@ class Bash < Formula
   TO = HOMEBREW_PREFIX/'bin/to-brewed-bash'
   FRO = HOMEBREW_PREFIX/'bin/to-stock-bash'
 
-  depends_on SelfUnbrewedRequirement.new(SYSTEM_BASH, MOVED_BASH, 'to-stock-bash')
-  depends_on "readline"
+  option :universal
+  option 'without-nls', 'Brew without internationalization support'
 
+  depends_on SelfUnbrewedRequirement.new(SYSTEM_BASH, MOVED_BASH, 'to-stock-bash')
+  depends_on 'bison' => :build
+  depends_on 'readline'
+  depends_on 'gettext' if build.with? 'nls'
+
+  # the circumstances that led to this patch were not recorded
   patch :DATA
 
   def install
+    ENV.universal_binary if build.universal?
+
     # When built with SSH_SOURCE_BASHRC, bash will source ~/.bashrc when
     # it's started non-interactively from sshd.  This allows the user to set
     # environment variables prior to running the command (e.g. PATH).  The
     # /bin/bash that ships with Mac OS X defines this, and without it, some
     # things (e.g. git+ssh) will break if the user sets their default shell to
     # Homebrew's bash instead of /bin/bash.
-    ENV.append_to_cflags "-DSSH_SOURCE_BASHRC"
+    ENV.append_to_cflags '-DSSH_SOURCE_BASHRC'
 
-    system "./configure", "--prefix=#{prefix}", "--with-installed-readline=#{Formula['readline'].opt_prefix}"
-    system "make", "install"
+    args = %W[
+      --prefix=#{prefix}
+      --with-installed-readline=#{Formula['readline'].opt_prefix}
+    ]
+    args << '--disable-nls' if build.without? 'nls'
+
+    system './configure', *args
+    system 'make'
+    # no `make tests`; it outputs blather that only means much if you pore over the test scripts.
+    system 'make', 'install'
 
     TO.binwrite switch_to
     FRO.binwrite switch_from
