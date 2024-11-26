@@ -82,7 +82,6 @@ class Build
       ENV.keg_only_deps = keg_only_deps
       ENV.deps = _deps
       ENV.x11 = reqs.any? { |rq| rq.is_a?(X11Requirement) }
-      ENV['HOMEBREW_ARCHFLAGS'] ||= "-arch #{MacOS.preferred_arch.to_s}"
     end
 
     ENV.setup_build_environment(formula)
