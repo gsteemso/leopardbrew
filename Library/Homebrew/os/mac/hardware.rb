@@ -125,7 +125,7 @@ module MacCPUs
 
   # Determines whether the current CPU and macOS combination
   # can run an executable of the specified architecture.
-  # “arch” is a symbol in the same format returned by
+  # “this” is a symbol in the same format returned by
   # #arch.
   def can_run?(this)
     case type
