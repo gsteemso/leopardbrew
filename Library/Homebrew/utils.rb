@@ -200,8 +200,10 @@ def quiet_system(cmd, *args)
   end
 end # quiet_system
 
-# use this for running `make check`:
+# use these for running `make check`:
 def bombed_system?(cmd, *args); Homebrew._system(cmd, *args) ? false : $?.exitstatus; end
+
+def bombproof_system(cmd, *args); not bombed_system?(cmd, *args); end
 
 # useful for `test` blocks:
 
