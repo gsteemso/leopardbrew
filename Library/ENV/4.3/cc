@@ -67,11 +67,15 @@ class Cmd
   end
 
   def distill_args
-    if @given_args.length == 1 && @given_args[0] == '-v'
-      # Don't add linker arguments if -v passed as sole option. This stops `gcc -v` with no other
-      # arguments from outputting a linker error.  Some software uses gcc -v (wrongly) to sniff the
-      # GCC version.
-      return @given_args.dup
+    if ['-v', '-V', '-version', '--version'].any? { |a| a == @given_args[-1] }
+      # Don't add linker arguments if -v or similar is passed as sole (or at least last) option.
+      # This stops `gcc -v` et sim, with no other meaningful arguments, from outputting a linker
+      # error.  Some software misuses `gcc -v` to sniff the GCC version; this covers all bases.
+      # This formerly only tested for '-v' and only if it was the only argument, but some software
+      # now erroneously prepends `--std=gnu99` or the like to it, so testing for it as the last
+      # argument will have to do.  This actually also fixes a bug in some `configure` scripts,
+      # which cause `gcc -V` to wrongly fail by accidentally calling it as `gcc --std=gnu99 -V`.
+      return [@given_args[-1]]
     end
 
     if !refurbish_args? || tool == 'ld' || configure?
