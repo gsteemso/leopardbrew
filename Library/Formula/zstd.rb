@@ -8,7 +8,7 @@ class Zstd < Formula
 
   option :universal
 
-  depends_on 'lz4'  # technically optional, but why wouldn’t you?
+  depends_on 'lz4' => :recommended
 
   if MacOS.version < :leopard
     depends_on 'apple-gcc42' => :build  # may not actually be true
@@ -17,22 +17,14 @@ class Zstd < Formula
     depends_on 'make'        => :build  # Tiger's system `make` can't handle the makefile.
   end
 
+  # eliminate dependency extraction, freeing :universal build
+  patch :DATA
+
   def install
     ENV.deparallelize
     # For some reason, type `long long` is not understood unless this is made explicit:
     ENV.append_to_cflags '-std=c99'
-    if build.universal?
-      ENV.permit_arch_flags if superenv?
-      archs = Hardware::CPU.universal_archs
-      stashdir = buildpath/'arch-stashes'
-      the_binaries = %w[
-        bin/zstd
-        lib/libzstd.1.5.5.dylib
-        lib/libzstd.a
-      ]
-    else
-      archs = [MacOS.preferred_arch]
-    end # universal?
+    ENV.universal_binary if build.universal?
 
     # The “install” Make target covers static & dynamic libraries, CLI binaries, and manpages.
     # The “manual” Make target (not used here) would cover API documentation in HTML.
@@ -41,27 +33,13 @@ class Zstd < Formula
       install
     ]
     args << 'V=1' if VERBOSE
-
-    archs.each do |arch|
-      ENV.append_to_cflags "-arch #{arch}" if build.universal?
-
-      # `make check` et sim. are not used because they are specific to the zstd developers.
-      make *args
-
-      if build.universal?
-        make 'clean'  # not 'distclean'
-        Merge.prep(prefix, stashdir/"bin-#{arch}", the_binaries)
-        # undo architecture-specific tweak before next run
-        ENV.remove_from_cflags "-arch #{arch}"
-      end # universal?
-    end # each |arch|
-
-    Merge.binaries(prefix, stashdir, archs) if build.universal?
+    # `make check` et sim. are not used because they are specific to the zstd developers.
+    make *args
   end # install
 
   test do
     for_archs bin/'zstd' do |a|
-      arch_args = (a ? ['arch', '-arch', a.to_s] : [])
+      arch_args = (a.nil? ? [] : ['arch', '-arch', a.to_s])
       system *arch_args, bin/'zstd', '-z', '-o', './test.zst', test_fixtures('test.pdf')
       system *arch_args, bin/'zstd', '-t', 'test.zst'
       system *arch_args, bin/'zstd', '-d', '--rm', 'test.zst'
@@ -71,66 +49,66 @@ class Zstd < Formula
   end # test
 end # Zstd
 
-class Merge
-  class << self
-    include FileUtils
-
-    # The destination is expected to be a Pathname object.
-    # The source is just a string.
-    def cp_mkp(source, destination)
-      if destination.exists?
-        if destination.is_directory?
-          cp source, destination
-        else
-          raise "File exists at destination:  #{destination}"
-        end # directory?
-      else
-        mkdir_p destination.parent unless destination.parent.exists?
-        cp source, destination
-      end # destination exists?
-    end # Merge.cp_mkp
-
-    # The keg_prefix and stash_root are expected to be Pathname objects.
-    # The list members are just strings.
-    def prep(keg_prefix, stash_root, list)
-      list.each do |item|
-        source = keg_prefix/item
-        dest = stash_root/item
-        cp_mkp source, dest
-      end # each binary
-    end # Merge.prep
-
-    # The keg_prefix is expected to be a Pathname object.  The rest are just strings.
-    def binaries(keg_prefix, stash_root, archs, sub_path = '')
-      # don’t suffer a double slash when sub_path is null:
-      s_p = (sub_path == '' ? '' : sub_path + '/')
-      # generate a full list of files, even if some are not present on all architectures; bear in
-      # mind that the current _directory_ may not even exist on all archs
-      basename_list = []
-      arch_dirs = archs.map {|a| "bin-#{a}"}
-      arch_dir_list = arch_dirs.join(',')
-      Dir["#{stash_root}/{#{arch_dir_list}}/#{s_p}*"].map { |f|
-        File.basename(f)
-      }.each { |b|
-        basename_list << b unless basename_list.count(b) > 0
-      }
-      basename_list.each do |b|
-        spb = s_p + b
-        the_arch_dir = arch_dirs.detect { |ad| File.exist?("#{stash_root}/#{ad}/#{spb}") }
-        pn = Pathname("#{stash_root}/#{the_arch_dir}/#{spb}")
-        if pn.directory?
-          binaries(keg_prefix, stash_root, archs, spb)
-        else
-          arch_files = Dir["#{stash_root}/{#{arch_dir_list}}/#{spb}"]
-          if arch_files.length > 1
-            system 'lipo', '-create', *arch_files, '-output', keg_prefix/spb
-          else
-            # presumably there's a reason this only exists for one architecture, so no error;
-            # the same rationale would apply if it only existed in, say, two out of three
-            cp arch_files.first, keg_prefix/spb
-          end # if > 1 file?
-        end # if directory?
-      end # each basename |b|
-    end # Merge.binaries
-  end # << self
-end # Merge
+__END__
+--- old/lib/Makefile
++++ new/lib/Makefile
+@@ -200,15 +200,15 @@
+ 
+ # Generate .h dependencies automatically
+ 
+-DEPFLAGS = -MT $@ -MMD -MP -MF
++DEPFLAGS =
+ 
+-$(ZSTD_DYNLIB_DIR)/%.o : %.c $(ZSTD_DYNLIB_DIR)/%.d | $(ZSTD_DYNLIB_DIR)
++$(ZSTD_DYNLIB_DIR)/%.o : %.c $(ZSTD_DYNLIB_DIR)
+ 	@echo CC $@
+-	$(COMPILE.c) $(DEPFLAGS) $(ZSTD_DYNLIB_DIR)/$*.d $(OUTPUT_OPTION) $<
++	$(COMPILE.c) $(DEPFLAGS) $(OUTPUT_OPTION) $<
+ 
+-$(ZSTD_STATLIB_DIR)/%.o : %.c $(ZSTD_STATLIB_DIR)/%.d | $(ZSTD_STATLIB_DIR)
++$(ZSTD_STATLIB_DIR)/%.o : %.c $(ZSTD_STATLIB_DIR)
+ 	@echo CC $@
+-	$(COMPILE.c) $(DEPFLAGS) $(ZSTD_STATLIB_DIR)/$*.d $(OUTPUT_OPTION) $<
++	$(COMPILE.c) $(DEPFLAGS) $(OUTPUT_OPTION) $<
+ 
+ $(ZSTD_DYNLIB_DIR)/%.o : %.S | $(ZSTD_DYNLIB_DIR)
+ 	@echo AS $@
+@@ -222,10 +222,6 @@
+ $(BUILD_DIR) $(ZSTD_DYNLIB_DIR) $(ZSTD_STATLIB_DIR):
+ 	$(MKDIR) -p $@
+ 
+-DEPFILES := $(ZSTD_DYNLIB_OBJ:.o=.d) $(ZSTD_STATLIB_OBJ:.o=.d)
+-$(DEPFILES):
+-
+-include $(wildcard $(DEPFILES))
+ 
+ 
+ # Special case : building library in single-thread mode _and_ without zstdmt_compress.c
+--- old/programs/Makefile
++++ new/programs/Makefile
+@@ -323,11 +323,11 @@
+ 
+ # Generate .h dependencies automatically
+ 
+-DEPFLAGS = -MT $@ -MMD -MP -MF
++DEPFLAGS =
+ 
+-$(BUILD_DIR)/%.o : %.c $(BUILD_DIR)/%.d | $(BUILD_DIR)
++$(BUILD_DIR)/%.o : %.c $(BUILD_DIR)
+ 	@echo CC $@
+-	$(COMPILE.c) $(DEPFLAGS) $(BUILD_DIR)/$*.d $(OUTPUT_OPTION) $<
++	$(COMPILE.c) $(DEPFLAGS) $(OUTPUT_OPTION) $<
+ 
+ $(BUILD_DIR)/%.o : %.S | $(BUILD_DIR)
+ 	@echo AS $@
+@@ -336,10 +336,6 @@
+ MKDIR ?= mkdir
+ $(BUILD_DIR): ; $(MKDIR) -p $@
+ 
+-DEPFILES := $(ZSTD_OBJ:.o=.d)
+-$(DEPFILES):
+-
+-include $(wildcard $(DEPFILES))
+ 
+ 
+ 
