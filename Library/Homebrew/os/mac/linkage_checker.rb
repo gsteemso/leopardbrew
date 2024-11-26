@@ -3,9 +3,8 @@ require "keg"
 require "formula"
 
 class LinkageChecker
-  attr_reader :keg, :formula
-  attr_reader :brewed_dylibs, :system_dylibs, :broken_dylibs, :variable_dylibs
-  attr_reader :undeclared_deps, :reverse_links
+  attr_reader :keg, :formula, :brewed_dylibs, :system_dylibs, :broken_dylibs,
+              :variable_dylibs, :undeclared_deps, :reverse_links
 
   def initialize(keg, formula = nil)
     @keg = keg
@@ -55,7 +54,7 @@ class LinkageChecker
     end
     declared_deps = formula.deps.reject { |dep| filter_out(dep) }.map(&:name)
     declared_req_deps = formula.requirements.reject { |req| filter_out(req) }.map(&:default_formula).compact
-    declared_aids = formula.helpful_formulae.select { |aid| aid.installed? }.map(&:name)
+    declared_aids = formula.enhancements.select { |aid| aid.installed? }.map(&:name)
     declared_dep_names = (declared_deps + declared_req_deps + declared_aids).map { |dep| dep.split("/").last }
     undeclared_deps = @brewed_dylibs.keys.select do |full_name|
       name = full_name.split("/").last
