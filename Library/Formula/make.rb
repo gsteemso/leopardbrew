@@ -32,7 +32,7 @@ class Make < Formula
     args << '--with-guile' if enhanced_by? 'guile'
     system './configure', *args
     system 'make'
-    bombed_system? 'make', 'check' if build.with? 'tests'
+    bombproof_system 'make', 'check' if build.with? 'tests'
     system 'make', 'install'
   end # install
 
