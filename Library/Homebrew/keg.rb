@@ -105,8 +105,8 @@ class Keg
     raise "#{path} is not a valid keg" unless path.directory? and
                                               path.realpath.parent.parent == HOMEBREW_CELLAR
     @path = path
-    @installed_prefix = path.dirname/path.basename(REINSTALL_SUFFIX)
-    @name = path.parent.basename.to_s
+    @installed_prefix = rack/path.basename(REINSTALL_SUFFIX)
+    @name = rack.basename.to_s
     @linked_keg_record = LINKDIR/name
     @opt_record = OPTDIR/name
   end # initialize
@@ -117,6 +117,8 @@ class Keg
   def rack; path.parent; end
 
   def root; path; end
+
+  def versioned_name; "#{name}@#{installed_prefix.basename.to_s}"; end
 
   def inspect; "#<#{self.class.name}:#{path}>"; end
 
@@ -179,24 +181,22 @@ class Keg
     ObserverPathnameExtension.reset_counts!
     dirs = []
     TOP_LEVEL_DIRECTORIES.map { |d| path.join(d) }.each do |dir|
-      next unless dir.exist?
+      next unless dir.exists?
       dir.find do |src|
-        dst = HOMEBREW_PREFIX + src.relative_path_from(path)
+        dst = HOMEBREW_PREFIX/src.relative_path_from(path)
         dst.extend(ObserverPathnameExtension)
-        dirs << dst if dst.directory? && !dst.symlink?
+        dirs << dst if dst.directory? and not dst.symlink?
         # check whether the file to be unlinked is from the current keg first
-        if dst.symlink? && src == dst.resolved_path
-          if mode.dry_run
-            puts dst
-            Find.prune if src.directory?
-            next
+        if dst.symlink? and src == dst.resolved_path
+          if mode.dry_run then puts dst
+          else
+            dst.uninstall_info if dst.to_s =~ INFOFILE_RX
+            dst.unlink
           end
-          dst.uninstall_info if dst.to_s =~ INFOFILE_RX
-          dst.unlink
           Find.prune if src.directory?
         end
-      end
-    end
+      end # find |src|
+    end # each top‐level directory |dir|
     unless mode.dry_run
       remove_linked_keg_record if linked?
       dirs.reverse_each(&:rmdir_if_possible)
@@ -207,19 +207,16 @@ class Keg
 
   def lock
     FormulaLock.new(name).with_lock do
-      if oldname_opt_record
-        FormulaLock.new(oldname_opt_record.basename.to_s).with_lock { yield }
-      else
-        yield
-      end
+      if oldname_opt_record then FormulaLock.new(oldname_opt_record.basename.to_s).with_lock { yield }
+      else yield; end
     end
   end # lock
 
   def completion_installed?(shell)
     dir = case shell
-          when :bash then path.join("etc", "bash_completion.d")
-          when :zsh  then path.join("share", "zsh", "site-functions")
-          when :fish then path.join("share", "fish", "vendor_completions.d")
+            when :bash then path.join("etc", "bash_completion.d")
+            when :zsh  then path.join("share", "zsh", "site-functions")
+            when :fish then path.join("share", "fish", "vendor_completions.d")
           end
     dir && dir.directory? && dir.children.any?
   end # completion_installed?
@@ -236,7 +233,7 @@ class Keg
 
   def version
     require "pkg_version"
-    PkgVersion.parse(path.basename.to_s)
+    PkgVersion.parse(installed_prefix.basename.to_s)
   end
 
   def find(*args, &block); path.find(*args, &block); end
@@ -244,7 +241,7 @@ class Keg
   def oldname_opt_record
     @oldname_opt_record ||= \
       OPTDIR.subdirs.detect do |dir|
-        dir.symlink? and dir != opt_record and path.parent == dir.resolved_path.parent
+        dir.symlink? and dir != opt_record and dir.resolved_path.parent == rack
       end if OPTDIR.directory?
   end # oldname_opt_record
 
@@ -262,83 +259,74 @@ class Keg
 
     link_dir("share", mode) do |relative_path|
       case relative_path.to_s
-      when "locale/locale.alias" then :skip_file
-      when INFOFILE_RX then :info
-      when LOCALEDIR_RX then :mkpath
-      when *SHARE_PATHS then :mkpath
-      when /^icons\/.*\/icon-theme\.cache$/ then :skip_file
-      # all icons subfolders should also mkpath
-      when /^icons\// then :mkpath
-      when /^zsh/ then :mkpath
-      when /^fish/ then :mkpath
-      else :link
+        when "locale/locale.alias" then :skip_file
+        when INFOFILE_RX then :info
+        when LOCALEDIR_RX then :mkpath
+        when *SHARE_PATHS then :mkpath
+        when /^icons\/.*\/icon-theme\.cache$/ then :skip_file
+        # all icons subfolders should also mkpath
+        when /^icons\// then :mkpath
+        when /^zsh/ then :mkpath
+        when /^fish/ then :mkpath
+        else :link
       end
-    end
+    end # link_dir share
 
     link_dir("lib", mode) do |relative_path|
       case relative_path.to_s
-      when "charset.alias" then :skip_file
-      # pkg-config database gets explicitly created
-      when "pkgconfig" then :mkpath
-      # cmake database gets explicitly created
-      when "cmake" then :mkpath
-      # lib/language folders also get explicitly created
-      when "dtrace" then :mkpath
-      when /^gdk-pixbuf/ then :mkpath
-      when "ghc" then :mkpath
-      when /^gio/ then :mkpath
-      when "lua" then :mkpath
-      when /^mecab/ then :mkpath
-      when /^node/ then :mkpath
-      when /^ocaml/ then :mkpath
-      when /^perl5/ then :mkpath
-      when "php" then :mkpath
-      when /^python[23]\.\d/ then :mkpath
-      when /^R/ then :mkpath
-      when /^ruby/ then :mkpath
-      # Everything else is symlinked to the cellar
-      else :link
+        when "charset.alias" then :skip_file
+        # pkg-config database gets explicitly created
+        when "pkgconfig" then :mkpath
+        # cmake database gets explicitly created
+        when "cmake" then :mkpath
+        # lib/language folders also get explicitly created
+        when "dtrace" then :mkpath
+        when /^gdk-pixbuf/ then :mkpath
+        when "ghc" then :mkpath
+        when /^gio/ then :mkpath
+        when "lua" then :mkpath
+        when /^mecab/ then :mkpath
+        when /^node/ then :mkpath
+        when /^ocaml/ then :mkpath
+        when /^perl5/ then :mkpath
+        when "php" then :mkpath
+        when /^python[23]\.\d/ then :mkpath
+        when /^R/ then :mkpath
+        when /^ruby/ then :mkpath
+        # Everything else is symlinked to the cellar
+        else :link
       end
-    end
+    end # link_dir lib
 
     link_dir("Frameworks", mode) do |relative_path|
       # Frameworks contain symlinks pointing into a subdir, so we have to use
       # the :link strategy. However, for Foo.framework and
       # Foo.framework/Versions we have to use :mkpath so that multiple formulae
       # can link their versions into it and `brew [un]link` works.
-      if relative_path.to_s =~ /[^\/]*\.framework(\/Versions)?$/
-        :mkpath
-      else
-        :link
-      end
-    end
+      (relative_path.to_s =~ /[^\/]*\.framework(\/Versions)?$/) ? :mkpath : :link
+    end # link_dir Frameworks
 
-    unless mode.dry_run
-      make_relative_symlink(linked_keg_record, path, mode)
-      optlink(mode)
-    end
+    make_relative_symlink(linked_keg_record, path, mode) unless mode.dry_run
   rescue LinkError
     unlink
     raise
   else
     ObserverPathnameExtension.total
+  ensure
+    optlink(mode) unless mode.dry_run
   end # link
 
   def remove_oldname_opt_record
-    return unless oldname_opt_record
-    return unless oldname_opt_record.resolved_path == path
+    return unless oldname_opt_record and @oldname_opt_record.resolved_path == path
     @oldname_opt_record.unlink
     @oldname_opt_record.parent.rmdir_if_possible
     @oldname_opt_record = nil
   end # remove_oldname_opt_record
 
   def optlink(mode = OpenStruct.new)
-    opt_record.delete if opt_record.symlink? || opt_record.exist?
+    mode.overwrite = true
     make_relative_symlink(opt_record, path, mode)
-    if oldname_opt_record
-      oldname_opt_record.delete
-      make_relative_symlink(oldname_opt_record, path, mode)
-    end
+    make_relative_symlink(oldname_opt_record, path, mode) if oldname_opt_record
   end # optlink
 
   def delete_pyc_files!; find { |pn| pn.delete if pn.extname == ".pyc" }; end
@@ -372,25 +360,19 @@ class Keg
   end # resolve_any_conflicts
 
   def make_relative_symlink(dst, src, mode)
-    if dst.symlink? && src == dst.resolved_path
+    if dst.symlink? and dst.resolved_path == src
       puts "Skipping; link already exists: #{dst}" if VERBOSE
       return
     end
     if mode.dry_run
       # cf. git-clean -n: list files to delete, don't really link or delete
       if mode.overwrite
-        if dst.symlink?
-          puts "#{dst} -> #{dst.resolved_path}"
-        elsif dst.exist?
-          puts dst
-        end
-        return
-      end # is mode “overwrite”?
-      # list all link targets
-      puts dst
+        if dst.symlink? then puts "#{dst} -> #{dst.resolved_path}"
+        elsif dst.exists? then puts dst; end
+      else puts dst; end
       return
     end
-    dst.delete if mode.overwrite && (dst.exist? || dst.symlink?)
+    dst.delete if mode.overwrite and (dst.exists? or dst.symlink?)
     dst.make_relative_symlink(src)
   rescue Errno::EEXIST => e
     if dst.exist?
