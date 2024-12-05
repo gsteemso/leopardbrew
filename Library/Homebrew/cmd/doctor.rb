@@ -240,7 +240,7 @@ class Checks
   end # check_for_broken_symlinks
 
   def check_for_unsupported_osx
-    if not(DEVELOPER) and MacOS.version >= "15" then <<-EOS.undent
+    if not(DEVELOPER) and MacOS.version > MacOS::MAX_SUPPORTED_VERSION then <<-EOS.undent
         You are using OS X #{MacOS.version}.
         We do not provide support for this version.
         You may encounter build failures or other breakage.

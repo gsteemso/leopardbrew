@@ -9,6 +9,8 @@ module OS
 
     ::MacOS = self # compatibility
 
+    MAX_SUPPORTED_VERSION = '15'
+
     # This can be compared to numerics, strings, or symbols
     # using the standard Ruby Comparable methods.
     def version

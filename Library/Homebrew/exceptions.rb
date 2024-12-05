@@ -20,7 +20,16 @@ class NoSuchKegError < RuntimeError
 
   def initialize(name)
     @name = name
-    super "No such keg: #{HOMEBREW_CELLAR}/#{name}"
+    super "No such formula is installed:  #{HOMEBREW_CELLAR}/#{name}"
+  end
+end
+
+class NoSuchVersionError < RuntimeError
+  attr_reader :versioned_name
+
+  def initialize(vers_name)
+    (@versioned_name = vers_name) =~ /^([^@]+)@([^@]+)$/
+    super "No such version is installed:  #{HOMEBREW_CELLAR}/#{$1}/#{$2}"
   end
 end
 
@@ -252,7 +261,7 @@ class BuildError < RuntimeError
       puts "These open issues may also help:"
       puts issues.map { |i| "#{i["title"]} #{i["html_url"]}" }.join("\n")
     end
-    if MacOS.version >= "10.11"
+    if MacOS.version > MacOS::MAX_SUPPORTED_VERSION
       require "cmd/doctor"
       opoo Checks.new.check_for_unsupported_osx
     end
