@@ -22,6 +22,13 @@ class String
     s unless s.empty?
   end
 
+  # Similar, but for number strings.  If the string does not represent a
+  # number, or otherwise evaluates to zero, return nil.
+  def nuzzle
+    n = to_i
+    n unless n == 0
+  end
+
   # String#chop, but for the front of the string instead of the back.
   def pre_chop
     self[1..-1]
