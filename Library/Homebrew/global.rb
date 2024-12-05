@@ -62,7 +62,7 @@ HOMEBREW_CASK_TAP_FORMULA_REGEX   = %r{^(Caskroom)/(cask)/([\w+-.]+)$}
                                     # Match formulæ in the default brew‐cask tap, e.g. Caskroom/cask/someformula
 HOMEBREW_CORE_FORMULA_REGEX       = %r{^homebrew/homebrew/([\w+-.]+)$}i
                                     # Match core formulæ, e.g. homebrew/homebrew/someformula
-HOMEBREW_PULL_OR_COMMIT_URL_REGEX = %r{https://github\.com/([\w-]+)/tigerbrew(-[\w-]+)?/(?:pull/(\d+)|commit/[0-9a-fA-F]{4,40})}
+HOMEBREW_PULL_OR_COMMIT_URL_REGEX = %r{https://github\.com/([\w-]+)/(?:tiger|leopard)brew(-[\w-]+)?/(?:pull/(\d+)|commit/[0-9a-fA-F]{4,40})}
 HOMEBREW_TAP_ARGS_REGEX           = %r{^([\w-]+)/(homebrew-)?([\w-]+)$}
                                     # Match taps given as arguments, e.g. someuser/sometap
 HOMEBREW_TAP_DIR_REGEX            = %r{#{Regexp.escape(HOMEBREW_LIBRARY.to_s)}/Taps/([\w-]+)/([\w-]+)}
@@ -72,6 +72,7 @@ HOMEBREW_TAP_FORMULA_REGEX        = %r{^([\w-]+)/([\w-]+)/([\w+-.@]+)$}
   HOMEBREW_TAP_PATH_REGEX         =   Regexp.new(HOMEBREW_TAP_DIR_REGEX.source + %r{/(.*)}.source)
                                       # Match taps’ formula paths, e.g. HOMEBREW_LIBRARY/Taps/someuser/sometap/someformula
 # Pathname::BOTTLE_EXTNAME_RX       # see `extend/pathname.rb`
+# VERSIONED_NAME_REGEX              # see `exceptions.rb`
 
 # Other predefined values:
 # CompilerConstants::CLANG_CXX11_MIN #
@@ -94,7 +95,7 @@ HOMEBREW_INTERNAL_COMMAND_ALIASES = \
                                 'environment' => '--env',
                                 '--config'    => 'config'
                               }
-HOMEBREW_OUTDATED_LIMIT     = 1209600 # 60 s * 60 * 24 * 14:  two weeks
+HOMEBREW_OUTDATED_LIMIT     = 1209600 # 60 s * 60 min * 24 h * 14 days:  two weeks
 HOMEBREW_SYSTEM             = ENV['HOMEBREW_SYSTEM']
 HOMEBREW_USER_AGENT         = ENV['HOMEBREW_USER_AGENT']
 HOMEBREW_USER_AGENT_CURL    = ENV['HOMEBREW_USER_AGENT_CURL']
