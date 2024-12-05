@@ -115,7 +115,7 @@ module Homebrew
   end
 
   def self.system(cmd, *args)
-    puts "#{cmd} #{args*" "}" if VERBOSE
+    puts "#{cmd} #{args*" "}".strip if VERBOSE
     _system(cmd, *args)
   end
 
@@ -200,18 +200,13 @@ def quiet_system(cmd, *args)
   end
 end # quiet_system
 
-# use these for running `make check`:
-def bombed_system?(cmd, *args); Homebrew._system(cmd, *args) ? false : $?.exitstatus; end
-
-def bombproof_system(cmd, *args); not bombed_system?(cmd, *args); end
-
 # useful for `test` blocks:
 
 # repeats cmd for each of its fat‐binary architectures
 def arch_system(cmd, *args)
   for_archs cmd do |a|
     arch_cmd = (a.nil? ? [] : ['arch', '-arch', a.to_s])
-    system *arch_cmd, cmd, *args
+    system *(arch_cmd << cmd), *args
   end
 end # arch_system
 
@@ -219,7 +214,7 @@ end # arch_system
 # where `nil` is returned, meaning that the “arch” command shouldn’t – or can’t – be called:
 #   for_archs cmd do |a|
 #     arch_args = (a.nil? ? [] : ['arch', '-arch', a.to_s])
-#     system *arch_args, cmd, args ...
+#     system *(arch_cmd << cmd), args ...
 #   end # each arch |a|
 def for_archs (cmd, &block)
   cmd = which(cmd) unless cmd.to_s =~ %r{^\.?/}

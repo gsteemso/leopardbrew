@@ -391,7 +391,9 @@ class Formula
 
   private
 
-  def is_installed_prefix?(pn); pn and pn.directory? and (pn/Tab::FILENAME).file?; end
+  def is_installed_prefix?(pn); Formula.is_installed_prefix?(pn); end
+
+  def self.is_installed_prefix?(pn); pn and pn.directory? and (pn/Tab::FILENAME).file?; end
 
   public
 
@@ -404,7 +406,7 @@ class Formula
 
   # The directory in the cellar that the formula is installed to.
   # This directory’s pathname includes the formula’s name and version.
-  def prefix(v = pkg_version); HOMEBREW_CELLAR/name/v; end
+  def prefix(v = pkg_version); HOMEBREW_CELLAR/name/v.to_s; end
 
   # The parent of the prefix; the named directory in the cellar containing all
   # installed versions of this software.
@@ -1171,6 +1173,14 @@ class Formula
       end
     end
   end # system
+
+  # use these for running `make check`:
+  def bombed_system?(cmd, *args)
+    ohai "#{cmd} #{args * ' '}".strip
+    Homebrew._system(cmd, *args) ? false : $?.exitstatus
+  end
+
+  def bombproof_system(cmd, *args); not bombed_system?(cmd, *args); end
 
   private
 
