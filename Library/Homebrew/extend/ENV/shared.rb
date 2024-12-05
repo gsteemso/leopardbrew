@@ -174,9 +174,10 @@ module SharedEnvExtension
   end # compiler
 
   # @private
-  def determine_cc
-    COMPILER_SYMBOL_MAP.invert.fetch(compiler, compiler)
-  end
+  def determine_cc; COMPILER_SYMBOL_MAP.invert.fetch(compiler, compiler); end
+
+  # @private
+  def determine_cxx; determine_cc.to_s.gsub("gcc", "g++").gsub("clang", "clang++"); end
 
   COMPILERS.each do |compiler|
     define_method(compiler) do
