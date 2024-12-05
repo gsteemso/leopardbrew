@@ -41,26 +41,26 @@ module Superenv
     super
     send(compiler)
 
-    self["MAKEFLAGS"] ||= "-j#{determine_make_jobs}"
-    self["PATH"] = determine_path
-    self["PKG_CONFIG_PATH"] = determine_pkg_config_path
-    self["PKG_CONFIG_LIBDIR"] = determine_pkg_config_libdir
-    self["HOMEBREW_CCCFG"] = determine_cccfg
+    self["MAKEFLAGS"]            ||= "-j#{determine_make_jobs}"
+    self["PATH"]                   = determine_path
+    self["PKG_CONFIG_PATH"]        = determine_pkg_config_path
+    self["PKG_CONFIG_LIBDIR"]      = determine_pkg_config_libdir
+    self["HOMEBREW_CCCFG"]         = determine_cccfg
     self["HOMEBREW_OPTIMIZATION_LEVEL"] = "Os"
-    self["HOMEBREW_BREW_FILE"] = HOMEBREW_BREW_FILE.to_s
-    self["HOMEBREW_PREFIX"] = HOMEBREW_PREFIX.to_s
-    self["HOMEBREW_CELLAR"] = HOMEBREW_CELLAR.to_s
-    self["HOMEBREW_REPOSITORY"] = HOMEBREW_REPOSITORY.to_s
-    self["HOMEBREW_TEMP"] = HOMEBREW_TEMP.to_s
-    self["HOMEBREW_SDKROOT"] = effective_sysroot
-    self["HOMEBREW_OPTFLAGS"] = determine_optflags
-    self["HOMEBREW_ARCHFLAGS"] ||= ""
-    self["CMAKE_PREFIX_PATH"] = determine_cmake_prefix_path
-    self["CMAKE_FRAMEWORK_PATH"] = determine_cmake_frameworks_path
-    self["CMAKE_INCLUDE_PATH"] = determine_cmake_include_path
-    self["CMAKE_LIBRARY_PATH"] = determine_cmake_library_path
-    self["ACLOCAL_PATH"] = determine_aclocal_path
-    self["M4"] = determine_m4
+    self["HOMEBREW_BREW_FILE"]     = HOMEBREW_BREW_FILE.to_s
+    self["HOMEBREW_PREFIX"]        = HOMEBREW_PREFIX.to_s
+    self["HOMEBREW_CELLAR"]        = HOMEBREW_CELLAR.to_s
+    self["HOMEBREW_REPOSITORY"]    = HOMEBREW_REPOSITORY.to_s
+    self["HOMEBREW_TEMP"]          = HOMEBREW_TEMP.to_s
+    self["HOMEBREW_SDKROOT"]       = effective_sysroot
+    self["HOMEBREW_OPTFLAGS"]      = determine_optflags
+    self["HOMEBREW_ARCHFLAGS"]   ||= ''
+    self["CMAKE_PREFIX_PATH"]      = determine_cmake_prefix_path
+    self["CMAKE_FRAMEWORK_PATH"]   = determine_cmake_frameworks_path
+    self["CMAKE_INCLUDE_PATH"]     = determine_cmake_include_path
+    self["CMAKE_LIBRARY_PATH"]     = determine_cmake_library_path
+    self["ACLOCAL_PATH"]           = determine_aclocal_path
+    self["M4"]                     = determine_m4
     self["HOMEBREW_ISYSTEM_PATHS"] = determine_isystem_paths
     self["HOMEBREW_INCLUDE_PATHS"] = determine_include_paths
     self["HOMEBREW_LIBRARY_PATHS"] = determine_library_paths
@@ -70,8 +70,8 @@ module Superenv
     self["HOMEBREW_PREFER_CLT_PROXIES"] = "1" if MacOS.version >= "10.9"
 
     # The HOMEBREW_CCCFG ENV variable is used by the ENV/cc tool to control
-    # compiler flag stripping. It consists of a string of characters which act
-    # as flags. Some of these flags are mutually exclusive.
+    # compiler flag stripping.  It consists of a string of characters which
+    # act as flags.  Some of these flags are mutually exclusive.
     #
     # O - Enables argument refurbishing. Only active under the
     #     make/bsdmake wrappers currently.
@@ -87,13 +87,7 @@ module Superenv
 
   private
 
-  def cc=(val); self["HOMEBREW_CC"] = super; end
-
-  def cxx=(val); self["HOMEBREW_CXX"] = super; end
-
-  def effective_sysroot; @effective_sysroot ||= MacOS::Xcode.without_clt? ? MacOS.sdk_path.to_s : nil; end
-
-  def determine_cxx; determine_cc.to_s.gsub("gcc", "g++").gsub("clang", "clang++"); end
+  def determine_make_jobs; self["HOMEBREW_MAKE_JOBS"].nuzzle || Hardware::CPU.cores; end
 
   def determine_path
     paths = [Superenv.bin]
@@ -140,6 +134,56 @@ module Superenv
     paths.to_path_s
   end
 
+  def determine_cccfg
+    s = ""
+    # Fix issue with sed barfing on unicode characters on Mountain Lion
+    s << "s" if MacOS.version >= :mountain_lion
+    # Fix issue with >= 10.8 apr-1-config having broken paths
+    s << "a" if MacOS.version >= :mountain_lion
+    s
+  end # determine_cccfg
+
+  def effective_sysroot;
+    @effective_sysroot ||= MacOS::Xcode.without_clt? ? MacOS.sdk_path.to_s : nil
+  end
+
+  def determine_optflags
+    if ARGV.build_bottle?
+      arch = ARGV.bottle_arch || Hardware.oldest_cpu
+      Hardware::CPU.optimization_flags.fetch(arch)
+    elsif Hardware::CPU.intel? && !Hardware::CPU.sse4?
+      # If the CPU doesn't support SSE4, we cannot trust -march=native or
+      # -march=<cpu family> to do the right thing because we might be running
+      # in a VM or on a Hackintosh.
+      Hardware::CPU.optimization_flags.fetch(Hardware.oldest_cpu)
+    elsif compiler == :clang
+      "-march=native"
+    else
+      Hardware::CPU.optimization_flags.fetch(Hardware::CPU.model)
+    end
+  end # determine_optflags
+
+  def determine_cmake_prefix_path
+    paths = keg_only_deps.map { |d| d.opt_prefix.to_s }
+    paths << HOMEBREW_PREFIX.to_s
+    paths.to_path_s
+  end
+
+  def determine_cmake_frameworks_path
+    paths = deps.map { |d| d.opt_frameworks.to_s }
+    paths << "#{effective_sysroot}/System/Library/Frameworks" if MacOS::Xcode.without_clt?
+    paths.to_path_s
+  end
+
+  def determine_cmake_include_path; common_include_paths.to_path_s; end
+
+  def determine_cmake_library_path
+    paths = []
+    paths << MacOS::X11.lib.to_s if x11?
+    paths << "#{effective_sysroot}/System/Library/Frameworks/OpenGL.framework/Versions/Current/Libraries"
+    paths.to_path_s
+  end # determine_cmake_library_path
+
   def determine_aclocal_path
     paths = keg_only_deps.map { |d| "#{d.opt_share}/aclocal" }
     paths << "#{HOMEBREW_PREFIX}/share/aclocal"
@@ -161,58 +205,6 @@ module Superenv
     paths.to_path_s
   end # determine_library_paths
 
-  def determine_cmake_prefix_path
-    paths = keg_only_deps.map { |d| d.opt_prefix.to_s }
-    paths << HOMEBREW_PREFIX.to_s
-    paths.to_path_s
-  end
-
-  def determine_cmake_include_path; common_include_paths.to_path_s; end
-
-  def determine_cmake_library_path
-    paths = []
-    paths << MacOS::X11.lib.to_s if x11?
-    paths << "#{effective_sysroot}/System/Library/Frameworks/OpenGL.framework/Versions/Current/Libraries"
-    paths.to_path_s
-  end # determine_cmake_library_path
-
-  def determine_cmake_frameworks_path
-    paths = deps.map { |d| d.opt_frameworks.to_s }
-    paths << "#{effective_sysroot}/System/Library/Frameworks" if MacOS::Xcode.without_clt?
-    paths.to_path_s
-  end
-
-  def determine_make_jobs; ((j = self["HOMEBREW_MAKE_JOBS"].to_i) < 1) ? Hardware::CPU.cores : j; end
-
-  def determine_optflags
-    if ARGV.build_bottle?
-      arch = ARGV.bottle_arch || Hardware.oldest_cpu
-      Hardware::CPU.optimization_flags.fetch(arch)
-    elsif Hardware::CPU.intel? && !Hardware::CPU.sse4?
-      # If the CPU doesn't support SSE4, we cannot trust -march=native or
-      # -march=<cpu family> to do the right thing because we might be running
-      # in a VM or on a Hackintosh.
-      Hardware::CPU.optimization_flags.fetch(Hardware.oldest_cpu)
-    elsif compiler == :clang
-      "-march=native"
-    # # This is mutated elsewhere, so return an empty string in this case
-    # else
-    #   ""
-    # ...that "elsewhere" appears to not yet exist, so, optimize here:
-    else
-      Hardware::CPU.optimization_flags.fetch(Hardware::CPU.model)
-    end
-  end # determine_optflags
-
-  def determine_cccfg
-    s = ""
-    # Fix issue with sed barfing on unicode characters on Mountain Lion
-    s << "s" if MacOS.version >= :mountain_lion
-    # Fix issue with >= 10.8 apr-1-config having broken paths
-    s << "a" if MacOS.version >= :mountain_lion
-    s
-  end # determine_cccfg
-
   def common_include_paths
     paths = []
     paths << "#{effective_sysroot}/usr/include/libxml2" unless deps.any? { |d| d.name == "libxml2" }
@@ -220,6 +212,10 @@ module Superenv
     paths << MacOS::X11.include.to_s << "#{MacOS::X11.include}/freetype2" if x11?
     paths << "#{effective_sysroot}/System/Library/Frameworks/OpenGL.framework/Versions/Current/Headers"
   end # common_include_paths
+
+  def cc=(val); self["HOMEBREW_CC"] = super; end
+
+  def cxx=(val); self["HOMEBREW_CXX"] = super; end
 
   public
 
