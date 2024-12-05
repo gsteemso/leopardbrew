@@ -1,5 +1,7 @@
 # this file is loaded before `global.rb`, so must eschew most Homebrew things
 
+VERSIONED_NAME_REGEX = %r{^([^@]+)@([^@]+)$}
+
 class UsageError < RuntimeError; end
 class FormulaUnspecifiedError < UsageError; end
 class KegUnspecifiedError < UsageError; end
@@ -28,7 +30,7 @@ class NoSuchVersionError < RuntimeError
   attr_reader :versioned_name
 
   def initialize(vers_name)
-    (@versioned_name = vers_name) =~ /^([^@]+)@([^@]+)$/
+    (@versioned_name = vers_name) =~ VERSIONED_NAME_REGEX
     super "No such version is installed:  #{HOMEBREW_CELLAR}/#{$1}/#{$2}"
   end
 end
