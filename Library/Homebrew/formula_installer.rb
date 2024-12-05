@@ -392,9 +392,9 @@ class FormulaInstaller
     raise
   else
     if previously_installed
-      src = Tab.for_keg(previously_installed.root)[:source]
+      src = Tab.for_keg(previously_installed.base)[:source]
       Formulary.factory(src[:path], src[:spec]).uninsinuate rescue nil
-      previously_installed.root.rmtree
+      previously_installed.base.rmtree
     end
     df.insinuate
   end # install_dependency

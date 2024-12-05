@@ -270,7 +270,7 @@ module Homebrew
           end
           arch_reports.reject! { |r| r.any? { |rr| rr =~ /ppc‐\*/ } } if arch_reports.length > 1
         end # not thorough?
-        oho "#{Trm.in_white("#{keg.name} #{keg.root.basename}")} is built for ",
+        oho "#{Trm.in_white("#{keg.name} #{keg.base.basename}")} is built for ",
           "#{Trm.in_br_white(arch_reports.length)} combination#{plural(arch_reports.length)} of architectures:  ",
           arch_reports.keys.sort { |a, b| b.length <=> a.length }.map {
               |k| "#{k * Trm.in_white('/')} (#{'×' + arch_reports[k].to_s})"

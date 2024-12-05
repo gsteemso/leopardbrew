@@ -130,7 +130,7 @@ class Keg
     # will break if its referent has been moved for reïnstallation.
     if working_name.starts_with? HOMEBREW_CELLAR.to_s
       keg = Keg.for(working_name)
-      return working_name.sub(keg.root.to_s, keg.opt_record.to_s)
+      return working_name.sub(keg.base.to_s, keg.opt_record.to_s)
     # If working_name is one of our symlinks in the PREFIX, it will break
     # when its target is unlinked.
     elsif working_name.starts_with? HOMEBREW_PREFIX.to_s

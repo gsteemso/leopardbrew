@@ -114,7 +114,7 @@ module Homebrew
     ignore_interrupts { previously_linked.link } if previously_linked and not f.linked_keg.directory?
     raise
   else
-    ignore_interrupts { previously_installed.root.rmtree } if previously_installed.root.exists?
+    ignore_interrupts { previously_installed.base.rmtree } if previously_installed.base.exists?
   end # reinstall_formula
 
   def blenderize_options(use_opts, formula)

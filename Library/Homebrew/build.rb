@@ -153,7 +153,7 @@ class Build
       elsif f.prefix.directory?
         f.prefix
       elsif (gik = f.greatest_installed_keg)
-        gik.root
+        gik.base
       else
         raise
       end
