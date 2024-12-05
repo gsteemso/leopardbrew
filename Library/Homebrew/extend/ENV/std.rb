@@ -32,7 +32,8 @@ module Stdenv
     self["PKG_CONFIG_LIBDIR"] = determine_pkg_config_libdir
 
     # make any aclocal stuff installed in Homebrew available
-    self["ACLOCAL_PATH"] = "#{HOMEBREW_PREFIX}/share/aclocal" if MacOS.has_apple_developer_tools? && MacOS::Xcode.provides_autotools?
+    self["ACLOCAL_PATH"] = "#{HOMEBREW_PREFIX}/share/aclocal" \
+      if MacOS.has_apple_developer_tools? and MacOS::Xcode.provides_autotools?
 
     self["MAKEFLAGS"] = "-j#{make_jobs}"
 
@@ -81,7 +82,7 @@ module Stdenv
       # depend on it already being installed to build itself.
       ld64 if Formula.factory('ld64').installed?
     end
-  end
+  end # setup_build_environment
 
   # @private
   def determine_pkg_config_libdir
@@ -91,7 +92,7 @@ module Stdenv
     paths << "#{HOMEBREW_LIBRARY}/ENV/pkgconfig/#{MacOS.version}"
     paths << "/usr/lib/pkgconfig"
     paths.select { |d| File.directory? d }.join(File::PATH_SEPARATOR)
-  end
+  end # determine_pkg_config_libdir
 
   # These methods are no-ops for compatibility.
   %w[fast O4 Og].each { |opt| define_method(opt) {} }
@@ -104,40 +105,25 @@ module Stdenv
   end
 
   # @private
-  def determine_cc
-    s = super
-    MacOS.locate(s) || Pathname.new(s)
-  end
+  def determine_cc; s = super; MacOS.locate(s) || Pathname.new(s); end
 
   # @private
   def determine_cxx
-    dir, base = determine_cc.split
-    dir / base.to_s.sub("gcc", "g++").sub("clang", "clang++")
+    cc = determine_cc
+    cc.dirname/cc.basename.to_s.sub("gcc", "g++").sub("clang", "clang++")
   end
 
-  def gcc_4_0
-    super
-    set_cpu_cflags "-march=nocona -mssse3"
-  end
+  def gcc_4_0; super; set_cpu_cflags "-march=nocona -mssse3"; end
   alias_method :gcc_4_0_1, :gcc_4_0
 
-  def gcc
-    super
-    set_cpu_cflags
-  end
+  def gcc; super; set_cpu_cflags; end
   alias_method :gcc_4_2, :gcc
 
   GNU_GCC_VERSIONS.each do |n|
-    define_method(:"gcc-#{n}") do
-      super()
-      set_cpu_cflags
-    end
+    define_method(:"gcc-#{n}") do super(); set_cpu_cflags; end
   end
 
-  def llvm
-    super
-    set_cpu_cflags
-  end
+  def llvm; super; set_cpu_cflags; end
 
   def clang
     super
@@ -146,7 +132,7 @@ module Stdenv
     map = Hardware::CPU.optimization_flags
     map = map.merge(:nehalem => "-march=native -Xclang -target-feature -Xclang -aes")
     set_cpu_cflags "-march=native", map
-  end
+  end # clang
 
   def remove_macosxsdk(version = MacOS.version)
     # Clear all lib and include dirs from CFLAGS, CPPFLAGS, LDFLAGS that were
@@ -170,7 +156,7 @@ module Stdenv
       end
       remove "CMAKE_FRAMEWORK_PATH", "#{sdk}/System/Library/Frameworks"
     end
-  end
+  end # remove_macosxsdk
 
   def macosxsdk(version = MacOS.version)
     return unless OS.mac?
@@ -196,7 +182,7 @@ module Stdenv
       append_path "CMAKE_PREFIX_PATH", "#{sdk}/usr"
       append_path "CMAKE_FRAMEWORK_PATH", "#{sdk}/System/Library/Frameworks"
     end
-  end
+  end # macosxsdk
 
   def minimal_optimization
     set_cflags "-Os #{SAFE_CFLAGS_FLAGS}"
@@ -216,7 +202,7 @@ module Stdenv
       # Use the includes from the sdk
       append "CPPFLAGS", "-I#{MacOS.sdk_path}/usr/include/libxml2"
     end
-  end
+  end # libxml2
 
   def x11
     # There are some config scripts here that should go in the PATH
@@ -243,34 +229,32 @@ module Stdenv
     end
 
     append "CFLAGS", "-I#{MacOS::X11.include}" unless MacOS::CLT.installed?
-  end
+  end # x11
   alias_method :libpng, :x11
 
   # we've seen some packages fail to build when warnings are disabled!
-  def enable_warnings
-    remove_from_cflags "-w"
-  end
+  def enable_warnings; remove_from_cflags "-w"; end
 
   def m64
     append_to_cflags "-m64"
-    append "LDFLAGS", "-arch #{Hardware::CPU.arch_64_bit}"
+    append_to_cflags "-arch #{Hardware::CPU.arch_64_bit}"
   end
 
   def un_m64
     remove_from_cflags '-m64'
-    remove 'LDFLAGS', '-arch ppc64'
-    remove 'LDFLAGS', '-arch x86_64'
+    remove_from_cflags '-arch ppc64'
+    remove_from_cflags '-arch x86_64'
   end
 
   def m32
     append_to_cflags "-m32"
-    append "LDFLAGS", "-arch #{Hardware::CPU.arch_32_bit}"
+    append_to_cflags "-arch #{Hardware::CPU.arch_32_bit}"
   end
 
   def un_m32
     remove_from_cflags '-m32'
-    remove 'LDFLAGS', '-arch ppc'
-    remove 'LDFLAGS', '-arch i386'
+    remove_from_cflags '-arch ppc'
+    remove_from_cflags '-arch i386'
   end
 
   def universal_binary
@@ -281,7 +265,7 @@ module Stdenv
       # Can't mix "-march" for a 32-bit CPU  with "-arch x86_64"
       replace_in_cflags(/-march=\S*/, "-Xarch_#{Hardware::CPU.arch_32_bit} \\0")
     end
-  end
+  end # universal_binary
 
   def cxx11
     if compiler == :clang
@@ -292,18 +276,14 @@ module Stdenv
     else
       raise "The selected compiler doesn't support C++11: #{compiler}"
     end
-  end
+  end # cxx11
 
   def libcxx
-    if compiler == :clang
-      append "CXX", "-stdlib=libc++"
-    end
+    append "CXX", "-stdlib=libc++" if compiler == :clang
   end
 
   def libstdcxx
-    if compiler == :clang
-      append "CXX", "-stdlib=libstdc++"
-    end
+    append "CXX", "-stdlib=libstdc++" if compiler == :clang
   end
 
   # @private
@@ -314,9 +294,7 @@ module Stdenv
   end
 
   # Convenience method to set all C compiler flags in one shot.
-  def set_cflags(val)
-    CC_FLAG_VARS.each { |key| self[key] = val }
-  end
+  def set_cflags(val); CC_FLAG_VARS.each { |key| self[key] = val }; end
 
   # Sets architecture-specific flags for every environment variable
   # given in the list `flags`.
@@ -336,7 +314,7 @@ module Stdenv
 
     # not really a 'CPU' cflag, but is only used with clang
     remove flags, '-Qunused-arguments'
-  end
+  end # set_cpu_flags
 
   # @private
   def effective_arch
@@ -350,7 +328,7 @@ module Stdenv
     else
       Hardware::CPU.model
     end
-  end
+  end # effective_arch
 
   # @private
   def set_cpu_cflags(default = DEFAULT_FLAGS, map = Hardware::CPU.optimization_flags)
@@ -358,13 +336,8 @@ module Stdenv
   end
 
   def make_jobs
-    # '-j' requires a positive integral argument
-    if self["HOMEBREW_MAKE_JOBS"].to_i > 0
-      self["HOMEBREW_MAKE_JOBS"].to_i
-    else
-      Hardware::CPU.cores
-    end
-  end
+    self["HOMEBREW_MAKE_JOBS"].nuzzle || Hardware::CPU.cores
+  end # make_jobs
 
   # This method does nothing in stdenv since there's no arg refurbishment
   # @private
