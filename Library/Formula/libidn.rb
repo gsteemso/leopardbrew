@@ -23,7 +23,7 @@ class Libidn < Formula
       --disable-csharp
       --with-lispdir=#{share}/emacs/site-lisp/#{name}
     ]
-    args << '--disable-nls' if build.without? 'gettext'
+    args << '--disable-nls' if build.without? 'nls'
     system './configure', *args
     system 'make'
     system 'make', 'check'
