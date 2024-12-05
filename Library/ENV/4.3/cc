@@ -160,7 +160,7 @@ class Cmd
       # clang doesn't support these flags
       refurb_arg_parts << arg unless tool =~ /^clang/
     when '-Wno-deprecated-register', /^-Wno-error=.+/, '-Wno-format-truncation',
-      '-Wno-implicit-fallthrough', '-Wvla'
+      '-Wno-implicit-fallthrough', '-Wno-unused-result', '-Wvla'
       # older gccs don't support these flags
       refurb_arg_parts << arg unless tool =~ /^g..-4.[02]/
     when /^-W[alp],/, /^-Wno-/
