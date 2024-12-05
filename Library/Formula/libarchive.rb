@@ -1,138 +1,117 @@
 class Libarchive < Formula
-  desc "Multi-format archive and compression library"
-  homepage "http://www.libarchive.org"
-  url "https://www.libarchive.org/downloads/libarchive-3.7.4.tar.xz"
-  sha256 "f887755c434a736a609cbd28d87ddbfbe9d6a3bb5b703c22c02f6af80a802735"
-
-  bottle do
-    cellar :any
-    sha256 "9c382bde083c41d3abab1be03642cf95a73151cc83514d57840a8fa9ae278f0c" => :tiger_altivec
-  end
+  desc 'Multi-format archive and compression library'
+  homepage 'http://www.libarchive.org'
+  url 'https://www.libarchive.org/downloads/libarchive-3.7.7.tar.xz'
+  sha256 '879acd83c3399c7caaee73fe5f7418e06087ab2aaf40af3e99b9e29beb29faee'
 
   option :universal
 
-  depends_on "bzip2"
-  depends_on "lz4"
-  depends_on "xz"
-  depends_on "zlib"
+  depends_on 'bzip2'
+  depends_on 'lz4'
+  depends_on 'nettle'
+  depends_on 'xz'
+  depends_on 'zlib'
+  depends_on 'zstd'
 
   keg_only :provided_by_osx
 
+  # ACLs are not working at present; when they are, there’s an oversight where
+  # ACL_SYNCHRONIZE is tested for, but then not conditionalized accordingly.
+  patch :DATA
+
   def install
-    if build.universal?
-      ENV.permit_arch_flags if superenv?
-      archs = Hardware::CPU.universal_archs
-      stashdir = buildpath/'arch-stashes'
-      the_binaries = %w[
-        bin/bsdcat
-        bin/bsdcpio
-        bin/bsdtar
-        bin/bsdunzip
-        lib/libarchive.13.dylib
-        lib/libarchive.a
-      ]
-    else
-      archs = [MacOS.preferred_arch]
-    end # universal?
-
-    archs.each do |arch|
-      ENV.append_to_cflags "-arch #{arch}" if build.universal?
-
-    system "./configure", "--prefix=#{prefix}",
-                          "--disable-dependency-tracking",
-                          "--disable-silent-rules",
-                          "--disable-acl",
-                          "--without-lzo2",
-                          "--without-nettle",
-                          "--without-xml2",
-                          "--without-expat",
-                          "ac_cv_header_sys_queue_h=no" # Use its up‐to‐date copy to obtain STAILQ_FOREACH
-      system 'make'
-      system 'make', 'check'  # verify this
-      system "make", "install"
-
-      if build.universal?
-        system 'make', 'distclean'
-        Merge.prep(prefix, stashdir/"bin-#{arch}", the_binaries)
-        # undo architecture-specific tweak before next run
-        ENV.remove_from_cflags "-arch #{arch}"
-      end # universal?
-    end # each |arch|
-
-    Merge.binaries(prefix, stashdir, archs) if build.universal?
+    ENV.universal_binary if build.universal?
+    system './configure', "--prefix=#{prefix}",
+                          '--disable-dependency-tracking',
+                          '--disable-silent-rules',
+                          '--disable-acl',
+                          '--without-expat',
+                          '--with-nettle',
+                          '--without-xml2',
+                          'ac_cv_header_sys_queue_h=no' # Use its up‐to‐date copy to obtain STAILQ_FOREACH
+    system 'make'
+    bombproof_system 'make', 'check'  # one test fails for no obvious reason
+    system 'make', 'install'
   end # install
 
   test do
     (testpath/'test').write('test')
     for_archs bin/'bsdtar' do |a|
-      arch_cmd = (a.nil? ? [] : ['arch', '-arch', a.to_s])
+      arch_cmd = (a.nil? ? [] : ['arch', '-arch', a.to_s, ''])
       system *arch_cmd, "#{bin}/bsdtar", '-czvf', 'test.tar.gz', 'test'
-      assert_match /test/, shell_output("#{bin}/bsdtar -xOzf test.tar.gz")
+      assert_match /test/, shell_output("#{arch_cmd * ' '}#{bin}/bsdtar -xOzf test.tar.gz")
       rm 'test.tar.gz'
     end
   end # test
 end # Libarchive
 
-class Merge
-  class << self
-    include FileUtils
-
-    # The destination is expected to be a Pathname object.
-    # The source is just a string.
-    def cp_mkp(source, destination)
-      if destination.exists?
-        if destination.is_directory?
-          cp source, destination
-        else
-          raise "File exists at destination:  #{destination}"
-        end # directory?
-      else
-        mkdir_p destination.parent unless destination.parent.exists?
-        cp source, destination
-      end # destination exists?
-    end # Merge.cp_mkp
-
-    # The keg_prefix and stash_root are expected to be Pathname objects.
-    # The list members are just strings.
-    def prep(keg_prefix, stash_root, list)
-      list.each do |item|
-        source = keg_prefix/item
-        dest = stash_root/item
-        cp_mkp source, dest
-      end # each binary
-    end # Merge.prep
-
-    # The keg_prefix is expected to be a Pathname object.  The rest are just strings.
-    def binaries(keg_prefix, stash_root, archs, sub_path = '')
-      # don’t suffer a double slash when sub_path is null:
-      s_p = (sub_path == '' ? '' : sub_path + '/')
-      # generate a full list of files, even if some are not present on all architectures; bear in
-      # mind that the current _directory_ may not even exist on all archs
-      basename_list = []
-      arch_dirs = archs.map {|a| "bin-#{a}"}
-      arch_dir_list = arch_dirs.join(',')
-      Dir["#{stash_root}/{#{arch_dir_list}}/#{s_p}*"].map { |f|
-        File.basename(f)
-      }.each { |b|
-        basename_list << b unless basename_list.count(b) > 0
-      }
-      basename_list.each do |b|
-        spb = s_p + b
-        the_arch_dir = arch_dirs.detect { |ad| File.exist?("#{stash_root}/#{ad}/#{spb}") }
-        pn = Pathname("#{stash_root}/#{the_arch_dir}/#{spb}")
-        if pn.directory?
-          binaries(keg_prefix, stash_root, archs, spb)
-        else
-          arch_files = Dir["#{stash_root}/{#{arch_dir_list}}/#{spb}"]
-          if arch_files.length > 1
-            system 'lipo', '-create', *arch_files, '-output', keg_prefix/spb
-          else
-            # presumably there's a reason this only exists for one architecture, so no error;
-            # the same rationale would apply if it only existed in, say, two out of three
-            cp arch_files.first, keg_prefix/spb
-          end # if > 1 file?
-        end # if directory?
-      end # each basename |b|
-    end # Merge.binaries
-  end # << self
-end # Merge
+__END__
+--- old/configure
++++ new/configure
+@@ -18819,44 +18819,6 @@
+ printf "%s\n" "#define SIZEOF_INT $ac_cv_sizeof_int" >>confdefs.h
+ 
+ 
+-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking size of long" >&5
+-printf %s "checking size of long... " >&6; }
+-if test ${ac_cv_sizeof_long+y}
+-then :
+-  printf %s "(cached) " >&6
+-else $as_nop
+-  for ac_size in 4 8 1 2 16  ; do # List sizes in rough order of prevalence.
+-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+-/* end confdefs.h.  */
+-
+-#include <sys/types.h>
+-
+-
+-int
+-main (void)
+-{
+-switch (0) case 0: case (sizeof (long) == $ac_size):;
+-  ;
+-  return 0;
+-}
+-_ACEOF
+-if ac_fn_c_try_compile "$LINENO"
+-then :
+-  ac_cv_sizeof_long=$ac_size
+-fi
+-rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
+-  if test x$ac_cv_sizeof_long != x ; then break; fi
+-done
+-
+-fi
+-
+-if test x$ac_cv_sizeof_long = x ; then
+-  as_fn_error $? "cannot determine a size for long" "$LINENO" 5
+-fi
+-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_cv_sizeof_long" >&5
+-printf "%s\n" "$ac_cv_sizeof_long" >&6; }
+-
+-printf "%s\n" "#define SIZEOF_LONG $ac_cv_sizeof_long" >>confdefs.h
+ 
+ 
+ 
+--- old/tar/test/test_option_acls.c
++++ new/tar/test/test_option_acls.c
+@@ -26,7 +26,9 @@
+     ACL_READ_SECURITY,
+     ACL_WRITE_SECURITY,
+     ACL_CHANGE_OWNER,
++#if HAVE_DECL_ACL_SYNCHRONIZE
+     ACL_SYNCHRONIZE
++#endif
+ #else /* !ARCHIVE_ACL_DARWIN */
+     ACL_EXECUTE,
+     ACL_WRITE,
+@@ -47,7 +49,9 @@
+     ACL_READ_ACL,
+     ACL_WRITE_ACL,
+     ACL_WRITE_OWNER,
++#if HAVE_DECL_ACL_SYNCHRONIZE
+     ACL_SYNCHRONIZE
++#endif
+ #endif	/* ARCHIVE_ACL_FREEBSD_NFS4 */
+ #endif /* !ARCHIVE_ACL_DARWIN */
+ };
