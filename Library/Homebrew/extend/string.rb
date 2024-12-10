@@ -39,6 +39,7 @@ class String
     (self[0] == kill_this.to_s[0]) ? pre_chop : self
   end
 
+  alias_method :includes?,    :include?    unless method_defined? :includes?
   alias_method :starts_with?, :start_with? unless method_defined? :starts_with?
 end
 
