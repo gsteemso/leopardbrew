@@ -69,15 +69,15 @@ module Homebrew
           when :stable
             if f.stable.nil?
               if f.devel.nil?
-                raise UsageError("#{f.full_name} is a head‐only formula, please specify --HEAD")
+                raise UsageError.new("#{f.full_name} is a head‐only formula, please specify --HEAD")
               elsif f.head.nil?
-                raise UsageError("#{f.full_name} is a development‐only formula, please specify --devel")
+                raise UsageError.new("#{f.full_name} is a development‐only formula, please specify --devel")
               else
-                raise UsageError("#{f.full_name} has no stable download, please choose --devel or --HEAD")
+                raise UsageError.new("#{f.full_name} has no stable download, please choose --devel or --HEAD")
               end
             end
-          when :head then raise UsageError("No head is defined for #{f.full_name}") if f.head.nil?
-          when :devel then raise UsageError("No devel block is defined for #{f.full_name}") if f.devel.nil?
+          when :head then raise UsageError.new("No head is defined for #{f.full_name}") if f.head.nil?
+          when :devel then raise UsageError.new("No devel block is defined for #{f.full_name}") if f.devel.nil?
         end
 
         if f.installed?(requested_spec)
