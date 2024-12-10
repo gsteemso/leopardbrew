@@ -50,13 +50,13 @@ class Cmd
     @tool ||= case @arg0
     when 'ld' then 'ld'
     when 'cpp' then 'cpp'
-    when /\w\+\+(-\d(\.\d)?)?$/
+    when /\w\+\+(-\d+(\.\d)?)?$/
       case ENV['HOMEBREW_CC']
       when /clang/
         'clang++'
       when /llvm-gcc/
         'llvm-g++-4.2'
-      when /gcc(-\d(\.\d)?)?$/
+      when /gcc(-\d+(\.\d)?)?$/
         'g++' + $1.to_s
       end
     else
@@ -160,7 +160,7 @@ class Cmd
       # clang doesn't support these flags
       refurb_arg_parts << arg unless tool =~ /^clang/
     when '-Wno-deprecated-register', /^-Wno-error=.+/, '-Wno-format-truncation',
-      '-Wno-implicit-fallthrough', '-Wno-unused-result', '-Wvla'
+      '-Wno-implicit-fallthrough', '-Wno-shift-negative-value', '-Wno-unused-result', '-Wvla'
       # older gccs don't support these flags
       refurb_arg_parts << arg unless tool =~ /^g..-4.[02]/
     when /^-W[alp],/, /^-Wno-/
@@ -204,8 +204,8 @@ class Cmd
     return cflag_args unless refurbish_args? || configure?
 
     cflag_args << '-pipe'
-    cflag_args << '-w' unless configure?
-    cflag_args << "-#{ENV['HOMEBREW_OPTIMIZATION_LEVEL']}"
+    cflag_args << '-w' unless configure? or ENV['HOMEBREW_DISABLE__W']
+    cflag_args << "-#{ENV['HOMEBREW_OPTIMIZATION_LEVEL']}" unless ENV['HOMEBREW_OPTIMIZATION_LEVEL'].nil?
     cflag_args.concat(optflags)
     cflag_args.concat(archflags)
     cflag_args << "-std=#{@arg0}" if @arg0 =~ /c[89]9/
@@ -315,7 +315,7 @@ end
 
 if __FILE__ == $PROGRAM_NAME
   ##################################################################### sanity
-  abort 'The build-tool has reset ENV. --env=std required.' unless ENV['HOMEBREW_BREW_FILE']
+  abort 'The build tool has reset ENV.  --env=std is required.' unless ENV['HOMEBREW_BREW_FILE']
 
   if (cc = ENV['HOMEBREW_CC']).nil? || cc.empty? || cc == 'cc'
     # those values are not allowed
