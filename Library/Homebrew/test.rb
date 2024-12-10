@@ -22,16 +22,17 @@ begin
   # the restricted one we use to make sure all our tools are where they ought to be
   f = ARGV.formulae.first
   f.set_active_spec(ARGV.build_head? ? :head : (ARGV.build_devel? ? :devel : :stable))
-  f.build = BuildOptions.new(Tab.from_file(f.prefix/Tab::FILENAME).used_options, f.options)
+  t = Tab.from_file(f.prefix/Tab::FILENAME)
+  f.build = BuildOptions.new(t.used_options, f.options)
   f.extend(Homebrew::Assertions)
   ENV.activate_extensions!
-  ENV.setup_build_environment(f)
+  ENV.setup_build_environment(f, t.built_archs)
 
   path_parts = ENV['PATH'].split(':') + normal_path.split(':')
   ENV['PATH'] = path_parts.uniq.join(':')
 
-  # enable argument refurbishment
-  # (this lets the optimization flags be noticed; otherwise, 64‐bit and universal builds fail)
+  # Enable argument refurbishment under Superenv.  This enforces architecture
+  # and optimization flags; otherwise, 64‐bit and universal builds fail.
   ENV.refurbish_args if superenv?
 
   if DEBUG  # can’t use a timeout and run a debugging shell at the same time

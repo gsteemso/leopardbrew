@@ -17,7 +17,7 @@ module Stdenv
   end
 
   # @private
-  def setup_build_environment(formula = nil)
+  def setup_build_environment(formula = nil, archset = nil)
     super
 
     if MacOS.version >= :mountain_lion
@@ -82,6 +82,8 @@ module Stdenv
       # depend on it already being installed to build itself.
       ld64 if Formula.factory('ld64').installed?
     end
+
+    set_build_archs(archset) if archset
   end # setup_build_environment
 
   # @private
@@ -257,40 +259,31 @@ module Stdenv
     remove_from_cflags '-arch i386'
   end
 
-  def universal_binary
-    append_to_cflags Hardware::CPU.universal_archs.as_arch_flags
-    append "LDFLAGS", Hardware::CPU.universal_archs.as_arch_flags
-
-    if compiler != :clang && Hardware.is_32_bit?
-      # Can't mix "-march" for a 32-bit CPU  with "-arch x86_64"
-      replace_in_cflags(/-march=\S*/, "-Xarch_#{Hardware::CPU.arch_32_bit} \\0")
-    end
-  end # universal_binary
+  def set_build_archs(archset)
+    super
+    append_to_cflags archset.as_arch_flags
+    append "LDFLAGS", archset.as_arch_flags
+    self['CMAKE_OSX_ARCHITECTURES'] = archset.as_cmake_arch_flags
+    # GCC won’t mix “-march” for a 32-bit CPU with “-arch x86_64”
+    replace_in_cflags(/-march=\S*/, '-Xarch_i386 \0') \
+                            if compiler != :clang and archset.includes? :x86_64
+  end # set_build_archs
 
   def cxx11
     if compiler == :clang
       append "CXX", "-std=c++11"
       append "CXX", "-stdlib=libc++"
-    elsif compiler =~ GNU_CXX11_REGEXP
-      append "CXX", "-std=c++11"
-    else
-      raise "The selected compiler doesn't support C++11: #{compiler}"
-    end
+    elsif compiler =~ GNU_CXX11_REGEXP then append "CXX", "-std=c++11"
+    else raise "The selected compiler doesn't support C++11: #{compiler}"; end
   end # cxx11
 
-  def libcxx
-    append "CXX", "-stdlib=libc++" if compiler == :clang
-  end
+  def libcxx; append "CXX", "-stdlib=libc++" if compiler == :clang; end
 
-  def libstdcxx
-    append "CXX", "-stdlib=libstdc++" if compiler == :clang
-  end
+  def libstdcxx; append "CXX", "-stdlib=libstdc++" if compiler == :clang; end
 
   # @private
   def replace_in_cflags(before, after)
-    CC_FLAG_VARS.each do |key|
-      self[key] = self[key].sub(before, after) if key?(key)
-    end
+    CC_FLAG_VARS.each { |key| self[key] = self[key].sub(before, after) if key?(key) }
   end
 
   # Convenience method to set all C compiler flags in one shot.
@@ -308,10 +301,8 @@ module Stdenv
     remove flags, /-msse4(\.\d)?/
     append flags, xarch unless xarch.empty?
     append flags, map.fetch(effective_arch, default)
-
     # Works around a buggy system header on Tiger
-    append flags, "-faltivec" if MacOS.version == :tiger && Hardware::CPU.ppc?
-
+    append flags, "-faltivec" if MacOS.version == :tiger and Hardware::CPU.ppc?
     # not really a 'CPU' cflag, but is only used with clang
     remove flags, '-Qunused-arguments'
   end # set_cpu_flags

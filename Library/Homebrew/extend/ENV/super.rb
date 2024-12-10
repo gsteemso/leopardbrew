@@ -37,7 +37,7 @@ module Superenv
   end
 
   # @private
-  def setup_build_environment(formula = nil)
+  def setup_build_environment(formula = nil, archset = nil)
     super
     send(compiler)
 
@@ -54,7 +54,7 @@ module Superenv
     self["HOMEBREW_TEMP"]          = HOMEBREW_TEMP.to_s
     self["HOMEBREW_SDKROOT"]       = effective_sysroot
     self["HOMEBREW_OPTFLAGS"]      = determine_optflags
-    self["HOMEBREW_ARCHFLAGS"]   ||= ''
+    self["HOMEBREW_ARCHFLAGS"]     = determine_archflags(archset)
     self["CMAKE_PREFIX_PATH"]      = determine_cmake_prefix_path
     self["CMAKE_FRAMEWORK_PATH"]   = determine_cmake_frameworks_path
     self["CMAKE_INCLUDE_PATH"]     = determine_cmake_include_path
@@ -135,7 +135,8 @@ module Superenv
   end
 
   def determine_cccfg
-    s = ""
+    # Always allow controlling the build architecture.
+    s = "K"
     # Fix issue with sed barfing on unicode characters on Mountain Lion
     s << "s" if MacOS.version >= :mountain_lion
     # Fix issue with >= 10.8 apr-1-config having broken paths
@@ -162,6 +163,15 @@ module Superenv
       Hardware::CPU.optimization_flags.fetch(Hardware::CPU.model)
     end
   end # determine_optflags
+
+  def determine_archflags(archset)
+    (archset and archset.as_arch_flags) \
+      or (build_archs = self['HOMEBREW_BUILD_ARCHS'] \
+           and build_archs.split(' ').map { |a| "-arch #{a}" }.join(' ') \
+         ) \
+      or self['HOMEBREW_ARCHFLAGS'] \
+      or ''
+  end # determine_archflags
 
   def determine_cmake_prefix_path
     paths = keg_only_deps.map { |d| d.opt_prefix.to_s }
@@ -220,60 +230,54 @@ module Superenv
   public
 
   def cccfg_add(datum)
-    append('HOMEBREW_CCCFG', datum, '') unless self['HOMEBREW_CCCFG'].include? datum
+    append('HOMEBREW_CCCFG', datum, '') unless self['HOMEBREW_CCCFG'].includes? datum
   end
 
-  def cccfg_remove(datum); remove 'HOMEBREW_CCCFG', datum if self['HOMEBREW_CCCFG'].include? datum; end
+  def cccfg_remove(datum); remove 'HOMEBREW_CCCFG', datum if self['HOMEBREW_CCCFG'].includes? datum; end
 
   def make_jobs; self["MAKEFLAGS"] =~ %r{-\w*j(\d)+}; [$1.to_i, 1].max; end
 
-  def universal_binary
-    permit_arch_flags
-    self["HOMEBREW_ARCHFLAGS"] = Hardware::CPU.universal_archs.as_arch_flags
-    # GCC doesn't accept "-march" for a 32-bit CPU with "-arch x86_64"
-    self["HOMEBREW_OPTFLAGS"] = self["HOMEBREW_OPTFLAGS"].sub(
-        /-march=\S*/,
-        "-Xarch_#{Hardware::CPU.arch_32_bit} \\0"
-      ) if compiler != :clang && Hardware.is_32_bit?
-  end # universal_binary
-
-  def permit_arch_flags; cccfg_add 'K'; end
+  def set_build_archs(archset)
+    super
+    self['HOMEBREW_ARCHFLAGS'] = archset.as_arch_flags
+    self['CMAKE_OSX_ARCHITECTURES'] = archset.as_cmake_arch_flags
+    # GCC doesn’t accept “-march” for a 32-bit CPU with “-arch x86_64”
+    self['HOMEBREW_OPTFLAGS'] = self['HOMEBREW_OPTFLAGS'].sub(
+        /-march=\S*/, '-Xarch_i386 \0'
+      ) if compiler != :clang and archset.includes? :x86_64
+  end
 
   def m32
-    permit_arch_flags
-    append "HOMEBREW_ARCHFLAGS", "-m32"
-    append 'LDFLAGS', "-arch #{Hardware::CPU.arch_32_bit}"
+    append "HOMEBREW_ARCHFLAGS", "-m32 -arch #{Hardware::CPU.arch_32_bit}"
   end
 
   def un_m32
     remove 'HOMEBREW_ARCHFLAGS', '-m32'
-    remove ['HOMEBREW_ARCHFLAGS', 'LDFLAGS'], '-arch ppc'
-    remove ['HOMEBREW_ARCHFLAGS', 'LDFLAGS'], '-arch i386'
+    remove 'HOMEBREW_ARCHFLAGS', '-arch ppc'
+    remove 'HOMEBREW_ARCHFLAGS', '-arch i386'
   end
 
   def m64
-    permit_arch_flags
-    append "HOMEBREW_ARCHFLAGS", "-m64"
-    append 'LDFLAGS', "-arch #{Hardware::CPU.arch_64_bit}"
+    append "HOMEBREW_ARCHFLAGS", "-m64 -arch #{Hardware::CPU.arch_64_bit}"
   end
 
   def un_m64
     remove 'HOMEBREW_ARCHFLAGS', '-m64'
-    remove ['HOMEBREW_ARCHFLAGS', 'LDFLAGS'], '-arch ppc64'
-    remove ['HOMEBREW_ARCHFLAGS', 'LDFLAGS'], '-arch x86_64'
+    remove 'HOMEBREW_ARCHFLAGS', '-arch ppc64'
+    remove 'HOMEBREW_ARCHFLAGS', '-arch x86_64'
   end
 
   def cxx11
     case homebrew_cc
-      when "clang" then cccfg_add 'x'; cccfg_add 'g'
+      when 'clang' then cccfg_add 'x'; cccfg_remove 'h'; cccfg_add 'g'
       when GNU_CXX11_REGEXP then cccfg_add 'x'
       else raise "The selected compiler doesn't support C++11:  #{homebrew_cc}"
     end
   end # cxx11
 
-  def libcxx; cccfg_add 'g' if compiler == :clang; end
+  def libcxx; if compiler == :clang then cccfg_remove 'h'; cccfg_add 'g'; end; end
 
-  def libstdcxx; cccfg_add 'h' if compiler == :clang; end
+  def libstdcxx; if compiler == :clang then cccfg_remove 'g'; cccfg_add 'h'; end; end
 
   # @private
   def refurbish_args; cccfg_add 'O'; end
@@ -281,6 +285,10 @@ module Superenv
   %w[O3 O2 O1 O0 Os].each do |opt|
     define_method opt do self['HOMEBREW_OPTIMIZATION_LEVEL'] = opt; end
   end
+
+  def no_optimization; ENV['HOMEBREW_OPTIMIZATION_LEVEL'].delete; end
+
+  def enable_warnings; ENV['HOMEBREW_DISABLE__W'] = 'yes'; end
 
   # @private
   def noop(*_args); end
@@ -292,7 +300,7 @@ module Superenv
 
   # These methods provide functionality that has not yet been ported to
   # superenv.
-  noops.concat %w[gcc_4_0_1 minimal_optimization no_optimization enable_warnings]
+  noops.concat %w[gcc_4_0_1 minimal_optimization]
 
   noops.each { |m| alias_method m, :noop }
 end # module Superenv

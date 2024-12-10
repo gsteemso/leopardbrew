@@ -4,6 +4,7 @@
 old_trap = trap("INT") { exit! 130 }
 
 require "global"
+require 'utils'
 require "build_options"
 require "cxxstdlib"
 require "keg"
@@ -84,7 +85,7 @@ class Build
       ENV.x11 = reqs.any? { |rq| rq.is_a?(X11Requirement) }
     end
 
-    ENV.setup_build_environment(formula)
+    ENV.setup_build_environment(formula, Hardware::CPU.preferred_arch_as_list)
 
     post_superenv_hacks if superenv?
 
@@ -129,13 +130,18 @@ class Build
       end
 
       stdlibs = detect_stdlibs(ENV.compiler)
-      Tab.create(formula, ENV.compiler, stdlibs.first, formula.build).write
+      Tab.create(formula, ENV.compiler, stdlibs.first, formula.build, get_archs).write
 
       # Find and link metafiles
       formula.prefix.install_metafiles Pathname.pwd
       formula.prefix.install_metafiles formula.libexec if formula.libexec.exist?
     end # of {formula}#brew block
   end # install
+
+  def get_archs
+    if (hba = ENV['HOMEBREW_BUILD_ARCHS']) then hba.split(' ')
+    else raise '$HOMEBREW_BUILD_ARCHS is empty!  WTF did we just build?'; end
+  end
 
   def detect_stdlibs(compiler)
     keg = Keg.new(formula.prefix)
