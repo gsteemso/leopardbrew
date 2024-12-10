@@ -1,12 +1,11 @@
+# On a Mac, this file is loaded before `global.rb`, so must eschew most
+# Homebrew‐isms at eval time.
+
 require "os"
 
 class Hardware
   module CPU
     extend self
-    INTEL_32BIT_ARCHS = [:i386].freeze
-    INTEL_64BIT_ARCHS = [:x86_64].freeze
-    PPC_32BIT_ARCHS   = [:ppc, :ppc750, :ppc7400, :ppc7450, :ppc970].freeze
-    PPC_64BIT_ARCHS   = [:ppc64].freeze
 
     def type; :dunno; end
 
