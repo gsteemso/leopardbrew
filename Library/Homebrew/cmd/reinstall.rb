@@ -143,38 +143,36 @@ module Homebrew
         use_opts << o
       else
         case o.flag
-        when /^--with-(.+)$/
-          if formula.option_defined?(inverse = "without-#{$1}") or use_opts.include? inverse
-            anti_opts << Option.new(inverse)
-          else
-            unrecognized = true
-          end # --with-xxxx?
-        when /^--without-(.+)$/
-          if formula.option_defined?(inverse = "with-#{$1}") or use_opts.include? inverse
-            anti_opts << Option.new(inverse)
-          else
-            unrecognized = true
-          end # --without-xxxx?
-        when '--single-arch'
-          anti_opts << Option.new('universal')
-          ENV.delete 'HOMEBREW_BUILD_UNIVERSAL'
-        when '--universal'
-          # the formula doesn’t have a :universal option; ignore it
-        when '--stable'
-          anti_opts += [Option.new('HEAD'), Option.new('devel')]
-        when '--devel'
-          use_opts << o
-          anti_opts << Option.new('HEAD')
-        when '--HEAD'
-          use_opts << o
-          anti_opts << Option.new('devel')
-        else
-          flag =~ /^--un-([^=]+=?)(.+)?$/
-          if use_opts.include?($1)
+          when /^--with-(.+)$/
+            if formula.option_defined?(inverse = "without-#{$1}") or use_opts.include? inverse
+              anti_opts << Option.new(inverse)
+            else
+              unrecognized = true
+            end # --with-xxxx?
+          when /^--without-(.+)$/
+            if formula.option_defined?(inverse = "with-#{$1}") or use_opts.include? inverse
+              anti_opts << Option.new(inverse)
+            else
+              unrecognized = true
+            end # --without-xxxx?
+          when '--single-arch'
+            anti_opts << Option.new('universal')
+            ENV.delete 'HOMEBREW_BUILD_UNIVERSAL'
+          when '--universal'
+            # the formula doesn’t have a :universal option; ignore it
+          when '--stable'
+            anti_opts += [Option.new('HEAD'), Option.new('devel')]
+          when '--devel'
+            use_opts << o
+            anti_opts << Option.new('HEAD')
+          when '--HEAD'
+            use_opts << o
+            anti_opts << Option.new('devel')
+          when /^--un-([^=]+=?)(.+)?$/
             anti_opts << Option.new($1)
+            ENV.delete 'HOMEBREW_BUILD_UNIVERSAL' if $1 == 'universal'
           else
             unrecognized = true
-          end # un-option?
         end # case
         whinge_re_unrecognized(o.flag) if unrecognized
       end # option is defined?
