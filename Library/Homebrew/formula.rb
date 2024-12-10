@@ -391,7 +391,7 @@ class Formula
 
   private
 
-  def is_installed_prefix?(pn); Formula.is_installed_prefix?(pn); end
+  def is_installed_prefix?(pn); self.class.is_installed_prefix?(pn); end
 
   def self.is_installed_prefix?(pn); pn and pn.directory? and (pn/Tab::FILENAME).file?; end
 
@@ -1006,10 +1006,11 @@ class Formula
   # @private
   def verify_download_integrity(fn); active_spec.verify_download_integrity(fn); end
 
+  # The `test` command must set up the ’brew build environment, arrange to use
+  # the exact same ARGV and build options as during the original brewing, &c.
   # @private
   def run_test
     old_home = ENV["HOME"]
-    build, self.build = self.build, BuildOptions.new(Tab.for_formula(self).used_options, options)
     mktemp do
       @testpath = Pathname.pwd
       ENV["HOME"] = @testpath
@@ -1018,15 +1019,11 @@ class Formula
     end
   ensure
     @testpath = nil
-    self.build = build
     ENV["HOME"] = old_home
   end # run_test
 
   # @private
   def test_defined?; false; end
-
-  # @private
-  def test; end
 
   def test_fixtures(file); (HOMEBREW_LIBRARY_PATH/'test/fixtures')/file; end
 
