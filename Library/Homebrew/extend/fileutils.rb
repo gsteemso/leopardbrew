@@ -102,14 +102,14 @@ module FileUtils
     system CONFIG_RUBY_BIN/"rake", *args
   end
 
-  # Run `make` 3.81 or newer.  Uses system make from Leopard onward, otherwise brewed make.
-  # Adapts as appropriate to stdenv/superenv (required for superenv argument refurbishement).
+  # Run `make` 3.81 or newer.  Uses brewed make if available, or system make from Leopard onward.
+  # Adapts as appropriate to stdenv/superenv (required for superenv argument refurbishment).
   def make(*args)
-    if Utils.popen_read('/usr/bin/make', '--version').match(/Make (\d\.\d+)/)[1] > '3.80'
-      _make = '/usr/bin/make'
-    elsif Formula['make'].installed?
+    if Formula['make'].installed?
       _make = Formula['make'].opt_bin/'make'
-      _make = _make.exist? ? _make.to_s : Formula['make'].opt_bin/'gmake'.to_s
+      _make = _make.exists? ? _make.to_s : Formula['make'].opt_bin/'gmake'.to_s
+    elsif Utils.popen_read('/usr/bin/make', '--version').match(/Make (\d\.\d+)/)[1] > '3.80'
+      _make = '/usr/bin/make'
     else
       abort 'Your system’s Make program is too old.  Please `brew install make`.'
     end
