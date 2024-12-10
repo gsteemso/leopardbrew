@@ -25,8 +25,8 @@ case $arg0 in
   */* | *-* | *.*)  # not all command names are acceptable as environment variables
     ;;
   *)
-    var="HOMEBREW_${arg0}"
-    exe="${!var}"
+    declare -n var="HOMEBREW_${arg0}"
+    exe="$var"
     if [ -n "$exe" ] && [ -x "$exe" ]; then
       exec "$exe" "$@"
     fi
