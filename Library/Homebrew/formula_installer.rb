@@ -206,8 +206,6 @@ class FormulaInstaller
 
     build_bottle_postinstall if build_bottle?
 
-    onoe "somehow, #{formula.full_name}’s optlink is missing" unless formula.opt_prefix.directory?
-
     ofail "#{formula.full_name} was not successfully installed to #{formula.prefix}" unless formula.installed?
   end # install
 
