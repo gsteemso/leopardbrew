@@ -12,7 +12,7 @@ class TabTests < Homebrew::TestCase
                    "built_as_bottle"    => false,
                    "poured_from_bottle" => true,
                    "time"               => nil,
-                   "HEAD"               => TEST_SHA1,
+                   "git_head_SHA1"      => TEST_SHA1,
                    "compiler"           => "clang",
                    "stdlib"             => "libcxx",
                    "source"             => {
@@ -30,7 +30,7 @@ class TabTests < Homebrew::TestCase
     refute_predicate tab, :poured_from_bottle
     assert_nil tab.tap
     assert_nil tab.time
-    assert_nil tab.HEAD
+    assert_nil tab.git_head_SHA1
     assert_equal MacOS.default_compiler, tab.cxxstdlib.compiler
     assert_nil tab.cxxstdlib.type
   end
@@ -58,7 +58,7 @@ class TabTests < Homebrew::TestCase
   end
 
   def test_other_attributes
-    assert_equal TEST_SHA1, @tab.HEAD
+    assert_equal TEST_SHA1, @tab.git_head_SHA1
     assert_equal "Homebrew/homebrew", @tab.tap
     assert_nil @tab.time
     refute_predicate @tab, :built_as_bottle
@@ -76,7 +76,7 @@ class TabTests < Homebrew::TestCase
     assert_equal "Homebrew/homebrew", tab.tap
     assert_equal :stable, tab.spec
     refute_nil tab.time
-    assert_equal TEST_SHA1, tab.HEAD
+    assert_equal TEST_SHA1, tab.git_head_SHA1
     assert_equal :clang, tab.cxxstdlib.compiler
     assert_equal :libcxx, tab.cxxstdlib.type
   end
@@ -92,7 +92,7 @@ class TabTests < Homebrew::TestCase
     assert_equal "Homebrew/homebrew", tab.tap
     assert_equal :stable, tab.spec
     refute_nil tab.time
-    assert_equal TEST_SHA1, tab.HEAD
+    assert_equal TEST_SHA1, tab.git_head_SHA1
     assert_equal :clang, tab.cxxstdlib.compiler
     assert_equal :libcxx, tab.cxxstdlib.type
   end
@@ -106,7 +106,7 @@ class TabTests < Homebrew::TestCase
     assert_equal @tab.tap, tab.tap
     assert_equal @tab.spec, tab.spec
     assert_equal @tab.time, tab.time
-    assert_equal @tab.HEAD, tab.HEAD
+    assert_equal @tab.git_head_SHA1, tab.git_head_SHA1
     assert_equal @tab.compiler, tab.compiler
     assert_equal @tab.stdlib, tab.stdlib
   end

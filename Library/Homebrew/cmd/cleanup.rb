@@ -168,7 +168,7 @@ module Homebrew
         f.deps.any? do |d|
           d.to_formula.full_name == formula.full_name rescue d.name == formula.name
         end
-      end.all? { |f| f.rack.subdirs.all? { |keg| Tab.for_keg(keg).HEAD } }
+      end.all? { |f| f.rack.subdirs.all? { |keg| Tab.for_keg(keg).git_head_SHA1 } }
     end
   end
 end
