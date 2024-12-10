@@ -1,18 +1,16 @@
 require 'pathname'  #
-require 'rbconfig'  # Ruby libraries
+require 'rbconfig'  # Ruby libraries.
 require 'set'       #
-# all these others are Homebrew libraries
+# These others are Homebrew libraries:
 require 'extend/leopard' if RUBY_VERSION <= '1.8.6'  # also does tiger if needed
 require 'extend/ARGV'
+ARGV.extend(HomebrewArgvExtension)
 require 'extend/fileutils'
-require 'extend/module'
+require 'extend/misc'
 require 'extend/pathname'
 require 'extend/string'
-require 'exceptions'
 require 'os'
-require 'utils'
-
-ARGV.extend(HomebrewArgvExtension)
+require 'osay'
 
 if ENV['HOMEBREW_BREW_FILE']
   # Path to main executable ($HOMEBREW_PREFIX/bin/brew):
@@ -33,7 +31,7 @@ CONFIG_RUBY_PATH        = if RbConfig.respond_to?(:ruby)            # The curren
 HOMEBREW_CACHE          = Pathname.new(ENV['HOMEBREW_CACHE'])
                           # Where downloads (bottles, source tarballs, etc.) are cached
   HOMEBREW_CACHE_FORMULA =  HOMEBREW_CACHE/'Formula'
-                            # Where brews installed via URL are cached
+                            # Where formulæ specified by URL are cached
 HOMEBREW_CELLAR         = Pathname.new(ENV['HOMEBREW_CELLAR']).realpath
 HOMEBREW_CURL           = Pathname.new(ENV['HOMEBREW_CURL'])
 HOMEBREW_LIBRARY        = Pathname.new(ENV['HOMEBREW_LIBRARY'])
@@ -72,7 +70,8 @@ HOMEBREW_TAP_FORMULA_REGEX        = %r{^([\w-]+)/([\w-]+)/([\w+-.@]+)$}
   HOMEBREW_TAP_PATH_REGEX         =   Regexp.new(HOMEBREW_TAP_DIR_REGEX.source + %r{/(.*)}.source)
                                       # Match taps’ formula paths, e.g. HOMEBREW_LIBRARY/Taps/someuser/sometap/someformula
 # Pathname::BOTTLE_EXTNAME_RX       # see `extend/pathname.rb`
-# VERSIONED_NAME_REGEX              # see `exceptions.rb`
+VERSIONED_NAME_REGEX              = %r{^([^@]+)@([^@]+)$}
+                                    # matches a formula‐name‐including‐version specification
 
 # Other predefined values:
 # CompilerConstants::CLANG_CXX11_MIN #
@@ -105,6 +104,7 @@ HOMEBREW_VERSION            = ENV['HOMEBREW_VERSION']  # Permanently fixed at 0.
 HOMEBREW_WWW                = 'https://github.com/gsteemso/leopardbrew'
 # MACOS_FULL_VERSION        # Imported from $HOMEBREW_OSX_VERSION in `os.rb`
 # MACOS_VERSION             # Just the numeric part (see `os.rb`)
+# MacOS::MAX_SUPPORTED_VERSION # see `os/mac/version.rb`
 OS_VERSION                  = ENV['HOMEBREW_OS_VERSION']
 # Tab::FILENAME             # see `tab.rb`
 
@@ -120,7 +120,6 @@ HOMEBREW_LOGS   = Pathname.new(ENV.fetch 'HOMEBREW_LOGS', '~/Library/Logs/Homebr
                   # Where build, postinstall, and test logs of formulæ are written to
 HOMEBREW_TEMP   = Pathname.new(ENV.fetch 'HOMEBREW_TEMP', '/tmp')
                   # Where temporary folders for building and testing formulæ are created
-NO_COMPAT       = ENV['HOMEBREW_NO_COMPAT']   # Don’t bother with backwards‐compatibility cruft
 NO_EMOJI        = ENV['HOMEBREW_NO_EMOJI']    # Don’t show badge at all (see `formula_installer.rb`)
 ORIGINAL_PATHS  = ENV['PATH'].split(File::PATH_SEPARATOR).map { |p| Pathname.new(p).expand_path rescue nil }.compact.freeze
 QUIETER         = ARGV.quieter?               # Give less-verbose feedback when VERBOSE (checks all
@@ -128,29 +127,32 @@ QUIETER         = ARGV.quieter?               # Give less-verbose feedback when 
 VERBOSE         = ARGV.verbose?               # Give lots of feedback (checks all of “-v”,
                                               #   “--verbose”, $HOMEBREW_VERBOSE, & $VERBOSE)
 
-# Further housekeeping:
-require 'compat' unless NO_COMPAT or ARGV.include?('--no-compat')
+# include backwards‐compatibility cruft?
+require 'compat' unless ENV['HOMEBREW_NO_COMPAT'] || ARGV.include?('--no-compat')
 
 # Environment variables that affect ARGV and/or builds (unless noted, see `extend/ARGV.rb`):
 # HOMEBREW_BUILD_BOTTLE       # Always build a bottle instead of a normal installation
 # HOMEBREW_BUILD_FROM_SOURCE  # Force building from source even when there is a bottle
 # HOMEBREW_BUILD_UNIVERSAL    # If there’s a :universal option, always use it
 # HOMEBREW_FAIL_LOG_LINES     # How many lines of system output to log on failure (see `formula.rb`)
-# HOMEBREW_PREFER_64_BIT      # Build 64‐bit by default (required to build --universal; see `os/mac.rb`)
+# HOMEBREW_PREFER_64_BIT      # Build 64‐bit by default (req’d for Leopard :universal; see `os/mac.rb`)
 # HOMEBREW_QUIET              # Be less verbose
 # HOMEBREW_SANDBOX            # hells if I know
 # HOMEBREW_VERBOSE            # Show build messages
 #   VERBOSE                   #   Same thing but system‐wide
 # HOMEBREW_VERBOSE_USING_DOTS # Print keepalive dots during long system calls (see `formula.rb`)
 
-# Environment variables that can be used to control Superenv:
+# Superenv environment variables:
 # (also see HOMEBREW_CC below)
+# HOMEBREW_DISABLE__W     # Enable warnings by not inserting “-w”
 # HOMEBREW_FORCE_FLAGS    # When argument refurbishment is performed, these are always inserted
 # HOMEBREW_INCLUDE_PATHS  # These are how -I flags reach ENV/*/cc
 # HOMEBREW_ISYSTEM_PATHS  # These are how -isystem flags reach ENV/*/cc
 # HOMEBREW_LIBRARY_PATHS  # These are how -L flags reach ENV/*/cc
+# HOMEBREW_OPTIMIZATION_LEVEL # This is how an -O? flag reaches ENV/*/cc
 
-# Other environment variables:
+# Other environment variables used in brewing:
+# HOMEBREW_BUILD_ARCHS    # Tracks the architectures being built for
 # HOMEBREW_CC             # Tracks the selected compiler (see `extend/ENV/*.rb`)
 # HOMEBREW_CC_LOG_PATH    # This is set by `formula.rb` whenever it executes a Superenv build tool
 # HOMEBREW_MACH_O_FILE    # Briefly exists during `otool -L` parsing; see `mach.rb`

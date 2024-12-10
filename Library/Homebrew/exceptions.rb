@@ -1,7 +1,3 @@
-# this file is loaded before `global.rb`, so must eschew most Homebrew things
-
-VERSIONED_NAME_REGEX = %r{^([^@]+)@([^@]+)$}
-
 class UsageError < RuntimeError; end
 class FormulaUnspecifiedError < UsageError; end
 class KegUnspecifiedError < UsageError; end
@@ -454,17 +450,3 @@ class BottleVersionMismatchError < RuntimeError
     EOS
   end
 end
-
-# raiseable by any formula that has a Perl module as a prerequisite, which by policy cannot be
-# brewed because Perl modules already have their own management system.
-class NeedPerlModulesError < RuntimeError
-  def initialize(module_names)
-    super <<-_.undent
-      You will need the following Perl module(s) in order to brew this formula:
-          #{module_names*"\n    "}
-      The list should be obtainable by entering
-          cpan #{module_names*' '}
-      at the command prompt.
-    _
-  end
-end # NeedPerlModulesError

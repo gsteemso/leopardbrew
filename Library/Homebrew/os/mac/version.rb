@@ -1,7 +1,12 @@
+# This file is loaded before `global.rb`, so must eschew many Homebrew‐isms at
+# eval time.
+
 require 'version'
 
 module OS
   module Mac
+    MAX_SUPPORTED_VERSION = '15'
+
     class Version < ::Version
       SYMBOLS = {
         :sequoia       => '15',
@@ -25,11 +30,9 @@ module OS
       }.freeze
 
       def self.from_symbol(sym)
-        str = SYMBOLS.fetch(sym) do
-            raise ArgumentError, "unknown version #{sym.inspect}"
-          end
+        str = SYMBOLS.fetch(sym) { raise ArgumentError, "unknown version #{sym.inspect}" }
         new(str)
-      end # ::from_symbol
+      end
 
       def initialize(*args); super; @comparison_cache = {}; end
 
@@ -44,5 +47,20 @@ module OS
 
       def pretty_name; to_sym.to_s.split("_").map(&:capitalize).join(' '); end
     end # OS::Mac::Version
+
+    # This can be compared to numerics, strings, or symbols
+    # using the standard Ruby Comparable methods.
+    def version
+      @version ||= Version.new(MACOS_VERSION)
+    end
+
+    def codename; version.to_sym; end
+
+    # This can be compared to numerics, strings, or symbols
+    # using the standard Ruby Comparable methods.
+    def full_version
+      @full_version ||= Version.new(MACOS_FULL_VERSION)
+    end
+
   end # OS::Mac
 end # OS

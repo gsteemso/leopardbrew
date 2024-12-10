@@ -1,4 +1,5 @@
-# this file is loaded before `global.rb`, so must eschew most Homebrew things
+# This file is loaded before `global.rb`, so must eschew most Homebrew‐isms at
+# eval time.
 
 module OS
   def self.mac?

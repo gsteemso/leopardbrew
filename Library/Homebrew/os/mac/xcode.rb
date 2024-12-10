@@ -1,3 +1,6 @@
+# This file is loaded before `global.rb`, so must eschew many Homebrew‐isms at
+# eval time.
+
 module OS
   module Mac
     module Xcode

@@ -1,3 +1,6 @@
+# This file is loaded before `global.rb`, so must eschew most Homebrew‐isms at
+# eval time.
+
 require "hardware"
 require "os/mac/version"
 require "os/mac/xcode"
@@ -9,21 +12,10 @@ module OS
 
     ::MacOS = self # compatibility
 
-    MAX_SUPPORTED_VERSION = '15'
-
-    # This can be compared to numerics, strings, or symbols
-    # using the standard Ruby Comparable methods.
-    def version
-      @version ||= Version.new(MACOS_VERSION)
+    def prefer_64_bit?
+      Hardware::CPU.is_64_bit? and version > :leopard or
+                                 (version == :leopard and ENV["HOMEBREW_PREFER_64_BIT"])
     end
-
-    # This can be compared to numerics, strings, or symbols
-    # using the standard Ruby Comparable methods.
-    def full_version
-      @full_version ||= Version.new(MACOS_FULL_VERSION)
-    end
-
-    def codename; version.to_sym; end
 
     def locate(tool)
       # Don't call tools (cc, make, strip, etc.) directly!
@@ -203,19 +195,6 @@ module OS
       paths.uniq
     end # macports_or_fink
 
-    def prefer_64_bit?
-      Hardware::CPU.is_64_bit? and version > :leopard or
-                        (version == :leopard and ENV["HOMEBREW_PREFER_64_BIT"])
-    end
-
-    def preferred_arch
-      if prefer_64_bit?
-        Hardware::CPU.arch_64_bit
-      else
-        Hardware::CPU.arch_32_bit
-      end
-    end # preferred_arch
-
     def counterpart_arch
       case preferred_arch
         when :arm64  then :x86_64
@@ -223,6 +202,7 @@ module OS
         when :ppc    then :i386
         when :ppc64  then :x86_64
         when :x86_64 then (version >= :catalina ? :arm64 : :ppc64)
+        else :dunno
       end
     end # counterpart_arch
 
