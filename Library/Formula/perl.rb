@@ -23,6 +23,9 @@ class Perl < Formula
                                                       or MacOS.version >= :lion
   option 'with-tests', 'Run the build-test suite (fails on ppc64 when built with older GCCs)'
 
+  enhanced_by 'curl'  # The obsolete stock curl on older Mac OSes causes
+                      # extension modules reliant on it to fail messily.
+
   if (build.with?('tests') or build.bottle?) and (build.universal? or
                                                      (MacOS.prefer_64_bit? and Hardware::CPU.ppc?))
     fails_with :gcc
@@ -36,12 +39,7 @@ class Perl < Formula
   patch :DATA unless build.head?
 
   def install
-    if (f = Formula['curl']).installed?
-      ENV.prepend_path 'PATH', f.opt_bin    # Without this, extension modules will try to use
-    end                                     # system curl, failing messily due to its obsolescence
-                                            # on older Mac OSes.
     if build.universal?
-      ENV.permit_arch_flags if superenv?
       archs = Hardware::CPU.universal_archs
       stashdir = buildpath/'arch-stashes'
     else
