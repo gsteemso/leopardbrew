@@ -124,8 +124,8 @@ class Tab < OpenStruct
   def build_bottle?; built_as_bottle and not poured_from_bottle; end
 
   def built_archs
-    # Older tabs won’t have this field, so compute probable defaults.
-    super.map(&:to_sym).extend(ArchitectureListExtension) or
+    # Older tabs won’t have this field, so compute a plausible default.
+    (super and super.map(&:to_sym).extend(ArchitectureListExtension)) or
       universal? ? Hardware::CPU.universal_archs : Hardware::CPU.preferred_arch_as_list
   end
 
