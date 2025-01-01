@@ -1,32 +1,33 @@
 class Libtiff < Formula
   desc 'TIFF library and utilities'
   homepage 'https://libtiff.gitlab.io/libtiff/'
-  url 'https://download.osgeo.org/libtiff/tiff-4.6.0.tar.xz'
-  sha256 'e178649607d1e22b51cf361dd20a3753f244f022eefab1f2f218fc62ebaf87d2'
-
-  bottle do
-    sha256 'bb0a906ad2162c37c63d8222584cec44e712b5478d7a45d931f6782bcc05f695' => :tiger_altivec
-  end
+  url 'https://download.osgeo.org/libtiff/tiff-4.7.0.tar.xz'
+  sha256 '273a0a73b1f0bed640afee4a5df0337357ced5b53d3d5d1c405b936501f71017'
 
   option :universal
 
   depends_on 'python3' => :build  # for the documentation
+  depends_on 'jbigkit'
   depends_on 'jpeg'
+  depends_on 'libdeflate'
   depends_on 'xz'
   depends_on 'zlib'
-  depends_on 'zstd' => :recommended
+  depends_on 'zstd'
+
+  enhanced_by 'webp'
 
   def install
     ENV.universal_binary if build.universal?
-    system './configure', "--prefix=#{prefix}", '--disable-dependency-tracking'
+    system './configure', "--prefix=#{prefix}",
+                          '--disable-dependency-tracking',
+                          '--disable-silent-rules',
+                          '--enable-cxx',
+                          '--enable-defer-strile-load',
+                          '--enable-deprecated',  # symbol versioning is off; soften the blow
+                          '--with-x'
+    system 'make'
+    bombproof_system 'make', '-C', 'test', 'check'
     system 'make', 'install'
-  end
-
-  def caveats; <<-_.undent
-    LibTIFF will take advantage of WebP, if WebP is already present when LibTIFF
-    is brewed.  WebP cannot be automatically brewed as a dependency because WebP
-    already depends on LibTIFF.
-  _
   end
 
   test do
@@ -41,9 +42,12 @@ class Libtiff < Formula
         return 0;
       }
     EOS
-    ENV.universal_binary if build.universal?
     system ENV.cc, 'test.c', "-L#{lib}", '-ltiff', '-o', 'test'
-    system './test', 'test.tif'
-    assert_match /ImageWidth.*10/, shell_output("#{bin}/tiffdump test.tif")
-  end
-end
+    for_archs './test' do |a|
+      arch_cmd = (a.nil? ? [] : ['arch', '-arch', a.to_s])
+      system *arch_cmd, './test', 'test.tif'
+      assert_match /ImageWidth.*10/, shell_output("#{arch_cmd * ' '} #{bin}/tiffdump test.tif")
+      rm './test.tif'
+    end
+  end # test
+end # Libtiff
