@@ -13,7 +13,6 @@ class Libtasn1 < Formula
 
   def install
     if build.universal?
-      ENV.permit_arch_flags if superenv?
       archs = Hardware::CPU.universal_archs
       stashdir = buildpath/'arch-stashes'
       the_binaries = %w[
@@ -64,7 +63,7 @@ class Libtasn1 < Formula
       s 47
     EOS
     for_archs bin/'asn1Coding' do |a|
-      arch_cmd = (a.nil? ? [] : ['arch', '-arch', "#{a.to_s} "])
+      arch_cmd = (a.nil? ? [] : ['arch', '-arch', a.to_s, ''])
       system *arch_cmd, "#{bin}/asn1Coding", 'pkix.asn', 'assign.asn1'
       assert_match /Decoding: SUCCESS/,
                    shell_output("#{arch_cmd * ' '}#{bin}/asn1Decoding pkix.asn assign.out PKIX1.Dss-Sig-Value 2>&1")
