@@ -15,24 +15,15 @@ class Gmp < Formula
     # utility routine:  map Tigerbrew’s CPU symbols to those for configuring a GMP build
     def cpu_lookup(cpu_sym)
       case cpu_sym
-        when :g3
-          'powerpc750'
-        when :g4
-          'powerpc7400'
-        when :g4e
-          'powerpc7450'
-        when :g5
-          'powerpc970'
-        when :core
-          'pentiumm'
-        when :penryn
-          'core2'
-        when :arrandale
-          'westmere'
-        when :dunno
-          'unknown'
-        else
-          cpu_sym.to_s
+        when :g3  then 'powerpc750'
+        when :g4  then 'powerpc7400'
+        when :g4e then 'powerpc7450'
+        when :g5  then 'powerpc970'
+        when :core      then 'pentiumm'
+        when :penryn    then 'core2'
+        when :arrandale then 'westmere'
+        when :dunno     then 'unknown'
+        else cpu_sym.to_s
       end
     end # cpu_lookup
 
@@ -40,7 +31,6 @@ class Gmp < Formula
     tuple_trailer = "apple-darwin#{`uname -r`.to_i}"
 
     if build.universal?
-      ENV.permit_arch_flags if superenv?
       archs = Hardware::CPU.universal_archs
       stashdir = buildpath/'arch-stashes'
       the_binaries = %w[

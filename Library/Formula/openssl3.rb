@@ -35,7 +35,6 @@ class Openssl3 < Formula
     ENV['PERL'] = Formula['perl'].opt_bin/'perl' if which('perl') == Formula['perl'].opt_bin/'perl'
 
     if build.universal?
-      ENV.permit_arch_flags if superenv?
       archs = Hardware::CPU.universal_archs
       stashdir = buildpath/'arch-stashes'
       the_binaries = %w[

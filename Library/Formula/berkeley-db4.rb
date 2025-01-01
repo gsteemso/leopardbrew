@@ -21,7 +21,6 @@ class BerkeleyDb4 < Formula
     ENV.deparallelize
 
     if build.universal?
-      ENV.permit_arch_flags if superenv?
       archs = Hardware::CPU.universal_archs
       stashdir = buildpath/'arch-stashes'
       the_binaries = %w[
