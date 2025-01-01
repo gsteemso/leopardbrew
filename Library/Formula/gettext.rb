@@ -12,8 +12,10 @@ class Gettext < Formula
   # did they think this needed to be keg‐only?
 
   option :universal
-  option 'without-tests', 'Skip the self‐testing (not recommended for a first install)'
-  # former option to leave out the examples is no longer available in `configure`
+  option 'without-tests', 'Skip the build‐time unit tests (not recommended for a first install)'
+  # former option to leave out the examples is not available in `configure`
+
+  enhanced_by 'libiconv'
 
   # Fix lang-python-* failures when in a traditional French locale.
   # https://git.savannah.gnu.org/gitweb/?p=gettext.git;a=patch;h=3c7e67be7d4dab9df362ab19f4f5fa3b9ca0836b
@@ -22,88 +24,26 @@ class Gettext < Formula
   patch :p0, :DATA
 
   def install
-    if build.universal?
-      ENV.permit_arch_flags if superenv?
-      archs = Hardware::CPU.universal_archs
-      stashdir = buildpath/'arch-stashes'
-      the_binaries = %w[
-        bin/envsubst
-        bin/gettext
-        bin/msgattrib
-        bin/msgcat
-        bin/msgcmp
-        bin/msgcomm
-        bin/msgconv
-        bin/msgen
-        bin/msgexec
-        bin/msgfilter
-        bin/msgfmt
-        bin/msggrep
-        bin/msginit
-        bin/msgmerge
-        bin/msgunfmt
-        bin/msguniq
-        bin/ngettext
-        bin/recode-sr-latin
-        bin/xgettext
-        lib/gettext/cldr-plurals
-        lib/gettext/hostname
-        lib/gettext/urlget
-        lib/libasprintf.0.dylib
-        lib/libasprintf.a
-        lib/libgettextlib-0.22.5.dylib
-        lib/libgettextlib.a
-        lib/libgettextpo.0.dylib
-        lib/libgettextpo.a
-        lib/libgettextsrc-0.22.5.dylib
-        lib/libgettextsrc.a
-        lib/libintl.8.dylib
-        lib/libintl.a
-        lib/libtextstyle.0.dylib
-        lib/libtextstyle.a
-      ]
-    else
-      archs = [MacOS.preferred_arch]
-    end # universal?
-
-    args = [
-      "--prefix=#{prefix}",
-      '--disable-dependency-tracking',
-      '--disable-silent-rules',
-      '--disable-debug',
-      '--with-included-gettext',
-      '--with-included-libunistring',
-      '--with-included-libxml',
-      '--with-emacs',
-      "--with-lispdir=#{share}/emacs/site-lisp/gettext",
-      '--disable-java',
-      '--disable-csharp',
-      '--without-git', # Don't use VCS systems to create these archives
-      '--without-cvs', #
-      '--without-xz'
-    ]
-    lif = Formula['libiconv']
-    args << "--with-libiconv-prefix=#{lif.opt_prefix}" if lif.any_version_installed?
-
-    archs.each do |arch|
-      ENV.append_to_cflags "-arch #{arch}" if build.universal?
-
-      system "./configure", *args
-      system 'make'
-      system 'make', 'check' if build.with? 'tests'
-      # install doesn't support multiple make jobs
-      ENV.deparallelize do
-        system 'make', 'install'
-      end
-
-      if build.universal?
-        system 'make', 'clean'
-        Merge.prep(prefix, stashdir/"bin-#{arch}", the_binaries)
-        # undo architecture-specific tweak before next run
-        ENV.remove_from_cflags "-arch #{arch}"
-      end # universal?
-    end # each |arch|
-    Merge.binaries(prefix, stashdir, archs) if build.universal?
+    ENV.universal_binary if build.universal?
+    system "./configure", "--prefix=#{prefix}",
+                          '--disable-dependency-tracking',
+                          '--disable-silent-rules',
+                          '--disable-debug',
+                          '--with-included-gettext',
+                          '--with-included-libunistring',
+                          '--with-included-libxml',
+                          '--with-emacs',
+                          "--with-lispdir=#{share}/emacs/site-lisp/gettext",
+                          '--disable-java',
+                          '--disable-csharp',
+                          '--without-git', # Don't use VCSes to create these archives
+                          '--without-cvs', #
+                          '--without-xz'  # avoid a dependency loop
+    system 'make'
+    ENV.deparallelize do
+      bombproof_system 'make', 'check' if build.with? 'tests'
+      system 'make', 'install'
+    end
   end # install
 
   def caveats; <<-_.undent
@@ -117,77 +57,13 @@ class Gettext < Formula
     They should be brewed in this order because Mac OS includes an outdated iconv
     that is enough to get by with, but does not include gettext at all.
   _
-  end
+  end # caveats
 
   test do
     arch_system "#{bin}/gettext", '--version'
     arch_system "#{bin}/gettext", '--help'
   end # test
 end # Gettext
-
-class Merge
-  class << self
-    include FileUtils
-
-    # The destination is expected to be a Pathname object.
-    # The source is just a string.
-    def cp_mkp(source, destination)
-      if destination.exists?
-        if destination.is_directory?
-          cp source, destination
-        else
-          raise "File exists at destination:  #{destination}"
-        end # directory?
-      else
-        mkdir_p destination.parent unless destination.parent.exists?
-        cp source, destination
-      end # destination exists?
-    end # Merge.cp_mkp
-
-    # The keg_prefix and stash_root are expected to be Pathname objects.
-    # The list members are just strings.
-    def prep(keg_prefix, stash_root, list)
-      list.each do |item|
-        source = keg_prefix/item
-        dest = stash_root/item
-        cp_mkp source, dest
-      end # each binary
-    end # Merge.prep
-
-    # The keg_prefix is expected to be a Pathname object.  The rest are just strings.
-    def binaries(keg_prefix, stash_root, archs, sub_path = '')
-      # don’t suffer a double slash when sub_path is null:
-      s_p = (sub_path == '' ? '' : sub_path + '/')
-      # generate a full list of files, even if some are not present on all architectures; bear in
-      # mind that the current _directory_ may not even exist on all archs
-      basename_list = []
-      arch_dirs = archs.map {|a| "bin-#{a}"}
-      arch_dir_list = arch_dirs.join(',')
-      Dir["#{stash_root}/{#{arch_dir_list}}/#{s_p}*"].map { |f|
-        File.basename(f)
-      }.each { |b|
-        basename_list << b unless basename_list.count(b) > 0
-      }
-      basename_list.each do |b|
-        spb = s_p + b
-        the_arch_dir = arch_dirs.detect { |ad| File.exist?("#{stash_root}/#{ad}/#{spb}") }
-        pn = Pathname("#{stash_root}/#{the_arch_dir}/#{spb}")
-        if pn.directory?
-          binaries(keg_prefix, stash_root, archs, spb)
-        else
-          arch_files = Dir["#{stash_root}/{#{arch_dir_list}}/#{spb}"]
-          if arch_files.length > 1
-            system 'lipo', '-create', *arch_files, '-output', keg_prefix/spb
-          else
-            # presumably there's a reason this only exists for one architecture, so no error;
-            # the same rationale would apply if it only existed in, say, two out of three
-            cp arch_files.first, keg_prefix/spb
-          end # if > 1 file?
-        end # if directory?
-      end # each basename |b|
-    end # Merge.binaries
-  end # << self
-end # Merge
 
 __END__
 --- gettext-tools/tests/lang-python-1.orig	2023-09-18 21:10:32.000000000 +0100
