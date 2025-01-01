@@ -45,10 +45,6 @@ class Llvm342 < Formula
   keg_only :provided_by_osx if MacOS.version > :leopard
 
   def install
-    if build.universal?
-      ENV.permit_arch_flags
-    end
-
     (buildpath/'projects/libcxx').install resource('libcxx')
     (buildpath/'projects/test-suite').install resource('test-suite')
     (buildpath/'tools/clang').install resource('clang')

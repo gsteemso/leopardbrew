@@ -96,7 +96,6 @@ class Python < Formula
     if build.universal? then
       bitness = ''
       if superenv?
-        ENV.permit_arch_flags
         # one of the modules adds “-arch i386” on PPC to work around a linker bug, so no PPC CPUs
         ENV['HOMEBREW_OPTFLAGS'] = '' if Hardware::CPU.ppc?
       end

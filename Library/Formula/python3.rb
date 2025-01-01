@@ -56,7 +56,6 @@ class Python3 < Formula
 
     args << '--enable-universalsdk=/'
     if build.universal? then
-      ENV.permit_arch_flags if superenv?
       bitness = ''
     else bitness = "-#{Hardware::CPU.bits}"; end
     args << "--with-universal-archs=#{Hardware::CPU.type}#{bitness}"
