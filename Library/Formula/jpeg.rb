@@ -14,6 +14,6 @@ class Jpeg < Formula
   end
 
   test do
-    system "#{bin}/djpeg", test_fixtures('test.jpg')
+    arch_system "#{bin}/djpeg", test_fixtures('test.jpg')
   end
 end
