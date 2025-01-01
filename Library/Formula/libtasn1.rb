@@ -63,10 +63,16 @@ class Libtasn1 < Formula
       s 47
     EOS
     for_archs bin/'asn1Coding' do |a|
-      arch_cmd = (a.nil? ? [] : ['arch', '-arch', a.to_s, ''])
-      system *arch_cmd, "#{bin}/asn1Coding", 'pkix.asn', 'assign.asn1'
+      if a.nil?
+        arch_cmd_a = []
+        arch_cmd_s = ''
+      else
+        arch_cmd_a = ['arch', '-arch', a.to_s]
+        arch_cmd_s = "arch -arch #{a.to_s} "
+      end
+      system *arch_cmd_a, "#{bin}/asn1Coding", 'pkix.asn', 'assign.asn1'
       assert_match /Decoding: SUCCESS/,
-                   shell_output("#{arch_cmd * ' '}#{bin}/asn1Decoding pkix.asn assign.out PKIX1.Dss-Sig-Value 2>&1")
+                   shell_output("#{arch_cmd_s}#{bin}/asn1Decoding pkix.asn assign.out PKIX1.Dss-Sig-Value 2>&1")
       rm 'assign.out'
     end
   end # test
