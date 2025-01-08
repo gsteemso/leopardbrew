@@ -170,11 +170,15 @@ class SoftwareSpec
   end
 
   def add_dep_option(dep)
-    name = dep.option_name
-    if dep.optional? and not option_defined?("with-#{name}")
-      options << Option.new("with-#{name}", "Build with #{name} support")
-    elsif dep.recommended? and not option_defined?("without-#{name}")
-      options << Option.new("without-#{name}", "Build without #{name} support")
+    if Array === dep
+      dep.each { |d| add_dep_option(d) }
+    else
+      name = dep.option_name
+      if dep.optional? and not option_defined?("with-#{name}")
+        options << Option.new("with-#{name}", "Build with #{name} support")
+      elsif dep.recommended? and not option_defined?("without-#{name}")
+        options << Option.new("without-#{name}", "Build without #{name} support")
+      end
     end
   end # add_dep_option
 
