@@ -128,9 +128,14 @@ class SoftwareSpec
 
   def depends_on(d_spec); dep = dependency_collector.add(d_spec); add_dep_option(dep) if dep; end
 
+#  def depends_on_one(set)
+#    s_dep = dependency_collector.add_set(set)
+#    add_depset_options(s_dep) if s_dep
+#  end
+
   def depends_group(group)
     group_name, priority = *(group.keys.first)
-    raise UsageError "dependency group #{group_name} needs :optional or :recommended priority" \
+    raise UsageError.new "dependency group #{group_name} needs :optional or :recommended priority" \
       unless [:optional, :recommended].any? { |prio| priority == prio }
     deps = []
     group.values.first.each { |f| deps << dependency_collector.add(f => priority) }
