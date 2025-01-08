@@ -1523,6 +1523,12 @@ class Formula
     # depends_on :python3 => :optional</pre>
     def depends_on(dep); specs.each { |spec| spec.depends_on(dep) }; end
 
+    # Define a group of dependencies selectable by a single option:
+    # depends_group ['more-dns', :recommended] => ['c-ares', 'ibidn2, 'libpsl']
+    # The key must always be the element-pair ["group name", priority], where
+    # "priority" must be either :optional or :recommended.
+    def depends_group(group); specs.each { |spec| spec.depends_group(group) }; end
+
     # Soft dependencies (those which can be omitted if need be, in order to
     # avoid dependency loops) are to be indicated with “helped_by” commands.
     # Each one specifies a dependency (or mutually necessary group thereof –

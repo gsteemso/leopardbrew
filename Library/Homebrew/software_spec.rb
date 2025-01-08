@@ -126,7 +126,16 @@ class SoftwareSpec
     end
   end # deprecated_option
 
-  def depends_on(spec); dep = dependency_collector.add(spec); add_dep_option(dep) if dep; end
+  def depends_on(d_spec); dep = dependency_collector.add(d_spec); add_dep_option(dep) if dep; end
+
+  def depends_group(group)
+    group_name, priority = *(group.keys.first)
+    raise UsageError "dependency group #{group_name} needs :optional or :recommended priority" \
+      unless [:optional, :recommended].any? { |prio| priority == prio }
+    deps = []
+    group.values.first.each { |f| deps << dependency_collector.add(f => priority) }
+    add_group_option(group_name, priority) unless deps.empty?
+  end # depends_group
 
   def enhanced_by(aid)
     @named_enhancements << aid
@@ -135,7 +144,7 @@ class SoftwareSpec
       candidates << Formulary.factory(aid)
     end
     @enhancements += candidates if candidates.all? { |f| f.any_version_installed? }
-  end
+  end # enhanced_by
 
   def enhanced_by?(aid); @enhancements.any? { |a| aid == a.name or aid == a.full_name }; end
 
@@ -157,12 +166,20 @@ class SoftwareSpec
 
   def add_dep_option(dep)
     name = dep.option_name
-    if dep.optional? && !option_defined?("with-#{name}")
+    if dep.optional? and not option_defined?("with-#{name}")
       options << Option.new("with-#{name}", "Build with #{name} support")
-    elsif dep.recommended? && !option_defined?("without-#{name}")
+    elsif dep.recommended? and not option_defined?("without-#{name}")
       options << Option.new("without-#{name}", "Build without #{name} support")
     end
   end # add_dep_option
+
+  def add_group_option(group_name, priority)
+    if priority == :optional and not option_defined?("with-#{group_name}")
+      options << Option.new("with-#{group_name}", "Build with #{group_name} support")
+    elsif priority == :recommended and not option_defined?("without-#{group_name}")
+      options << Option.new("without-#{group_name}", "Build without #{group_name} support")
+    end
+  end # add_group_option
 end # SoftwareSpec
 
 class HeadSoftwareSpec < SoftwareSpec
