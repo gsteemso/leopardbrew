@@ -1,23 +1,23 @@
-require "blacklist"
-require "caveats"
-require "cmd/options"
-require "formula"
-require "keg"
-require "tab"
-require "utils/json"
+require 'blacklist'
+require 'caveats'
+require 'cmd/options'
+require 'formula'
+require 'keg'
+require 'tab'
+require 'utils/json'
 
 module Homebrew
   def info
     # eventually we'll solidify an API, but we'll keep old versions
     # awhile around for compatibility
-    if ARGV.json == "v1"
+    if ARGV.json == 'v1'
       print_json
-    elsif ARGV.flag? "--github"
+    elsif ARGV.flag? '--github'
       exec_browser(*ARGV.formulae.map { |f| github_info(f) })
     else
       print_info
     end
-  end
+  end # info
 
   def print_info
     if ARGV.named.empty?
@@ -29,7 +29,7 @@ module Homebrew
       ARGV.named.each_with_index do |f, i|
         puts unless i == 0
         begin
-          if f.include?("/") || File.exist?(f)
+          if f.include?('/') || File.exist?(f)
             info_formula Formulary.factory(f)
           else
             info_formula Formulary.find_with_priority(f)
@@ -44,19 +44,19 @@ module Homebrew
         end
       end
     end
-  end
+  end # print_info
 
   def print_json
-    ff = if ARGV.include? "--all"
+    ff = if ARGV.include? '--all'
       Formula
-    elsif ARGV.include? "--installed"
+    elsif ARGV.include? '--installed'
       Formula.installed
     else
       ARGV.formulae
     end
     json = ff.map(&:to_hash)
     puts Utils::JSON.dump(json)
-  end
+  end # print_json
 
   def github_remote_path(remote, path)
     if remote =~ %r{^(?:https?://|git(?:@|://))github\.com[:/](.+)/(.+?)(?:\.git)?$}
@@ -64,12 +64,12 @@ module Homebrew
     else
       "#{remote}/#{path}"
     end
-  end
+  end # github_remote_path
 
   def github_info(f)
     if f.tap?
-      user, repo = f.tap.split("/", 2)
-      tap = Tap.fetch user, repo.gsub(/^homebrew-/, "")
+      user, repo = f.tap.split('/', 2)
+      tap = Tap.fetch user, repo.gsub(/^homebrew-/, '')
       if remote = tap.remote
         path = f.path.relative_path_from(tap.path)
         github_remote_path(remote, path)
@@ -86,45 +86,38 @@ module Homebrew
     else
       f.path
     end
-  end
+  end # github_info
 
   def info_formula(f)
     specs = []
 
     if stable = f.stable
       s = "stable #{stable.version}"
-      s += " (bottled)" if stable.bottled?
+      s += ' (bottled)' if stable.bottled?
       specs << s
     end
 
     if devel = f.devel
       s = "devel #{devel.version}"
-      s += " (bottled)" if devel.bottled?
+      s += ' (bottled)' if devel.bottled?
       specs << s
     end
 
-    specs << "HEAD" if f.head
+    specs << 'HEAD' if f.head
 
-    puts "#{f.full_name}: #{specs*", "}#{" (pinned)" if f.pinned?}"
+    puts "#{f.full_name}:  #{specs * ', '}#{' (pinned)' if f.pinned?}"
 
     puts f.desc if f.desc
 
     puts f.homepage
 
-    if f.keg_only?
-      puts
-      puts "This formula is keg-only."
-      puts f.keg_only_reason
-      puts
-    end
-
     conflicts = f.conflicts.map(&:name).sort!
-    puts "Conflicts with: #{conflicts*", "}" unless conflicts.empty?
+    puts "Conflicts with:  #{conflicts * ', '}" unless conflicts.empty?
 
     if f.rack.directory?
       kegs = f.rack.subdirs.map { |keg| Keg.new(keg) }.sort_by(&:version)
       kegs.each do |keg|
-        puts "#{keg} (#{keg.abv})#{" *" if keg.linked?}"
+        puts "#{keg} (#{keg.abv})#{keg.linked? ? ' *' : (keg.optlinked? ? ' (*)' : '')}"
         tab = Tab.for_keg(keg).to_s
         puts "  #{tab}" unless tab.empty?
       end
@@ -133,14 +126,16 @@ module Homebrew
     end
 
     history = github_info(f)
-    puts "From: #{history}" if history
+    puts "From:  #{history}" if history
 
-    unless f.deps.empty?
+    aid_groups = f.named_enhancements
+    unless f.deps.empty? and aid_groups.empty?
       ohai "Dependencies"
       %w[build required recommended optional].map do |type|
-        deps = f.deps.send(type).uniq
-        puts "#{type.capitalize}: #{decorate_dependencies deps}" unless deps.empty?
+        deps = f.deps.send(type).uniq.sort
+        puts "#{type.capitalize}:  #{decorate_dependencies deps}" unless deps.empty?
       end
+      puts "Enhanced by:  #{decorate_enhancement_groups(aid_groups)}" unless aid_groups.empty?
     end
 
     unless f.options.empty?
@@ -150,9 +145,18 @@ module Homebrew
 
     c = Caveats.new(f)
     ohai "Caveats", c.caveats unless c.empty?
+  end # info_formula
+
+  def decorate_enhancement_groups(aid_groups)
+    groups = []
+    aid_groups.map { |a| a.sort }.sort { |a, b| a.first <=> b.first }.each do |aid_group|
+      is_grp = aid_group.length > 1
+      groups << "#{'(' if is_grp}#{decorate_dependencies(aid_group, clump = true)}#{')' if is_grp}"
+    end
+    groups * ', '
   end
 
-  def decorate_dependencies(dependencies)
+  def decorate_dependencies(dependencies, clump = false)
     # necessary for 1.8.7 unicode handling since many installs are on 1.8.7
     tick = ["2714".hex].pack("U*")
     cross = ["2718".hex].pack("U*")
@@ -165,13 +169,13 @@ module Homebrew
         color = Tty.red
         symbol = cross
       end
-      if ENV["HOMEBREW_NO_EMOJI"]
+      if NO_EMOJI
         colored_dep = "#{color}#{dep}"
       else
         colored_dep = "#{dep} #{color}#{symbol}"
       end
       "#{colored_dep}#{Tty.reset}"
     end
-    deps_status * ", "
-  end
-end
+    deps_status * (clump ? ' + ' : ', ')
+  end # decorate_dependencies
+end # Homebrew
