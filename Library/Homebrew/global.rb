@@ -50,7 +50,7 @@ HOMEBREW_RUBY_PATH      = Pathname.new(ENV['HOMEBREW_RUBY_PATH'])   # Our intern
 SYSTEM_RUBY_PATH        = Pathname.new('/usr/bin/ruby')             # The system Ruby binary
   SYSTEM_RUBY_BIN       =   SYSTEM_RUBY_PATH.parent                 # Where it lives
 gtar = OPTDIR/'gnu-tar/bin/gtar'
-TAR_PATH                = Pathname.new(gtar.executable? ? gtar : which('tar'))
+TAR_PATH                = Pathname.new(gtar.executable? ? gtar : '/usr/bin/tar')
 
 # Predefined regular expressions:
 # CompilerConstants::GNU_CXX11_REGEXP #
