@@ -15,7 +15,7 @@ class Gsasl < Formula
   depends_on 'gettext'
   depends_on 'libidn'
   depends_on 'openssl3' if build.without? 'gnutls'
-  depends_on 'pkg-config'
+  depends_on 'pkg-config' => :build
 
   def install
     ENV.universal_binary if build.universal?
