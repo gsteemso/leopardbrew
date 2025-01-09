@@ -21,7 +21,7 @@ class Perl < Formula
   option :universal
   option 'with-dtrace', 'Build with DTrace probes' if (MacOS.version >= :leopard and not MacOS.prefer_64_bit?) \
                                                       or MacOS.version >= :lion
-  option 'with-tests', 'Run the build-test suite (fails on ppc64 when built with older GCCs)'
+  option 'with-tests', 'Run the build-time unit tests (fails on ppc64 when built with older GCCs)'
 
   enhanced_by 'curl'  # The obsolete stock curl on older Mac OSes causes
                       # extension modules reliant on it to fail messily.

@@ -14,7 +14,7 @@ class Libuv < Formula
   end
 
   option "without-docs", "Don't build and install documentation"
-  option "with-check", "Execute compile time checks (Requires internet connection)"
+  option "with-tests", "Run the build‐time unit tests (Requires internet connection)"
   option :universal
 
   depends_on "pkg-config" => :build
@@ -119,7 +119,7 @@ class Libuv < Formula
                           "--disable-silent-rules",
                           "--prefix=#{prefix}"
     system "make"
-    system "make", "check" if build.with? "check"
+    system "make", "check" if build.with? "tests"
     system "make", "install"
   end
 
