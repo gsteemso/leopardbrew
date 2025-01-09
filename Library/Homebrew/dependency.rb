@@ -24,6 +24,11 @@ class Dependency
   end
   alias_method :eql?, :==
 
+  def <=>(other)
+    return nil unless instance_of?(other.class)
+    name <=> other.name
+  end
+
   def hash
     name.hash ^ tags.hash
   end
