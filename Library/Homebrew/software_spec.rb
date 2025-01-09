@@ -20,7 +20,7 @@ class SoftwareSpec
 
   attr_reader :name, :full_name, :owner
   attr_reader :bottle_specification, :build, :compiler_failures, :dependency_collector,
-              :deprecated_actuals, :deprecated_options, :enhancements, :named_enhancements,
+              :deprecated_actuals, :deprecated_options, :active_enhancements, :named_enhancements,
               :options, :patches, :resources
 
   def_delegators :@resource, :cached_download, :checksum, :clear_cache, :fetch, :mirror, :mirrors,
@@ -33,7 +33,7 @@ class SoftwareSpec
     @dependency_collector = DependencyCollector.new
     @deprecated_actuals = []
     @deprecated_options = []
-    @enhancements = []
+    @active_enhancements = []
     @flags = ARGV.effective_flags
     @named_enhancements = []
     @options = Options.new
@@ -70,11 +70,13 @@ class SoftwareSpec
   def bottle_disable_reason; @bottle_disable_reason; end
 
   def bottled?
-    bottle_specification.tag?(bottle_tag) and (bottle_specification.compatible_cellar? or ARGV.force_bottle?)
+    bottle_specification.tag?(bottle_tag) and
+      (bottle_specification.compatible_cellar? or ARGV.force_bottle?)
   end
 
   def bottle(disable_type = nil, disable_reason = nil,  &block)
-    if disable_type then @bottle_disable_reason = BottleDisableReason.new(disable_type, disable_reason)
+    if disable_type
+      @bottle_disable_reason = BottleDisableReason.new(disable_type, disable_reason)
     else bottle_specification.instance_eval(&block); end
   end # bottle
 
@@ -143,15 +145,14 @@ class SoftwareSpec
   end # depends_group
 
   def enhanced_by(aid)
-    @named_enhancements << aid
-    candidates = []
-    Array(aid).each do |aid|
-      candidates << Formulary.factory(aid)
-    end
-    @enhancements += candidates if candidates.all? { |f| f.any_version_installed? }
+    aids = Array(aid).map { |name| Formulary.factory(name) }
+    @named_enhancements << aids
+    @active_enhancements << aids if aids.all? { |f| f.installed? }
   end # enhanced_by
 
-  def enhanced_by?(aid); @enhancements.any? { |a| aid == a.name or aid == a.full_name }; end
+  def enhanced_by?(aid)
+    @active_enhancements.flatten.any? { |a| aid == a.name or aid == a.full_name }
+  end
 
   def deps; dependency_collector.deps; end
 
@@ -252,7 +253,8 @@ end # Bottle
 class BottleSpecification
   DEFAULT_PREFIX = "/usr/local".freeze
   DEFAULT_CELLAR = "/usr/local/Cellar".freeze
-  DEFAULT_DOMAIN = (ENV["HOMEBREW_BOTTLE_DOMAIN"] or "https://ia904500.us.archive.org/24/items/tigerbrew").freeze
+  DEFAULT_DOMAIN = (ENV["HOMEBREW_BOTTLE_DOMAIN"] or
+                    "https://ia904500.us.archive.org/24/items/tigerbrew").freeze
 
   attr_rw :prefix, :cellar, :revision
   alias_method :rebuild, :revision

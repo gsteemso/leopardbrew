@@ -54,7 +54,7 @@ class LinkageChecker
     end
     declared_deps = formula.deps.reject { |dep| filter_out(dep) }.map(&:name)
     declared_req_deps = formula.requirements.reject { |req| filter_out(req) }.map(&:default_formula).compact
-    declared_aids = formula.enhancements.select { |aid| aid.installed? }.map(&:name)
+    declared_aids = formula.active_enhancements.flatten.select { |aid| aid.installed? }.map(&:name)
     declared_dep_names = (declared_deps + declared_req_deps + declared_aids).map { |dep| dep.split("/").last }
     undeclared_deps = @brewed_dylibs.keys.select do |full_name|
       name = full_name.split("/").last

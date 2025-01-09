@@ -296,7 +296,7 @@ class Formula
   # The list of formulæ that, being known to be installed, will enhance the
   # currently active {SoftwareSpec}.
   # @private
-  def enhancements; active_spec.enhancements; end
+  def active_enhancements; active_spec.active_enhancements; end
 
   # The complete list of formula‐groups that would enhance the currently
   # active {SoftwareSpec} if already installed.
