@@ -1,4 +1,5 @@
-require "pathname"  # A Ruby library.
+require "open-uri"  # Ruby libraries.
+require "pathname"  #
 # The rest are Homebrew libraries:
 require "exceptions"
 require "utils/json"
@@ -6,7 +7,6 @@ require "utils/inreplace"
 require "utils/popen"
 require "utils/fork"
 require "utils/git"
-require "open-uri"
 
 def pretty_duration(s)
   m = (s/60).truncate; _s = (s - 60*m).round  # h, m, s are totals
