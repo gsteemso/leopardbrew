@@ -5,8 +5,8 @@ class Xz < Formula
   homepage 'http://tukaani.org/xz/'
   url 'https://fossies.org/linux/misc/xz-5.6.2.tar.bz2'
   mirror 'https://github.com/tukaani-project/xz/releases/download/v5.6.2/xz-5.6.2.tar.bz2'
-  sha256 'e12aa03cbd200597bd4ce11d97be2d09a6e6d39a9311ce72c91ac7deacde3171'
   version '5.6.2p1'
+  sha256 'e12aa03cbd200597bd4ce11d97be2d09a6e6d39a9311ce72c91ac7deacde3171'
 
   option :universal
 
