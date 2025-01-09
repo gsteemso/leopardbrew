@@ -6,7 +6,7 @@ class Openssl3 < Formula
   license 'Apache-2.0'
 
   option :universal
-  option 'without-tests', 'Skip the self-test procedure (not recommended for a first install)'
+  option 'without-tests', 'Skip the build‐time unit tests (not recommended for a first install)'
 
   keg_only :provided_by_osx
 
