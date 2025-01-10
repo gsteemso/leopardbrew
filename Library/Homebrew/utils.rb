@@ -100,10 +100,8 @@ module Homebrew
     ENV.prepend_path 'PATH', "#{Gem.user_dir}/bin"
     args = [gem]
     args << "-v" << version if version
-    unless quiet_system(CONFIG_RUBY_BIN/'gem', "list", "--installed", *args)
-      args.unshift '--user-install' if `#{CONFIG_RUBY_BIN}/gem --version` >= '1.3.6'  # The version
-      safe_system(CONFIG_RUBY_BIN/'gem', "install", *args)                      # it upgrades itself
-    end                                                                         # to w/ Ruby 1.8.6.
+    safe_system(CONFIG_RUBY_BIN/'gem', "install", *args) \
+      unless quiet_system(CONFIG_RUBY_BIN/'gem', "list", "--installed", *args)
     odie <<-EOS.undent unless which executable
       The '#{gem}' gem is installed but couldn't find '#{executable}' in the PATH:
       #{ENV["PATH"]}
