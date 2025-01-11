@@ -25,8 +25,7 @@ module Superenv
   # @private
   def self.bin
     return unless MacOS.has_apple_developer_tools?
-    bin = (HOMEBREW_LIBRARY/'ENV').subdirs.reject { |d| d.basename.to_s > MacOS::Xcode.version }.max
-    bin.realpath unless bin.nil?
+    HOMEBREW_LIBRARY/'ENV/super'
   end
 
   def reset
