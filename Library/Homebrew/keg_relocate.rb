@@ -11,7 +11,7 @@ class Keg
           #                                                    - the Cellar
           #                                                    - a HOMEBREW_PREFIX symlink
           # Either of those latter two can fail catastrophically when things are temporarily
-          # moved for a reïnstallation, as will the third if its target is not linked.
+          # moved for a reïnstallation, as the third also will if its target is not linked.
           next if bad_name.starts_with?('/') and not(bad_name.starts_with?(HOMEBREW_TEMP.to_s) or
                                                      bad_name.starts_with?(HOMEBREW_CELLAR.to_s) or
                                                      bad_name.starts_with?(HOMEBREW_PREFIX.to_s))
@@ -40,7 +40,7 @@ class Keg
           if old_name.starts_with? old_cellar then new_name = old_name.sub(old_cellar, new_cellar)
           elsif old_name.starts_with? old_prefix then new_name = old_name.sub(old_prefix, new_prefix)
           end
-          change_install_name(old_name, new_name, file) if new_name
+          change_install_name(old_name, new_name, file) if new_name and new_name != old_name
         end # each install name |old_name| in file
       end # file.ensure_writable block
     end # each Mach-O |file|
