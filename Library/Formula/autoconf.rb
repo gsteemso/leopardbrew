@@ -10,7 +10,7 @@ class Autoconf < Formula
     sha256 "ef803264de782df052807bc4fdd57454d45fdad5502c029c55e91f34e3756bdc" => :tiger_altivec
   end
 
-  # Bundled m4 is too old, also need new automake if running test suite.
+  # Bundled m4 is too old.  (Would also need a newer automake to run the test suite.)
   depends_on "m4"
 
   keg_only :provided_until_xcode43
@@ -18,9 +18,12 @@ class Autoconf < Formula
   def install
     ENV["PERL"] = "/usr/bin/perl"
 
-    # force autoreconf to look for and use our glibtoolize
+    # Force autoreconf to look for and use our glibtoolize – if for no other
+    # reason, Tiger has no libtoolize.  (“Our” glibtoolize is a shaky concept…
+    # the {libtool} formula depends on this one.  Fortunately, the stock
+    # version seems to work fine.)
     inreplace "bin/autoreconf.in", "libtoolize", "glibtoolize"
-    # also touch the man page so that it isn't rebuilt
+    # Also touch the man page so that it isn’t rebuilt.
     inreplace "man/autoreconf.1", "libtoolize", "glibtoolize"
 
     system "./configure", "--prefix=#{prefix}",
