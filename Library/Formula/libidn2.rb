@@ -25,7 +25,10 @@ class Libidn2 < Formula
   option :universal
 
   depends_on 'pkg-config' => :build
+  depends_on 'gettext'
   depends_on 'libunistring'
+
+  enhanced_by 'libiconv'
 
   def install
     ENV.universal_binary if build.universal?
