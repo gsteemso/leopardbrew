@@ -85,7 +85,7 @@ class Build
       ENV.x11 = reqs.any? { |rq| rq.is_a?(X11Requirement) }
     end
 
-    ENV.setup_build_environment(formula, Hardware::CPU.preferred_arch_as_list)
+    ENV.setup_build_environment(formula, MacOS.preferred_arch_as_list)
 
     post_superenv_hacks if superenv?
 
