@@ -1,8 +1,8 @@
 class Curl < Formula
   desc 'Get a file from an HTTP, HTTPS or FTP server'
   homepage 'https://curl.se/'
-  url 'https://curl.se/download/curl-8.11.0.tar.xz'
-  sha256 'db59cf0d671ca6e7f5c2c5ec177084a33a79e04c97e71cf183a5cdea235054eb'
+  url 'https://curl.se/download/curl-8.11.1.tar.xz'
+  sha256 ''
 
   keg_only :provided_by_osx
 
@@ -19,23 +19,23 @@ class Curl < Formula
   deprecated_option 'with-rtmp'   => 'with-rtmpdump'
   deprecated_option 'with-ssh'    => 'with-libssh2'
 
-  depends_on 'gnutls'   => :optional
-  depends_on 'libressl' => :optional
-  depends_on 'rtmpdump' => :optional
-
-  depends_on 'gsasl'    => :recommended
-  depends_on 'libssh2'  => :recommended
-  depends_group ['more-dns', :recommended] => ['c-ares',
-                                           'libidn2',
-                                           'libpsl' ]
-  depends_on 'zstd'     => :recommended
+  depends_on 'pkg-config' => :build
 
   depends_on 'libnghttp2'
   depends_on 'libuv'
   depends_on 'openssl3' if build.with?('ssl') and build.without? 'libressl'
   depends_on 'zlib'
 
-  depends_on 'pkg-config' => :build
+  depends_on    'gsasl'   => :recommended
+  depends_on    'libssh2' => :recommended
+  depends_group ['more-dns', :recommended] => ['c-ares',
+                                               'libidn2',
+                                               'libpsl' ]
+  depends_on    'zstd'    => :recommended
+
+  depends_on 'gnutls'   => :optional
+  depends_on 'libressl' => :optional
+  depends_on 'rtmpdump' => :optional
 
   enhanced_by 'brotli'
 
