@@ -23,10 +23,10 @@ class Coreutils < Formula
   depends_on "gettext" if build.with? 'nls'
   depends_on "gmp"     => :recommended
 
+  conflicts_with "aardvark_shell_utils", :because => "both install `realpath` binaries"
+  conflicts_with "idutils", :because => "both install `gid` and `gid.1`"
   conflicts_with "ganglia", :because => "both install `gstat` binaries"
   conflicts_with "gegl", :because => "both install `gcut` binaries"
-  conflicts_with "idutils", :because => "both install `gid` and `gid.1`"
-  conflicts_with "aardvark_shell_utils", :because => "both install `realpath` binaries"
 
   patch :DATA
 
@@ -52,8 +52,7 @@ class Coreutils < Formula
       --program-prefix=g
       --disable-silent-rules
     ]
-    args << '--disable-year2038' if MacOS.version <= :leopard or
-                                   (MacOS.version == :snow_leopard and Hardware::CPU.is_32_bit?)
+    args << '--disable-year2038' unless MacOS.prefer_64_bit?
     args << "--without-gmp" if build.without? "gmp"
     system "./configure", *args
     system "make"
