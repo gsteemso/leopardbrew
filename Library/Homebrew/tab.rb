@@ -93,6 +93,9 @@ class Tab < OpenStruct
   def self.from_file_content(content, path)
     attrs = Utils::JSON.load(content)
     attrs['active_aid_sets'] ||= []
+    attrs['active_aid_sets'].map! { |a|
+      a.map { |fa| Formulary.from_keg(HOMEBREW_CELLAR/fa[0]/fa[1]) }  # can be nil if missing
+    }
     attrs['built_archs'] ||= []
     attrs['source'] ||= {}
     tp_fm = attrs['tapped_from']
@@ -132,7 +135,7 @@ class Tab < OpenStruct
   def built_archs
     # Older tabs won’t have this field, so compute a plausible default.
     unless super.empty? then super.map(&:to_sym).extend(ArchitectureListExtension)
-    else universal? ? Hardware::CPU.universal_archs : Hardware::CPU.preferred_arch_as_list; end
+    else universal? ? Hardware::CPU.universal_archs : MacOS.preferred_arch_as_list; end
   end
 
   def compiler; super or MacOS.default_compiler; end
@@ -151,7 +154,9 @@ class Tab < OpenStruct
 
   def to_json
     attributes = {
-      'active_aid_sets'    => active_aid_sets,
+      'active_aid_sets'    => active_aid_sets.map { |a|
+                                a.map{ |f| [f.full_name, f.pkg_version.to_s] }
+                              },
       'built_archs'        => built_archs.map(&:to_s),
       'built_as_bottle'    => built_as_bottle,
       'compiler'           => (compiler.to_s if compiler),
