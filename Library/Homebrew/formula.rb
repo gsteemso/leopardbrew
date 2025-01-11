@@ -1015,7 +1015,13 @@ class Formula
       @testpath = Pathname.pwd
       ENV["HOME"] = @testpath
       setup_test_home @testpath
-      test
+      result = test
+      if result == :does_not_apply
+        puts 'This formula produces no executable code, so it cannot meaningfully be tested.'
+        true
+      else
+        result
+      end
     end
   ensure
     @testpath = nil
@@ -1732,6 +1738,11 @@ class Formula
     #
     # The test will fail if it returns false, or if an exception is raised.
     # Failed assertions and failed `system` commands will raise exceptions.
+    #
+    # For formulæ that install headers, or documentation, or otherwise install
+    # nothing executable and cannot meaningfully be tested, do
+    #    test { :does_not_apply }
+    # A message will be printed and the test will “succeed”.
 
     def test(&block); define_method(:test, &block); end
 
