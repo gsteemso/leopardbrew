@@ -195,6 +195,14 @@ module OS
       paths.uniq
     end # macports_or_fink
 
+    def preferred_arch
+      prefer_64_bit? ? Hardware::CPU.arch_64_bit : Hardware::CPU.arch_32_bit
+    end
+
+    def preferred_arch_as_list
+      [preferred_arch].extend(ArchitectureListExtension)
+    end
+
     def counterpart_arch
       case preferred_arch
         when :arm64  then :x86_64

@@ -96,14 +96,6 @@ module MacCPUs
 
   def archs_2_for_64b; [:arm64, :x86_64]; end
 
-  def preferred_arch
-    MacOS.prefer_64_bit? ? Hardware::CPU.arch_64_bit : Hardware::CPU.arch_32_bit
-  end
-
-  def preferred_arch_as_list
-    [preferred_arch].extend(ArchitectureListExtension)
-  end
-
   # These return arrays that have been extended with ArchitectureListExtension,
   # which provides helpers like #as_arch_flags and #as_cmake_arch_flags.  Note
   # that building 64-bit is barely possible and probably unwise on Tiger, and
