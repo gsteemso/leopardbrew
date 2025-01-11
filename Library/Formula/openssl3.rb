@@ -1,8 +1,8 @@
 class Openssl3 < Formula
   desc 'Cryptography and SSL/TLS Toolkit'
   homepage 'https://openssl.org/'
-  url 'https://openssl.org/source/openssl-3.3.1.tar.gz'
-  sha256 '777cd596284c883375a2a7a11bf5d2786fc5413255efab20c50d6ffe6d020b7e'
+  url 'https://github.com/openssl/openssl/releases/download/openssl-3.3.2/openssl-3.3.2.tar.gz'
+  sha256 '2e8a40b01979afe8be0bbfb3de5dc1c6709fedb46d6c89c10da114ab5fc3d281'
   license 'Apache-2.0'
 
   option :universal
