@@ -55,8 +55,7 @@ class Python3 < Formula
     args << '--without-gcc' if ENV.compiler == :clang
 
     args << '--enable-universalsdk=/'
-    if build.universal? then
-      bitness = ''
+    if build.universal? then bitness = ''
     else bitness = "-#{Hardware::CPU.bits}"; end
     args << "--with-universal-archs=#{Hardware::CPU.type}#{bitness}"
 
