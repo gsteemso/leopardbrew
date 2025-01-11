@@ -32,7 +32,5 @@ class LibunwindHeaders < Formula
     (include/"libunwind/libunwind_priv.h").unlink
   end
 
-  test do
-    true
-  end
+  test { :does_not_apply }
 end

@@ -14,7 +14,5 @@ class CurlCaBundle < Formula
     share.install "cacert-#{version}.pem" => 'ca-bundle.crt'
   end
 
-  test do
-    true
-  end
+  test { :does_not_apply }
 end

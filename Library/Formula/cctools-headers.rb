@@ -1,4 +1,4 @@
-# The system versions are too old to build ld64
+# The Tiger and Leopard stock versions are too old to build ld64.
 class CctoolsHeaders < Formula
   desc "cctools-headers via Apple"
   homepage "https://github.com/apple-oss-distributions/cctools/tree/cctools-855"
@@ -23,7 +23,5 @@ class CctoolsHeaders < Formula
     resource("headers").stage { (include/"mach").install "osfmk/mach/machine.h" }
   end
 
-  test do
-    true
-  end
+  test { :does_not_apply }
 end
