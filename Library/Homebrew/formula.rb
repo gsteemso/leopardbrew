@@ -272,7 +272,6 @@ class Formula
           formula_renames.to_a.rassoc(name).first
         end
       end
-      puts "Formula #{name}’s old name was #{@oldname}" if DEBUG and @oldname
 
     @oldname
   end # oldname
