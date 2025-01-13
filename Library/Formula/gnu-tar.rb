@@ -10,8 +10,10 @@ class GnuTar < Formula
   end
 
   option "with-default-names", "Do not prepend 'g' to the binary"
-  option "with-libiconv", "Build with text encoding support"
-  depends_on "libiconv" => :optional
+  option "without-libiconv",   "Build without text‐encoding support"
+
+  depends_on 'gettext'
+  depends_on "libiconv" => :recommended
 
   def install
     args = %W[
