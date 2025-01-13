@@ -1,27 +1,58 @@
 Leopardbrew
 ===========
 
-A fork of [Tigerbrew][tigerbrew], itself a fork of [Homebrew][homebrew], that focusses on universal / 64-bit builds and properly supporting pure Darwin (i.e., non‐OS‐X) installations.  Despite the name, which was only chosen to differentiate it from its ancestor, it still aims for compatibility with Tiger (Darwin 8) systems.
+A fork of [Tigerbrew][tigerbrew], itself a fork of [Homebrew][homebrew], that
+focusses on universal / 64‐bit builds.  (It was originally also going to be
+about properly supporting pure Darwin – i.e., non‐OS‐X – installations, but
+since Apple hasn’t released one of those since the noughties and their proprie‐
+tary additions mean it is no longer possible to construct one, that’s no longer
+the case.)  Despite the name, which was only chosen to differentiate it from
+its ancestor, Leopardbrew still aims for full compatibility with Tiger (Mac OS
+10.4 / Darwin 8) systems.
+
+Unlike its ancestors, Leopardbrew makes no pretense of supporting Linux.  The
+whole point of Linux is that you have complete control over what’s installed on
+your system, whereas Homebrew was made specifically to work around the gaps in
+an unmodifiable Mac OS install.  Plus, darn near every recipe refers to Mac‐OS‐
+specific features.  What is even supposed to be the point of supporting Linux
+here?
+
+I get that the user interface of Homebrew is nice & simple compared to a lot of
+Linux‐native package managers, but the design goals here are totally divergent.
+If a Linux user really wants to run this anyway, any halfway modern Linux
+system ought to be able to run actual Homebrew; use that instead.
+
 
 Installation
 ============
 
-You will first need the newest version of Xcode compatible with your operating system installed. For Tiger that’s [Xcode 2.5, available from Apple here](https://developer.apple.com/download/more/?=xcode%202.5). For Leopard, [Xcode 3.1.4, available from Apple here](https://developer.apple.com/download/more/?=xcode%203.1.4). Both downloads will require an Apple Developer account.
+You will first need to install the most up‐to‐date version of Xcode compatible
+with your operating system.  For Tiger, that’s [Xcode 2.5][xc25]; for Leopard,
+[Xcode 3.1.4][xc314].  Both downloads are from Apple and will require an Apple
+Developer account.
 
-On the computer you’re reading this on, control or right click this link and save it (the option will be something like “Save Link As” or “Download Linked File”, depending on your browser) to disk:
+On the computer you’re reading this on, control‐ or secondary‐click this link
+and save it to disk (the option will be something like “Save Link As” or
+“Download Linked File”, depending on your browser):
 
 <https://raw.github.com/gsteemso/leopardbrew/go/install>
 
-(It used to be possible to instead use TenFourFox directly from the target machine, but that software is no longer maintained and is now unable to handle most pages on Github.)
+(It used to be possible to instead use TenFourFox directly from the target
+machine, but that software is no longer maintained and is now unable to fully
+handle most pages on Github.)
 
-Transfer the saved file to your Tiger, Leopard or Darwin machine, along with Xcode.
+Transfer the saved file to your Tiger or Leopard machine, along with Xcode.
 
-On the target machine, type `ruby` followed by a space into your terminal prompt, then drag and drop the `install` file onto the same terminal window, and press return.
+On the target machine, type `ruby` followed by a space into your Terminal
+prompt, then drag and drop the `install` file onto the same Terminal window,
+and press return.
 
-You’ll also want to make sure that /usr/local/bin and /usr/local/sbin are in your PATH. (Unlike later Mac OS versions, /usr/local/bin isn’t in the default PATH.) If you use bash as your shell, add this line to your ~/.bash_profile:
+You’ll also want to make sure that /usr/local/bin and /usr/local/sbin are in
+your PATH.  (Unlike later Mac OS versions, neither is in the default PATH.)
+If you use bash as your shell, add this line to your ~/.bash_profile:
 
 ```sh
-export PATH=/usr/local/sbin:/usr/local/bin:$PATH
+export PATH=/usr/local/bin:/usr/local/sbin:$PATH
 ```
 
 What Packages Are Available?
@@ -32,14 +63,15 @@ What Packages Are Available?
 
 More Documentation
 ------------------
-`brew help` or `man brew`.  At some point a wiki may be resurrected, but do not hold your breath.
+`brew help` or `man brew`.  At some point a wiki may be resurrected, but do not
+hold your breath.
 
 FAQ
 ---
 
 ### How do I switch from Homebrew or Tigerbrew?
 
-Run these commands from your terminal. You must have git installed.
+Run these commands from your terminal.  You must have git installed.
 
 ```
 cd `brew --repository`
@@ -50,12 +82,17 @@ git reset --hard origin/master
 
 ### Something broke!
 
-Some of the formulae in the repository have been tested, but there are still many that haven't. If something doesn't work, [report a bug][issues] (or submit a [pull request][prs]!) and I'll try to get it working.
+Some of the formulae in the repository have been tested, but there are still
+vast numbers that haven’t.  If something doesn’t work (highly probable),
+[report a bug][issues] – or submit a [pull request][prs] – and I’ll try to get
+it working.
 
 Credits
 -------
 
-Homebrew is originally by [mxcl][mxcl]. The Tigerbrew fork is by [Misty De Méo][mistydemeo], incorporating some code originally written by @sceaga. This fork is by [Gordon Steemson][gsteemso].
+Homebrew was originally by [mxcl][mxcl].  The Tigerbrew fork is by
+[Misty De Méo][mistydemeo], incorporating some code originally written by
+@sceaga.  This fork is by [Gordon Steemson][gsteemso].
 
 License
 -------
@@ -63,6 +100,8 @@ Code is under the [BSD 2 Clause (NetBSD) license][license].
 
 [Tigerbrew]:https://github.com/mistydemeo/tigerbrew
 [Homebrew]:http://brew.sh
+[xc25]:https://developer.apple.com/download/more/?=xcode%202.5
+[xc314]:https://developer.apple.com/download/more/?=xcode%203.1.4
 [formula]:https://github.com/gsteemso/leopardbrew/tree/master/Library/Formula
 [issues]:https://github.com/gsteemso/leopardbrew/issues
 [prs]:https://github.com/gsteemso/leopardbrew/pulls
