@@ -30,7 +30,7 @@ module SharedEnvExtension
   def setup_build_environment(formula = nil, archset = nil)
     @formula = formula
     reset
-    set_build_archs(archset ? archset : Hardware::CPU.preferred_arch_as_list) \
+    set_build_archs(archset ? archset : MacOS.preferred_arch_as_list) \
       unless self['HOMEBREW_BUILD_ARCHS']
   end # setup_build_environment
 

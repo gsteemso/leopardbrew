@@ -13,18 +13,18 @@ class Libuv < Formula
     sha256 "0f5d4b86eb35d5c3477d2c8221b6d8653646aa98d7e5220010f7878692e3ddf7" => :mountain_lion
   end
 
-  option "without-docs", "Don't build and install documentation"
-  option "with-check", "Execute compile time checks (Requires internet connection)"
+  option "with-docs",  "Build and install documentation (requires Python)"
+  option "with-tests", "Run the build‐time unit tests (requires Internet connection)"
   option :universal
 
+  depends_on "automake"   => :build
+  depends_on "autoconf"   => :build
+  depends_on "libtool"    => :build
+  # The build script passes --gnu to M4, which is only understood by GNU M4 1.4.12
+  # or later.  Apple stock M4 on all releases is forked from GNU version 1.4.6.
+  depends_on 'm4'         => :build
   depends_on "pkg-config" => :build
-  depends_on "automake" => :build
-  depends_on "autoconf" => :build
-  depends_on "libtool" => :build
-  # The build script passes --gnu to m4, which is only understood by GNU M4
-  # 1.4.12 or later.  Stock M4 on Leopard is GNU version 1.4.6.
-  depends_on 'm4' => :build if MacOS.version < :snow_leopard  # adjust this when correct value is learnt
-  depends_on :python => :build if MacOS.version <= :snow_leopard && build.with?("docs")
+  depends_on :python      => :build if MacOS.version <= :snow_leopard and build.with?("docs")
 
   resource "alabaster" do
     url "https://pypi.python.org/packages/source/a/alabaster/alabaster-0.7.4.tar.gz"
@@ -81,11 +81,34 @@ class Libuv < Formula
     sha256 "9a490c861f6cf96a0050c29a92d5d1e01eda02ae6f50760ad5c96a327cdf14e8"
   end
 
-  # remove lines referencing file birthtimes, as file `stat`s formerly did not include those
-  patch :p1, :DATA if MacOS.version <= :leopard  # adjust this when we learn where the cutoff is
+  # Remove lines referencing file birthtimes, as file `stat`s formerly did not include those;
+  # FSEventStreams are not available before Mac OS 10.5; also, ignore CoreServices with its
+  # parochial duplicate definitions and archaïc vector syntax
+  patch :DATA if MacOS.version <= :leopard  # adjust this when we learn where the cutoff is
+
+  patch <<_ if MacOS.version < :leopard
+--- old/src/unix/fs.c
++++ new/src/unix/fs.c
+@@ -120,6 +120,12 @@
+   while (0)
+ 
+ 
++int sendfile(int fd, int sd, off_t offset, off_t *len, struct sf_hdtr *hdtr, int flags) {
++  errno = EOPNOTSUPP;
++  return -1;
++}
++
++
+ static ssize_t uv__fs_fdatasync(uv_fs_t* req) {
+ #if defined(__linux__) || defined(__sun) || defined(__NetBSD__)
+   return fdatasync(req->file);
+_
 
   def install
     ENV.universal_binary if build.universal?
+
+    ENV.append 'HOMEBREW_FORCE_FLAGS', '-mpim-altivec' if Hardware::CPU.ppc? and
+                                                          MacOS.version < :leopard
 
     if build.with? "docs"
       ENV.prepend_create_path "PYTHONPATH", buildpath/"sphinx/lib/python2.7/site-packages"
@@ -115,11 +138,11 @@ class Libuv < Formula
     end
 
     system "./autogen.sh"
-    system "./configure", "--disable-dependency-tracking",
-                          "--disable-silent-rules",
-                          "--prefix=#{prefix}"
+    system "./configure", "--prefix=#{prefix}",
+                          "--disable-dependency-tracking",
+                          "--disable-silent-rules"
     system "make"
-    system "make", "check" if build.with? "check"
+    system "make", "check" if build.with? "tests"
     system "make", "install"
   end
 
@@ -165,3 +188,37 @@ __END__
    ASSERT(s->st_flags == t.st_flags);
    ASSERT(s->st_gen == t.st_gen);
  # endif
+--- old/src/unix/fs.c
++++ new/src/unix/fs.c
+@@ -708,8 +708,6 @@
+   dst->st_mtim.tv_nsec = src->st_mtimespec.tv_nsec;
+   dst->st_ctim.tv_sec = src->st_ctimespec.tv_sec;
+   dst->st_ctim.tv_nsec = src->st_ctimespec.tv_nsec;
+-  dst->st_birthtim.tv_sec = src->st_birthtimespec.tv_sec;
+-  dst->st_birthtim.tv_nsec = src->st_birthtimespec.tv_nsec;
+   dst->st_flags = src->st_flags;
+   dst->st_gen = src->st_gen;
+ #elif defined(__ANDROID__)
+--- old/src/unix/fsevents.c
++++ new/src/unix/fsevents.c
+@@ -21,7 +21,7 @@
+ #include "uv.h"
+ #include "internal.h"
+ 
+-#if TARGET_OS_IPHONE
++#if TARGET_OS_IPHONE || !defined(MAC_OS_X_VERSION_10_5)
+ 
+ /* iOS (currently) doesn't provide the FSEvents-API (nor CoreServices) */
+ 
+--- old/src/unix/internal.h
++++ new/src/unix/internal.h
+@@ -48,9 +48,6 @@
+ #include <sys/poll.h>
+ #endif /* _AIX */
+ 
+-#if defined(__APPLE__) && !TARGET_OS_IPHONE
+-# include <CoreServices/CoreServices.h>
+-#endif
+ 
+ #define ACCESS_ONCE(type, var)                                                \
+   (*(volatile type*) &(var))

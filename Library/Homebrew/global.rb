@@ -50,7 +50,7 @@ HOMEBREW_RUBY_PATH      = Pathname.new(ENV['HOMEBREW_RUBY_PATH'])   # Our intern
 SYSTEM_RUBY_PATH        = Pathname.new('/usr/bin/ruby')             # The system Ruby binary
   SYSTEM_RUBY_BIN       =   SYSTEM_RUBY_PATH.parent                 # Where it lives
 gtar = OPTDIR/'gnu-tar/bin/gtar'
-TAR_PATH                = Pathname.new(gtar.executable? ? gtar : which('tar'))
+TAR_PATH                = Pathname.new(gtar.executable? ? gtar : '/usr/bin/tar')
 
 # Predefined regular expressions:
 # CompilerConstants::GNU_CXX11_REGEXP #
@@ -65,12 +65,12 @@ HOMEBREW_TAP_ARGS_REGEX           = %r{^([\w-]+)/(homebrew-)?([\w-]+)$}
                                     # Match taps given as arguments, e.g. someuser/sometap
 HOMEBREW_TAP_DIR_REGEX            = %r{#{Regexp.escape(HOMEBREW_LIBRARY.to_s)}/Taps/([\w-]+)/([\w-]+)}
                                     # Match taps’ directory paths, e.g. HOMEBREW_LIBRARY/Taps/someuser/sometap
-HOMEBREW_TAP_FORMULA_REGEX        = %r{^([\w-]+)/([\w-]+)/([\w+-.@]+)$}
-                                    # Match taps’ formulæ, e.g. someuser/sometap/someformula
   HOMEBREW_TAP_PATH_REGEX         =   Regexp.new(HOMEBREW_TAP_DIR_REGEX.source + %r{/(.*)}.source)
                                       # Match taps’ formula paths, e.g. HOMEBREW_LIBRARY/Taps/someuser/sometap/someformula
+HOMEBREW_TAP_FORMULA_REGEX        = %r{^([\w-]+)/([\w-]+)/([\w+-.@]+)$}
+                                    # Match taps’ formulæ, e.g. someuser/sometap/someformula
 # Pathname::BOTTLE_EXTNAME_RX       # see `extend/pathname.rb`
-VERSIONED_NAME_REGEX              = %r{^([^@]+)@([^@]+)$}
+VERSIONED_NAME_REGEX              = %r{^([^=]+)=([^=]+)$}
                                     # matches a formula‐name‐including‐version specification
 
 # Other predefined values:

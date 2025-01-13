@@ -1,8 +1,8 @@
 class Curl < Formula
   desc 'Get a file from an HTTP, HTTPS or FTP server'
   homepage 'https://curl.se/'
-  url 'https://curl.se/download/curl-8.11.0.tar.xz'
-  sha256 'db59cf0d671ca6e7f5c2c5ec177084a33a79e04c97e71cf183a5cdea235054eb'
+  url 'https://curl.se/download/curl-8.11.1.tar.xz'
+  sha256 ''
 
   keg_only :provided_by_osx
 
@@ -19,32 +19,31 @@ class Curl < Formula
   deprecated_option 'with-rtmp'   => 'with-rtmpdump'
   deprecated_option 'with-ssh'    => 'with-libssh2'
 
+  depends_on 'pkg-config' => :build
+
+  depends_on 'libnghttp2'
+  depends_on 'libuv'
+  depends_on 'openssl3' if build.with?('ssl') and build.without? 'libressl'
+  depends_on 'zlib'
+
+  depends_on    'gsasl'   => :recommended
+  depends_on    'libssh2' => :recommended
+  depends_group ['more-dns', :recommended] => ['c-ares',
+                                               'libidn2',
+                                               'libpsl' ]
+  depends_on    'zstd'    => :recommended
+
   depends_on 'gnutls'   => :optional
   depends_on 'libressl' => :optional
   depends_on 'rtmpdump' => :optional
 
-  depends_on 'gsasl'    => :recommended
-  depends_on 'libssh2'  => :recommended
-  if build.with? 'more-dns'
-    depends_on 'c-ares'
-    depends_on 'libidn2'  # libPSL also depends on this
-    depends_on 'libpsl'
-  end
-  depends_on 'zstd'     => :recommended
-  depends_on 'openssl3' if build.with?('ssl') and build.without? 'libressl'
-
-  depends_on 'libnghttp2'
-  depends_on 'libuv'
-  depends_on 'zlib'
-
-  depends_on 'pkg-config' => :build
+  enhanced_by 'brotli'
 
   def install
     if build.with? 'libressl' and build.without? 'ssl'
       raise UsageError '“--with-libressl” and “--without-ssl” are mutually exclusive.  Pick one.'
     end
     if build.universal?
-      ENV.permit_arch_flags if superenv?
       archs = Hardware::CPU.universal_archs
       stashdir = buildpath/'arch-stashes'
       the_binaries = %w[
@@ -126,13 +125,6 @@ class Curl < Formula
       args << '--without-ssl'
     end
 
-    # take advantage of Brotli compression if it is installed:
-    if Formula['brotli'].any_version_installed?
-      ENV.prepend_path 'PKG_CONFIG_PATH', "#{Formula['brotli'].opt_lib}/pkgconfig"
-    else
-      args << '--without-brotli'
-    end
-
     if build.with? 'libssh2'
       ENV.prepend_path 'PKG_CONFIG_PATH', "#{Formula['libssh2'].opt_lib}/pkgconfig"
       args << '--with-libssh2'
@@ -155,6 +147,12 @@ class Curl < Formula
       ENV.prepend_path 'PKG_CONFIG_PATH', "#{Formula['zstd'].opt_lib}/pkgconfig"
     else
       args << '--without-zstd'
+    end
+
+    if enhanced_by? 'brotli'
+      ENV.prepend_path 'PKG_CONFIG_PATH', "#{Formula['brotli'].opt_lib}/pkgconfig"
+    else
+      args << '--without-brotli'
     end
 
     # Tiger/Leopard ship with a horrendously outdated set of certs,
@@ -195,14 +193,6 @@ class Curl < Formula
       bin.install stashdir/"script-#{archs.first}/#{script_to_fix}"
     end # universal?
   end # install
-
-  def caveats
-    <<-_.undent
-      cURL is built with the ability to use Brotli compression, if that formula is
-      already installed when cURL is brewed.  (Brotli can’t be auto‐brewed as a cURL
-      dependency because it depends on CMake, which depends back on cURL.)
-    _
-  end # caveats
 
   test do
     # Fetch the curl tarball and see that the checksum matches.

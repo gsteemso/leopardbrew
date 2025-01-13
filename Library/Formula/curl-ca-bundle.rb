@@ -1,20 +1,18 @@
 class CurlCaBundle < Formula
   desc 'Modern certificate-authority bundle from the Curl project'
-  homepage "http://curl.haxx.se/docs/caextract.html"
-  url "https://curl.se/ca/cacert-2024-03-11.pem",
+  homepage 'http://curl.haxx.se/docs/caextract.html'
+  url 'https://curl.se/ca/cacert-2024-12-31.pem',
     :using => :nounzip
-  version "2024-03-11"
-  sha256 "1794c1d4f7055b7d02c2170337b61b48a2ef6c90d77e95444fd2596f4cac609f"
+  version '2024-12-31'
+  sha256 'a3f328c21e39ddd1f2be1cea43ac0dec819eaa20a90425d7da901a11531b3aa5'
 
   bottle do
     cellar :any
   end
 
   def install
-    share.install "cacert-#{version}.pem" => "ca-bundle.crt"
+    share.install "cacert-#{version}.pem" => 'ca-bundle.crt'
   end
 
-  test do
-    true
-  end
+  test { :does_not_apply }
 end

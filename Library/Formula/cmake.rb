@@ -13,13 +13,14 @@ class Cmake < Formula
   option "without-docs", "Don't build man pages"
   option "with-completion", "Install Bash completion (Has potential problems with system bash)"
 
+  depends_on :python => :build if MacOS.version <= :snow_leopard && build.with?("docs")
+  depends_on "xz" => :build
+
   depends_on "curl"
   depends_on "expat"
   depends_on "libarchive"
   depends_on 'libuv'
-  depends_on :python => :build if MacOS.version <= :snow_leopard && build.with?("docs")
   depends_on "rhash"
-  depends_on "xz" => :build
   depends_on "zlib"
 
   # The `with-qt` GUI option was removed due to circular dependencies if

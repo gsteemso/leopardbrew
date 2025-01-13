@@ -5,7 +5,7 @@ class Automake < Formula
   mirror 'https://ftp.gnu.org/gnu/automake/automake-1.17.tar.xz'
   sha256 '8920c1fc411e13b90bf704ef9db6f29d540e76d232cb3b2c9f4dc4cc599bd990'
 
-  option 'with-tests', 'Run the build‐time unit tests'
+  option 'with-tests', 'Run the build‐time unit tests (requires Python; enhanced by libtool)'
 
   depends_on 'autoconf' => [:build, :run]
 

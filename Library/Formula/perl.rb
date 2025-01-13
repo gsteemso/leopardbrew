@@ -6,6 +6,10 @@ class Perl < Formula
 
   head 'https://github.com/Perl/perl5.git', :branch => 'blead'
 
+  bottle do
+    sha256 '0743dbdaa87cc72cc5f206ade56c68d4f5e2ebacad8f047872b8c3827bfa724c' => :tiger_altivec
+  end
+
   devel do
     url 'https://www.cpan.org/src/5.0/perl-5.41.3.tar.xz'
     sha256 'e4f23aa6160a3830bdbefa241c87018a33e21da9e0ad915332158832d0fd8230'
@@ -14,14 +18,10 @@ class Perl < Formula
   keg_only :provided_by_osx,
     'OS X ships Perl and overriding that can cause unintended issues'
 
-  bottle do
-    sha256 '0743dbdaa87cc72cc5f206ade56c68d4f5e2ebacad8f047872b8c3827bfa724c' => :tiger_altivec
-  end
-
   option :universal
   option 'with-dtrace', 'Build with DTrace probes' if (MacOS.version >= :leopard and not MacOS.prefer_64_bit?) \
                                                       or MacOS.version >= :lion
-  option 'with-tests', 'Run the build-test suite (fails on ppc64 when built with older GCCs)'
+  option 'with-tests', 'Run the build-time unit tests (fails on ppc64 when built with older GCCs)'
 
   enhanced_by 'curl'  # The obsolete stock curl on older Mac OSes causes
                       # extension modules reliant on it to fail messily.

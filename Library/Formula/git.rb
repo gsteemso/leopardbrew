@@ -77,7 +77,7 @@ class Git < Formula
     else
       ENV['NO_TCLTK'] = '1'
     end
-    ENV['DEFAULT_EDITOR'] = ENV['EDITOR'] or 'vi'  # default to the original default value
+    ENV['DEFAULT_EDITOR'] = ENV['EDITOR'] || 'vi'  # default to the original default value
     ENV['DEFAULT_HELP_FORMAT'] = 'man'
     ENV['CHARSET_LIB'] = '-lcharset'
     ENV['EXPATDIR'] = Formula['expat'].opt_prefix

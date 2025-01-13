@@ -9,6 +9,7 @@ class Caveats
     caveats = []
     s = f.caveats.to_s
     caveats << s.chomp + "\n" if s.length > 0
+    caveats << enhancements_text
     caveats << keg_only_text
     caveats << bash_completion_caveats
     caveats << zsh_completion_caveats
@@ -32,10 +33,20 @@ class Caveats
     end.compact.first
   end
 
+  def enhancements_text
+    s = f.named_enhancements.flatten.size
+    return if s == 0
+    <<-_.undent
+      This formula will take advantage of the formul#{plural(s, 'æ', 'a')} named as enhancing it,
+      if #{plural(s, 'they happen', 'it happens')} to be installed at the time of brewing.  Should #{plural(s, 'they', 'it')} be
+      installed later, this formula will not benefit.
+    _
+  end
+
   def keg_only_text
     return unless f.keg_only?
 
-    s = "This formula is keg-only, which means it was not symlinked into #{HOMEBREW_PREFIX}."
+    s = "This formula is keg-only, which means it was not symlinked into\n#{HOMEBREW_PREFIX}."
     s << "\n\n#{f.keg_only_reason}"
     if f.lib.directory? or f.include.directory?
       s <<

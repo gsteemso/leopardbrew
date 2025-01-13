@@ -20,7 +20,7 @@ class SoftwareSpec
 
   attr_reader :name, :full_name, :owner
   attr_reader :bottle_specification, :build, :compiler_failures, :dependency_collector,
-              :deprecated_actuals, :deprecated_options, :enhancements, :named_enhancements,
+              :deprecated_actuals, :deprecated_options, :active_enhancements, :named_enhancements,
               :options, :patches, :resources
 
   def_delegators :@resource, :cached_download, :checksum, :clear_cache, :fetch, :mirror, :mirrors,
@@ -33,7 +33,7 @@ class SoftwareSpec
     @dependency_collector = DependencyCollector.new
     @deprecated_actuals = []
     @deprecated_options = []
-    @enhancements = []
+    @active_enhancements = []
     @flags = ARGV.effective_flags
     @named_enhancements = []
     @options = Options.new
@@ -70,11 +70,13 @@ class SoftwareSpec
   def bottle_disable_reason; @bottle_disable_reason; end
 
   def bottled?
-    bottle_specification.tag?(bottle_tag) and (bottle_specification.compatible_cellar? or ARGV.force_bottle?)
+    bottle_specification.tag?(bottle_tag) and
+      (bottle_specification.compatible_cellar? or ARGV.force_bottle?)
   end
 
   def bottle(disable_type = nil, disable_reason = nil,  &block)
-    if disable_type then @bottle_disable_reason = BottleDisableReason.new(disable_type, disable_reason)
+    if disable_type
+      @bottle_disable_reason = BottleDisableReason.new(disable_type, disable_reason)
     else bottle_specification.instance_eval(&block); end
   end # bottle
 
@@ -126,18 +128,31 @@ class SoftwareSpec
     end
   end # deprecated_option
 
-  def depends_on(spec); dep = dependency_collector.add(spec); add_dep_option(dep) if dep; end
+  def depends_on(d_spec); dep = dependency_collector.add(d_spec); add_dep_option(dep) if dep; end
+
+#  def depends_on_one(set)
+#    s_dep = dependency_collector.add_set(set)
+#    add_depset_options(s_dep) if s_dep
+#  end
+
+  def depends_group(group)
+    group_name, priority = *(group.keys.first)
+    raise UsageError.new "dependency group #{group_name} needs :optional or :recommended priority" \
+      unless [:optional, :recommended].any? { |prio| priority == prio }
+    deps = []
+    group.values.first.each { |f| deps << dependency_collector.add(f => priority) }
+    add_group_option(group_name, priority) unless deps.empty?
+  end # depends_group
 
   def enhanced_by(aid)
-    @named_enhancements << aid
-    candidates = []
-    Array(aid).each do |aid|
-      candidates << Formulary.factory(aid)
-    end
-    @enhancements += candidates if candidates.all? { |f| f.any_version_installed? }
-  end
+    aids = Array(aid).map { |name| Formulary.factory(name) }
+    @named_enhancements << aids
+    @active_enhancements << aids if aids.all? { |f| f.installed? }
+  end # enhanced_by
 
-  def enhanced_by?(aid); @enhancements.any? { |a| aid == a.name or aid == a.full_name }; end
+  def enhanced_by?(aid)
+    @active_enhancements.flatten.any? { |a| aid == a.name or aid == a.full_name }
+  end
 
   def deps; dependency_collector.deps; end
 
@@ -156,13 +171,25 @@ class SoftwareSpec
   end
 
   def add_dep_option(dep)
-    name = dep.option_name
-    if dep.optional? && !option_defined?("with-#{name}")
-      options << Option.new("with-#{name}", "Build with #{name} support")
-    elsif dep.recommended? && !option_defined?("without-#{name}")
-      options << Option.new("without-#{name}", "Build without #{name} support")
+    if Array === dep
+      dep.each { |d| add_dep_option(d) }
+    else
+      name = dep.option_name
+      if dep.optional? and not option_defined?("with-#{name}")
+        options << Option.new("with-#{name}", "Build with #{name} support")
+      elsif dep.recommended? and not option_defined?("without-#{name}")
+        options << Option.new("without-#{name}", "Build without #{name} support")
+      end
     end
   end # add_dep_option
+
+  def add_group_option(group_name, priority)
+    if priority == :optional and not option_defined?("with-#{group_name}")
+      options << Option.new("with-#{group_name}", "Build with #{group_name} support")
+    elsif priority == :recommended and not option_defined?("without-#{group_name}")
+      options << Option.new("without-#{group_name}", "Build without #{group_name} support")
+    end
+  end # add_group_option
 end # SoftwareSpec
 
 class HeadSoftwareSpec < SoftwareSpec
@@ -226,7 +253,8 @@ end # Bottle
 class BottleSpecification
   DEFAULT_PREFIX = "/usr/local".freeze
   DEFAULT_CELLAR = "/usr/local/Cellar".freeze
-  DEFAULT_DOMAIN = (ENV["HOMEBREW_BOTTLE_DOMAIN"] or "https://ia904500.us.archive.org/24/items/tigerbrew").freeze
+  DEFAULT_DOMAIN = (ENV["HOMEBREW_BOTTLE_DOMAIN"] or
+                    "https://ia904500.us.archive.org/24/items/tigerbrew").freeze
 
   attr_rw :prefix, :cellar, :revision
   alias_method :rebuild, :revision

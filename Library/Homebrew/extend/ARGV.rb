@@ -130,7 +130,7 @@ module HomebrewArgvExtension
       end # collect |name|
   end # kegs
 
-  def versioned_kegs
+  def installed_kegs
     require 'keg'
     require 'formulary'
     require 'tab'
@@ -142,7 +142,7 @@ module HomebrewArgvExtension
         dirs.each { |d| kegs << Keg.new(d) if (d/Tab::FILENAME).exists? }
         kegs
       }.flatten
-  end # versioned_kegs
+  end # installed_kegs
 
   # self documenting perhaps?
   def include?(arg); @n = index arg; end

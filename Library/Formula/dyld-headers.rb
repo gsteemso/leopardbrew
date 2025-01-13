@@ -13,9 +13,7 @@ class DyldHeaders < Formula
     include.install Dir["include/*"]
   end
 
-  test do
-    true
-  end
+  test { :does_not_apply }
 end
 
 __END__

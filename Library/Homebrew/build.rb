@@ -26,7 +26,7 @@ class Build
       @deps = expand_deps
       @reqs = expand_reqs
     end
-    @aids = (ARGV.ignore_aids? ? [] : f.enhancements)
+    @aids = (ARGV.ignore_aids? ? [] : f.active_enhancements)
   end # initialize
 
   def post_superenv_hacks
@@ -73,7 +73,7 @@ class Build
   end # expand_deps
 
   def install
-    _deps = deps.map(&:to_formula) + aids
+    _deps = deps.map(&:to_formula) + aids.flatten
     keg_only_deps = _deps.select(&:keg_only?)
     _deps.each { |dep| fixopt(dep) unless dep.opt_prefix.directory? }
 
@@ -85,7 +85,7 @@ class Build
       ENV.x11 = reqs.any? { |rq| rq.is_a?(X11Requirement) }
     end
 
-    ENV.setup_build_environment(formula, Hardware::CPU.preferred_arch_as_list)
+    ENV.setup_build_environment(formula, MacOS.preferred_arch_as_list)
 
     post_superenv_hacks if superenv?
 

@@ -1,9 +1,8 @@
 class Libnghttp2 < Formula
   desc 'HTTP/2 C Library'
   homepage 'https://nghttp2.org/'
-  url 'https://github.com/nghttp2/nghttp2/releases/download/v1.62.0/nghttp2-1.62.1.tar.xz'
-  mirror 'http://fresh-center.net/linux/www/nghttp2-1.62.1.tar.xz'
-  sha256 '2345d4dc136fda28ce243e0bb21f2e7e8ef6293d62c799abbf6f633a6887af72'
+  url 'https://github.com/nghttp2/nghttp2/releases/download/v1.64.0/nghttp2-1.64.0.tar.xz'
+  sha256 '88bb94c9e4fd1c499967f83dece36a78122af7d5fb40da2019c56b9ccc6eb9dd'
   license 'MIT'
 
   head do
@@ -26,9 +25,6 @@ class Libnghttp2 < Formula
   link_overwrite 'lib/libnghttp2.so'
   link_overwrite 'lib/libnghttp2.so.14'
   link_overwrite 'lib/pkgconfig/libnghttp2.pc'
-
-  # Apple GCC thinks forward declarations in a different file are redefinitions
-  patch :p1, :DATA
 
   def install
     ENV.universal_binary if build.universal?
@@ -63,17 +59,3 @@ class Libnghttp2 < Formula
     end
   end # test
 end # Libnghttp2
-
-__END__
---- old/lib/nghttp2_submit.h	2024-06-08 16:12:54.000000000 -0700
-+++ new/lib/nghttp2_submit.h	2024-06-08 16:13:47.000000000 -0700
-@@ -30,8 +30,7 @@
- #endif /* HAVE_CONFIG_H */
- 
- #include <nghttp2/nghttp2.h>
--
--typedef struct nghttp2_data_provider_wrap nghttp2_data_provider_wrap;
-+#include "nghttp2_outbound_item.h"
- 
- int nghttp2_submit_data_shared(nghttp2_session *session, uint8_t flags,
-                                int32_t stream_id,

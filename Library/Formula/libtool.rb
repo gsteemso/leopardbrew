@@ -8,7 +8,7 @@ class Libtool < Formula
   keg_only :provided_until_xcode43
 
   option :universal
-  option 'with-tests', 'Run the build‐time unit tests (very slow)'
+  option 'with-tests', 'Run the build‐time unit tests (very slow, & requires gettext)'
 
   depends_on 'autoconf' => :run
   depends_on 'automake' => :run

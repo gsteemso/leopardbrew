@@ -200,10 +200,10 @@ class AbstractFileDownloadStrategy < AbstractDownloadStrategy
       with_system_path { safe_system TAR_PATH, '-xf', cached_location }
       chdir
     when :xz
-      with_system_path { pipe_to_tar(xzpath) }
+      pipe_to_tar(xzpath)
       chdir
     when :lzip
-      with_system_path { pipe_to_tar(lzippath) }
+      pipe_to_tar(lzippath)
       chdir
     when :lha
       safe_system lhapath, "x", cached_location

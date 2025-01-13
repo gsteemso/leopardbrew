@@ -159,7 +159,7 @@ module Homebrew
 
   def list_archs
     thorough_flag = ARGV.include? '--thorough'
-    requested = (thorough_flag ? ARGV.versioned_kegs : ARGV.kegs)
+    requested = (thorough_flag ? ARGV.installed_kegs : ARGV.kegs)
     raise KegUnspecifiedError if requested.empty?
     no_archs_msg = false; got_generic_ppc = false
 

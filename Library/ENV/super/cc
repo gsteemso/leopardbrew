@@ -1,6 +1,5 @@
-#!/System/Library/Frameworks/Ruby.framework/Versions/Current/usr/bin/ruby -W0
+#!/usr/bin/ruby -W0
 
-$:.unshift Dir["/System/Library/Frameworks/Ruby.framework/Versions/Current/usr/lib/ruby/[1-3].*"].first
 require 'pathname'
 require 'set'
 

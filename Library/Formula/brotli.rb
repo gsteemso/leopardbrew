@@ -21,7 +21,7 @@ class Brotli < Formula
     mkdir 'build-dir'
     cd 'build-dir'
     system 'cmake', '-Wno-dev',
-                    "-DCMAKE_OSX_ARCHITECTURES='#{archs.join(';')}'",
+                    "-DCMAKE_OSX_ARCHITECTURES=#{archs.as_cmake_arch_flags}",
                     '-DCMAKE_BUILD_TYPE=Release',
                     "-DCMAKE_INSTALL_PREFIX=#{prefix}",
                     '..'

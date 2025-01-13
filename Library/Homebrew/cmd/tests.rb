@@ -19,6 +19,7 @@ module Homebrew
       ENV["TESTOPTS"] = "-v" if VERBOSE
       ENV["HOMEBREW_TESTS_COVERAGE"] = "1" if ARGV.include? "--coverage"
       ENV["HOMEBREW_NO_COMPAT"] = "1" if ARGV.include? "--no-compat"
+      puts 'This may take a few minutes.'
       Homebrew.install_gem_setup_path! "bundler", *bundler_version
       quiet_system(CONFIG_RUBY_BIN/'bundle', "check") or \
         system(CONFIG_RUBY_BIN/'bundle', 'config', 'set', '--local', 'path', "vendor/bundle")

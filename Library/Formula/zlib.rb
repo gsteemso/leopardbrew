@@ -23,9 +23,8 @@ class Zlib < Formula
   def install
     ENV.universal_binary if build.universal?
 
-    # The test in configure to see if shared library support is available
-    # is done so by invoking gcc -w and then falls back to building just a
-    # static library.
+    # The configure test for whether shared libraries are supported involves
+    # invoking gcc -w.  On failure it falls back to building a static library.
     ENV.enable_warnings if ENV.compiler == :gcc_4_0
     system "./configure", "--prefix=#{prefix}"
     system "make", "install"

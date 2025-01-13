@@ -1,17 +1,21 @@
 class Openssl3 < Formula
   desc 'Cryptography and SSL/TLS Toolkit'
   homepage 'https://openssl.org/'
-  url 'https://openssl.org/source/openssl-3.3.1.tar.gz'
-  sha256 '777cd596284c883375a2a7a11bf5d2786fc5413255efab20c50d6ffe6d020b7e'
+  url 'https://github.com/openssl/openssl/releases/download/openssl-3.3.2/openssl-3.3.2.tar.gz'
+  sha256 '2e8a40b01979afe8be0bbfb3de5dc1c6709fedb46d6c89c10da114ab5fc3d281'
   license 'Apache-2.0'
 
   option :universal
-  option 'without-tests', 'Skip the self-test procedure (not recommended for a first install)'
+  option 'without-tests', 'Skip the build‐time unit tests (not recommended for a first install)'
 
   keg_only :provided_by_osx
 
   depends_on 'curl-ca-bundle'
   depends_on 'perl'
+
+  enhanced_by 'brotli'
+  enhanced_by 'zlib'
+  enhanced_by 'zstd'
 
   def arg_format(arch)
     case arch
@@ -32,7 +36,7 @@ class Openssl3 < Formula
     # This ensures where Homebrew's Perl is needed the Cellar path isn't
     # hardcoded into OpenSSL's scripts, causing them to break every Perl update.
     # Whilst our env points to opt_bin, by default OpenSSL resolves the symlink.
-    ENV['PERL'] = Formula['perl'].opt_bin/'perl' if which('perl') == Formula['perl'].opt_bin/'perl'
+    ENV['PERL'] = Formula['perl'].opt_bin/'perl'
 
     if build.universal?
       archs = Hardware::CPU.universal_archs
@@ -59,14 +63,14 @@ class Openssl3 < Formula
     args = [
       "--prefix=#{prefix}",
       "--openssldir=#{openssldir}",
-      'no-atexit',  # maybe this will stop the segfaults?
+#      'no-atexit',  # maybe this will stop the segfaults?
       'no-legacy',  # for no apparent reason, the legacy provider fails `make test`
       'enable-trace',
       'zlib-dynamic'
     ]
     args << 'sctp' if MacOS.version > :leopard  # pre‐Snow Leopard lacks these system headers
-    args << 'enable-brotli-dynamic' if Formula['brotli'].installed?
-    args << 'enable-zstd-dynamic' if Formula['zstd'].installed?
+    args << 'enable-brotli-dynamic' if enhanced_by? 'brotli'
+    args << 'enable-zstd-dynamic' if enhanced_by? 'zstd'
     # No {get,make,set}context support before Leopard
     args << 'no-async' if MacOS.version < :leopard
 
@@ -109,10 +113,6 @@ class Openssl3 < Formula
 
   def caveats
     <<-EOS.undent
-      OpenSSL3 configures itself to allow any or all of Zlib, Brotli, & ZStandard
-      (“zstd”) compression, if their formulæ are already brewed at the time.  If you
-      install them afterwards, OpenSSL3 will not know about them.
-
       A CA file is provided by the `curl-ca-bundle` formula.  To add certificates to
       it, place .pem files in
         #{openssldir}/certs

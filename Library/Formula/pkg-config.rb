@@ -18,9 +18,14 @@ class PkgConfig < Formula
       #{HOMEBREW_LIBRARY}/ENV/pkgconfig/#{MacOS.version}
     ].uniq.join(File::PATH_SEPARATOR)
 
+    ENV.append 'HOMEBREW_FORCE_FLAGS', '-mpim-altivec' if Hardware::CPU.ppc? and
+                                                          MacOS.version < :leopard
+
     ENV.append "LDFLAGS", "-framework Foundation -framework Cocoa"
-    system "./configure", "--disable-debug",
-                          "--prefix=#{prefix}",
+    system "./configure", "--prefix=#{prefix}",
+                          "--disable-debug",
+                          "--disable-dependency-tracking",
+                          "--disable-silent-rules",
                           "--disable-host-tool",
                           "--with-internal-glib",
                           "--with-pc-path=#{pc_path}"
