@@ -1,5 +1,5 @@
 require 'formula'
-require 'formula_versions'
+require 'formula/versions'
 
 class Descriptions
   CACHE_FILE = HOMEBREW_CACHE + 'desc_cache.json'

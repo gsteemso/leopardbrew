@@ -1,6 +1,6 @@
 require "testing_env"
 require "cmd/update"
-require "formula_versions"
+require "formula/versions"
 require "yaml"
 
 class UpdaterTests < Homebrew::TestCase

@@ -20,7 +20,7 @@
 #:
 
 require 'formula'
-require 'formula_pin'
+require 'formula/pin'
 require 'formulary'
 require 'keg'
 require 'ostruct'

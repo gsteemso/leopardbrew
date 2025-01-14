@@ -1,6 +1,6 @@
 require "cmd/tap"
 require "cmd/doctor"
-require "formula_versions"
+require "formula/versions"
 require "migrator"
 require "formulary"
 require "descriptions"
@@ -173,7 +173,7 @@ module Homebrew
   end
 
   def load_formula_renames
-    load "formula_renames.rb"
+    load "formula/renames.rb"
   rescue LoadError
     false
   end

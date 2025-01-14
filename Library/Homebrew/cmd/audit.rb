@@ -1,12 +1,12 @@
 require "formula"
 require "utils"
 require "extend/ENV"
-require "formula_cellar_checks"
+require "formula/cellar_checks"
 require "official_taps"
 require "tap_migrations"
 require "cmd/search"
 require "date"
-require "formula_renames"
+require "formula/renames"
 
 module Homebrew
   def audit

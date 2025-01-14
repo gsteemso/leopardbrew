@@ -1,4 +1,4 @@
-# This script is loaded by formula_installer as a separate instance.
+# This script is loaded by formula/installer as a separate instance.
 # Thrown exceptions are propagated back to the parent process over a pipe.
 
 old_trap = trap("INT") { exit! 130 }

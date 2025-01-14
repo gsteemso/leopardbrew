@@ -1,6 +1,6 @@
 require 'extend/ENV'
 require 'cmd/switch'
-require 'formula_assertions'
+require 'formula/assertions'
 require 'sandbox'
 require 'timeout'
 

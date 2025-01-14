@@ -1,5 +1,5 @@
 require "formula"
-require "formula_lock"
+require "formula/lock"
 require "keg"
 require "tab"
 require "tap_migrations"

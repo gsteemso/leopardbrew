@@ -1,5 +1,5 @@
 require "testing_env"
-require "formula_pin"
+require "formula/pin"
 
 class FormulaPinTests < Homebrew::TestCase
   class FormulaDouble

@@ -1,5 +1,5 @@
 require "migrator"
-require "formula_renames"
+require "formula/renames"
 
 module Homebrew
   def migrate

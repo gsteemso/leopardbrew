@@ -1,5 +1,5 @@
 require "testing_env"
-require "formula_installer"
+require "formula/installer"
 require "hooks/bottles"
 
 class BottleHookTests < Homebrew::TestCase

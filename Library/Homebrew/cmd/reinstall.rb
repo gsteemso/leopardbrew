@@ -15,7 +15,7 @@
 #:cancelled by specifying “--single-arch”.)
 #:
 
-require 'formula_installer'
+require 'formula/installer'
 
 module Homebrew
   def reinstall

@@ -1,6 +1,6 @@
 require "vendor/backports/enumerable"  # provides #max_by
 require "digest/md5"
-require "formula_renames"
+require "formula/renames"
 
 # The Formulary is responsible for creating instances of Formula.
 # It is not meant to be used directy from formulae.

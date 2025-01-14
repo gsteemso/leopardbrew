@@ -1,6 +1,6 @@
-require "formula_support"
-require "formula_lock"
-require "formula_pin"
+require "formula/support"
+require "formula/lock"
+require "formula/pin"
 require "hardware"
 require "bottles"
 require "build_environment"
@@ -11,7 +11,7 @@ require "install_renamed"
 require "pkg_version"
 require 'tab'
 require "tap"
-require "formula_renames"
+require "formula/renames"
 require "keg"
 
 # A formula provides instructions and metadata for Homebrew to install a piece

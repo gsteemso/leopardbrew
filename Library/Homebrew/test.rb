@@ -4,7 +4,7 @@ require 'global'
 require 'extend/ENV'
 require 'timeout'
 require 'debrew'
-require 'formula_assertions'
+require 'formula/assertions'
 require 'fcntl'
 require 'socket'
 
