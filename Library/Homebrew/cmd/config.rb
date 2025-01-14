@@ -104,7 +104,7 @@ module Homebrew
   end # describe_java
 
   def dump_verbose_config(f = $stdout)
-    f.puts "HOMEBREW_VERSION: #{HOMEBREW_VERSION}"
+    f.puts "LEOPARDBREW_VERSION: #{LEOPARDBREW_VERSION}"
     f.puts "ORIGIN: #{origin}"
     f.puts "HEAD: #{head}"
     f.puts "Last commit: #{last_commit}"
