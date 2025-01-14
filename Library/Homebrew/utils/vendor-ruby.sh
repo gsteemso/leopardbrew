@@ -2,56 +2,26 @@ setup-ruby-path() {
   local vendor_dir
   local vendor_ruby_current_version
   local vendor_ruby_path
-  local ruby_version_major
 
-  vendor_dir="$HOMEBREW_LIBRARY_PATH/vendor"
+  vendor_dir="$HOMEBREW_RUBY_LIBRARY/vendor"
   vendor_ruby_current_version="$vendor_dir/portable-ruby/current"
   vendor_ruby_path="$vendor_ruby_current_version/bin/ruby"
 
-  if [[ -z "$HOMEBREW_DEVELOPER" ]]
-  then
-    unset HOMEBREW_RUBY_PATH
-  fi
+  [ -z "$HOMEBREW_DEVELOPER" ] && unset HOMEBREW_RUBY_PATH
 
-  if [[ -z "$HOMEBREW_RUBY_PATH" && "$HOMEBREW_COMMAND" != "vendor-install" ]]
-  then
-    if [[ -x "$vendor_ruby_path" ]]
-    then
+  if [ -z "$HOMEBREW_RUBY_PATH" ] && [ "$HOMEBREW_COMMAND" != "vendor-install" ]; then
+    if [ -x "$vendor_ruby_path" ]; then
       HOMEBREW_RUBY_PATH="$vendor_ruby_path"
-
-      if [[ $(readlink "$vendor_ruby_current_version") != "$(<"$vendor_dir/portable-ruby-version")" ]]
-      then
-        if ! brew vendor-install ruby
-        then
-          onoe "Failed to upgrade vendor Ruby."
-        fi
+      [ $(readlink "$vendor_ruby_current_version") != "$(<"$vendor_dir/portable-ruby-version")" ] \
+        && brew vendor-install ruby || onoe "Failed to upgrade vendor Ruby."
       fi
     else
-      if [[ -n "$HOMEBREW_OSX" ]]
-      then
-        HOMEBREW_RUBY_PATH="/usr/bin/ruby"
-      else
-        HOMEBREW_RUBY_PATH="$(which ruby)"
-      fi
-
-      if [[ -n "$HOMEBREW_RUBY_PATH" ]]
-      then
-        ruby_version_major="$("$HOMEBREW_RUBY_PATH" --version)"
-        ruby_version_major="${ruby_version_major#ruby }"
-        ruby_version_major="${ruby_version_major%%.*}"
-      fi
-
-      if [[ "$ruby_version_major" != "2" || -n "$HOMEBREW_FORCE_VENDOR_RUBY" ]]
-      then
-        brew vendor-install ruby
-        if [[ ! -x "$vendor_ruby_path" ]]
-        then
-          odie "Failed to install vendor Ruby."
-        fi
-        HOMEBREW_RUBY_PATH="$vendor_ruby_path"
-      fi
+      HOMEBREW_RUBY_PATH="/usr/bin/ruby"
+      brew vendor-install ruby
+      [ -x "$vendor_ruby_path" ] || odie "Failed to install vendor Ruby."
+      HOMEBREW_RUBY_PATH="$vendor_ruby_path"
     fi
   fi
 
-  export HOMEBREW_RUBY_PATH
+  export HOMEBREW_RUBY_PATH  # will be null if not a developer and command is vendor-install
 }

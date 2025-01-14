@@ -17,19 +17,15 @@ case "$1" in
 esac
 
 # pull out the command name
-arg0=$1
+arg0="$1"
 shift
 
 # did we set an environment variable for this command?
-case $arg0 in
+case "$arg0" in
   */* | *-* | *.*)  # not all command names are acceptable as environment variables
     ;;
-  *)
-    var="HOMEBREW_${arg0}"
-    exe="$var"
-    if [ -n "$exe" ] && [ -x "$exe" ]; then
-      exec "$exe" "$@"
-    fi
+  *) exe="HOMEBREW_${arg0}"
+     if [ -n "$exe" ] && [ -x "$exe" ]; then exec "$exe" "$@"; fi
     ;;
 esac
 
@@ -40,42 +36,34 @@ exe="/usr/bin/${arg0}"
 if [ -x "$exe" ] && \
    [ -n "$HOMEBREW_PREFER_CLT_PROXIES" -o \
      -z "$HOMEBREW_SDKROOT" -o ! -d "$HOMEBREW_SDKROOT" ]
-then
-  exec "$exe" "$@"
-fi
+then exec "$exe" "$@"; fi
 
-# absolute pathname to our directory (should be $HOMEBREW_REPOSITORY/Library/ENV/[version]/)
-SUPERBIN=$(cd "${0%/*}" && pwd -P)
+# absolute pathname to our directory (should be $HOMEBREW_REPOSITORY/Library/ENV/super/)
+SUPERBIN="$(cd "${0%/*}" && pwd -P)"
 
 # try a command found by the real xcrun
-exe=$(/usr/bin/xcrun --find "$arg0" 2>/dev/null)
+exe="$(/usr/bin/xcrun --find "$arg0" 2>/dev/null)"
 
 # if the command isn’t one of the fake ones in our directory, run it
-if [ -x "$exe" -a "${exe%/*}" != "$SUPERBIN" ]; then
-  exec "$exe" "$@"
-fi
+if [ -x "$exe" -a "${exe%/*}" != "$SUPERBIN" ]; then exec "$exe" "$@"; fi
 
 # fall back on the $PATH, but filter out our fakes in $SUPERBIN
-old_IFS=$IFS
+old_IFS="$IFS"
 IFS=:
 for path in $PATH; do
-  if [ "$path" = "$SUPERBIN" ]; then
-    continue
-  fi
-
-  exe="${path}/${arg0}"
-  if [ -x "$exe" ]; then
-    exec "$exe" "$@"
+  if [ "$path" != "$SUPERBIN" ]; then
+    exe="${path}/${arg0}"
+    if [ -x "$exe" ]; then exec "$exe" "$@"; fi
   fi
 done
-IFS=$old_IFS
+IFS="$old_IFS"
 
 # at this point, we don’t know where the command is; give up
 echo >&2 "
 Failed to execute $arg0 $@
 
-Xcode and/or the CLT appear to be misconfigured. Try one or both of the following:
-  xcodebuild -license
-  sudo xcode-select -switch /path/to/Xcode.app
+Xcode and/or the CLT appear to be misconfigured.  Try one or both of the following:
+    xcodebuild -license
+    sudo xcode-select -switch /path/to/Xcode.app
 "
 exit 1

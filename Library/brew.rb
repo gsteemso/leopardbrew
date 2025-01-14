@@ -1,10 +1,10 @@
 #!/usr/bin/ruby -W0
 # -*- coding: utf-8 -*-
 
-std_trap = trap("INT") { exit! 130 } # no backtrace thanks
+std_trap = trap('INT') { exit! 130 } # no backtrace thanks
 
-# add HOMEBREW_LIBRARY_PATH to front of Ruby‐library search path
-$:.unshift(ENV['HOMEBREW_LIBRARY_PATH'])
+# add HOMEBREW_RUBY_LIBRARY to front of Ruby‐library search path
+$:.unshift(ENV['HOMEBREW_RUBY_LIBRARY'])
 
 # Homebrew libraries:
 require 'global'  # among other things, imports our environment variables as constants
@@ -16,34 +16,16 @@ when '-V', '--version'
   exit 0
 end
 
-# Check for bad xcode-select before anything else, because `doctor` and
-# many other things will hang
-# Note that this bug was fixed in 10.9
-if OS.mac? && MacOS.version < :mavericks && MacOS.active_developer_dir == "/"
-  odie <<-EOS.undent
-	Your xcode-select path is currently set to '/'.
-	This causes the `xcrun` tool to hang, and can render Homebrew unusable.
-	If you are using Xcode, you should:
-	  sudo xcode-select -switch /Applications/Xcode.app
-	Otherwise, you should:
-	  sudo rm -rf /usr/share/xcode-select
-  EOS
-end
-
-# Many Pathname operations use getwd when they shouldn't, and then throw
-# odd exceptions. Reduce our support burden by showing a user-friendly error.
-Dir.getwd rescue abort "The current working directory doesn't exist, cannot proceed."
-
 def require?(path)
   require path
 rescue LoadError => e
-  # HACK: ( because we should raise on syntax errors but
-  # not if the file doesn't exist. TODO make robust!
-  raise unless e.to_s.include? path
+  STDERR.puts e
+  # Raise on syntax errors, not if the file’s merely missing.
+  raise if File.file? path
 end
 
 begin
-  trap("INT", std_trap) # restore default CTRL-C handler
+  trap('INT', std_trap) # restore default CTRL-C handler
 
   empty_argv = ARGV.empty?
   help_regex = /(-h$|--help$|--usage$|-\?$|^help$)/
@@ -52,7 +34,7 @@ begin
   cmd = nil
 
   ARGV.dup.each_with_index do |arg, i|
-    if help_flag && cmd
+    if help_flag and cmd
       break
     elsif arg =~ help_regex
       help_flag = true
@@ -65,17 +47,17 @@ begin
 
   # Add contributed commands to PATH before checking.
   Dir["#{HOMEBREW_LIBRARY}/Taps/*/*/cmd"].each do |tap_cmd_dir|
-    ENV["PATH"] += "#{File::PATH_SEPARATOR}#{tap_cmd_dir}"
+    ENV['PATH'] += "#{File::PATH_SEPARATOR}#{tap_cmd_dir}"
   end
 
   # Add SCM wrappers.
-  ENV["PATH"] += "#{File::PATH_SEPARATOR}#{HOMEBREW_LIBRARY}/ENV/scm"
+  ENV['PATH'] += "#{File::PATH_SEPARATOR}#{HOMEBREW_LIBRARY}/ENV/scm"
 
   if cmd
-    internal_cmd = require? HOMEBREW_LIBRARY_PATH.join("cmd", cmd)
+    internal_cmd = require? "cmd/#{cmd}"
 
     if !internal_cmd && DEVELOPER
-      internal_cmd = require? HOMEBREW_LIBRARY_PATH.join("dev-cmd", cmd)
+      internal_cmd = require? "dev-cmd/#{cmd}"
     end
   end
 
@@ -96,7 +78,7 @@ begin
       exit 0
     else
       # Handle both internal ruby and shell commands
-      require "cmd/help"
+      require 'cmd/help'
       help_text = Homebrew.help_for_command(cmd)
       if help_text.nil?
         # External command, let it handle help by itself
@@ -111,10 +93,10 @@ begin
   end
 
   if internal_cmd
-    Homebrew.send cmd.to_s.gsub("-", "_").downcase
+    Homebrew.send cmd.to_s.gsub('-', '_').downcase
   elsif which "brew-#{cmd}"
     exec "brew-#{cmd}", *ARGV
-  elsif (path = which("brew-#{cmd}.rb")) && require?(path)
+  elsif (path = which("brew-#{cmd}.rb")) and require?(path)
     exit Homebrew.failed? ? 1 : 0
   else
     onoe "Unknown command: #{cmd}"
@@ -122,14 +104,14 @@ begin
   end
 
 rescue FormulaUnspecifiedError
-  abort "This command requires a formula argument"
+  abort 'This command requires a formula argument.'
 rescue KegUnspecifiedError
-  abort "This command requires a keg argument"
+  abort 'This command requires a keg argument.'
 rescue UsageError
-  onoe "Invalid usage"
+  onoe 'Invalid usage.'
   abort ARGV.usage
 rescue SystemExit
-  puts "Kernel.exit" if ARGV.verbose?
+  puts 'Kernel.exit' if ARGV.verbose?
   raise
 rescue Interrupt => e
   puts # seemingly a newline is typical
