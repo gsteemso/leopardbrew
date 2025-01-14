@@ -9,7 +9,7 @@ require 'extend/fileutils'
 require 'extend/misc'
 require 'extend/pathname'
 require 'extend/string'
-require 'os'
+require 'macos'
 require 'osay'
 
 if ENV['HOMEBREW_BREW_FILE']
@@ -37,7 +37,7 @@ HOMEBREW_CURL           = Pathname.new(ENV['HOMEBREW_CURL'])
 HOMEBREW_LIBRARY        = Pathname.new(ENV['HOMEBREW_LIBRARY'])
   HOMEBREW_CONTRIB      =   HOMEBREW_LIBRARY/'Contributions'
   LINKDIR               =   HOMEBREW_LIBRARY/'LinkedKegs'           # Records which kegs are linked
-  PINDIR                =   HOMEBREW_LIBRARY/'PinnedKegs'           # see `formula_pin.rb`
+  PINDIR                =   HOMEBREW_LIBRARY/'PinnedKegs'           # see `formula/pin.rb`
 HOMEBREW_LIBRARY_PATH   = Pathname.new(ENV['HOMEBREW_LIBRARY_PATH']) # Homebrew’s Ruby libraries
   HOMEBREW_LOAD_PATH    =   HOMEBREW_LIBRARY_PATH
                             # The path to our libraries /when invoking Ruby/.  Is sometimes set to
@@ -47,6 +47,7 @@ HOMEBREW_PREFIX         = Pathname.new(ENV['HOMEBREW_PREFIX'])      # Where we l
 HOMEBREW_REPOSITORY     = Pathname.new(ENV['HOMEBREW_REPOSITORY'])  # Where .git is found
 HOMEBREW_RUBY_PATH      = Pathname.new(ENV['HOMEBREW_RUBY_PATH'])   # Our internal Ruby binary
   HOMEBREW_RUBY_BIN     =   HOMEBREW_RUBY_PATH.parent               # Where it lives
+OPEN_PATH               = Pathname.new('/usr/bin/open')
 SYSTEM_RUBY_PATH        = Pathname.new('/usr/bin/ruby')             # The system Ruby binary
   SYSTEM_RUBY_BIN       =   SYSTEM_RUBY_PATH.parent                 # Where it lives
 gtar = OPTDIR/'gnu-tar/bin/gtar'
@@ -95,17 +96,18 @@ HOMEBREW_INTERNAL_COMMAND_ALIASES = \
                                 '--config'    => 'config'
                               }
 HOMEBREW_OUTDATED_LIMIT     = 1209600 # 60 s * 60 min * 24 h * 14 days:  two weeks
-HOMEBREW_SYSTEM             = ENV['HOMEBREW_SYSTEM']
 HOMEBREW_USER_AGENT         = ENV['HOMEBREW_USER_AGENT']
 HOMEBREW_USER_AGENT_CURL    = ENV['HOMEBREW_USER_AGENT_CURL']
     ruby_version = "#{RUBY_VERSION}#{"-p#{RUBY_PATCHLEVEL}" if defined? RUBY_PATCHLEVEL}"
 HOMEBREW_USER_AGENT_RUBY    = "#{HOMEBREW_USER_AGENT} ruby/#{ruby_version}"
-HOMEBREW_VERSION            = ENV['HOMEBREW_VERSION']  # Permanently fixed at 0.9.5
 HOMEBREW_WWW                = 'https://github.com/gsteemso/leopardbrew'
-# MACOS_FULL_VERSION        # Imported from $HOMEBREW_OSX_VERSION in `os.rb`
-# MACOS_VERSION             # Just the numeric part (see `os.rb`)
-# MacOS::MAX_SUPPORTED_VERSION # see `os/mac/version.rb`
-OS_VERSION                  = ENV['HOMEBREW_OS_VERSION']
+    ISSUES_URL              =   HOMEBREW_WWW
+LEOPARDBREW_VERSION         = ENV['LEOPARDBREW_VERSION']
+MACOS_FULL_VERSION          = ENV['HOMEBREW_OS_VERSION'].chomp
+  MACOS_VERSION             =   MACOS_FULL_VERSION[/\d\d\.\d+/]
+    MACOS_VERSION           =     MACOS_VERSION.slice(0, 2) if MACOS_VERSION.to_f >= 11
+# MacOS::MAX_SUPPORTED_VERSION # see `macos/version.rb`
+OS_VERSION                  = ENV['HOMEBREW_MACOS_VERSION']
 # Tab::FILENAME             # see `tab.rb`
 
 # Optionally user‐defined values:
@@ -115,12 +117,12 @@ DEVELOPER       = ARGV.homebrew_developer?    # Enable developer commands (check
                                               #   “--homebrew-developer” & $HOMEBREW_DEVELOPER)
 HOMEBREW_GITHUB_API_TOKEN = ENV['HOMEBREW_GITHUB_API_TOKEN'] # For unthrottled Github access
 HOMEBREW_INSTALL_BADGE = ENV['HOMEBREW_INSTALL_BADGE'] or "\xf0\x9f\x8d\xba"
-                                              # Default is the beer emoji (see `formula_installer.rb`)
+                                              # Default is the beer emoji (see `formula/installer.rb`)
 HOMEBREW_LOGS   = Pathname.new(ENV.fetch 'HOMEBREW_LOGS', '~/Library/Logs/Homebrew/').expand_path
                   # Where build, postinstall, and test logs of formulæ are written to
 HOMEBREW_TEMP   = Pathname.new(ENV.fetch 'HOMEBREW_TEMP', '/tmp')
                   # Where temporary folders for building and testing formulæ are created
-NO_EMOJI        = ENV['HOMEBREW_NO_EMOJI']    # Don’t show badge at all (see `formula_installer.rb`)
+NO_EMOJI        = ENV['HOMEBREW_NO_EMOJI']    # Don’t show badge at all (see `formula/installer.rb`)
 ORIGINAL_PATHS  = ENV['PATH'].split(File::PATH_SEPARATOR).map { |p| Pathname.new(p).expand_path rescue nil }.compact.freeze
 QUIETER         = ARGV.quieter?               # Give less-verbose feedback when VERBOSE (checks all
                                               #   of “-q”, “--quieter”, and $HOMEBREW_QUIET)
@@ -135,7 +137,7 @@ require 'compat' unless ENV['HOMEBREW_NO_COMPAT'] || ARGV.include?('--no-compat'
 # HOMEBREW_BUILD_FROM_SOURCE  # Force building from source even when there is a bottle
 # HOMEBREW_BUILD_UNIVERSAL    # If there’s a :universal option, always use it
 # HOMEBREW_FAIL_LOG_LINES     # How many lines of system output to log on failure (see `formula.rb`)
-# HOMEBREW_PREFER_64_BIT      # Build 64‐bit by default (req’d for Leopard :universal; see `os/mac.rb`)
+# HOMEBREW_PREFER_64_BIT      # Build 64‐bit by default (req’d for Leopard :universal; see `macos.rb`)
 # HOMEBREW_QUIET              # Be less verbose
 # HOMEBREW_SANDBOX            # hells if I know
 # HOMEBREW_VERBOSE            # Show build messages

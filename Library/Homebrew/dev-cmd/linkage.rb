@@ -12,7 +12,7 @@
 #:its name and which of the keg’s binaries link to it.
 #:
 
-require "os/mac/linkage_checker"
+require "macos/linkage_checker"
 
 module Homebrew
   module_function

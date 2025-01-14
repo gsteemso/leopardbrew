@@ -1,5 +1,5 @@
 require "tab"
-require "os/mac"
+require "macos"
 require "extend/ARGV"
 
 def built_as_bottle?(f)

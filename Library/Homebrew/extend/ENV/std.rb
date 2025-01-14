@@ -1,5 +1,5 @@
 require "hardware"
-require "os/mac"
+require "macos"
 require "extend/ENV/shared"
 
 # @deprecated
