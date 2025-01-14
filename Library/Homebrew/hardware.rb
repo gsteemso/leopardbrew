@@ -1,7 +1,7 @@
 # On a Mac, this file is loaded before `global.rb`, so must eschew most
 # Homebrew‐isms at eval time.
 
-require "os"
+require "macos/hardware"
 
 class Hardware
   module CPU
@@ -43,15 +43,7 @@ class Hardware
     end # can_run?
   end # CPU
 
-  if OS.mac?
-    require "os/mac/hardware"
-    CPU.extend MacCPUs
-  elsif OS.linux?
-    require "os/linux/hardware"
-    CPU.extend LinuxCPUs
-  else
-    raise "The system `#{`uname`.chomp}' is not supported."
-  end
+  CPU.extend MacCPUs
 
   def self.cores_as_words
     case Hardware::CPU.cores
