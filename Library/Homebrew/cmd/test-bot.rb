@@ -1,11 +1,10 @@
 #: Comprehensively test a formula or pull request.
 #:
-#: Usage: brew test-bot [options...] <pull-request|formula>
+#: Usage: brew test-bot [options...] <pull-request | formula>
 #:
-#: Options:
 #: --keep-logs:     Write and keep log files under ./brewbot/
-#: --cleanup:       Clean the Homebrew directory. Very dangerous. Use with care.
-#: --clean-cache:   Remove all cached downloads. Use with care.
+#: --cleanup:       Clean the Homebrew directory.  Very dangerous; use with care.
+#: --clean-cache:   Remove all cached downloads.  Use with care.
 #: --skip-setup:    Don't check the local system is setup correctly.
 #: --skip-homebrew: Don't check Homebrew's files and tests are all valid.
 #: --junit:         Generate a JUnit XML test results file.
@@ -18,7 +17,6 @@
 #: --dry-run:       Just print commands, don't run them.
 #: --fail-fast:     Immediately exit on a failing step.
 #: --verbose:       Print out all logs in realtime
-#:
 #: --ci-master:           Shortcut for Homebrew master branch CI options.
 #: --ci-pr:               Shortcut for Homebrew pull request CI options.
 #: --ci-testing:          Shortcut for Homebrew testing CI options.
@@ -56,15 +54,9 @@ module Homebrew
     end
 
     # return nil means we are testing core repo.
-  end
+  end # resolve_test_tap
 
-  def homebrew_git_repo(tap = nil)
-    if tap
-      tap.path
-    else
-      HOMEBREW_REPOSITORY
-    end
-  end
+  def homebrew_git_repo(tap = nil); tap ? tap.path : HOMEBREW_REPOSITORY; end
 
   class Step
     attr_reader :command, :name, :status, :output, :time
@@ -78,7 +70,7 @@ module Homebrew
       @status = :running
       @repository = options[:repository] || HOMEBREW_REPOSITORY
       @time = 0
-    end
+    end # initialize
 
     def log_file_path
       file = "#{@category}.#{@name}.txt"
@@ -90,13 +82,9 @@ module Homebrew
       (@command - %w[brew --force --retry --verbose --build-bottle --rb]).join(" ")
     end
 
-    def passed?
-      @status == :passed
-    end
+    def passed?; @status == :passed; end
 
-    def failed?
-      @status == :failed
-    end
+    def failed?; @status == :failed; end
 
     def puts_command
       if ENV["TRAVIS"]
@@ -107,7 +95,7 @@ module Homebrew
         puts "travis_time:start:#{@travis_timer_id}"
       end
       puts "#{Tty.blue}==>#{Tty.white} #{@command.join(" ")}#{Tty.reset}"
-    end
+    end # puts_command
 
     def puts_result
       if ENV["TRAVIS"]
@@ -119,15 +107,11 @@ module Homebrew
         puts "travis_fold:end:#{@travis_fold_id}"
       end
       puts "#{Tty.white}==>#{Tty.red} FAILED#{Tty.reset}" if failed?
-    end
+    end # puts_result
 
-    def has_output?
-      @output && !@output.empty?
-    end
+    def has_output?; @output && !@output.empty?; end
 
-    def time
-      @end_time - @start_time
-    end
+    def time; @end_time - @start_time; end
 
     def run
       @start_time = Time.now
@@ -177,7 +161,7 @@ module Homebrew
       end
 
       exit 1 if ARGV.include?("--fail-fast") && failed?
-    end
+    end # run
 
     private
 
@@ -198,7 +182,7 @@ module Homebrew
         str
       end
     end
-  end
+  end # Step
 
   class Test
     attr_reader :log_root, :category, :name, :steps
@@ -230,11 +214,9 @@ module Homebrew
       @category = __method__
       @brewbot_root = Pathname.pwd + "brewbot"
       FileUtils.mkdir_p @brewbot_root
-    end
+    end # initialize
 
-    def no_args?
-      @hash == "HEAD"
-    end
+    def no_args?; @hash == "HEAD"; end
 
     def safe_formulary(formula)
       Formulary.factory formula
@@ -258,20 +240,14 @@ module Homebrew
       rd.read
     ensure
       rd.close
-    end
+    end # git
 
     def download
-      def shorten_revision(revision)
-        git("rev-parse", "--short", revision).strip
-      end
+      def shorten_revision(revision); git("rev-parse", "--short", revision).strip; end
 
-      def current_sha1
-        shorten_revision "HEAD"
-      end
+      def current_sha1; shorten_revision "HEAD"; end
 
-      def current_branch
-        git("symbolic-ref", "HEAD").gsub("refs/heads/", "").strip
-      end
+      def current_branch; git("symbolic-ref", "HEAD").gsub("refs/heads/", "").strip; end
 
       def single_commit?(start_revision, end_revision)
         git("rev-list", "--count", "#{start_revision}..#{end_revision}").to_i == 1
@@ -286,7 +262,7 @@ module Homebrew
           next unless File.extname(file) == ".rb"
           File.basename(file, ".rb")
         end.compact
-      end
+      end # diff_formulae
 
       def brew_update
         return unless current_branch == "master"
@@ -387,7 +363,7 @@ module Homebrew
       @added_formulae += diff_formulae(diff_start_sha1, diff_end_sha1, formula_path, "A")
       @modified_formula += diff_formulae(diff_start_sha1, diff_end_sha1, formula_path, "M")
       @formulae += @added_formulae + @modified_formula
-    end
+    end # download
 
     def skip(formula_name)
       puts "#{Tty.blue}==>#{Tty.white} SKIPPING: #{formula_name}#{Tty.reset}"
@@ -417,7 +393,7 @@ module Homebrew
         puts unsatisfied_requirements.map(&:message)
         false
       end
-    end
+    end # satisfied_requirements?
 
     def setup
       @category = __method__
@@ -425,7 +401,7 @@ module Homebrew
       test "brew", "doctor" unless ENV["TRAVIS"]
       test "brew", "--env"
       test "brew", "config"
-    end
+    end # setup
 
     def formula(formula_name)
       @category = "#{__method__}.#{formula_name}"
@@ -481,7 +457,7 @@ module Homebrew
         unless installed_gcc
           run_as_not_developer { test "brew", "install", "gcc" }
           installed_gcc = true
-          OS::Mac.clear_version_cache
+          MacOS.clear_version_cache
           retry
         end
         skip canonical_formula_name
@@ -621,7 +597,7 @@ module Homebrew
         end
       end
       test "brew", "uninstall", "--force", *unchanged_dependencies if unchanged_dependencies.any?
-    end
+    end # formula
 
     def homebrew
       @category = __method__
@@ -636,7 +612,7 @@ module Homebrew
         test "brew", "readall", *readall_args
         test "brew", "update-test"
       end
-    end
+    end # homebrew
 
     def cleanup_before
       @category = __method__
@@ -650,7 +626,7 @@ module Homebrew
       git "clean", "-ffdx"
       pr_locks = "#{HOMEBREW_REPOSITORY}/.git/refs/remotes/*/pr/*/*.lock"
       Dir.glob(pr_locks) { |lock| FileUtils.rm_rf lock }
-    end
+    end # cleanup_before
 
     def cleanup_after
       @category = __method__
@@ -680,7 +656,7 @@ module Homebrew
       end
 
       FileUtils.rm_rf @brewbot_root unless ARGV.include? "--keep-logs"
-    end
+    end # cleanup_after
 
     def test(*args)
       options = Hash === args.last ? args.pop : {}
@@ -689,17 +665,17 @@ module Homebrew
       step.run
       steps << step
       step
-    end
+    end # test
 
     def check_results
       steps.all? do |step|
         case step.status
-        when :passed  then true
-        when :running then raise
-        when :failed  then false
+          when :passed  then true
+          when :running then raise
+          when :failed  then false
         end
       end
-    end
+    end # check_results
 
     def formulae
       changed_formulae_dependents = {}
@@ -720,7 +696,7 @@ module Homebrew
       changed_formulae.map!(&:first)
       unchanged_formulae = @formulae - changed_formulae
       changed_formulae + unchanged_formulae
-    end
+    end # formulae
 
     def head_only_tap?(formula)
       formula.head && formula.devel.nil? && formula.stable.nil? && formula.tap == "homebrew/homebrew-head-only"
@@ -740,8 +716,8 @@ module Homebrew
       end
       cleanup_after
       check_results
-    end
-  end
+    end # run
+  end # Test
 
   def test_bot_ci_reset_and_update
     Tap.each do |tap|
@@ -755,7 +731,7 @@ module Homebrew
     end
 
     exec "brew", "update"
-  end
+  end # test_bot_ci_reset_and_update
 
   def test_ci_upload(tap)
     jenkins = ENV["JENKINS_HOME"]
@@ -858,7 +834,7 @@ module Homebrew
 
     safe_system "git", "tag", "--force", tag
     safe_system "git", "push", "--force", remote, "refs/tags/#{tag}"
-  end
+  end # test_ci_upload
 
   def sanitize_ARGV_and_ENV
     if Pathname.pwd == HOMEBREW_PREFIX && ARGV.include?("--cleanup")
@@ -898,7 +874,7 @@ module Homebrew
         file.write "#{MacOS.version}: internal error."
       end
     end
-  end
+  end # sanitize_ARGV_and_ENV
 
   def test_bot
     sanitize_ARGV_and_ENV
@@ -1009,5 +985,5 @@ module Homebrew
     HOMEBREW_CACHE.children.each(&:rmtree) if ARGV.include? "--clean-cache"
 
     Homebrew.failed = any_errors
-  end
-end
+  end # test_bot
+end # Homebrew
