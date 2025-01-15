@@ -37,21 +37,16 @@ module Homebrew
   def help_s; HOMEBREW_HELP; end
 
   def help_for_command(cmd)
-    cmd_path = if File.exists?(HOMEBREW_LIBRARY_PATH/"cmd/#{cmd}.sh")
-        HOMEBREW_LIBRARY_PATH/"cmd/#{cmd}.sh"
-      elsif DEVELOPER and File.exists?(HOMEBREW_LIBRARY_PATH/"dev-cmd/#{cmd}.sh")
-        HOMEBREW_LIBRARY_PATH/"dev-cmd/#{cmd}.sh"
-      elsif File.exists?(HOMEBREW_LIBRARY_PATH/"cmd/#{cmd}.rb")
-        HOMEBREW_LIBRARY_PATH/"cmd/#{cmd}.rb"
-      elsif DEVELOPER and File.exists?(HOMEBREW_LIBRARY_PATH/"dev-cmd/#{cmd}.rb")
-        HOMEBREW_LIBRARY_PATH/"dev-cmd/#{cmd}.rb"
-      end
-    return if cmd_path.nil?
+    cmd_path = [
+      HOMEBREW_CMDS/"#{cmd}.sh",
+      HOMEBREW_DEV_CMDS/"#{cmd}.sh",
+      HOMEBREW_CMDS/"#{cmd}.rb",
+      HOMEBREW_DEV_CMDS/"#{cmd}.rb",
+    ].find { |cp| File.exists?(cp) } or return
+#    return if cmd_path.nil?
 
-    cmd_path.read.
-      split("\n").
-      grep(/^#:/).
-      map { |line| line.slice(2..-1).delete("`").sub(/^  \* /, "brew ") }.
-      join("\n")
+    cmd_path.read.split("\n").grep(/^#:/).map { |line|
+        line.slice(2..-1).delete("`").sub(/^  \* /, "brew ")
+      }.join("\n")
   end
 end
