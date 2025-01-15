@@ -18,10 +18,9 @@ end
 
 def require?(path)
   require path
-rescue LoadError => e
-  STDERR.puts e
+rescue LoadError
   # Raise on syntax errors, not if the file’s merely missing.
-  raise if File.file? path
+  raise if (HOMEBREW_RUBY_LIBRARY/"#{path}.rb").file?
 end
 
 begin
@@ -54,11 +53,7 @@ begin
   ENV['PATH'] += "#{File::PATH_SEPARATOR}#{HOMEBREW_LIBRARY}/ENV/scm"
 
   if cmd
-    internal_cmd = require? "cmd/#{cmd}"
-
-    if !internal_cmd && DEVELOPER
-      internal_cmd = require? "dev-cmd/#{cmd}"
-    end
+    internal_cmd = require? "cmd/#{cmd}" || (require? "dev-cmd/#{cmd}" if DEVELOPER)
   end
 
   # Usage instructions should be displayed if and only if one of:
@@ -110,8 +105,8 @@ rescue KegUnspecifiedError
 rescue UsageError
   onoe 'Invalid usage.'
   abort ARGV.usage
-rescue SystemExit
-  puts 'Kernel.exit' if ARGV.verbose?
+rescue SystemExit => e
+  puts "Kernel.exit(#{e.status})" if e.status != 0 and ARGV.verbose?
   raise
 rescue Interrupt => e
   puts # seemingly a newline is typical
