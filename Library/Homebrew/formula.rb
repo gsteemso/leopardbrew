@@ -174,8 +174,8 @@ class Formula
   end # set_spec
 
   def determine_active_spec(requested)
-    spec = send(requested) || stable || devel || head
-    spec || raise(FormulaSpecificationError, "formulae require at least a URL")
+    spec = send(requested) || stable || devel || head \
+      or raise(FormulaSpecificationError, "formulae require at least a URL")
   end
 
   def validate_attributes!
@@ -392,9 +392,9 @@ class Formula
 
   def is_installed_prefix?(pn); self.class.is_installed_prefix?(pn); end
 
-  def self.is_installed_prefix?(pn); pn and pn.directory? and (pn/Tab::FILENAME).file?; end
-
   public
+
+  def self.is_installed_prefix?(pn); pn and pn.directory? and (pn/Tab::FILENAME).file?; end
 
   def self.from_installed_prefix(pn)
     if is_installed_prefix?(pn)
@@ -1030,7 +1030,7 @@ class Formula
   # @private
   def test_defined?; false; end
 
-  def test_fixtures(file); (HOMEBREW_LIBRARY_PATH/'test/fixtures')/file; end
+  def test_fixtures(file); TEST_FIXTURES/file; end
 
   # This method is overriden in {Formula} subclasses to provide the installation instructions.
   # The sources (from {.url}) are downloaded, hash-checked and
