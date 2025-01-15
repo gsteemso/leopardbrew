@@ -18,7 +18,7 @@ class NoSuchKegError < RuntimeError
 
   def initialize(name)
     @name = name
-    super "No such formula is installed:  #{HOMEBREW_CELLAR}/#{name}"
+    super "No such formula version is installed:  #{name}"
   end
 end
 
