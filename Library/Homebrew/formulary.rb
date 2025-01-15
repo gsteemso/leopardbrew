@@ -124,11 +124,11 @@ class Formulary
       @url = url
       uri = URI(url)
       formula = File.basename(uri.path, ".rb")
-      super formula, HOMEBREW_CACHE_FORMULA/File.basename(uri.path)
+      super formula, HOMEBREW_FORMULA_CACHE/File.basename(uri.path)
     end # FromUrlLoader#initialize
 
     def load_file
-      HOMEBREW_CACHE_FORMULA.mkpath
+      HOMEBREW_FORMULA_CACHE.mkpath
       FileUtils.rm_f(path)
       curl url, "-o", path
       super
@@ -311,7 +311,7 @@ class Formulary
       return TapLoader.new(possible_tap_newname_formulae.first)
     end
 
-    possible_cached_formula = Pathname.new("#{HOMEBREW_CACHE_FORMULA}/#{ref}.rb")
+    possible_cached_formula = Pathname.new("#{HOMEBREW_FORMULA_CACHE}/#{ref}.rb")
     if possible_cached_formula.file?
       return FormulaLoader.new(ref, possible_cached_formula)
     end

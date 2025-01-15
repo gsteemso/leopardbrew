@@ -509,7 +509,7 @@ class FormulaInstaller
       -W0
       -I #{HOMEBREW_LOAD_PATH}
       --
-      #{HOMEBREW_LIBRARY_PATH}/build.rb
+      #{HOMEBREW_RUBY_LIBRARY}/build.rb
       #{formula.path}
     ].concat(build_argv)
     args.unshift('nice', BREW_NICE_LEVEL) if BREW_NICE_LEVEL

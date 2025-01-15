@@ -88,9 +88,9 @@ module Homebrew
   def self.homebrew_version_string
     if pretty_revision = git_short_head
       last_commit = git_last_commit_date
-      "#{HOMEBREW_VERSION} (git revision #{pretty_revision}; last commit #{last_commit})"
+      "#{LEOPARDBREW_VERSION} (git revision #{pretty_revision}; last commit #{last_commit})"
     else
-      "#{HOMEBREW_VERSION} (no git repository)"
+      "#{LEOPARDBREW_VERSION} (no git repository)"
     end
   end
 
@@ -167,8 +167,7 @@ def for_archs (cmd, &block)
 end # for_archs
 
 def curl(*args)
-  curl = Pathname.new ENV["HOMEBREW_CURL"]
-  raise "#{curl} is not executable" unless curl.exist? && curl.executable?
+  raise "#{CURL_PATH} is not executable" unless CURL_PATH.exists? && CURL_PATH.executable?
 
   flags = HOMEBREW_CURL_ARGS
   flags = flags.delete("#") if VERBOSE
@@ -242,7 +241,7 @@ def exec_editor(*args)
 end
 
 def exec_browser(*args)
-  browser = ENV["HOMEBREW_BROWSER"] || ENV["BROWSER"] || OS::PATH_OPEN
+  browser = ENV["HOMEBREW_BROWSER"] || ENV["BROWSER"] || OPEN_PATH
   safe_exec(browser, *args)
 end
 

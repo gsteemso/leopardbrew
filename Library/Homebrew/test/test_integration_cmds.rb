@@ -4,11 +4,11 @@ class IntegrationCommandTests < Homebrew::TestCase
   def cmd_output(*args)
     cmd_args = %W[
       -W0
-      -I#{HOMEBREW_LIBRARY_PATH}/test/lib
+      -I#{HOMEBREW_LIBRARY_TEST}/lib
       -rconfig
     ]
     cmd_args << "-rsimplecov" if ENV["HOMEBREW_TESTS_COVERAGE"]
-    cmd_args << (HOMEBREW_LIBRARY_PATH/"../brew.rb").resolved_path.to_s
+    cmd_args << (HOMEBREW_LIBRARY/'brew.rb').resolved_path.to_s
     cmd_args += args
     Bundler.with_original_env do
       ENV["HOMEBREW_BREW_FILE"] = HOMEBREW_PREFIX/"bin/brew"

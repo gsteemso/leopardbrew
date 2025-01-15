@@ -53,7 +53,7 @@ module Homebrew
           -W0
           -I #{HOMEBREW_LOAD_PATH}
           --
-          #{HOMEBREW_LIBRARY_PATH}/test.rb
+          #{HOMEBREW_RUBY_LIBRARY}/test.rb
           #{f.path}
         ].concat(ARGV.options_only)
 

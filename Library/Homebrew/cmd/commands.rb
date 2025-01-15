@@ -28,12 +28,12 @@ module Homebrew
 
   def internal_commands
     with_directory = false
-    (HOMEBREW_LIBRARY_PATH/"cmd").children(with_directory).map { |f| File.basename(f, ".rb") }
+    HOMEBREW_CMDS.children(with_directory).map { |f| File.basename(f, ".rb") }
   end
 
   def internal_development_commands
     with_directory = false
-    (HOMEBREW_LIBRARY_PATH/"dev-cmd").children(with_directory).map { |f| File.basename(f, ".rb") }
+    HOMEBREW_DEV_CMDS.children(with_directory).map { |f| File.basename(f, ".rb") }
   end
 
   def external_commands

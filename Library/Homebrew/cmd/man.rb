@@ -1,7 +1,7 @@
 require "formula"
 
 module Homebrew
-  SOURCE_PATH=HOMEBREW_REPOSITORY/"Library/Homebrew/manpages"
+  SOURCE_PATH=HOMEBREW_RUBY_LIBRARY/'manpages'
   TARGET_PATH=HOMEBREW_REPOSITORY/"share/man/man1"
   DOC_PATH=HOMEBREW_REPOSITORY/"share/doc/homebrew"
   LINKED_PATH=HOMEBREW_PREFIX/"share/man/man1"
@@ -27,7 +27,7 @@ module Homebrew
 
       header = (SOURCE_PATH/"header.1.md").read
       footer = (SOURCE_PATH/"footer.1.md").read
-      sub_commands = Pathname.glob("#{HOMEBREW_LIBRARY_PATH}/cmd/*.{rb,sh}").
+      sub_commands = Pathname.glob("#{HOMEBREW_CMDS}/*.{rb,sh}").
         sort_by { |source_file| source_file.basename.sub(/\.(rb|sh)$/, "") }.
         map { |source_file|
           source_file.read.
