@@ -12,8 +12,8 @@ setup-ruby-path() {
   if [ -z "$HOMEBREW_RUBY_PATH" ] && [ "$HOMEBREW_COMMAND" != "vendor-install" ]; then
     if [ -x "$vendor_ruby_path" ]; then
       HOMEBREW_RUBY_PATH="$vendor_ruby_path"
-      [ $(readlink "$vendor_ruby_current_version") != "$(<"$vendor_dir/portable-ruby-version")" ] \
-        && brew vendor-install ruby || onoe "Failed to upgrade vendor Ruby."
+      if [ "$(readlink "$vendor_ruby_current_version")" != "$(<"$vendor_dir/portable-ruby-version")" ]; then
+        brew vendor-install ruby || onoe "Failed to upgrade vendor Ruby."
       fi
     else
       HOMEBREW_RUBY_PATH="/usr/bin/ruby"
