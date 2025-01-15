@@ -121,9 +121,7 @@ module Stdenv
   def gcc; super; set_cpu_cflags; end
   alias_method :gcc_4_2, :gcc
 
-  GNU_GCC_VERSIONS.each do |n|
-    define_method(:"gcc-#{n}") do super(); set_cpu_cflags; end
-  end
+  GNU_GCC_VERSIONS.each { |n| define_method(:"gcc-#{n}") do super(); set_cpu_cflags; end }
 
   def llvm; super; set_cpu_cflags; end
 
@@ -145,7 +143,7 @@ module Stdenv
     delete("CPATH")
     remove "LDFLAGS", "-L#{HOMEBREW_PREFIX}/lib"
 
-    if (sdk = MacOS.sdk_path(version)) && !MacOS::CLT.installed?
+    if (sdk = MacOS.sdk_path(version)) and not MacOS::CLT.installed?
       delete("SDKROOT")
       remove_from_cflags "-isysroot #{sdk}"
       remove "CPPFLAGS", "-isysroot #{sdk}"
@@ -161,7 +159,6 @@ module Stdenv
   end # remove_macosxsdk
 
   def macosxsdk(version = MacOS.version)
-    return unless OS.mac?
     # Sets all needed lib and include dirs to CFLAGS, CPPFLAGS, LDFLAGS.
     remove_macosxsdk
     version = version.to_s
@@ -170,7 +167,7 @@ module Stdenv
     self["CPATH"] = "#{HOMEBREW_PREFIX}/include"
     prepend "LDFLAGS", "-L#{HOMEBREW_PREFIX}/lib"
 
-    if (sdk = MacOS.sdk_path(version)) && !MacOS::CLT.installed?
+    if (sdk = MacOS.sdk_path(version)) and not MacOS::CLT.installed?
       # Extra setup to support Xcode 4.3+ without CLT.
       self["SDKROOT"] = sdk
       # Tell clang/gcc where system include's are:
@@ -198,39 +195,27 @@ module Stdenv
 
   # Some configure scripts won't find libxml2 without help
   def libxml2
-    if MacOS::CLT.installed?
-      append "CPPFLAGS", "-I/usr/include/libxml2"
-    else
-      # Use the includes from the sdk
-      append "CPPFLAGS", "-I#{MacOS.sdk_path}/usr/include/libxml2"
-    end
-  end # libxml2
+    append "CPPFLAGS", "-I#{MacOS::CLT.installed? ? MacOS.sdk_path : ''}/usr/include/libxml2"
+  end
 
   def x11
+    xinc = MacOS::X11.include.to_s
+    xlib = MacOS::X11.lib.to_s
+    xshr = MacOS::X11.share.to_s
+    append "CFLAGS", "-I#{xinc}" unless MacOS::CLT.installed?
+    append "CPPFLAGS", "-I#{xinc} -I#{xinc}/freetype2"
+    append "LDFLAGS", "-L#{xlib}"
+    append_path "ACLOCAL_PATH", "#{xshr}/aclocal"
+    append_path "CMAKE_INCLUDE_PATH", "#{xinc} #{xinc}/freetype2"
+    append_path "CMAKE_PREFIX_PATH", MacOS::X11.prefix.to_s
+    append_path "CMAKE_PREFIX_PATH", "#{MacOS.sdk_path}/usr/X11" \
+                                if MacOS::XQuartz.provided_by_apple? and not MacOS::CLT.installed?
     # There are some config scripts here that should go in the PATH
     append_path "PATH", MacOS::X11.bin.to_s
-
     # Append these to PKG_CONFIG_LIBDIR so they are searched
     # *after* our own pkgconfig directories, as we dupe some of the
     # libs in XQuartz.
-    append_path "PKG_CONFIG_LIBDIR", "#{MacOS::X11.lib}/pkgconfig"
-    append_path "PKG_CONFIG_LIBDIR", "#{MacOS::X11.share}/pkgconfig"
-
-    append "LDFLAGS", "-L#{MacOS::X11.lib}"
-    append_path "CMAKE_PREFIX_PATH", MacOS::X11.prefix.to_s
-    append_path "CMAKE_INCLUDE_PATH", MacOS::X11.include.to_s
-    append_path "CMAKE_INCLUDE_PATH", "#{MacOS::X11.include}/freetype2"
-
-    append "CPPFLAGS", "-I#{MacOS::X11.include}"
-    append "CPPFLAGS", "-I#{MacOS::X11.include}/freetype2"
-
-    append_path "ACLOCAL_PATH", "#{MacOS::X11.share}/aclocal"
-
-    if MacOS::XQuartz.provided_by_apple? && !MacOS::CLT.installed?
-      append_path "CMAKE_PREFIX_PATH", "#{MacOS.sdk_path}/usr/X11"
-    end
-
-    append "CFLAGS", "-I#{MacOS::X11.include}" unless MacOS::CLT.installed?
+    append_path "PKG_CONFIG_LIBDIR", "#{xlib}/pkgconfig #{xshr}/pkgconfig"
   end # x11
   alias_method :libpng, :x11
 
@@ -244,8 +229,7 @@ module Stdenv
 
   def un_m64
     remove_from_cflags '-m64'
-    remove_from_cflags '-arch ppc64'
-    remove_from_cflags '-arch x86_64'
+    remove_from_cflags "-arch #{Hardware::CPU.arch_64_bit}"
   end
 
   def m32
@@ -255,8 +239,7 @@ module Stdenv
 
   def un_m32
     remove_from_cflags '-m32'
-    remove_from_cflags '-arch ppc'
-    remove_from_cflags '-arch i386'
+    remove_from_cflags "-arch #{Hardware::CPU.arch_32_bit}"
   end
 
   def set_build_archs(archset)
@@ -325,10 +308,6 @@ module Stdenv
   def set_cpu_cflags(default = DEFAULT_FLAGS, map = Hardware::CPU.optimization_flags)
     set_cpu_flags CC_FLAG_VARS, default, map
   end
-
-  def make_jobs
-    self["HOMEBREW_MAKE_JOBS"].nuzzle || Hardware::CPU.cores
-  end # make_jobs
 
   # This method does nothing in stdenv since there's no arg refurbishment
   # @private

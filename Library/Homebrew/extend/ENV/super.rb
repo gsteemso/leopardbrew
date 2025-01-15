@@ -234,8 +234,6 @@ module Superenv
 
   def cccfg_remove(datum); remove 'HOMEBREW_CCCFG', datum if self['HOMEBREW_CCCFG'].includes? datum; end
 
-  def make_jobs; self["MAKEFLAGS"] =~ %r{-\w*j(\d)+}; [$1.to_i, 1].max; end
-
   def set_build_archs(archset)
     super
     self['HOMEBREW_ARCHFLAGS'] = archset.as_arch_flags
@@ -252,8 +250,7 @@ module Superenv
 
   def un_m32
     remove 'HOMEBREW_ARCHFLAGS', '-m32'
-    remove 'HOMEBREW_ARCHFLAGS', '-arch ppc'
-    remove 'HOMEBREW_ARCHFLAGS', '-arch i386'
+    remove 'HOMEBREW_ARCHFLAGS', "-arch #{Hardware::CPU.arch_32_bit}"
   end
 
   def m64
@@ -262,8 +259,7 @@ module Superenv
 
   def un_m64
     remove 'HOMEBREW_ARCHFLAGS', '-m64'
-    remove 'HOMEBREW_ARCHFLAGS', '-arch ppc64'
-    remove 'HOMEBREW_ARCHFLAGS', '-arch x86_64'
+    remove 'HOMEBREW_ARCHFLAGS', "-arch #{Hardware::CPU.arch_64_bit}"
   end
 
   def cxx11
