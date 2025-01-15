@@ -56,8 +56,7 @@ gtar = OPTDIR/'gnu-tar/bin/gtar'
 TAR_PATH                = Pathname.new(gtar.executable? ? gtar : '/usr/bin/tar')
 
 # Predefined regular expressions:
-# CompilerConstants::GNU_CXX11_REGEXP #
-# CompilerConstants::GNU_CXX14_REGEXP # see `compilers.rb`
+# CompilerConstants::GNU_CXX11_REGEXP # see `compilers.rb`
 # CompilerConstants::GNU_GCC_REGEXP   #
 HOMEBREW_CASK_TAP_FORMULA_REGEX   = %r{^(Caskroom)/(cask)/([\w+-.]+)$}
                                     # Match formulæ in the default brew‐cask tap, e.g. Caskroom/cask/someformula
@@ -77,30 +76,28 @@ VERSIONED_NAME_REGEX              = %r{^([^=]+)=([^=]+)$}
                                     # matches a formula‐name‐including‐version specification
 
 # Other predefined values:
-# CompilerConstants::CLANG_CXX11_MIN #
-# CompilerConstants::CLANG_CXX14_MIN # see `compilers.rb`
+# CompilerConstants::CLANG_CXX11_MIN # see `compilers.rb`
 # CompilerConstants::COMPILERS       #
 HOMEBREW_CURL_ARGS          = '-f#LA'
-HOMEBREW_INTERNAL_COMMAND_ALIASES = \
-                              { 'ls'          => 'list',
-                                'homepage'    => 'home',
-                                '-S'          => 'search',
-                                'up'          => 'update',
-                                'ln'          => 'link',
-                                'instal'      => 'install',  # gem does the same
-                                'rm'          => 'uninstall',
-                                'remove'      => 'uninstall',
-                                'configure'   => 'diy',
-                                'abv'         => 'info',
-                                'dr'          => 'doctor',
-                                '--repo'      => '--repository',
-                                'environment' => '--env',
-                                '--config'    => 'config'
-                              }
+HOMEBREW_INTERNAL_COMMAND_ALIASES = { 'ls'          => 'list',
+                                      'homepage'    => 'home',
+                                      '-S'          => 'search',
+                                      'up'          => 'update',
+                                      'ln'          => 'link',
+                                      'instal'      => 'install',  # gem does the same
+                                      'rm'          => 'uninstall',
+                                      'remove'      => 'uninstall',
+                                      'configure'   => 'diy',
+                                      'abv'         => 'info',
+                                      'dr'          => 'doctor',
+                                      '--repo'      => '--repository',
+                                      'environment' => '--env',
+                                      '--config'    => 'config'
+                                    }
 HOMEBREW_OUTDATED_LIMIT     = 1209600 # 60 s * 60 min * 24 h * 14 days:  two weeks
 HOMEBREW_USER_AGENT         = ENV['HOMEBREW_USER_AGENT']
 HOMEBREW_USER_AGENT_CURL    = ENV['HOMEBREW_USER_AGENT_CURL']
-    ruby_version = "#{RUBY_VERSION}#{"-p#{RUBY_PATCHLEVEL}" if defined? RUBY_PATCHLEVEL}"
+ruby_version = "#{RUBY_VERSION}#{"-p#{RUBY_PATCHLEVEL}" if defined? RUBY_PATCHLEVEL}"
 HOMEBREW_USER_AGENT_RUBY    = "#{HOMEBREW_USER_AGENT} ruby/#{ruby_version}"
 HOMEBREW_WWW                = 'https://github.com/gsteemso/leopardbrew'
     ISSUES_URL              =   HOMEBREW_WWW
