@@ -102,19 +102,19 @@ module HomebrewArgvExtension
           keg_path = HOMEBREW_CELLAR/$1/$2
           raise NoSuchVersionError.new(name) unless keg_path.directory?
           Keg.new(keg_path)
-        else # formula version is not explicit
-          ss = spec
-          if f = attempt_factory(name, ss)
+        else # formula version is not explicit; go for the active version
+          if (var = f.opt_prefix).symlink? and var.directory? then Keg.new(var.resolved_path)
+          elsif (var = f.linked_keg).symlink? and var.directory? then Keg.new(var.resolved_path)
+          elsif (f, ss = attempt_factory(name)) != nil
             rack = f.rack
             rackname = rack.basename  # this can differ from raw “name”
             if rack.directory? then dirs = rack.subdirs
-            else raise NoSuchKegError.new(name); end
+            else raise NoSuchKegError.new(name)
+            end
             ss = f.active_spec_sym
             sip = f.spec_prefix(ss)  # sip:  “spec’s installed prefix”
             raise NoSuchKegError.new(sip) unless sip.directory?
             if f.installed?(ss) then Keg.new(sip)
-            elsif (var = f.opt_prefix).symlink? and var.directory? then Keg.new(var.resolved_path)
-            elsif (var = f.linked_keg).symlink? and var.directory? then Keg.new(var.resolved_path)
             elsif dirs.length == 1 then Keg.new(dirs.first)
             elsif f.prefix.directory? then Keg.new(f.prefix)
             else raise MultipleVersionsInstalledError.new(rackname)
@@ -122,9 +122,12 @@ module HomebrewArgvExtension
           else # no formula
             rack = HOMEBREW_CELLAR/name
             if rack.directory? then dirs = rack.subdirs
-            else raise NoSuchKegError.new(name); end
+            else raise NoSuchKegError.new(name)
+            end
             if dirs.length == 1 then Keg.new(dirs.first)
-            else raise MultipleVersionsInstalledError.new(name); end
+            elsif dirs.find { |d| Formula.is_installed_prefix? d }
+            else raise MultipleVersionsInstalledError.new(name)
+            end
           end # no formula
         end # formula version is not explicit
       end # collect |name|
@@ -249,8 +252,11 @@ module HomebrewArgvExtension
     end.uniq
   end # downcased_unique_named
 
-  def attempt_factory(f, s)
-    Formulary.factory(f, s)
+  def attempt_factory(name)
+    [:head, :devel, :stable].find { |s|
+      f = Formulary.factory(name, s)
+    }
+    return [f, s]
   rescue FormulaUnavailableError
     return nil
   end
