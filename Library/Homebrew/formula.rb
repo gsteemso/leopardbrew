@@ -380,11 +380,10 @@ class Formula
   # The list of installed current spec versions
   def installed_current_prefixes
     icp = {}
-    [:head, :devel, :stable].each do |ss|
+    [:head, :devel, :stable].each { |ss|
       pfx = spec_prefix(ss)
       icp[ss] = pfx if is_installed_prefix?(pfx)
-    end
-
+    }
     icp
   end # installed_current_prefixes
 
@@ -397,11 +396,10 @@ class Formula
   def self.is_installed_prefix?(pn); pn and pn.directory? and (pn/Tab::FILENAME).file?; end
 
   def self.from_installed_prefix(pn)
-    if is_installed_prefix?(pn)
-      ts = Tab.from_file(pn/Tab::FILENAME)[:source]
+    if is_installed_prefix?(pn) and (ts = Tab.from_file(pn/Tab::FILENAME)[:source])
       Formulary.factory(ts['path'], ts['spec'])
     end
-  end # Formula::from_installed_prefix
+  end
 
   # The directory in the cellar that the formula is installed to.
   # This directory’s pathname includes the formula’s name and version.
