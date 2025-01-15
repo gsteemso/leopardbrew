@@ -3,10 +3,8 @@ module CompilerConstants
   GNU_GCC_VERSIONS = %w[4.3 4.4 4.5 4.6 4.7 4.8 4.9 5 6 7]
   GNU_GCC_REGEXP = /^gcc-(4\.[3-9]|[5-7])$/
   GNU_CXX11_REGEXP = /^gcc-(4\.[89]|[5-7])$/
-  GNU_CXX14_REGEXP = /^gcc-([5-7])$/
   GNU_C11_REGEXP = /^gcc-(4\.9|[5-7])$/
-  CLANG_CXX11_MIN = '3.3'
-  CLANG_CXX14_MIN = '5'
+  CLANG_CXX11_MIN = '5'
   COMPILER_SYMBOL_MAP = {
     "gcc-4.0"  => :gcc_4_0,
     "gcc-4.2"  => :gcc,
@@ -16,7 +14,7 @@ module CompilerConstants
 
   COMPILERS = COMPILER_SYMBOL_MAP.values +
               GNU_GCC_VERSIONS.map { |n| "gcc-#{n}" }
-end
+end # CompilerConstants
 
 class CompilerFailure
   attr_reader :name
@@ -47,7 +45,7 @@ class CompilerFailure
       version = 9999
     end
     new(name, version, &block)
-  end
+  end # CompilerFailure⸬create
 
   def initialize(name, version, &block)
     @name = name
@@ -55,13 +53,9 @@ class CompilerFailure
     instance_eval(&block) if block_given?
   end
 
-  def ===(compiler)
-    name == compiler.name && version >= compiler.version
-  end
+  def ===(compiler); name == compiler.name && version >= compiler.version; end
 
-  def inspect
-    "#<#{self.class.name}: #{name} #{version}>"
-  end
+  def inspect; "#<#{self.class.name}: #{name} #{version}>"; end
 
   COLLECTIONS = {
     :cxx11 => [
@@ -87,7 +81,7 @@ class CompilerFailure
       # there are undoubtedly others
     ]
   }
-end
+end # CompilerFailure
 
 class CompilerSelector
   include CompilerConstants
@@ -105,9 +99,7 @@ class CompilerSelector
     new(formula, MacOS, compilers).compiler
   end
 
-  def self.compilers
-    COMPILER_PRIORITY.fetch(MacOS.default_compiler)
-  end
+  def self.compilers; COMPILER_PRIORITY.fetch(MacOS.default_compiler); end
 
   attr_reader :formula, :failures, :versions, :compilers
 
@@ -127,8 +119,7 @@ class CompilerSelector
 
   def find_compiler
     compilers.each do |compiler|
-      case compiler
-      when :gnu
+      if compiler == :gnu
         GNU_GCC_VERSIONS.to_a.reverse.each do |v|
           name = "gcc-#{v}"
           version = compiler_version(name)
@@ -139,18 +130,15 @@ class CompilerSelector
         yield Compiler.new(compiler, version) if version
       end
     end
-  end
+  end # find_compiler
 
-  def fails_with?(compiler)
-    failures.any? { |failure| failure === compiler }
-  end
+  def fails_with?(compiler); failures.any? { |failure| failure === compiler }; end
 
   def compiler_version(name)
-    case name
-    when GNU_GCC_REGEXP
+    if name =~ GNU_GCC_REGEXP
       versions.non_apple_gcc_version(name)
     else
       versions.send("#{name}_build_version")
     end
-  end
-end
+  end # compiler_version
+end # CompilerSelector
