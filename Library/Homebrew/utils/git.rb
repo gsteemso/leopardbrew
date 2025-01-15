@@ -6,9 +6,9 @@ module Utils
     # git isn't installed by older Xcodes
     return @git = false if git.nil?
     # /usr/bin/git is a popup stub when Xcode/CLT aren't installed, so bail out
-    return @git = false if git == "/usr/bin/git" && !OS::Mac.has_apple_developer_tools?
+    return @git = false if git == "/usr/bin/git" && !MacOS.has_apple_developer_tools?
     @git = true
-  end
+  end # Utils⸬git_available?
 
   def self.ensure_git_installed!
     return if git_available?
@@ -23,9 +23,9 @@ module Utils
     end
 
     raise "Git is unavailable" unless git_available?
-  end
+  end # Utils⸬ensure_git_installed!
 
   def self.clear_git_available_cache
     remove_instance_variable(:@git) if instance_variable_defined?(:@git)
   end
-end
+end # Utils
