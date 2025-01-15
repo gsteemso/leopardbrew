@@ -89,14 +89,14 @@ module MacOS
     # remain public. New code should use MacOS::X11.bin, MacOS::X11.lib and
     # MacOS::X11.include instead, as that accounts for Xcode-only systems.
     def prefix
-      @prefix ||= if Pathname.new("/opt/X11/lib/libpng.dylib").exist?
-        Pathname.new("/opt/X11")
-      elsif Pathname.new("/usr/X11/lib/libpng.dylib").exist?
-        Pathname.new("/usr/X11")
-      # X11 doesn't include libpng on Tiger
-      elsif File.exist?("/usr/X11R6/lib/libX11.dylib")
-        Pathname.new("/usr/X11R6")
-      end
+      @prefix ||= if File.exists?("/opt/X11/lib/libpng.dylib")
+                    Pathname.new("/opt/X11")
+                  elsif File.exists?("/usr/X11/lib/libpng.dylib")
+                    Pathname.new("/usr/X11")
+                  # X11 doesn't include libpng on Tiger
+                  elsif File.exists?("/usr/X11R6/lib/libX11.dylib")
+                    Pathname.new("/usr/X11R6")
+                  end
     end # prefix
 
     def installed?; !version.nil? and !prefix.nil?; end
@@ -108,7 +108,7 @@ module MacOS
     # /opt/X11/bin or /usr/X11/bin in all cases.
     def effective_prefix
       if provided_by_apple? and Xcode.without_clt?
-        Pathname.new("#{OS::Mac.sdk_path}/usr/X11")
+        Pathname.new("#{MacOS.sdk_path}/usr/X11")
       else
         prefix
       end
