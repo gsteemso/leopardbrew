@@ -53,7 +53,10 @@ begin
   ENV['PATH'] += "#{File::PATH_SEPARATOR}#{HOMEBREW_LIBRARY}/ENV/scm"
 
   if cmd
-    internal_cmd = require? "cmd/#{cmd}" || (require? "dev-cmd/#{cmd}" if DEVELOPER)
+    internal_cmd = require? "cmd/#{cmd}"
+    if DEVELOPER and not internal_cmd
+      internal_cmd = require? "dev-cmd/#{cmd}"
+    end
   end
 
   # Usage instructions should be displayed if and only if one of:
