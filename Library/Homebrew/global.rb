@@ -22,10 +22,11 @@ end
 RbConfig = Config if RUBY_VERSION < '1.8.6'  # different module name on Tiger
 
 # Predefined pathnames:
-CONFIG_RUBY_PATH        = RbConfig.respond_to?(:ruby) \            # The current Ruby binary
+CONFIG_RUBY_PATH        = RbConfig.respond_to?(:ruby) \
                           ? Pathname.new(RbConfig.ruby) \
                           : Pathname.new(RbConfig::CONFIG['bindir'])/(RbConfig::CONFIG['ruby_install_name'] \
                                                                       + RbConfig::CONFIG['EXEEXT'])
+                                                                    # The current Ruby binary
   CONFIG_RUBY_BIN       =   CONFIG_RUBY_PATH.dirname                # Where it lives
 CURL_PATH               = Pathname.new(ENV['HOMEBREW_CURL_PATH'])
 HOMEBREW_CACHE          = Pathname.new(ENV['HOMEBREW_CACHE'])
