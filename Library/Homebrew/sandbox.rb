@@ -4,40 +4,30 @@ require "tempfile"
 class Sandbox
   SANDBOX_EXEC = "/usr/bin/sandbox-exec".freeze
 
-  def self.available?
-    OS.mac? && File.executable?(SANDBOX_EXEC)
-  end
+  def self.available?; File.executable?(SANDBOX_EXEC); end
 
   # there are times the sandbox cannot be used.
-  def self.auto_disable?
-    @auto_disable ||= ARGV.interactive? || DEBUG
-  end
+  def self.auto_disable?; @auto_disable ||= ARGV.interactive? || DEBUG; end
 
   def self.print_autodisable_warning
     unless @printed_autodisable_warning
       opoo "The sandbox cannot be used in debug or interactive mode."
       @printed_autodisable_warning = true
     end
-  end
+  end # Sandbox⸬print_autodisable_warning
 
   def self.print_sandbox_message
     unless @printed_sandbox_message
       ohai "Using the sandbox"
       @printed_sandbox_message = true
     end
-  end
+  end # Sandbox⸬print_sandbox_message
 
-  def initialize
-    @profile = SandboxProfile.new
-  end
+  def initialize; @profile = SandboxProfile.new; end
 
-  def record_log(file)
-    @logfile = file
-  end
+  def record_log(file); @logfile = file; end
 
-  def add_rule(rule)
-    @profile.add_rule(rule)
-  end
+  def add_rule(rule); @profile.add_rule(rule); end
 
   def allow_write(path, options = {})
     add_rule :allow => true, :operation => "file-write*", :filter => path_filter(path, options[:type])
@@ -47,13 +37,9 @@ class Sandbox
     add_rule :allow => false, :operation => "file-write*", :filter => path_filter(path, options[:type])
   end
 
-  def allow_write_path(path)
-    allow_write path, :type => :subpath
-  end
+  def allow_write_path(path); allow_write path, :type => :subpath; end
 
-  def deny_write_path(path)
-    deny_write path, :type => :subpath
-  end
+  def deny_write_path(path); deny_write path, :type => :subpath; end
 
   def allow_write_temp_and_cache
     allow_write_path "/private/tmp"
@@ -61,7 +47,7 @@ class Sandbox
     allow_write "^/private/var/folders/[^/]+/[^/]+/[C,T]/", :type => :regex
     allow_write_path HOMEBREW_TEMP
     allow_write_path HOMEBREW_CACHE
-  end
+  end # allow_write_temp_and_cache
 
   def allow_write_cellar(formula)
     allow_write_path formula.rack
@@ -74,9 +60,7 @@ class Sandbox
     allow_write_path "/Users/#{ENV["USER"]}/Library/Developer/Xcode/DerivedData/"
   end
 
-  def allow_write_log(formula)
-    allow_write_path formula.logs
-  end
+  def allow_write_log(formula); allow_write_path formula.logs; end
 
   def deny_write_homebrew_library
     deny_write_path HOMEBREW_LIBRARY
@@ -121,7 +105,7 @@ class Sandbox
         $stdout.flush # without it, brew test-bot would fail to catch the log
       end
     end
-  end
+  end # exec
 
   private
 
@@ -136,7 +120,7 @@ class Sandbox
     when :subpath      then "subpath \"#{expand_realpath(Pathname.new(path))}\""
     when :literal, nil then "literal \"#{expand_realpath(Pathname.new(path))}\""
     end
-  end
+  end # path_filter
 
   class SandboxProfile
     SEATBELT_ERB = <<-EOS.undent
@@ -161,9 +145,7 @@ class Sandbox
 
     attr_reader :rules
 
-    def initialize
-      @rules = []
-    end
+    def initialize; @rules = []; end
 
     def add_rule(rule)
       s = "("
@@ -173,10 +155,8 @@ class Sandbox
       s << " (with #{rule[:modifier]})" if rule[:modifier]
       s << ")"
       @rules << s
-    end
+    end # SandboxProfile#add_rule
 
-    def dump
-      ERB.new(SEATBELT_ERB).result(binding)
-    end
-  end
-end
+    def dump; ERB.new(SEATBELT_ERB).result(binding); end
+  end # SandboxProfile
+end # Sandbox
