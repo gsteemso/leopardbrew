@@ -11,7 +11,7 @@ module MacOS
 
   def prefer_64_bit?
     Hardware::CPU.is_64_bit? and version > :leopard or
-                               (version == :leopard and ENV["HOMEBREW_PREFER_64_BIT"])
+                                (version == :leopard and ENV["HOMEBREW_PREFER_64_BIT"])
   end
 
   def locate(tool)
@@ -32,39 +32,17 @@ module MacOS
     end
   end # locate(tool)
 
-  # Locates a (working) copy of install_name_tool, guaranteed to function
-  # whether the user has developer tools installed or not.
-  def install_name_tool
-    if (path = OPTDIR/'cctools/bin/install_name_tool').executable?
-      path
-    else
-      locate("install_name_tool")
-    end
-  end # install_name_tool
+  # Locates a (working) copy of each tool, guaranteed to function whether the
+  # user has developer tools installed or not.
+  ['install_name_tool', 'lipo', 'otool'].each do |tool|
+    define_method(tool.to_sym) {
+      (path = OPTDIR/"cctools/bin/#{tool}").executable? ? path : locate(tool)
+    }
+  end
 
-  # Locates a (working) copy of lipo, guaranteed to function whether the user
-  # has developer tools installed or not.
-  def lipo
-    if (path = OPTDIR/'cctools/bin/lipo').executable?
-      path
-    else
-      locate("lipo")
-    end
-  end # lipo
-
-  # Locates a (working) copy of otool, guaranteed to function whether the user
-  # has developer tools installed or not.
-  def otool
-    if (path = OPTDIR/'cctools/bin/otool').executable?
-      path
-    else
-      locate("otool")
-    end
-  end # otool
-
-  # Checks if the user has any developer tools installed, either via Xcode
-  # or the CLT. Convenient for guarding against formula builds when building
-  # is impossible.
+  # Checks if the user has any developer tools installed, either via Xcode or
+  # the CLT.  Convenient for guarding against formula builds when building is
+  # impossible.
   def has_apple_developer_tools?; Xcode.installed? or CLT.installed?; end
 
   def active_developer_dir
@@ -79,7 +57,7 @@ module MacOS
       opts = []
       # First query Xcode itself
       opts << Utils.popen_read(locate("xcodebuild"), "-version", "-sdk", "macosx#{v}", "Path").chomp
-      # Xcode.prefix is pretty smart, so lets look inside to find the sdk
+      # Xcode.prefix is pretty smart, so let’s look inside to find the sdk
       opts << "#{Xcode.prefix}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX#{v}.sdk"
       # Xcode < 4.3 style
       opts << "/Developer/SDKs/MacOSX#{v}.sdk"
@@ -87,10 +65,7 @@ module MacOS
     end
   end # sdk_path
 
-  def default_cc
-    cc = locate "cc"
-    cc.realpath.basename.to_s rescue nil
-  end
+  def default_cc; cc = locate 'cc'; cc.realpath.basename.to_s rescue nil; end
 
   def default_compiler
     case default_cc
@@ -109,10 +84,9 @@ module MacOS
   end # default_compiler
 
   def gcc_40_build_version
-    @gcc_40_build_version ||=
-      if (path = locate("gcc-4.0"))
-        `#{path} --version`[/build (\d{4,})/, 1].to_i
-      end
+    @gcc_40_build_version ||= if (path = locate 'gcc-4.0')
+                                `#{path} --version`[/build (\d{4,})/, 1].to_i
+                              end
   end # gcc_40_build_version
   alias_method :gcc_4_0_build_version, :gcc_40_build_version
 
@@ -128,23 +102,21 @@ module MacOS
 
   def llvm_build_version
     @llvm_build_version ||=
-      if (path = locate("llvm-gcc")) and path.realpath.basename.to_s !~ /^clang/
+      if (path = locate 'llvm-gcc') and path.realpath.basename.to_s !~ /^clang/
         `#{path} --version`[/LLVM build (\d{4,})/, 1].to_i
       end
   end # llvm_build_version
 
   def clang_version
-    @clang_version ||=
-      if (path = locate("clang"))
-        `#{path} --version`[/(?:clang|LLVM) version (\d\.\d)/, 1]
-      end
+    @clang_version ||= if (path = locate 'clang')
+                         `#{path} --version`[/(?:clang|LLVM) version (\d\.\d)/, 1]
+                       end
   end # clang_version
 
   def clang_build_version
-    @clang_build_version ||=
-      if (path = locate("clang"))
-        `#{path} --version`[/clang-(\d{2,})/, 1].to_i
-      end
+    @clang_build_version ||= if (path = locate 'clang')
+                               `#{path} --version`[/clang-(\d{2,})/, 1].to_i
+                             end
   end # clang_build_version
 
   def non_apple_gcc_version(cc)
@@ -260,10 +232,10 @@ module MacOS
     end
   rescue IndexError
     onoe <<-EOS.undent
-      Tigerbrew doesn't know what compiler versions ship with your version
-      of Xcode (#{Xcode.version}). Please `brew update` and if that doesn't help, file
+      Leopardbrew doesn’t know what compiler versions ship with your version of
+      Xcode (#{Xcode.version}). Please `brew update` and if that doesn’t help, file
       an issue with the output of `brew --config`:
-        https://github.com/mistydemeo/tigerbrew/issues
+          #{ISSUES_URL}
 
       Note that we only track stable, released versions of Xcode.
 
@@ -277,7 +249,6 @@ module MacOS
   end
 
   def mdfind(*ids)
-    return [] unless OS.mac?
     (@mdfind ||= {}).fetch(ids) do
       @mdfind[ids] = Utils.popen_read("/usr/bin/mdfind", mdfind_query(*ids)).split("\n")
     end
@@ -289,7 +260,5 @@ module MacOS
     end
   end
 
-  def mdfind_query(*ids)
-    ids.map! { |id| "kMDItemCFBundleIdentifier == #{id}" }.join(" || ")
-  end
+  def mdfind_query(*ids); ids.map! { |id| "kMDItemCFBundleIdentifier == #{id}" }.join(" || "); end
 end # MacOS
