@@ -6,34 +6,35 @@ LEOPARDBREW_VERSION='0.5'
 
 brew() { "$HOMEBREW_BREW_FILE" "$@" ; }
 
-odie() {
+onoe() {
   # If stderr is a terminal, underline “Error” & print it in red
-  if [ -t 2 ] ; then echo -ne "\033[4;31mError\033[0m:  " >&2
+  if [ -t 2 ]; then echo -ne "\033[4;31mError\033[0m:  " >&2
   else echo -n 'Error:  ' >&2 ; fi
-  if [ $# -eq 0 ] ; then /bin/cat >&2 ; else echo "$*" >&2 ; fi
-  exit 1
+  if [ $# -eq 0 ]; then /bin/cat >&2 ; else echo "$*" >&2 ; fi
 }
 
-safe_cd() { cd "$@" >/dev/null || odie "Error: failed to cd to $*!" ; }
+odie() { onoe "$@"; exit 1; }
+
+safe_cd() { cd "$@" >/dev/null || odie "Error: failed to cd to $*!"; }
 
 version_string() {
   maj="$(echo "$1" | cut -d . -f 1)"
-  min="$(echo "$1" | cut -d . -f 2)" ; if [ -z "$min" ] ; then min='00' ; fi
-  bug="$(echo "$1" | cut -d . -f 3)" ; if [ -z "$bug" ] ; then bug='00' ; fi
+  min="$(echo "$1" | cut -d . -f 2)"; if [ -z "$min" ]; then min='00'; fi
+  bug="$(echo "$1" | cut -d . -f 3)"; if [ -z "$bug" ]; then bug='00'; fi
   printf '%02.2s%02.2s%02.2s' "$maj" "$min" "$bug"
 }
 
 ###### Preliminaries ######
 
 # Force UTF-8 to avoid encoding issues for users with broken locale settings.
-if [ "$(locale charmap 2> /dev/null)" != 'UTF-8' ] ; then
+if [ "$(locale charmap 2> /dev/null)" != 'UTF-8' ]; then
   export LC_ALL='en_US.UTF-8'
 fi
 
 # Where we store built products.  [prefix]/Cellar if it exists ([prefix] is
 # “/usr/local” by default) – but usually [repository]/Cellar.
-if [ -d "$HOMEBREW_PREFIX/Cellar" ] ; then HOMEBREW_CELLAR="$HOMEBREW_PREFIX/Cellar"
-else HOMEBREW_CELLAR="$HOMEBREW_REPOSITORY/Cellar" ; fi
+if [ -d "$HOMEBREW_PREFIX/Cellar" ]; then HOMEBREW_CELLAR="$HOMEBREW_PREFIX/Cellar"
+else HOMEBREW_CELLAR="$HOMEBREW_REPOSITORY/Cellar"; fi
 
 case "$*" in
   --prefix) echo "$HOMEBREW_PREFIX"; exit 0 ;;
@@ -47,7 +48,7 @@ esac
 HOMEBREW_RUBY_LIBRARY="${HOMEBREW_LIBRARY}/Homebrew"
 
 # This should be set to the system “/Library/Caches/Homebrew” for a multi‐user machine.
-if [ -z "$HOMEBREW_CACHE" ] ; then HOMEBREW_CACHE="$HOME/Library/Caches/Homebrew" ; fi
+[ -z "$HOMEBREW_CACHE" ] && HOMEBREW_CACHE="$HOME/Library/Caches/Homebrew"
 
 ###### Sanity checks ######
 
@@ -56,11 +57,11 @@ if [ -z "$HOMEBREW_CACHE" ] ; then HOMEBREW_CACHE="$HOME/Library/Caches/Homebrew
 
 # Many Pathname operations use getwd() when they shouldn’t, and then fail in
 # strange ways.  Reduce our support burden by showing a user-friendly error.
-if [ ! -d "$(pwd)" ] ; then odie 'The current working directory doesn’t exist; cannot proceed.' ; fi
+[ -d "$(pwd)" ] || odie 'The current working directory doesn’t exist; cannot proceed.'
 
 ###### The command line ######
 
-if [ ! "$1" != -v ] ; then shift ; set -- "$@" -v ; fi
+if [ ! "$1" != -v ]; then shift; set -- "$@" -v; fi
 # Shift the -v to the end of the parameter list
 
 HOMEBREW_ARG_COUNT="$#"
@@ -89,7 +90,7 @@ elif [ -n "$HOMEBREW_DEVELOPER" -a -f "$HOMEBREW_RUBY_LIBRARY/dev-cmd/$HOMEBREW_
   HOMEBREW_BASH_COMMAND="$HOMEBREW_RUBY_LIBRARY/dev-cmd/$HOMEBREW_COMMAND.sh"
 fi
 
-if [ ! "$(id -u)" != '0' -a "$(/usr/bin/stat -f%u "$HOMEBREW_BREW_FILE")" != '0' ] ; then
+[ ! "$(id -u)" != '0' -a "$(/usr/bin/stat -f%u "$HOMEBREW_BREW_FILE")" != '0' ] &&
   case "$HOMEBREW_COMMAND" in
     install|reinstall|postinstall|link|pin|unpin|update|upgrade|vendor-install|create|migrate|tap|tap-pin|switch)
       odie <<EOS
@@ -100,7 +101,6 @@ your own risk.
 EOS
       ;;
   esac
-fi
 
 ###### Identity stuff ######
 
@@ -127,7 +127,7 @@ EOS
 
 XCRUN_OUTPUT="$(/usr/bin/xcrun clang 2>&1)"
 XCRUN_STATUS="$?"
-if [ "$XCRUN_STATUS" -ne 0 ] ; then
+[ "$XCRUN_STATUS" -ne 0 ] &&
   case "$XCRUN_OUTPUT" in
     *license*)
       odie <<EOS
@@ -136,7 +136,6 @@ You have not agreed to the Xcode license.  Please resolve this by running:
 EOS
       ;;
   esac
-fi
 
 ###### Ruby and Curl ######
 
@@ -179,7 +178,7 @@ export LEOPARDBREW_VERSION
 
 ###### Command execution ######
 
-if [ -n "$HOMEBREW_BASH_COMMAND" ] ; then
+if [ -n "$HOMEBREW_BASH_COMMAND" ]; then
   # Source rather than executing directly, to ensure the whole file is read into
   # memory before it is run.  This makes running a Bash script behave more like
   # a Ruby script and avoids hard-to-debug issues if the Bash script is updated
