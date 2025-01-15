@@ -38,7 +38,7 @@ class Libgcrypt < Formula
       cmd_set = (a.nil? ? [] : ['arch', '-arch', a.to_s])
       cmd_set << bin/'hmac256'
       system *cmd_set, '--version'
-      cmd_set << "'test key' #{HOMEBREW_LIBRARY_PATH}/test/fixtures/test.pdf"
+      cmd_set << 'test key' << test_fixtures('test.pdf')
       assert_match '0b81e0b2f9f9522b045f0016e03abae259b1dca38713630695be05deb82aea88', shell_output(cmd_set * ' ')
     end
   end
