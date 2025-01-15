@@ -176,7 +176,7 @@ def curl(*args)
   args << "--verbose" if ENV["HOMEBREW_CURL_VERBOSE"]
   args << "--silent" unless $stdout.tty?
 
-  safe_system curl, *args
+  safe_system CURL_PATH, *args
 end
 
 def puts_columns(items, star_items = [])
