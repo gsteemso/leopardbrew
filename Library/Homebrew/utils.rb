@@ -2,11 +2,11 @@ require "open-uri"  # Ruby libraries.
 require "pathname"  #
 # The rest are Homebrew libraries:
 require "exceptions"
+require "utils/fork"
+require "utils/git"
 require "utils/json"
 require "utils/inreplace"
 require "utils/popen"
-require "utils/fork"
-require "utils/git"
 
 def pretty_duration(s)
   m = (s/60).truncate; _s = (s - 60*m).round  # h, m, s are totals
@@ -15,33 +15,26 @@ def pretty_duration(s)
   elsif h < 2 then "#{m} minute#{plural(m)} and #{_s} second#{plural(_s)}"
   else "#{h} hour#{plural(h)}, #{_m} minute#{plural(_m)}, and #{_s} second#{plural(_s)}"
   end
-end
+end # pretty_duration
 
-def plural(n, plural = 's', singular = '')
-  (n == 1) ? singular : plural
-end
+def plural(n, plural = 's', singular = ''); (n == 1) ? singular : plural; end
 
 def interactive_shell(f = nil)
   unless f.nil?
     ENV["HOMEBREW_DEBUG_PREFIX"] = f.prefix
     ENV["HOMEBREW_DEBUG_INSTALL"] = f.full_name
   end
-
   if ENV["SHELL"].include?("zsh") && ENV["HOME"].start_with?(HOMEBREW_TEMP.resolved_path.to_s)
     FileUtils.touch "#{ENV["HOME"]}/.zshrc"
   end
-
   Process.wait fork { exec ENV["SHELL"] }
-
-  if $?.success?
-    return
+  if $?.success? then return
   elsif $?.exited?
     puts "Aborting due to non-zero exit status"
     exit $?.exitstatus
-  else
-    raise $?.inspect
+  else raise $?.inspect
   end
-end
+end # interactive_shell
 
 module Homebrew
   def self._system(cmd, *args)
@@ -53,12 +46,9 @@ module Homebrew
     end
     Process.wait(pid)
     $?.success?
-  end
+  end # Homebrew⸬_system
 
-  def self.system(cmd, *args)
-    puts "#{cmd} #{args*" "}".strip if VERBOSE
-    _system(cmd, *args)
-  end
+  def self.system(cmd, *args); puts "#{cmd} #{args*" "}".strip if VERBOSE; _system(cmd, *args); end
 
   def self.git_origin
     return unless Utils.git_available?
@@ -89,10 +79,9 @@ module Homebrew
     if pretty_revision = git_short_head
       last_commit = git_last_commit_date
       "#{LEOPARDBREW_VERSION} (git revision #{pretty_revision}; last commit #{last_commit})"
-    else
-      "#{LEOPARDBREW_VERSION} (no git repository)"
+    else "#{LEOPARDBREW_VERSION} (no git repository)"
     end
-  end
+  end # Homebrew⸬homebrew_version_string
 
   def self.install_gem_setup_path!(gem, version = nil, executable = gem)
     require "rubygems"
@@ -106,7 +95,7 @@ module Homebrew
       The '#{gem}' gem is installed but couldn't find '#{executable}' in the PATH:
       #{ENV["PATH"]}
     EOS
-  end # ⸬install_gem_setup_path!
+  end # Homebrew⸬install_gem_setup_path!
 end # Homebrew
 
 def with_system_path
@@ -115,18 +104,18 @@ def with_system_path
   yield
 ensure
   ENV["PATH"] = old_path
-end
+end # with_system_path
 
 def run_as_not_developer(&_block)
   old = ENV.delete "HOMEBREW_DEVELOPER"
   yield
 ensure
   ENV["HOMEBREW_DEVELOPER"] = old
-end
+end # run_as_not_developer
 
 # Kernel.system but with exceptions
 def safe_system(cmd, *args)
-  Homebrew.system(cmd, *args) || raise(ErrorDuringExecution.new(cmd, args))
+  Homebrew.system(cmd, *args) or raise(ErrorDuringExecution.new(cmd, args))
 end
 
 # prints no output
@@ -177,7 +166,7 @@ def curl(*args)
   args << "--silent" unless $stdout.tty?
 
   safe_system CURL_PATH, *args
-end
+end # curl
 
 def puts_columns(items, star_items = [])
   return if items.empty?
@@ -198,7 +187,7 @@ def puts_columns(items, star_items = [])
   else
     puts items
   end
-end
+end # puts_columns
 
 def which(cmd, path = ENV["PATH"])
   path.split(File::PATH_SEPARATOR).each do |p|
@@ -212,44 +201,30 @@ def which(cmd, path = ENV["PATH"])
     return Pathname.new(pcmd) if File.file?(pcmd) && File.executable?(pcmd)
   end
   nil
-end
+end # which
 
 def which_editor
   editor = ENV.values_at("HOMEBREW_EDITOR", "VISUAL", "EDITOR").compact.first
   return editor unless editor.nil?
-
-  # Find Textmate
-  editor = "mate" if which "mate"
-  # Find BBEdit / TextWrangler
-  editor ||= "edit" if which "edit"
-  # Find vim
-  editor ||= "vim" if which "vim"
-  # Default to standard vim
-  editor ||= "/usr/bin/vim"
-
+  # Find Textmate, or BBEdit / TextWrangler, or vim, or default to standard vim
+  editor = which('mate') || which('edit') || which('vim') || '/usr/bin/vim'
   opoo <<-EOS.undent
     Using #{editor} because no editor was set in the environment.
     This may change in the future, so we recommend setting EDITOR, VISUAL,
     or HOMEBREW_EDITOR to your preferred text editor.
   EOS
-
   editor
-end
+end # which_editor
 
-def exec_editor(*args)
-  safe_exec(which_editor, *args)
-end
+def exec_editor(*args); safe_exec(which_editor, *args); end
 
 def exec_browser(*args)
   browser = ENV["HOMEBREW_BROWSER"] || ENV["BROWSER"] || OPEN_PATH
   safe_exec(browser, *args)
 end
 
-def safe_exec(cmd, *args)
-  # This buys us proper argument quoting and evaluation
-  # of environment variables in the cmd parameter.
-  exec "/bin/sh", "-c", "#{cmd} \"$@\"", "--", *args
-end
+# To get proper argument quoting & evaluation of environment variables in the cmd parameter.
+def safe_exec(cmd, *args); exec "/bin/sh", "-c", "#{cmd} \"$@\"", "--", *args; end
 
 # GZips the given paths, and returns the gzipped paths
 def gzip(*paths)
@@ -257,7 +232,7 @@ def gzip(*paths)
     with_system_path { safe_system "gzip", path }
     Pathname.new("#{path}.gz")
   end
-end
+end # gzip
 
 # Returns array of architectures that the given command or library is built for.
 # Expects a bare string.  If you have a Pathname just use its #archs method.
@@ -273,7 +248,7 @@ def ignore_interrupts(opt = nil)
   yield
 ensure
   trap("INT", std_trap)
-end
+end # ignore_interrupts
 
 def nostdout
   if VERBOSE
@@ -288,7 +263,7 @@ def nostdout
       out.close
     end
   end
-end
+end # nostdout
 
 def paths
   @paths ||= ENV["PATH"].split(File::PATH_SEPARATOR).collect do |p|
@@ -298,7 +273,7 @@ def paths
       onoe "The following PATH component is invalid: #{p}"
     end
   end.uniq.compact
-end
+end # paths
 
 # return the shell profile file based on users' preference shell
 def shell_profile
@@ -308,10 +283,12 @@ def shell_profile
   when %r{/ksh} then "~/.kshrc"
   else "~/.bash_profile"
   end
-end
+end # shell_profile
 
 module GitHub
   extend self
+
+  # overrides the global one
   ISSUES_URI = URI.parse("https://api.github.com/search/issues")
 
   Error = Class.new(RuntimeError)
@@ -334,7 +311,7 @@ module GitHub
         "#{seconds} seconds"
       end
     end
-  end
+  end # RateLimitExceeded < Error
 
   class AuthenticationFailedError < Error
     def initialize(error)
@@ -344,7 +321,7 @@ module GitHub
           https://github.com/settings/tokens
                     EOS
     end
-  end
+  end # AuthenticationFailedError < Error
 
   def open(url, &_block)
     # This is a no-op if the user is opting out of using the GitHub API.
@@ -370,7 +347,7 @@ module GitHub
     rescue Utils::JSON::Error => e
       raise Error, "Failed to parse JSON response\n#{e.message}", e.backtrace
     end
-  end
+  end # open
 
   def handle_api_error(e)
     if e.io.meta["x-ratelimit-remaining"].to_i <= 0
@@ -387,7 +364,7 @@ module GitHub
     else
       raise Error, e.message, e.backtrace
     end
-  end
+  end # handle_api_error
 
   def issues_matching(query, qualifiers = {})
     uri = ISSUES_URI.dup
@@ -412,7 +389,7 @@ module GitHub
     }.update(qualifiers).map do |qualifier, value|
       "#{qualifier}:#{value}"
     end.join("+")
-  end
+  end # build_search_qualifier_string
 
   def uri_escape(query)
     if URI.respond_to?(:encode_www_form_component)
@@ -421,19 +398,15 @@ module GitHub
       require "erb"
       ERB::Util.url_encode(query)
     end
-  end
+  end # uri_escape
 
-  def issues_for_formula(name)
-    issues_matching(name, :state => "open")
-  end
+  def issues_for_formula(name); issues_matching(name, :state => "open"); end
 
   def print_pull_requests_matching(query)
     # Disabled on older Ruby versions - see above
     return [] if ENV["HOMEBREW_NO_GITHUB_API"] || RUBY_VERSION < "1.8.7"
     ohai "Searching pull requests..."
-
     open_or_closed_prs = issues_matching(query, :type => "pr")
-
     open_prs = open_or_closed_prs.select { |i| i["state"] == "open" }
     if open_prs.any?
       puts "Open pull requests:"
@@ -444,12 +417,11 @@ module GitHub
     else
       return
     end
-
     prs.each { |i| puts "#{i["title"]} (#{i["html_url"]})" }
-  end
+  end # print_pull_requests_matching
 
   def private_repo?(user, repo)
     uri = URI.parse("https://api.github.com/repos/#{user}/#{repo}")
     open(uri) { |json| json["private"] }
   end
-end
+end # GitHub
