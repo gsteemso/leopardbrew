@@ -181,8 +181,8 @@ module MacOS
 
   def counterpart_type(main_type)
     case main_type
-      when :arm, :ppc then :intel
-      when :intel then (version >= :catalina ? :arm : :ppc)
+      when :arm, :powerpc then :intel
+      when :intel then (version >= :catalina ? :arm : :powerpc)
       else :dunno
     end
   end # counterpart_type

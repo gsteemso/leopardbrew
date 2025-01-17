@@ -28,8 +28,8 @@ class ArchRequirement < Requirement
   satisfy(:build_env => false) do
     case @arch
     when :x86_64 then MacOS.prefer_64_bit? and Hardware::CPU.intel?
-    when :ppc64 then MacOS.prefer_64_bit? and Hardware::CPU.ppc?
-    when :intel, :ppc then Hardware::CPU.type == @arch
+    when :ppc64 then MacOS.prefer_64_bit? and Hardware::CPU.powerpc?
+    when :intel, :ppc then Hardware::CPU.arch == @arch
     end
   end
 
