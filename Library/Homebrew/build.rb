@@ -129,6 +129,8 @@ class Build
         formula.install
       end
 
+      raise RuntimeError('Empty installation; aborting') if formula.prefix.children.empty?
+
       stdlibs = detect_stdlibs(ENV.compiler)
       Tab.create(formula, ENV.compiler, stdlibs.first, formula.build, get_archs).write
 
