@@ -50,18 +50,15 @@ class Cmd
     when 'ld' then 'ld'
     when 'cpp' then 'cpp'
     when /\w\+\+(-\d+(\.\d)?)?$/
-      case ENV['HOMEBREW_CC']
-      when /clang/
-        'clang++'
-      when /llvm-gcc/
-        'llvm-g++-4.2'
-      when /gcc(-\d+(\.\d)?)?$/
-        'g++' + $1.to_s
+      case ENV['HOMEBREW_CC']  # note that all of these ignore anything else in $CC
+        when /clang/ then 'clang++'
+        when /llvm-gcc/ then 'llvm-g++-4.2'
+        when /gcc(-\d+(\.\d)?)?$/ then 'g++' + $1.to_s
       end
     else
       # Note that this is a universal fallback, so that we'll always invoke HOMEBREW_CC regardless
       # of what name the tool was invoked under.
-      ENV['HOMEBREW_CC']
+      ENV['HOMEBREW_CC'].split(' ', 2)[0]  # leave out everything except the actual tool name
     end
   end
 
@@ -206,7 +203,6 @@ class Cmd
     cflag_args << '-w' unless configure? or ENV['HOMEBREW_DISABLE__W']
     cflag_args << "-#{ENV['HOMEBREW_OPTIMIZATION_LEVEL']}" unless ENV['HOMEBREW_OPTIMIZATION_LEVEL'].nil?
     cflag_args.concat(optflags)
-    cflag_args.concat(archflags)
     cflag_args << "-std=#{@arg0}" if @arg0 =~ /c[89]9/
     cflag_args.concat(ENV.fetch('HOMEBREW_FORCE_FLAGS', '').split ' ')
     cflag_args

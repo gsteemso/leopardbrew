@@ -18,11 +18,10 @@ module Stdenv
 
   # @private
   def setup_build_environment(formula = nil, archset = nil)
-    super
+    super(formula, archset)
 
     if MacOS.version >= :mountain_lion
-      # Mountain Lion's sed is stricter, and errors out when
-      # it encounters files with mixed character sets
+      # Mountain Lion's sed errors out on files with mixed character sets
       delete("LC_ALL")
       self["LC_CTYPE"]="C"
     end
@@ -35,24 +34,23 @@ module Stdenv
     self["ACLOCAL_PATH"] = "#{HOMEBREW_PREFIX}/share/aclocal" \
       if MacOS.has_apple_developer_tools? and MacOS::Xcode.provides_autotools?
 
-    self["MAKEFLAGS"] = "-j#{make_jobs}"
+    self["MAKEFLAGS"] ||= "-j#{make_jobs}"
 
+    # /usr/local is already an -isystem and -L directory so we skip it
     unless HOMEBREW_PREFIX.to_s == "/usr/local"
-      # /usr/local is already an -isystem and -L directory so we skip it
       self["CPPFLAGS"] = "-isystem#{HOMEBREW_PREFIX}/include"
       self["LDFLAGS"] = "-L#{HOMEBREW_PREFIX}/lib"
       # CMake ignores the variables above
       self["CMAKE_PREFIX_PATH"] = HOMEBREW_PREFIX.to_s
     end
 
-    frameworks = HOMEBREW_PREFIX.join("Frameworks")
-    if frameworks.directory?
-      append "CPPFLAGS", "-F#{frameworks}"
-      append "LDFLAGS", "-F#{frameworks}"
+    if (frameworks = HOMEBREW_PREFIX/'Frameworks').directory?
+      append ["CPPFLAGS", "LDFLAGS"], "-F#{frameworks}"
       self["CMAKE_FRAMEWORK_PATH"] = frameworks.to_s
     end
 
     # Os is the default Apple uses for all its stuff so let's trust them
+    # weirdly, GNU autotools look in $CC for -arch flags if they look at all
     set_cflags "-Os #{SAFE_CFLAGS_FLAGS}"
 
     append "LDFLAGS", "-Wl,-headerpad_max_install_names"
@@ -67,23 +65,17 @@ module Stdenv
     # Add lib and include etc. from the current macosxsdk to compiler flags:
     macosxsdk MacOS.version
 
-    if MacOS::Xcode.without_clt?
-      append_path "PATH", "#{MacOS::Xcode.prefix}/usr/bin"
-      append_path "PATH", "#{MacOS::Xcode.toolchain_path}/usr/bin"
-    end
+    append_path "PATH", "#{MacOS::Xcode.prefix}/usr/bin:#{MacOS::Xcode.toolchain_path}/usr/bin" \
+      if MacOS::Xcode.without_clt?
 
     # Leopard's ld needs some convincing that it's building 64-bit
     # See: https://github.com/mistydemeo/tigerbrew/issues/59
-    if MacOS.version == :leopard && MacOS.prefer_64_bit?
-      append 'LDFLAGS', "-arch #{Hardware::CPU.arch_64_bit}"
-
-      # Many, many builds are broken thanks to Leopard's buggy ld.
-      # Our ld64 fixes many of those builds, though of course we can't
-      # depend on it already being installed to build itself.
+    if MacOS.version == :leopard and MacOS.prefer_64_bit? and archset.detect{ |a| a.to_s.ends_with? '64' }
+      append 'LDFLAGS', archset.as_arch_flags
+      # Many, many builds are broken by Leopard’s buggy ld.  Our ld64 fixes
+      # many of them, though obviously we can’t depend on it to build itself.
       ld64 if Formula.factory('ld64').installed?
     end
-
-    set_build_archs(archset) if archset
   end # setup_build_environment
 
   # @private
@@ -222,24 +214,20 @@ module Stdenv
   # we've seen some packages fail to build when warnings are disabled!
   def enable_warnings; remove_from_cflags "-w"; end
 
-  def m64
-    append_to_cflags "-m64"
-    append_to_cflags "-arch #{Hardware::CPU.arch_64_bit}"
-  end
-
-  def un_m64
-    remove_from_cflags '-m64'
-    remove_from_cflags "-arch #{Hardware::CPU.arch_64_bit}"
-  end
-
-  def m32
-    append_to_cflags "-m32"
-    append_to_cflags "-arch #{Hardware::CPU.arch_32_bit}"
-  end
+  def m32; super; append_to_cflags "-m32"; end
 
   def un_m32
+    super
     remove_from_cflags '-m32'
-    remove_from_cflags "-arch #{Hardware::CPU.arch_32_bit}"
+    Hardware::CPU.all_32b_archs.each { |af| remove 'LDFLAGS', "-arch #{af}" }
+  end
+
+  def m64; super; append_to_cflags "-m64"; end
+
+  def un_m64
+    super
+    remove_from_cflags '-m64'
+    Hardware::CPU.all_64b_archs.each { |af| remove 'LDFLAGS', "-arch #{af}" }
   end
 
   def set_build_archs(archset)

@@ -37,7 +37,7 @@ module Superenv
 
   # @private
   def setup_build_environment(formula = nil, archset = nil)
-    super
+    super(formula, archset)
     send(compiler)
 
     self["MAKEFLAGS"]            ||= "-j#{determine_make_jobs}"
@@ -156,20 +156,18 @@ module Superenv
       # -march=<cpu family> to do the right thing because we might be running
       # in a VM or on a Hackintosh.
       Hardware::CPU.optimization_flags.fetch(Hardware.oldest_cpu)
-    elsif compiler == :clang
-      "-march=native"
-    else
-      Hardware::CPU.optimization_flags.fetch(Hardware::CPU.model)
+    elsif compiler == :clang then "-march=native"
+    else Hardware::CPU.optimization_flags.fetch(Hardware::CPU.model)
+      # TODO:  Match these to the compiler version (GCC 4.2 doesn’t know
+      # about any of the more recent stuff)
     end
   end # determine_optflags
 
   def determine_archflags(archset)
-    (archset and archset.as_arch_flags) \
-      or (build_archs = self['HOMEBREW_BUILD_ARCHS'] \
-           and build_archs.split(' ').map { |a| "-arch #{a}" }.join(' ') \
-         ) \
-      or self['HOMEBREW_ARCHFLAGS'] \
-      or ''
+    if archset then archset.as_arch_flags
+    elsif build_archs = self['HOMEBREW_BUILD_ARCHS']
+      build_archs.split(' ').map { |a| "-arch #{a}" }.join(' ')
+    else self['HOMEBREW_ARCHFLAGS'] || ''; end
   end # determine_archflags
 
   def determine_cmake_prefix_path
@@ -200,7 +198,7 @@ module Superenv
     paths.to_path_s
   end # determine_aclocal_path
 
-  def determine_m4; m4 = Formula['m4']; m4.installed? ? m4.opt_bin/'m4' : MacOS.locate("m4"); end
+  def determine_m4; m4 = Formula['m4']; m4.installed? ? m4.opt_bin/'m4' : MacOS.locate('m4'); end
 
   def determine_isystem_paths; (common_include_paths.unshift "#{HOMEBREW_PREFIX}/include").to_path_s; end
 
@@ -232,34 +230,38 @@ module Superenv
     append('HOMEBREW_CCCFG', datum, '') unless self['HOMEBREW_CCCFG'].includes? datum
   end
 
-  def cccfg_remove(datum); remove 'HOMEBREW_CCCFG', datum if self['HOMEBREW_CCCFG'].includes? datum; end
+  def cccfg_remove(datum); remove 'HOMEBREW_CCCFG', datum \
+                                 if self['HOMEBREW_CCCFG'].includes? datum; end
 
   def set_build_archs(archset)
     super
     self['HOMEBREW_ARCHFLAGS'] = archset.as_arch_flags
     self['CMAKE_OSX_ARCHITECTURES'] = archset.as_cmake_arch_flags
     # GCC doesn’t accept “-march” for a 32-bit CPU with “-arch x86_64”
-    self['HOMEBREW_OPTFLAGS'] = self['HOMEBREW_OPTFLAGS'].sub(
-        /-march=\S*/, '-Xarch_i386 \0'
-      ) if compiler != :clang and archset.includes? :x86_64
+    self['HOMEBREW_OPTFLAGS'].sub!(/-march=\S*/, '-Xarch_i386 \0') \
+                            if compiler != :clang and archset.includes? :x86_64
   end
 
   def m32
+    super
     append "HOMEBREW_ARCHFLAGS", "-m32 -arch #{Hardware::CPU.arch_32_bit}"
   end
 
   def un_m32
+    super
     remove 'HOMEBREW_ARCHFLAGS', '-m32'
-    remove 'HOMEBREW_ARCHFLAGS', "-arch #{Hardware::CPU.arch_32_bit}"
+    Hardware::CPU.all_32b_archs.each { |af| remove 'HOMEBREW_ARCHFLAGS', "-arch #{af}" }
   end
 
   def m64
+    super
     append "HOMEBREW_ARCHFLAGS", "-m64 -arch #{Hardware::CPU.arch_64_bit}"
   end
 
   def un_m64
+    super
     remove 'HOMEBREW_ARCHFLAGS', '-m64'
-    remove 'HOMEBREW_ARCHFLAGS', "-arch #{Hardware::CPU.arch_64_bit}"
+    Hardware::CPU.all_64b_archs.each { |af| remove 'HOMEBREW_ARCHFLAGS', "-arch #{af}" }
   end
 
   def cxx11

@@ -30,8 +30,7 @@ module SharedEnvExtension
   def setup_build_environment(formula = nil, archset = nil)
     @formula = formula
     reset
-    set_build_archs(archset ? archset : MacOS.preferred_arch_as_list) \
-      unless self['HOMEBREW_BUILD_ARCHS']
+    set_build_archs(archset || self['HOMEBREW_BUILD_ARCHS'] || MacOS.preferred_arch_as_list)
   end # setup_build_environment
 
   # @private
@@ -263,7 +262,27 @@ module SharedEnvExtension
 
   def universal_binary; set_build_archs(Hardware::CPU.universal_archs); end
 
-  def set_build_archs(archset); self['HOMEBREW_BUILD_ARCHS'] = archset.as_build_archs; end
+  def set_build_archs(archset)
+    hba = self['HOMEBREW_BUILD_ARCHS']
+    hba.split(' ').each { |arch| remove ['CC', 'CXX'], "-arch #{arch}" } if hba
+    archset.extend ArchitectureListExtension unless archset.respond_to?(:fat?)
+    self['HOMEBREW_BUILD_ARCHS'] = archset.as_build_archs
+    archset.each { |arch| append ['CC', 'CXX'], "-arch #{arch}" }
+  end # set_build_archs
+
+  def m32; set_build_archs [Hardware::CPU.arch_32_bit]; end
+
+  def un_m32
+    Hardware::CPU.all_32b_archs.each { |af| remove [CC, CXX], "-arch #{af}" }
+    remove HOMEBREW_BUILD_ARCHS, Hardware::CPU.arch_32_bit
+  end
+
+  def m64; set_build_archs [Hardware::CPU.arch_64_bit]; end
+
+  def un_m64
+    Hardware::CPU.all_64b_archs.each { |af| remove [CC, CXX], "-arch #{af}" }
+    remove HOMEBREW_BUILD_ARCHS, Hardware::CPU.arch_64_bit
+  end
 
   private
 
