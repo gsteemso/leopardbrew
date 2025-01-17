@@ -59,9 +59,6 @@ class Gnutls < Formula
     end
     ENV['GMP_CFLAGS'] = "-I#{Formula['gmp'].opt_include}"
     ENV['GMP_LIBS'] = "-L#{Formula['gmp'].opt_lib}"
-    # autotools configuration tests for universal builds by checking for -arch flags in _$CC_, of
-    #   all places!  So, give it what it wants (under stdenv it already is):
-    ENV['CC'] = "#{ENV['HOMEBREW_CC']} #{ENV['HOMEBREW_ARCHFLAGS']}".strip if build.universal? and superenv?
     system './configure', *args
     system 'make', 'install'
     # certtool shadows the OS X certtool utility
