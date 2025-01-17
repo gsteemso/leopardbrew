@@ -1,25 +1,40 @@
 # This file is loaded before `global.rb`, so must eschew many Homebrew‐isms at
 # eval time.
 
+ARM_ARCHS = [:arm, :arm64, :arm64_32].freeze
+
+INTEL_ARCHS = [:i386, :x86_64].freeze;
+
+POWERPC_ARCHS = [:ppc, :ppc64].freeze;
+
 module ArchitectureListExtension  # applicable to arrays of architecture symbols
   # @private
   def fat?; length > 1; end
 
   # @private
-  def intel_universal?; [:i386, :x86_64].all? { |arch| self.include? arch }; end
+  def intel_universal?; true if INTEL_ARCHS.all? { |arch| self.include? arch }; end
 
   # @private
-  def ppc_universal?; [:ppc, :ppc64].all? { |arch| self.include? arch }; end
+  def ppc_universal?; true if POWERPC_ARCHS.all? { |arch| self.include? arch }; end
 
-  # Most often old-style 32-bit PPC/Intel universal, e.g. ppc and i386,
-  # but can also be Leopard‐style quad fat binaries, or what have you.
+  # Most often old-style 32-bit PPC/Intel universal, e.g. ppc and i386, but can
+  # also be Leopard‐style quad fat binaries, or what have you.
   # @private
-  def cross_universal?; intersects_all?([:ppc, :ppc64], [:i386, :x86_64]); end
+  def cross_universal?; true if intersects_all?(INTEL_ARCHS, POWERPC_ARCHS); end
 
-  def universal_2?; [:arm64, :x86_64].all? { |arch| self.includes? arch }; end
+  # Don’t know if these can even be generated, but it’s conceivable.
+  # @private
+  def truly_universal?; true if intersects_all?(ARM_ARCHS, INTEL_ARCHS, POWERPC_ARCHS); end
 
   # @private
-  def universal?; intel_universal? or ppc_universal? or cross_universal? or universal_2?; end
+  def universal_2?; true if [:arm64, :x86_64].all? { |arch| self.includes? arch }; end
+
+  # @private
+  def universal?; intel_universal? or ppc_universal? or cross_universal? or universal_2? or truly_universal?; end
+
+  def subset(archs)
+    return self.select { |a| Array(archs).includes? a }
+  end
 
   def as_arch_flags; map { |a| "-arch #{a.to_s}" }.join(' '); end
 
@@ -29,7 +44,7 @@ module ArchitectureListExtension  # applicable to arrays of architecture symbols
 
   protected
 
-  def intersects_all?(*set); set.all? { |archset| archset.any? { |a| self.includes? a } }; end
+  def intersects_all?(*asets); asets.all? { |aset| aset.any? { |a| self.includes? a } }; end
 end # ArchitectureListExtension
 
 # only useable when included in Pathname
