@@ -1,13 +1,15 @@
+require 'fileutils'
 require "open3"
 require "pathname"
 require "mach"
-require "resource"
 require "metafiles"
+require "resource"
 
 # Homebrew extends Ruby's `Pathname` to make our code more readable.
 # @see http://ruby-doc.org/stdlib-1.8.7/libdoc/pathname/rdoc/Pathname.html  Ruby's Pathname API
 class Pathname
   include MachO
+  include FileUtils
 
   # @private
   BOTTLE_EXTNAME_RX = /(\.[a-z0-9_]+\.bottle\.(\d+\.)?tar\.gz)$/
@@ -72,16 +74,15 @@ class Pathname
     src = Pathname(src).expand_path(self)
     dst = join(new_basename)
     mkpath
-    FileUtils.ln_sf(src.relative_path_from(dst.parent), dst)
+    ln_sf(src.relative_path_from(dst.parent), dst)
   end # install_symlink_p
   private :install_symlink_p
 
   # @private
   alias_method :old_write, :write if method_defined?(:write)
-
   # we assume this pathname object is a file obviously
   def write(content, *open_args)
-    raise "Will not overwrite #{self}" if exist?
+    raise "Will not overwrite #{self}" if exists?
     dirname.mkpath
     open("w", *open_args) { |f| f.write(content) }
   end
@@ -129,13 +130,7 @@ class Pathname
   end # default_stat
   private :default_stat
 
-  # @private
-  def cp(dst)
-    opoo "Pathname#cp is deprecated, use FileUtils.cp"
-    if file? then FileUtils.cp to_s, dst
-    else FileUtils.cp_r to_s, dst; end
-    dst
-  end # cp
+# Pathname#cp(dst) is deprecated, use FileUtils.cp
 
   # @private
   def cp_path_sub(pattern, replacement)
@@ -146,13 +141,12 @@ class Pathname
     else
       dst.dirname.mkpath
       dst = yield(self, dst) if block_given?
-      FileUtils.cp(self, dst)
+      cp(self, dst)
     end
   end # cp_path_sub
 
   # @private
   alias_method :extname_old, :extname
-
   # extended to support common double extensions
   def extname(path = to_s)
     BOTTLE_EXTNAME_RX.match(path)
@@ -179,11 +173,7 @@ class Pathname
     false
   end # rmdir_if_possible
 
-  # @private
-  def chmod_R(perms)
-    opoo 'Pathname#chmod_R is deprecated, use FileUtils.chmod_R'
-    require 'fileutils'; FileUtils.chmod_R perms, to_s
-  end
+# Pathname#chmod_R(perms) is deprecated, use FileUtils.chmod_R
 
   # @private
   def version; require 'version'; Version.parse(self); end

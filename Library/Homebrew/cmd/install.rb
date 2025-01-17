@@ -152,7 +152,7 @@ module Homebrew
   end # check_macports
 
   def check_cellar
-    FileUtils.mkdir_p HOMEBREW_CELLAR unless HOMEBREW_CELLAR.exists?
+    HOMEBREW_CELLAR.mkdir_p unless HOMEBREW_CELLAR.exists?
   rescue
     raise <<-EOS.undent
       Could not create #{HOMEBREW_CELLAR}
