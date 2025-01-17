@@ -23,13 +23,13 @@
 #: --ci-upload:           Homebrew CI bottle upload.
 #: --ci-reset-and-update: Homebrew CI repository and tap reset and update.
 
-require "formula"
-require "utils"
 require "date"
 require "rexml/document"
 require "rexml/xmldecl"
 require "rexml/cdata"
 require "cmd/tap"
+require "formula"
+require "utils"
 
 module Homebrew
   EMAIL_SUBJECT_FILE = "brew-test-bot.#{MacOS.codename}.email.txt"

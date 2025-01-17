@@ -99,12 +99,12 @@ class Tab < OpenStruct
     attrs['built_archs'] ||= []
     attrs['source'] ||= {}
     tp_fm = attrs['tapped_from']
-    attrs['source']['tap'] = attrs.delete('tapped_from') if tp_fm and tp_fm != 'path or URL'
-    attrs['source']['tap'] = 'Homebrew/homebrew' if attrs['source']['tap'] == 'mxcl/master'
     if attrs['source']['spec'].nil?
       version = PkgVersion.parse path.to_s.split('/')[-2]
       attrs['source']['spec'] = version.head? ? 'head' : 'stable'  # usually correct, devel is rare
     end
+    attrs['source']['tap'] = attrs.delete('tapped_from') if tp_fm and tp_fm != 'path or URL'
+    attrs['source']['tap'] = 'Homebrew/homebrew' if attrs['source']['tap'] == 'mxcl/master'
     attrs['tabfile'] = path
     new(attrs)
   end # Tab::from_file_content
