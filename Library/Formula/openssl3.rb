@@ -6,7 +6,7 @@ class Openssl3 < Formula
   license 'Apache-2.0'
 
   option :universal
-  option 'without-tests', 'Skip the build‐time unit tests (not recommended for a first install)'
+  option 'without-tests', 'Skip the build‐time unit tests (not recommended on first install)'
 
   keg_only :provided_by_osx
 
@@ -19,23 +19,24 @@ class Openssl3 < Formula
 
   def arg_format(arch)
     case arch
-      when :x86_64 then 'darwin64-x86_64-cc'
-      when :i386   then 'darwin-i386-cc'
-      when :ppc    then 'darwin-ppc-cc'
-      when :ppc64  then 'darwin64-ppc-cc'
+      when :arm64  then 'darwin64-arm64'
+      when :i386   then 'darwin-i386'
+      when :ppc    then 'darwin-ppc'
+      when :ppc64  then 'darwin64-ppc'
+      when :x86_64 then 'darwin64-x86_64'
     end
   end
 
   def install
-    # Build breaks passing -w
+    # Build breaks passing -w.
     ENV.enable_warnings if ENV.compiler == :gcc_4_0
-    # Leopard and newer have the crypto framework
+    # Leopard and newer have the crypto framework.
     ENV.append_to_cflags '-DOPENSSL_NO_APPLE_CRYPTO_RANDOM' if MacOS.version == :tiger
     # This could interfere with how we expect OpenSSL to build.
     ENV.delete('OPENSSL_LOCAL_CONFIG_DIR')
     # This ensures where Homebrew's Perl is needed the Cellar path isn't
-    # hardcoded into OpenSSL's scripts, causing them to break every Perl update.
-    # Whilst our env points to opt_bin, by default OpenSSL resolves the symlink.
+    # hardcoded into OpenSSL's scripts, breaking them every Perl update.  Our
+    # env does point to opt_bin, but by default OpenSSL resolves the symlink.
     ENV['PERL'] = Formula['perl'].opt_bin/'perl'
 
     if build.universal?
@@ -63,25 +64,31 @@ class Openssl3 < Formula
     args = [
       "--prefix=#{prefix}",
       "--openssldir=#{openssldir}",
-#      'no-atexit',  # maybe this will stop the segfaults?
-      'no-legacy',  # for no apparent reason, the legacy provider fails `make test`
+      'no-legacy',  # for whatever reason, the build tests fail to locate the legacy provider
+      'no-makedepend',
       'enable-trace',
-      'zlib-dynamic'
     ]
     args << 'sctp' if MacOS.version > :leopard  # pre‐Snow Leopard lacks these system headers
+    args << 'enable-tfo' if MacOS.version >= :mojave  # pre-Mojave doesn’t support TCP Fast Open
     args << 'enable-brotli-dynamic' if enhanced_by? 'brotli'
+    args << 'zlib-dynamic' if enhanced_by? 'zlib'
     args << 'enable-zstd-dynamic' if enhanced_by? 'zstd'
     # No {get,make,set}context support before Leopard
     args << 'no-async' if MacOS.version < :leopard
 
     archs.each do |arch|
-      ENV.append_to_cflags "-arch #{arch}" if build.universal?
+      ENV.set_build_archs(archs.subset(arch)) if build.universal?
 
       arch_args = [
         arg_format(arch),
       ]
-      # the assembly routines don’t work right on Tiger or on 32‐bit PowerPC G5
-      arch_args << 'no-asm' if MacOS.version < :leopard or (arch == :ppc and Hardware::CPU.model == :g5)
+      arch_args << '-D__ILP32__' if Hardware::CPU.all_32b_archs.any? { |a| a == arch }
+
+      # The assembly routines may still not work right on Tiger (needs to be
+      # checked).  Out of the box, they are horked on 32‐bit G5s because Apple
+      # never needed to define “__ILP32__” (see above).
+      # → “no-asm” isn’t intended for production use.  Needs work.
+      arch_args << 'no-asm' if MacOS.version < :leopard
 
       system 'perl', './Configure', *args, *arch_args
       system 'make'
@@ -89,14 +96,13 @@ class Openssl3 < Formula
       system 'make', 'install', 'MANSUFFIX=ssl'
 
       if build.universal?
-        system 'make', 'distclean'
+        system 'make', 'clean'
         Merge.prep(prefix, stashdir/"bin-#{arch}", the_binaries)
         Merge.prep(include, stashdir/"h-#{arch}", the_headers)
-        # undo architecture-specific tweak before next run
-        ENV.remove_from_cflags "-arch #{arch}"
       end # universal?
     end # each |arch|
     if build.universal?
+      ENV.set_build_archs(archs)
       Merge.binaries(prefix, stashdir, archs)
       Merge.c_headers(include, stashdir, archs)
     end # universal?
@@ -242,7 +248,7 @@ class Merge
           # Start with the last diff point so the insertions don’t screw up our line numbering:
           diffpoints.keys.sort.reverse.each do |index_string|
             diff_start = index_string.to_i - 1
-            diff_end = index_string.to_i + diffpoints[index_string][0][:displacement] - 2
+            diff_end = diff_start + diffpoints[index_string][0][:displacement] - 1
             adjusted_lines = [
               "\#if defined (__#{archs[0]}__)\n",
               basis_lines[diff_start..diff_end],
