@@ -41,6 +41,7 @@ class String
 
   alias_method :includes?,    :include?    unless method_defined? :includes?
   alias_method :starts_with?, :start_with? unless method_defined? :starts_with?
+  alias_method :ends_with?,   :end_with?   unless method_defined? :ends_with?
 end
 
 class NilClass
