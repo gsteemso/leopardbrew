@@ -24,12 +24,15 @@ module Homebrew
     raise '--ignore-dependencies and --only-dependencies are mutually exclusive.' \
                                                            if ARGV.ignore_deps? and ARGV.only_deps?
     FormulaInstaller.prevent_build_flags unless MacOS.has_apple_developer_tools?
+    named_spec = (ARGV.build_head? ? :head :
+                   (ARGV.build_devel? ? :devel :
+                     (ARGV.include?('--stable') ? :stable :
+                       nil) ) )
+    puts "Named spec = #{named_spec or '[none]'}" if DEBUG
 
     ARGV.resolved_formulae.each do |f|
-      if f.installed?
-        reinstall_formula(f)
-      else
-        opoo <<-_.undent
+      if f.installed? then reinstall_formula(f, named_spec)
+      else opoo <<-_.undent
           The formula #{f.name} could not be reinstalled because no current version of it
           is installed in the first place.  Use “brew install #{f.name}” instead.
         _
@@ -37,15 +40,10 @@ module Homebrew
     end
   end # reinstall
 
-  def reinstall_formula(f)
+  def reinstall_formula(f, s)
     existing_prefixes = f.installed_current_prefixes.values
     puts 'installed current prefixes:', existing_prefixes * ' ' if DEBUG
-    named_spec = (ARGV.build_head? ? :head :
-                   (ARGV.build_devel? ? :devel :
-                     (ARGV.include?('--stable') ? :stable :
-                       nil) ) )
-    puts "Named spec = #{named_spec or '[none]'}" if DEBUG
-    case named_spec
+    case s
       when nil, :stable
         if f.stable.nil?
           if f.devel.nil?
@@ -59,11 +57,11 @@ module Homebrew
       when :head then raise "No head is defined for #{f.full_name}" if f.head.nil?
       when :devel then raise "No devel block is defined for #{f.full_name}" if f.devel.nil?
     end
-    f.set_active_spec named_spec if named_spec  # otherwise use the default
+    f.set_active_spec s if s  # otherwise use the default
     tab = Tab.for_formula(f) # this gets the tab for the correct installed keg
     options = tab.used_options
-    puts "Original spec = #{tab[:source][:spec] or '[none]'}" if DEBUG
-    case tab[:source][:spec]
+    puts "Original spec = #{tab['source']['spec'] or '[none]'}" if DEBUG
+    case tab['spec']
       when :head then options += Option.new('HEAD')
       when :devel then options += Option.new('devel')
     end
