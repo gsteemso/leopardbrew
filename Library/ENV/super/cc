@@ -26,22 +26,13 @@ class Cmd
   end
 
   def mode
-    if @arg0 == 'cpp' || @arg0 == 'ld'
-      @arg0.to_sym
+    if @arg0 == 'cpp' or @arg0 == 'ld' then @arg0.to_sym
     elsif @given_args.include? '-c'
-      if @arg0 =~ /(?:c|g|clang)\+\+/
-        :cxx
-      else
-        :cc
+      if @arg0 =~ /(?:c|g|clang)\+\+/ then :cxx
+      else :cc
       end
-    elsif @given_args.include? '-E'
-      :ccE
-    else
-      if @arg0 =~ /(?:c|g|clang)\+\+/
-        :cxxld
-      else
-        :ccld
-      end
+    elsif @given_args.include? '-E' then :ccE
+    else @arg0 =~ /(?:c|g|clang)\+\+/ ? :cxxld : :ccld
     end
   end
 
@@ -201,7 +192,7 @@ class Cmd
 
     cflag_args << '-pipe'
     cflag_args << '-w' unless configure? or ENV['HOMEBREW_DISABLE__W']
-    cflag_args << "-#{ENV['HOMEBREW_OPTIMIZATION_LEVEL']}" unless ENV['HOMEBREW_OPTIMIZATION_LEVEL'].nil?
+    cflag_args << "-#{ENV['HOMEBREW_OPTIMIZATION_LEVEL']}" if ENV['HOMEBREW_OPTIMIZATION_LEVEL']
     cflag_args.concat(optflags)
     cflag_args << "-std=#{@arg0}" if @arg0 =~ /c[89]9/
     cflag_args.concat(ENV.fetch('HOMEBREW_FORCE_FLAGS', '').split ' ')
