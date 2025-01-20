@@ -55,9 +55,7 @@ class FormulaInstaller
     @@attempted ||= Set.new
   end # initialize
 
-  def skip_deps_check?
-    ignore_deps?
-  end
+  def skip_deps_check?; ignore_deps?; end
 
   # When no build tools are available and build flags are passed through ARGV,
   # it's necessary to interrupt the user before any sort of installation
@@ -163,8 +161,9 @@ class FormulaInstaller
     end
     return if only_deps?
 
-    raise "Unrecognized architecture for --bottle-arch: #{arch}" if build_bottle? and
-                  (arch = ARGV.bottle_arch) and not Hardware::CPU.optimization_flags.include?(arch)
+    if build_bottle? and (arch = ARGV.bottle_arch) and not Hardware::CPU.known_models.include?(arch)
+      raise "Unrecognized architecture for --bottle-arch: #{arch}"
+    end
 
     formula.deprecated_args.each do |deprecated_option|
       old_flag = deprecated_option.old_flag
@@ -199,7 +198,7 @@ class FormulaInstaller
 
     # Build from source:
     unless @poured_bottle
-      install_dependencies(compute_dependencies) if @pour_failed and not ignore_deps?
+      install_dependencies(compute_dependencies) if @pour_failed and not skip_deps_check?
       build
       clean
     end
@@ -356,16 +355,16 @@ class FormulaInstaller
 
   def install_dependency(dep, inherited_options)
     df = dep.to_formula
-    tab = Tab.for_formula(df)
-    # this correctly unlinks things even if a different version is linked
+    tab = Tab.for_formula(df)  # not necessarily a current version
+    # Correctly unlink things even if a different version is linked:
     previously_linked = nil
     if df.linked_keg.directory?
       previously_linked = Keg.new(df.linked_keg.resolved_path)
       previously_linked.unlink
     end
     previously_installed = nil
-    if df.installed?(tss = tab[:source][:spec])
-      previously_installed = Keg.new(df.spec_prefix tss)
+    if df.installed?(tss = tab.spec)
+      previously_installed = Keg.new(df.spec_prefix(tss))
       ignore_interrupts { previously_installed.rename }
     end
     fi = DependencyInstaller.new(df)
@@ -390,8 +389,8 @@ class FormulaInstaller
     raise
   else
     if previously_installed
-      src = Tab.for_keg(previously_installed.base)[:source]
-      Formulary.factory(src[:path], src[:spec]).uninsinuate rescue nil
+      src = Tab.for_keg(previously_installed.base).source
+      Formulary.factory(src['path'], src['spec']).uninsinuate rescue nil
       previously_installed.base.rmtree
     end
     df.insinuate
