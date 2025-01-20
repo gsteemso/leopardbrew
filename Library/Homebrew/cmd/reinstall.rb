@@ -32,9 +32,11 @@ module Homebrew
 
     ARGV.resolved_formulae.each do |f|
       if f.installed? then reinstall_formula(f, named_spec)
-      else opoo <<-_.undent
+      else
+        action = f.any_version_installed? ? 'upgrade' : 'install'
+        opoo <<-_.undent
           The formula #{f.name} could not be reinstalled because no current version of it
-          is installed in the first place.  Use “brew install #{f.name}” instead.
+          is installed in the first place.  Use “brew #{action} #{f.name}” instead.
         _
       end
     end
@@ -60,8 +62,8 @@ module Homebrew
     f.set_active_spec s if s  # otherwise use the default
     tab = Tab.for_formula(f) # this gets the tab for the correct installed keg
     options = tab.used_options
-    puts "Original spec = #{tab['source']['spec'] or '[none]'}" if DEBUG
-    case tab['spec']
+    puts "Original spec = #{tab.spec.to_s or '[none]'}" if DEBUG
+    case tab.spec
       when :head then options += Option.new('HEAD')
       when :devel then options += Option.new('devel')
     end
