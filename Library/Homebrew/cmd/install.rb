@@ -69,21 +69,21 @@ module Homebrew
           when :stable
             if f.stable.nil?
               if f.devel.nil?
-                raise UsageError.new("#{f.full_name} is a head‐only formula, please specify --HEAD")
+                raise UsageError, "#{f.full_name} is a head‐only formula, please specify --HEAD"
               elsif f.head.nil?
-                raise UsageError.new("#{f.full_name} is a development‐only formula, please specify --devel")
+                raise UsageError, "#{f.full_name} is a development‐only formula, please specify --devel"
               else
-                raise UsageError.new("#{f.full_name} has no stable download, please choose --devel or --HEAD")
+                raise UsageError, "#{f.full_name} has no stable download, please choose --devel or --HEAD"
               end
             end
-          when :head then raise UsageError.new("No head is defined for #{f.full_name}") if f.head.nil?
-          when :devel then raise UsageError.new("No devel block is defined for #{f.full_name}") if f.devel.nil?
+          when :head then raise UsageError, "No head is defined for #{f.full_name}" if f.head.nil?
+          when :devel then raise UsageError, "No devel block is defined for #{f.full_name}" if f.devel.nil?
         end
 
         if f.installed?(requested_spec)
-          msg = "#{f.full_name}@#{f.send(requested_spec).version} is already installed"
+          msg = "#{f.full_name} #{f.send(requested_spec).version} is already installed"
           msg << ', it’s just not linked' unless f.keg_only? or (f.linked_keg.symlink? and
-                                       f.linked_keg.resolved_real_path == f.prefix(requested_spec))
+                                  f.linked_keg.resolved_real_path == f.spec_prefix(requested_spec))
           opoo msg
         elsif f.oldname_installed? and not ARGV.force?
           # Check if the formula we try to install is the same as installed
