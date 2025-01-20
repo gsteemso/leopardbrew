@@ -156,7 +156,8 @@ class Merge
       list.each do |item|
         source = keg_prefix/item
         dest = stash_root/item
-        cp_mkp source, dest
+        mkdir_p dest.parent
+        cp source, dest
       end # each binary
     end # Merge.prep
 
