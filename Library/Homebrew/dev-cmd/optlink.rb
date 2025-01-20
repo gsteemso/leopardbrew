@@ -21,7 +21,7 @@ module Homebrew
   def optlink
     raise KegUnspecifiedError if ARGV.named.empty?
     ARGV.kegs.each do |keg|
-      raise NoSuchVersionError.new(keg.versioned_name) unless keg.exists?
+      raise NoSuchVersionError, keg.versioned_name unless keg.exists?
       optrec = keg.opt_record
       keg.optlink
     end # each ARGV |keg|

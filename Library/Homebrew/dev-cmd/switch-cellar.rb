@@ -39,7 +39,7 @@ module Homebrew
             done_list << rack
           rescue FormulaUnavailableError
             unsever_racklist(done_list, mode)
-            raise RuntimeError "Can’t unlink #{keg.name}:  No formula.  Aborting"
+            raise RuntimeError, "Can’t unlink #{keg.name}:  No formula.  Aborting"
           rescue
             # silently ignore all other errors
           end
@@ -76,7 +76,7 @@ module Homebrew
 
     def annulnil(arg); (arg.nil? ? '' : arg); end
 
-    raise RuntimeError 'You have no Cellar to switch' unless HOMEBREW_CELLAR.directory?
+    raise RuntimeError, 'You have no Cellar to switch' unless HOMEBREW_CELLAR.directory?
     HOMEBREW_CELLAR.parent.cd do
       mode = OpenStruct.new
       mode.dry_run = ARGV.dry_run?
@@ -86,19 +86,19 @@ module Homebrew
       else  # swapping Cellars wholesale
         # pathnames – either absolute, or relative to the current (Cellar’s parent) directory:
         save_as = Pathname(annulnil ARGV.value('save-as'))
-        raise UsageError 'The “--save-as=_____” flag must give a name' if save_as == ''
+        raise UsageError, 'The “--save-as=_____” flag must give a name' if save_as == ''
         use_new = Pathname(annulnil ARGV.value('use-new'))
         # use_new == '' is an expected use case, so no error for that
         got_pins = PINDIR.exist?
         cellar_stash = Pathname("#{save_as.to_s}-Cellar")
         cellar_stash.dirname.mkdir_p unless cellar_stash.dirname.exist?
         cellar_stash = cellar_stash.realdirpath
-        raise RuntimeError "#{cellar_stash}:  This entity already exists" if cellar_stash.exist?
+        raise RuntimeError, "#{cellar_stash}:  This entity already exists" if cellar_stash.exist?
         if got_pins
           pin_stash = Pathname("#{save_as.dirname}/Library/#{save_as.basename}-PinnedKegs")
           pin_stash.dirname.mkdir_p unless pin_stash.dirname.exist?
           pin_stash = pin_stash.realdirpath
-          raise RuntimeError "#{pin_stash}:  This entity already exists" if pin_stash.exist?
+          raise RuntimeError, "#{pin_stash}:  This entity already exists" if pin_stash.exist?
         end
         sever_racklist(HOMEBREW_CELLAR.subdirs, mode)
         if mode.dry_run?
@@ -109,7 +109,7 @@ module Homebrew
             HOMEBREW_CELLAR.rename cellar_stash
           rescue
             unsever_racklist(HOMEBREW_CELLAR.subdirs, mode)
-            raise RuntimeError 'Couldn’t rename the old Cellar'
+            raise RuntimeError, 'Couldn’t rename the old Cellar'
           end
           if got_pins
             begin
@@ -117,7 +117,7 @@ module Homebrew
             rescue
               cellar_stash.rename HOMEBREW_CELLAR
               unsever_racklist(HOMEBREW_CELLAR.subdirs, mode)
-              raise RuntimeError "Couldn’t rename #{PINDIR}"
+              raise RuntimeError, "Couldn’t rename #{PINDIR}"
             end
           end
         end
@@ -127,7 +127,7 @@ module Homebrew
             # Create an empty Cellar as a placeholder, because if we don’t, future invocations of
             # Homebrew will switch to the default location regardless of where the current one is.
             HOMEBREW_CELLAR.mkdir unless mode.dry_run
-            raise RuntimeError "#{new_cellar}:  The specified replacement Cellar does not exist"
+            raise RuntimeError, "#{new_cellar}:  The specified replacement Cellar does not exist"
           end
           new_pin = Pathname("#{use_new.dirname}/Library/#{use_new.basename}-PinnedKegs")
           got_pins = new_pin.exist?
@@ -157,7 +157,7 @@ module Homebrew
             begin
               new_cellar.rename HOMEBREW_CELLAR
             rescue
-              raise RuntimeError "Couldn’t rename #{new_cellar}"
+              raise RuntimeError, "Couldn’t rename #{new_cellar}"
             end
             unsever_racklist(HOMEBREW_CELLAR.subdirs, mode)
           end # dry run?

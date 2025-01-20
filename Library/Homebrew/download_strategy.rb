@@ -289,7 +289,7 @@ class CurlDownloadStrategy < AbstractFileDownloadStrategy
         if !ENV["HOMEBREW_NO_INSECURE_REDIRECT"].nil? && @url.start_with?("https://") &&
            urls.any? { |u| !u.start_with? "https://" }
           puts "HTTPS to HTTP redirect detected & HOMEBREW_NO_INSECURE_REDIRECT is set."
-          raise CurlDownloadStrategyError.new(@url)
+          raise CurlDownloadStrategyError, @url
         end
         @url = urls.last
       end
@@ -306,7 +306,7 @@ class CurlDownloadStrategy < AbstractFileDownloadStrategy
           had_incomplete_download = false
           retry
         else
-          raise CurlDownloadStrategyError.new(@url)
+          raise CurlDownloadStrategyError, @url
         end
       end
       ignore_interrupts { temporary_path.rename(cached_location) }
@@ -461,7 +461,7 @@ class S3DownloadStrategy < CurlDownloadStrategy
     end
 
     if @url !~ %r{^https?://+([^.]+).s3.amazonaws.com/+(.+)$}
-      raise "Bad S3 URL: " + @url
+      raise RuntimeError, "Bad S3 URL: " + @url
     end
     bucket = $1
     key = $2

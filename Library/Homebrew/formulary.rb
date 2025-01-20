@@ -75,7 +75,7 @@ class Formulary
 
     def load_file
       STDERR.puts "#{$0} (#{self.class.name}): loading #{path}" if DEBUG
-      raise FormulaUnavailableError.new(name) unless path.file?
+      raise FormulaUnavailableError, name unless path.file?
       Formulary.load_formula_from_path(name, path)
     end
   end # FormulaLoader
@@ -166,7 +166,7 @@ class Formulary
 
   class NullLoader < FormulaLoader
     def initialize(name); super name, Formulary.core_path(name); end
-    def get_formula(_spec); raise FormulaUnavailableError.new(name); end
+    def get_formula(_spec); raise FormulaUnavailableError, name; end
   end
 
   # Load formulae directly from their contents

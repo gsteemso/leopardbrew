@@ -129,7 +129,7 @@ class Build
         formula.install
       end
 
-      raise RuntimeError('Empty installation; aborting') if formula.prefix.children.empty?
+      raise RuntimeError, 'Empty installation; aborting' if formula.prefix.children.empty?
 
       stdlibs = detect_stdlibs(ENV.compiler)
       Tab.create(formula, ENV.compiler, stdlibs.first, formula.build, get_archs).write
@@ -142,7 +142,7 @@ class Build
 
   def get_archs
     if (hba = ENV['HOMEBREW_BUILD_ARCHS']) then hba.split(' ')
-    else raise '$HOMEBREW_BUILD_ARCHS is empty!  WTF did we just build?'; end
+    else raise RuntimeError, '$HOMEBREW_BUILD_ARCHS is empty!  WTF did we just build?'; end
   end
 
   def detect_stdlibs(compiler)

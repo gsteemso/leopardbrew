@@ -208,7 +208,7 @@ module Homebrew
       elsif safe_formulary(argument)
         @formulae = [argument]
       else
-        raise ArgumentError.new("#{argument} is not a pull request URL, commit URL or formula name.")
+        raise ArgumentError, "#{argument} is not a pull request URL, commit URL or formula name."
       end
 
       @category = __method__

@@ -100,7 +100,7 @@ module HomebrewArgvExtension
     @kegs ||= downcased_unique_named.collect do |name|
         if name =~ VERSIONED_NAME_REGEX
           keg_path = HOMEBREW_CELLAR/$1/$2
-          raise NoSuchVersionError.new(name) unless keg_path.directory?
+          raise NoSuchVersionError, name unless keg_path.directory?
           Keg.new(keg_path)
         else # formula version is not explicit; go for the active version
           if (f, ss = attempt_factory(name)) != nil
@@ -109,16 +109,16 @@ module HomebrewArgvExtension
             elsif (var = f.spec_prefix(ss)).directory? then Keg.new(var)
             elsif (rack = f.rack).directory? and (dirs = rack.subdirs).length == 1 then Keg.new(dirs.first)
             elsif (var = f.greatest_installed_keg) then var     # can fail if no install receipts
-            else raise MultipleVersionsInstalledError.new(rack.basename)  # can vary from raw “name”
+            else raise MultipleVersionsInstalledError, rack.basename  # can vary from raw “name”
             end
           else # no formula
             rack = HOMEBREW_CELLAR/name
             if rack.directory? then dirs = rack.subdirs
-            else raise NoSuchKegError.new(name)
+            else raise NoSuchKegError, name
             end
             if dirs.length == 1 then Keg.new(dirs.first)
             elsif dirs.find { |d| Formula.is_installed_prefix? d }
-            else raise MultipleVersionsInstalledError.new(name)
+            else raise MultipleVersionsInstalledError, name
             end
           end # no formula
         end # formula version is not explicit
@@ -132,7 +132,7 @@ module HomebrewArgvExtension
     @kegs ||= downcased_unique_named.collect { |name|
         rack = Formulary.to_rack(name)
         dirs = rack.directory? ? rack.subdirs : []
-        raise NoSuchKegError.new(rack.basename) if dirs.empty?
+        raise NoSuchKegError, rack.basename if dirs.empty?
         kegs = []
         dirs.each { |d| kegs << Keg.new(d) if (d/Tab::FILENAME).exists? }
         kegs
