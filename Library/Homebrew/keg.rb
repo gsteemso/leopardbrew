@@ -15,7 +15,6 @@ class Keg
 
   class LinkError < RuntimeError
     attr_reader :keg, :src, :dst
-
     def initialize(keg, src, dst, cause)
       @src = src
       @dst = dst
@@ -93,20 +92,21 @@ class Keg
       return Keg.new(path) if path.parent.parent == HOMEBREW_CELLAR
       path = path.parent.realpath # realpath() prevents .root? failing
     end
-    raise NotAKegError, "#{path} is not inside a keg"
+    raise NotAKegError, path
   end # Keg::for
 
-  attr_reader :path, :installed_prefix, :name, :linked_keg_record, :opt_record
+  attr_reader :path, :installed_prefix, :name, :linked_keg_record, :opt_record, :version_s
   protected :path
-  private :installed_prefix
+  private :installed_prefix, :version_s
 
-  def initialize(path)
-    path = Pathname.new(path)
-    raise "#{path} is not a valid keg" unless path.directory? and
-                                              path.realpath.parent.parent == HOMEBREW_CELLAR
+  def initialize(_path)
+    path = (Pathname === _path ? _path : Pathname.new(_path))
+    raise "#{_path} is not a valid keg" unless path.directory? and
+                                               path.realpath.parent.parent == HOMEBREW_CELLAR
     @path = path
-    @installed_prefix = rack/path.basename(REINSTALL_SUFFIX)
+    @version_s = path.basename(REINSTALL_SUFFIX).to_s
     @name = rack.basename.to_s
+    @installed_prefix = HOMEBREW_CELLAR/name/version_s
     @linked_keg_record = LINKDIR/name
     @opt_record = OPTDIR/name
   end # initialize
@@ -118,7 +118,7 @@ class Keg
 
   def base; path; end
 
-  def versioned_name; "#{name}@#{installed_prefix.basename.to_s}"; end
+  def versioned_name; "#{name}=#{version_s}"; end
 
   def inspect; "#<#{self.class.name}:#{path}>"; end
 
@@ -127,7 +127,8 @@ class Keg
 
   def hash; path.hash; end
 
-  def abv; path.abv; end  # Prints a summary:  number of files, & how much storage they occupy.
+  # Print a summary:  Number of files, & how much storage they occupy.
+  def abv; path.abv; end
 
   def directory?; path.directory?; end
 
@@ -148,9 +149,9 @@ class Keg
 
   def rename(new_name = reinstall_nameflip)
     unlink if was_linked = linked?
-    path.rename new_name            # rename the physical directory
-    @path = Pathname.new new_name   # change our record of the name
-    optlink                         # always regenerate the optlink
+    path.rename new_name            # Rename the physical directory.
+    @path = Pathname.new new_name   # Change our record of the name.
+    optlink                         # Always regenerate the optlink.
     link if was_linked
   end # rename
 
