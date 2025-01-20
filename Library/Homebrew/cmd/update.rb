@@ -74,8 +74,8 @@ module Homebrew
       install_tap tap_user, tap_repo
       # update tap for each Tab
       tabs = dir.subdirs.map { |d| Tab.for_keg(Keg.new(d)) }
-      next if tabs.first.source["tap"] != "Homebrew/homebrew"
-      tabs.each { |tab| tab.source["tap"] = "#{tap_user}/homebrew-#{tap_repo}" }
+      next if tabs.first.tap != "Homebrew/homebrew"
+      tabs.each { |tab| tab.tap = "#{tap_user}/homebrew-#{tap_repo}" }
       tabs.each(&:write)
     end if load_tap_migrations
 

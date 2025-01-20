@@ -77,8 +77,8 @@ module Homebrew
     f.set_active_spec s if s  # otherwise use the default
     tab = Tab.for_keg(f.greatest_installed_keg)
     options = tab.used_options
-    puts "Original spec = #{tab['source']['spec'] or '[none]'}" if DEBUG
-    case tab['spec']
+    puts "Original spec = #{tab.spec.to_s or '[none]'}" if DEBUG
+    case tab.spec
       when :head then options += Option.new('HEAD')
       when :devel then options += Option.new('devel')
     end
