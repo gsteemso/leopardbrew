@@ -138,19 +138,21 @@ def arch_system(cmd, *args)
   end
 end # arch_system
 
-# Repeats &block for each of cmd’s fat‐binary architectures.  Caller must be prepared for the case
-# where `nil` is returned, meaning that the “arch” command shouldn’t – or can’t – be called:
-#   for_archs cmd do |a|
-#     arch_args = (a.nil? ? [] : ['arch', '-arch', a.to_s])
-#     system *(arch_cmd << cmd), args ...
-#   end # each arch |a|
+# Repeats &block for each of cmd’s fat‐binary architectures.  Caller must be
+# prepared for the case where `nil` is passed into the block, meaning that the
+# “arch” command shouldn’t – or can’t – be called:
+#     for_archs cmd do |a|
+#       arch_args = (a.nil? ? [] : ['arch', '-arch', a.to_s])
+#       system *(arch_cmd << cmd), args ...
+#     end # each arch |a|
 def for_archs (cmd, &block)
   cmd = which(cmd) unless cmd.to_s =~ %r{^\.?/}
   cmd = Pathname.new(cmd) unless cmd.class == Pathname
-  if (is_univ = cmd.universal?) and (arch_cmd = which 'arch')
+  if (is_fat = cmd.fat?) and (arch_cmd = which 'arch')
     cmd.archs.select { |a| Hardware::CPU.can_run?(a) }.each(&block)
   else
-    opoo "Can’t find the “arch” command; running #{cmd} with the default architecture only." if is_univ
+    opoo 'Can’t find the “arch” command.',
+         "Running #{cmd} with the default architecture only." if is_fat
     block.call(nil)
   end
 end # for_archs
@@ -294,6 +296,16 @@ module GitHub
   Error = Class.new(RuntimeError)
   HTTPNotFoundError = Class.new(Error)
 
+  class AuthenticationFailedError < Error
+    def initialize(error)
+      super <<-EOS.undent
+        GitHub #{error}
+        HOMEBREW_GITHUB_API_TOKEN may be invalid or expired, check:
+          https://github.com/settings/tokens
+                    EOS
+    end # initialize
+  end # AuthenticationFailedError < Error
+
   class RateLimitExceededError < Error
     def initialize(reset, error)
       super <<-EOS.undent
@@ -302,7 +314,7 @@ module GitHub
           https://github.com/settings/tokens
         and then set the token as: HOMEBREW_GITHUB_API_TOKEN
                     EOS
-    end
+    end # initialize
 
     def pretty_ratelimit_reset(reset)
       if (seconds = Time.at(reset) - Time.now) > 180
@@ -310,18 +322,8 @@ module GitHub
       else
         "#{seconds} seconds"
       end
-    end
+    end # pretty_ratelimit_reset
   end # RateLimitExceeded < Error
-
-  class AuthenticationFailedError < Error
-    def initialize(error)
-      super <<-EOS.undent
-        GitHub #{error}
-        HOMEBREW_GITHUB_API_TOKEN may be invalid or expired, check:
-          https://github.com/settings/tokens
-                    EOS
-    end
-  end # AuthenticationFailedError < Error
 
   def open(url, &_block)
     # This is a no-op if the user is opting out of using the GitHub API.
