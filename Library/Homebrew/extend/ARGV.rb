@@ -10,7 +10,8 @@ module HomebrewArgvExtension
                   sandbox?
                   verbose?  ].freeze
 
-  ENV_FLAG_HASH = { 'build_universal?' => '--universal' }.freeze
+  ENV_FLAG_HASH = { 'build_cross'      => '--cross'
+                    'build_universal?' => '--universal' }.freeze
 
   SWITCHES = { '1' => '--1', # (“do not recurse” – only used by the `deps` command)
              # 'd' => '--debug' (already handled as an ENV_FLAG)
@@ -20,8 +21,9 @@ module HomebrewArgvExtension
                'n' => '--dry-run',
              # 'q' => '--quieter'  (already handled as an ENV_FLAG)
              # 's' => '--build-from-source' (already handled as an ENV_FLAG)
-             # 'u' => '--universal' (already handled as an ENV_FLAG)
+             # 'u' => '--universal' (already handled as a hashed ENV_FLAG)
              # 'v' => '--verbose' (already handled as an ENV_FLAG)
+             # 'x' => '--cross' (already handled as a hashed ENV_FLAG)
              }.freeze
 
   BREW_SYSTEM_EQS = %w[ --bottle-arch=
@@ -184,6 +186,8 @@ module HomebrewArgvExtension
 
   def build_stable?; include? '--stable' or not (build_head? or build_devel?); end
 
+  def build_cross?; include? '--cross' or switch? 'x' or not ENV['HOMEBREW_CROSS_COMPILE'].nil?; end
+
   def build_universal?; flag? '--universal' or not ENV['HOMEBREW_BUILD_UNIVERSAL'].nil?; end
 
   # Request a 32-bit only build.
@@ -220,6 +224,7 @@ module HomebrewArgvExtension
   def collect_build_flags
     build_flags = []
     build_flags << '--HEAD' if build_head?
+    build_flags << '--cross' if build_cross?
     build_flags << '--universal' if build_universal?
     build_flags << '--32-bit' if build_32_bit?
     build_flags << '--build-bottle' if build_bottle?

@@ -11,8 +11,8 @@
 #:
 #:Active options may be removed by specifying their opposite.  A formula brewed
 #:--with-A may be reïnstalled --without-A to cancel it, and one --without-B may
-#:be reïnstalled --with-B.  (“--universal”, having no obvious opposite, may be
-#:cancelled by specifying “--single-arch”.)
+#:be reïnstalled --with-B.  (“--cross” and “--universal”, having no obvious
+#:opposites, may be cancelled by specifying “--single-arch”.)
 #:
 
 require 'formula/installer'
@@ -156,10 +156,11 @@ module Homebrew
               unrecognized = true
             end # --without-xxxx?
           when '--single-arch'
-            anti_opts << Option.new('universal')
+            anti_opts << Option.new('universal') << Option.new('cross')
             ENV.delete 'HOMEBREW_BUILD_UNIVERSAL'
-          when '--universal'
-            # the formula doesn’t have a :universal option; ignore it
+            ENV.delete 'HOMEBREW_CROSS_COMPILE'
+          when '--cross', '--universal'
+            # the formula doesn’t have either option; ignore it
           when '--stable'
             anti_opts += [Option.new('HEAD'), Option.new('devel')]
           when '--devel'
@@ -171,6 +172,7 @@ module Homebrew
           when /^--un-([^=]+=?)(.+)?$/
             anti_opts << Option.new($1)
             ENV.delete 'HOMEBREW_BUILD_UNIVERSAL' if $1 == 'universal'
+            ENV.delete 'HOMEBREW_CROSS_COMPILE'   if $1 == 'cross'
           else
             unrecognized = true
         end # case

@@ -14,6 +14,7 @@ class SoftwareSpec
 
   PREDEFINED_OPTIONS = {
     :universal => Option.new("universal", "Build a universal binary"),
+    :cross     => Option.new("cross", "Build for multiple CPU types"),
     :cxx11     => Option.new("c++11", "Build using C++11 mode"),
     "32-bit"   => Option.new("32-bit", "Build 32-bit only")
   }

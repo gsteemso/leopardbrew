@@ -121,11 +121,14 @@ class Tab < OpenStruct
 
   def build_32_bit?; include?('32-bit'); end
 
+  # Deprecated
   def cxx11?; include?('c++11'); end
+
+  def cross?; include?('cross'); end
 
   def universal?; include?('universal'); end
 
-  # older tabs won’t have this, but it’s very expensive to find them all
+  # older tabs won’t have this, but it’s far too expensive to find them all
   def active_enhancements; active_aid_sets or []; end
 
   def bottle?; built_as_bottle; end
@@ -134,8 +137,11 @@ class Tab < OpenStruct
 
   def built_archs
     # Older tabs won’t have this field, so compute a plausible default.
-    unless super.empty? then super.map(&:to_sym).extend(ArchitectureListExtension)
-    else universal? ? Hardware::CPU.universal_archs : MacOS.preferred_arch_as_list; end
+    if super.empty? then 
+      if cross? then Hardware::CPU.cross_archs
+      elsif universal? then Hardware::CPU.universal_archs
+      else MacOS.preferred_arch_as_list; end
+    else super.map(&:to_sym).extend ArchitectureListExtension; end
   end
 
   def compiler; super or MacOS.default_compiler; end

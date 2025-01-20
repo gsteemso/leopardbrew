@@ -134,6 +134,7 @@ require 'compat' unless ENV['HOMEBREW_NO_COMPAT'] or ARGV.include?('--no-compat'
 # $HOMEBREW_BUILD_BOTTLE       # Always build a bottle instead of a normal installation (see `extend/ARGV.rb`)
 # $HOMEBREW_BUILD_FROM_SOURCE  # Force building from source even when there is a bottle (see `extend/ARGV.rb`)
 # $HOMEBREW_BUILD_UNIVERSAL    # If there’s a :universal option, always use it (see `extend/ARGV.rb`)
+# $HOMEBREW_CROSS_COMPILE      # If there’s a :cross option, always use it (see `extend/ARGV.rb`)
 # $HOMEBREW_CURL_VERBOSE       # Checked by ::curl() in `utils.rb`; deleted by CurlApacheMirrorDownloadStrategy
 # $HOMEBREW_FAIL_LOG_LINES     # How many lines of system output to log on failure (see `formula.rb`)
 # $HOMEBREW_NO_GITHUB_API      # Used by GitHub.open & GitHub.print_pull_requests_matching in `utils.rb`

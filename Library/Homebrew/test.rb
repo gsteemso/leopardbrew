@@ -18,8 +18,8 @@ begin
 
   normal_path = ENV['PATH']
 
-  # this sets up all the stuff for universal and 64-bit builds, but also replaces the $PATH with
-  # the restricted one we use to make sure all our tools are where they ought to be
+  # Set up all the stuff for 64‐bit, universal and cross builds.  Also change
+  # to our $PATH that ensures all our tools are where they ought to be.
   f = ARGV.formulae.first
   f.set_active_spec(ARGV.build_head? ? :head : (ARGV.build_devel? ? :devel : :stable))
   t = Tab.from_file(f.prefix/Tab::FILENAME)
@@ -32,7 +32,7 @@ begin
   ENV['PATH'] = path_parts.uniq.join(':')
 
   # Enable argument refurbishment under Superenv.  This enforces architecture
-  # and optimization flags; otherwise, 64‐bit and universal builds fail.
+  # and optimization flags; otherwise, 64‐bit, universal, & cross builds fail.
   ENV.refurbish_args if superenv?
 
   if DEBUG  # can’t use a timeout and run a debugging shell at the same time

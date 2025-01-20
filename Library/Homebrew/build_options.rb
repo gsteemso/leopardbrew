@@ -89,6 +89,9 @@ class BuildOptions
     s_args.build_universal? && option_defined?('universal')
   end
 
+  # True if a {Formula} is being built for multiple platforms.
+  def cross?; s_args.build_cross? and option_defined?('cross'); end
+
   # True if a {Formula} is being built in C++11 mode.
   def cxx11?
     include?('c++11') && option_defined?('c++11')
