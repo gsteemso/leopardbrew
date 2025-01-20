@@ -10,8 +10,8 @@ module MacOS
   extend self
 
   def prefer_64_bit?
-    Hardware::CPU.is_64_bit? and version > :leopard or
-                                (version == :leopard and ENV["HOMEBREW_PREFER_64_BIT"])
+    Hardware::CPU.is_64_bit? and version > '10.5' or
+                                (version == '10.5' and ENV["HOMEBREW_PREFER_64_BIT"])
   end
 
   def locate(tool)
@@ -25,7 +25,7 @@ module MacOS
       elsif (path = HOMEBREW_PREFIX/"bin/#{tool}").executable?
         path
       # xcrun was introduced in Xcode 3 on Leopard
-      elsif MacOS.version > :tiger
+      elsif MacOS.version > '10.4'
         path = Utils.popen_read("/usr/bin/xcrun", "-no-cache", "-find", tool).chomp
         Pathname.new(path) if File.executable?(path)
       end
@@ -47,7 +47,7 @@ module MacOS
 
   def active_developer_dir
     # xcode-select was introduced in Xcode 3 on Leopard
-    return "/Developer" if MacOS.version < :leopard
+    return "/Developer" if MacOS.version < '10.5'
 
     @active_developer_dir ||= Utils.popen_read("/usr/bin/xcode-select", "-print-path").strip
   end # active_developer_dir
@@ -174,7 +174,7 @@ module MacOS
       when :i386   then :ppc
       when :ppc    then :i386
       when :ppc64  then :x86_64
-      when :x86_64 then (version >= :catalina ? :arm64 : :ppc64)
+      when :x86_64 then (version >= '10.15' ? :arm64 : :ppc64)
       else :dunno
     end
   end # counterpart_arch
@@ -182,7 +182,7 @@ module MacOS
   def counterpart_type(main_type)
     case main_type
       when :arm, :powerpc then :intel
-      when :intel then (version >= :catalina ? :arm : :powerpc)
+      when :intel then (version >= '10.15' ? :arm : :powerpc)
       else :dunno
     end
   end # counterpart_type
