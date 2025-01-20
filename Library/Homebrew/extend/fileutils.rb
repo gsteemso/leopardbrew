@@ -10,12 +10,6 @@ class File
 end
 
 module FileUtils
-  def cp_mkp(src, dst, opts = {})
-    dp = File.dirname(dst)
-    mkdir_p(dp) unless File.exists?(dp)
-    cp_r src, dst, opts
-  end
-
   # Create a temporary directory then yield. When the block returns,
   # recursively delete the temporary directory.
   def mktemp(prefix = name)
