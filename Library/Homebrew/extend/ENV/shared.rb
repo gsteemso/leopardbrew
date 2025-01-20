@@ -1,9 +1,8 @@
-require "formula"
-require "compilers"
+require 'formula'
+require 'compilers'
 
-# Homebrew extends Ruby's `ENV` to make our code more readable.
-# Implemented in {SharedEnvExtension} and either {Superenv} or
-# {Stdenv} (depending on the build mode).
+# Homebrew extends Ruby's `ENV` to make our code more readable.  Implemented in
+# {SharedEnvExtension} and either {Superenv} or {Stdenv}, per the build mode.
 # @see Superenv
 # @see Stdenv
 # @see Ruby's ENV API
@@ -14,6 +13,8 @@ module SharedEnvExtension
   CC_FLAG_VARS = %w[CFLAGS CXXFLAGS OBJCFLAGS OBJCXXFLAGS]
   # @private
   FC_FLAG_VARS = %w[FCFLAGS FFLAGS]
+  # @private
+  COMPILER_VARS = %w[CC CXX F77 FC OBJC OBJCXX]
   # @private
   SANITIZED_VARS = %w[
     CDPATH GREP_OPTIONS CLICOLOR_FORCE
@@ -30,7 +31,7 @@ module SharedEnvExtension
   def setup_build_environment(formula = nil, archset = nil)
     @formula = formula
     reset
-    set_build_archs(archset || self['HOMEBREW_BUILD_ARCHS'] || MacOS.preferred_arch_as_list)
+    set_build_archs(archset || build_archs || MacOS.preferred_arch_as_list)
   end # setup_build_environment
 
   # @private
@@ -47,7 +48,7 @@ module SharedEnvExtension
 
   def remove_from_cflags(val); remove CC_FLAG_VARS, val; end
 
-  def append(keys, value, separator = " ")
+  def append(keys, value, separator = ' ')
     value = value.to_s
     Array(keys).each do |key|
       old = self[key]
@@ -56,13 +57,18 @@ module SharedEnvExtension
     end
   end # append
 
-  def prepend(keys, value, separator = " ")
+  def prepend(keys, value, separator = ' ')
     value = value.to_s
     Array(keys).each do |key|
       old = self[key]
       if old.nil? or old.empty? then self[key] = value
       else self[key] = value + separator + old; end
     end
+  end # prepend
+
+  def append_if_set(keys, value, separator = ' ')
+    _keys = Array(keys).select{ |k| self[k].chuzzle }
+    append(_keys, value, separator)
   end
 
   def not_already_in?(key, query)
@@ -78,7 +84,7 @@ module SharedEnvExtension
   # Prepends a directory to `PATH`.
   # Is the formula struggling to find the pkgconfig file? Point it to it.
   # This is done automatically for `keg_only` formulae.
-  # <pre>ENV.prepend_path "PKG_CONFIG_PATH", "#{Formula["glib"].opt_lib}/pkgconfig"</pre>
+  # <pre>ENV.prepend_path 'PKG_CONFIG_PATH', "#{Formula['glib'].opt_lib}/pkgconfig"</pre>
   def prepend_path(key, dirname)
     prepend key, dirname, File::PATH_SEPARATOR \
       if File.directory?(dirname) and not_already_in?(key, dirname)
@@ -93,44 +99,48 @@ module SharedEnvExtension
   def remove(keys, value, sep = ' ')
     Array(keys).each do |key|
       next unless self[key]
-      self[key] = self[key].sub(value, "").gsub(/#{sep}{2,}/, sep)
+      self[key] = self[key].sub(value, '').gsub(/#{sep}{2,}/, sep)
       delete(key) if self[key].empty?
     end if value
   end # remove
 
-  def cc; self["CC"]; end
+  def cc; self['CC']; end
 
-  def cxx; self["CXX"]; end
+  def cxx; self['CXX']; end
 
-  def cflags; self["CFLAGS"]; end
+  def cflags; self['CFLAGS']; end
 
-  def cxxflags; self["CXXFLAGS"]; end
+  def cxxflags; self['CXXFLAGS']; end
 
-  def cppflags; self["CPPFLAGS"]; end
+  def cppflags; self['CPPFLAGS']; end
 
-  def ldflags; self["LDFLAGS"]; end
+  def ldflags; self['LDFLAGS']; end
 
-  def fc; self["FC"]; end
+  def fc; self['FC']; end
 
-  def fflags; self["FFLAGS"]; end
+  def fflags; self['FFLAGS']; end
 
-  def fcflags; self["FCFLAGS"]; end
+  def fcflags; self['FCFLAGS']; end
+
+  def build_archs;
+    ((hba = self['HOMEBREW_BUILD_ARCHS']) ? hba.split(' ') : []).extend ArchitectureListExtension
+  end
 
   # Outputs the current compiler.
   # @return [Symbol]
   # <pre># Do something only for clang
   # if ENV.compiler == :clang
   #   # modify CFLAGS CXXFLAGS OBJCFLAGS OBJCXXFLAGS in one go:
-  #   ENV.append_to_cflags "-I ./missing/includes"
+  #   ENV.append_to_cflags '-I ./missing/includes'
   # end</pre>
   def compiler
     @compiler ||= \
       if (cc = ARGV.cc)
         warn_about_non_apple_gcc($&) if cc =~ GNU_GCC_REGEXP
-        fetch_compiler(cc, "--cc")
+        fetch_compiler(cc, '--cc')
       elsif (cc = homebrew_cc)
         warn_about_non_apple_gcc($&) if cc =~ GNU_GCC_REGEXP
-        compiler = fetch_compiler(cc, "HOMEBREW_CC")
+        compiler = fetch_compiler(cc, '$HOMEBREW_CC')
         compiler = CompilerSelector.select_for(@formula, [compiler] + CompilerSelector.compilers) if @formula
         compiler
       elsif @formula then CompilerSelector.select_for(@formula)
@@ -141,16 +151,18 @@ module SharedEnvExtension
   def determine_cc; COMPILER_SYMBOL_MAP.invert.fetch(compiler, compiler); end
 
   # @private
-  def determine_cxx; determine_cc.to_s.gsub("gcc", "g++").gsub("clang", "clang++"); end
+  def determine_cxx; determine_cc.to_s.gsub('gcc', 'g++').gsub('clang', 'clang++'); end
 
   COMPILERS.each do |compiler|
     define_method(compiler) do
       @compiler = compiler
+      # The assignment accessors take care of adding the archflags.
       self.cc  = determine_cc
       self.cxx = determine_cxx
     end
-  end # define a method for each |compiler| in COMPILERS
+  end # define a method for each |compiler| in COMPILERS, for use exactly once during setup
 
+  # TODO:  Fix these so they check the correct _versions_ of clang
   def supports_c11?; cc =~ GNU_C11_REGEXP or cc =~ /clang/; end
 
   def supports_cxx11?; cc =~ GNU_CXX11_REGEXP or cc =~ /clang/; end
@@ -158,46 +170,48 @@ module SharedEnvExtension
   # Snow Leopard defines an NCURSES value the opposite of most distros.
   # See: https://bugs.python.org/issue6848
   # Currently only used by aalib in core.
-  def ncurses_define; append "CPPFLAGS", "-DNCURSES_OPAQUE=0"; end
+  def ncurses_define; append 'CPPFLAGS', '-DNCURSES_OPAQUE=0'; end
 
   def make_jobs
-    self['HOMEBREW_MAKE_JOBS'].nuzzle || (self["MAKEFLAGS"] =~ %r{-\w*j(\d)+})[1].nuzzle || Hardware::CPU.cores
+    self['HOMEBREW_MAKE_JOBS'].nuzzle \
+      || (self['MAKEFLAGS'] =~ %r{-\w*j(\d)+})[1].nuzzle \
+      || Hardware::CPU.cores
   end
 
-  # Changes the MAKEFLAGS environment variable, causing make to use a single job.  This is useful
-  # for makefiles with race conditions.  When passed a block, MAKEFLAGS is altered only for the
-  # duration of the block and is restored after its completion.
+  # Edits $MAKEFLAGS, causing Make to use a single job.  This is useful for
+  # makefiles with race conditions.  When passed a block, $MAKEFLAGS is altered
+  # only within the block, being restored on its completion.
   def deparallelize
-    old = self["MAKEFLAGS"]
-    j_rex = /(-\w*j)\d+/
+    old = self['MAKEFLAGS']; j_rex = /(-\w*j)\d+/
     if old =~ j_rex then self['MAKEFLAGS'] = old.sub(j_rex, '\11')
     else append 'MAKEFLAGS', '-j1'; end
-    begin; yield; ensure; self["MAKEFLAGS"] = old; end if block_given?
+    begin; yield; ensure; self['MAKEFLAGS'] = old; end if block_given?
     old
   end
   alias_method :j1, :deparallelize
 
   # @private
   def userpaths!
-    paths = self["PATH"].split(File::PATH_SEPARATOR)
-    # put Superenv.bin and opt path at the first
-    new_paths = paths.select { |p| p.start_with?("#{HOMEBREW_LIBRARY}/ENV") || p.start_with?(OPTDIR.to_s) }
+    paths = self['PATH'].split(File::PATH_SEPARATOR)
+    # put Superenv.bin and opt paths first
+    new_paths = paths.select { |p|
+        p.starts_with?("#{HOMEBREW_LIBRARY}/ENV") || p.starts_with?(OPTDIR.to_s)
+      }
     # XXX hot fix to prefer brewed stuff (e.g. python) over /usr/bin.
     new_paths << "#{HOMEBREW_PREFIX}/bin"
-    # reset of self["PATH"]
+    # reset of self['PATH']
     new_paths += paths
     # user paths
     new_paths += ORIGINAL_PATHS.map { |p| p.realpath.to_s rescue nil } - %w[/usr/X11/bin /opt/X11/bin]
-    self["PATH"] = new_paths.uniq.join(File::PATH_SEPARATOR)
+    self['PATH'] = new_paths.uniq.join(File::PATH_SEPARATOR)
   end # userpaths!
 
   def fortran
     flags = []
     if fc
-      ohai "Building with an alternative Fortran compiler"
-      puts "This is unsupported."
-      self["F77"] ||= fc
-      if ARGV.include? "--default-fortran-flags"
+      ohai 'Building with an assigned Fortran compiler', 'This is unsupported.'
+      self['F77'] ||= fc
+      if ARGV.include? '--default-fortran-flags'
         flags = FC_FLAG_VARS.reject { |key| self[key] }
       elsif values_at(*FC_FLAG_VARS).compact.empty?
         opoo <<-EOS.undent
@@ -210,14 +224,14 @@ module SharedEnvExtension
         EOS
       end # FC flag vars are all empty
     else # no fc
-      if (gfortran = which("gfortran", (HOMEBREW_PREFIX/"bin").to_s))
-        ohai "Using Tigerbrew-provided fortran compiler."
-      elsif (gfortran = which("gfortran", ORIGINAL_PATHS.join(File::PATH_SEPARATOR)))
+      if (gfortran = which('gfortran', "#{HOMEBREW_PREFIX}/bin"))
+        ohai 'Using Leopardbrew‐provided fortran compiler.'
+      elsif (gfortran = which('gfortran', ORIGINAL_PATHS.join(File::PATH_SEPARATOR)))
         ohai "Using a fortran compiler found at #{gfortran}."
       end
       if gfortran
-        puts "This may be changed by setting the FC environment variable."
-        self["FC"] = self["F77"] = gfortran
+        puts 'This may be changed by setting the FC environment variable.'
+        self['FC'] = self['F77'] = gfortran
         flags = FC_FLAG_VARS
       end
     end # no fc
@@ -225,19 +239,19 @@ module SharedEnvExtension
     set_cpu_flags(flags)
   end # fortran
 
-  # ld64 is a newer linker provided for Xcode 2.5
+  # ld64 is a newer linker provided for Xcode 2.5 (and 3.1)
   # @private
   def ld64
-    ld64 = Formulary.factory("ld64")
-    self["LD"] = ld64.bin/"ld"
-    append "LDFLAGS", "-B#{ld64.bin}/"
+    ld64 = Formulary.factory('ld64')
+    self['LD'] = ld64.bin/'ld'
+    append 'LDFLAGS', "-B#{ld64.bin}/"
   end
 
   # @private
   def gcc_version_formula(name)
     version = name[GNU_GCC_REGEXP, 1]
-    gcc_version_name = "gcc#{version.delete(".")}"
-    gcc = Formulary.factory("gcc")
+    gcc_version_name = "gcc#{version.delete('.')}"
+    gcc = Formulary.factory('gcc')
     if gcc.version_suffix == version then gcc
     else Formulary.factory(gcc_version_name); end
   end # gcc_version_formula
@@ -260,37 +274,50 @@ module SharedEnvExtension
     end # no GCC formula
   end # warn_about_non_apple_gcc
 
+  def cross_binary; set_build_archs(Hardware::CPU.cross_archs); end
+
   def universal_binary; set_build_archs(Hardware::CPU.universal_archs); end
 
   def set_build_archs(archset)
-    hba = self['HOMEBREW_BUILD_ARCHS']
-    hba.split(' ').each { |arch| remove ['CC', 'CXX'], "-arch #{arch}" } if hba
+    Hardware::CPU.all_archs.each { |arch| remove COMPILER_VARS, "-arch #{arch}" }
     archset.extend ArchitectureListExtension unless archset.respond_to?(:fat?)
     self['HOMEBREW_BUILD_ARCHS'] = archset.as_build_archs
-    archset.each { |arch| append ['CC', 'CXX'], "-arch #{arch}" }
+    append_if_set COMPILER_VARS, archset.as_arch_flags
   end # set_build_archs
 
-  def m32; set_build_archs [Hardware::CPU.arch_32_bit]; end
+  def m32
+    @build_arch_stash ||= build_archs
+    set_build_archs Hardware::CPU.select_32b_archs(@build_arch_stash)
+  end
 
   def un_m32
-    Hardware::CPU.all_32b_archs.each { |af| remove [CC, CXX], "-arch #{af}" }
-    remove HOMEBREW_BUILD_ARCHS, Hardware::CPU.arch_32_bit
+    Hardware::CPU.all_32b_archs.each { |af|
+      remove COMPILER_VARS, "-arch #{af}"
+      remove HOMEBREW_BUILD_ARCHS, af.to_s
+    }
+    set_build_archs @build_arch_stash
   end
 
-  def m64; set_build_archs [Hardware::CPU.arch_64_bit]; end
+  def m64
+    @build_arch_stash ||= build_archs
+    set_build_archs Hardware::CPU.select_64b_archs(@build_arch_stash)
+  end
 
   def un_m64
-    Hardware::CPU.all_64b_archs.each { |af| remove [CC, CXX], "-arch #{af}" }
-    remove HOMEBREW_BUILD_ARCHS, Hardware::CPU.arch_64_bit
-  end
+    Hardware::CPU.all_64b_archs.each do |af|
+      remove COMPILER_VARS, "-arch #{af}"
+      remove HOMEBREW_BUILD_ARCHS, af.to_s
+    end
+    set_build_archs @build_arch_stash
+  end # un_m64
 
   private
 
-  def cc=(val); self["CC"] = self["OBJC"] = val.to_s; end
+  def cc=(val); self['CC'] = self['OBJC'] = val.to_s + build_archs.as_arch_flags; end
 
-  def cxx=(val); self["CXX"] = self["OBJCXX"] = val.to_s; end
+  def cxx=(val); self['CXX'] = self['OBJCXX'] = val.to_s + build_archs.as_arch_flags; end
 
-  def homebrew_cc; self["HOMEBREW_CC"]; end
+  def homebrew_cc; self['HOMEBREW_CC']; end
 
   def fetch_compiler(value, source)
     COMPILER_SYMBOL_MAP.fetch(value) do |other|
