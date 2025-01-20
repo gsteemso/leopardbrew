@@ -2,14 +2,15 @@ class Curl < Formula
   desc 'Get a file from an HTTP, HTTPS or FTP server'
   homepage 'https://curl.se/'
   url 'https://curl.se/download/curl-8.11.1.tar.xz'
-  sha256 ''
+  sha256 'c7ca7db48b0909743eaef34250da02c19bc61d4f1dcedd6603f109409536ab56'
 
   keg_only :provided_by_osx
 
   option :universal
-  option 'with-gnutls',      'Add GnuTLS security, independent of OpenSSL/LibreSSL'
-  option 'with-libressl',    'Use LibreSSL security instead of OpenSSL'
-  option 'with-rtmpdump',    'Add RTMP (streaming Flash) capability'
+  option 'with-gnutls',   'Add GnuTLS security, independent of OpenSSL/LibreSSL'
+  option 'with-libressl', 'Use LibreSSL security instead of OpenSSL'
+  option 'with-rtmpdump', 'Add RTMP (streaming Flash) capability'
+  option 'with-tests',    'Run the build‐time test suite (slow)'
   option 'without-gsasl',    'Omit SASL SCRAM authentication'
   option 'without-libssh2',  'Omit scp and sFTP access'
   option 'without-more-dns', 'Omit asynchronous, internationalized, public‐suffix‐aware DNS'
@@ -21,16 +22,17 @@ class Curl < Formula
 
   depends_on 'pkg-config' => :build
 
+  depends_on 'curl-ca-bundle'
   depends_on 'libnghttp2'
   depends_on 'libuv'
   depends_on 'openssl3' if build.with?('ssl') and build.without? 'libressl'
+  depends_on 'perl'
   depends_on 'zlib'
 
   depends_on    'gsasl'   => :recommended
   depends_on    'libssh2' => :recommended
-  depends_group ['more-dns', :recommended] => ['c-ares',
-                                               'libidn2',
-                                               'libpsl' ]
+  depends_group ['more-dns', ['c-ares', 'libidn2', 'libpsl']
+                ]         => :recommended
   depends_on    'zstd'    => :recommended
 
   depends_on 'gnutls'   => :optional
@@ -40,9 +42,8 @@ class Curl < Formula
   enhanced_by 'brotli'
 
   def install
-    if build.with? 'libressl' and build.without? 'ssl'
-      raise UsageError '“--with-libressl” and “--without-ssl” are mutually exclusive.  Pick one.'
-    end
+    raise UsageError, '“--with-libressl” and “--without-ssl” are mutually exclusive.  Pick one.' \
+                             if build.with? 'libressl' and build.without? 'ssl'
     if build.universal?
       archs = Hardware::CPU.universal_archs
       stashdir = buildpath/'arch-stashes'
@@ -56,120 +57,147 @@ class Curl < Formula
       archs = [MacOS.preferred_arch]
     end # universal?
 
-    # the defaults:
-    #   --enable-alt-svc, --enable-aws, --enable-basic-auth, --enable-bearer-auth,
-    #   --enable-bindlocal, --without-ca-bundle, --without-ca-embed, --without-ca-fallback,
-    #   --without-ca-path, --enable-cookies, --disable-curldebug, --enable-dateparse,
-    #   --disable-debug, --without-default-ssl-backend, --enable-dict, --enable-digest-auth,
-    #   --enable-docs, --enable-doh, --disable-ech*, --enable-file, --enable-form-api, --enable-ftp,
-    #   --enable-gopher, --enable-headers-api, --enable-hsts, --enable-http, --enable-http-auth,
-    #   --disable-httpsrr, --enable-imap, --enable-ipv6, --enable-kerberos-auth, --enable-ldap,
-    #   --enable-ldaps, --enable-libcurl-option, --with-libgsasl, --with-libidn2, --with-libnghttp2,
-    #   --with-libpsl, --with-librtmp, --without-libssh, --without-libssh2, --enable-manual,
-    #   --enable-mime, --disable-mqtt, --enable-negotiate-auth, --enable-ntlm,
-    #   --without-openssl-quic*, --enable-optimize, --enable-pop3, --enable-proxy, --enable-rt,
-    #   --enable-rtsp, --enable-smb, --enable-smtp, --enable-socketpair, --enable-symbol-hiding*,
-    #   --enable-telnet, --enable-tftp, --enable-threaded-resolver, --enable-tls-srp*,
-    #   --enable-unix-sockets, --enable-verbose, --disable-warnings, --disable-werror,
-    #   --disable-windows-unicode, --with-zstd
-    # at least one must be selected:
-    #   --with-bearssl | --with-gnutls | --with-mbedtls | --with-openssl | --with-rustls
-    #   | --with-wolfssl | --without-ssl
-    #   (or [ha!] --with-amissl* | --with-schannel* | --with-secure-transport*)
-    # * these are in fact _enabled_ by default, but only when possible.
-    # installation locations that, if specified, should be done via PKG_CONFIG_PATH:
-    #   {brotli}, {gnutls}, {libpsl}, libssh, {libssh2}, {libressl|openssl3}, {rtmpdump}, wolfssh,
-    #   {zstd}
-    # options that don't, or don’t always, work for ’brewing:
-    #   --enable-ech :  LibreSSL doesn’t do it and OpenSSL’s isn’t released yet
-    #   --with-openssl-quic : requires a special experimental build of OpenSSL, & the other needed
-    #                         packages don’t exist yet anyway
-    #   --with-secure-transport :  not in Tiger; many versions from Leopard onward are obsolete; &
+    # The defaults:
+    #   --with-aix-soname=aix*, --enable-alt-svc,  --with-apple-idn*, --disable-ares, --enable-aws,
+    #   --enable-basic-auth, --enable-bearer-auth, --enable-bindlocal, --with-brotli,
+    #   --without-ca-bundle, --without-ca-embed, --without-ca-fallback, --without-ca-path,
+    #   --enable-ca-search*, --disable-ca-search-safe, --disable-code-coverage, --enable-cookies,
+    #   --disable-curldebug, --enable-dateparse, --disable-debug, --without-default-ssl-backend,
+    #   --enable-dependency-tracking(?), --enable-dict, --enable-digest-auth, --enable-dnsshuffle,
+    #   --enable-docs, --enable-doh, --enable-ech*, --enable-fast-install, --enable-file,
+    #   --with-fish-functions-dir, --enable-form-api, --enable-ftp, --enable-get-easy-options,
+    #   --without-gnu-ld, --enable-gopher, --without-gssapi, --enable-headers-api, --enable-hsts,
+    #   --enable-http, --enable-http-auth, --disable-httpsrr, --with-hyper, --enable-imap,
+    #   --enable-ipfs, --enable-ipv6, --enable-kerberos-auth, --enable-largefile, --enable-ldap,
+    #   --enable-ldaps, --enable-libcurl-option, --disable-libgcc, --with-libgsasl, --with-libidn2,
+    #   --with-libpsl, --with-librtmp, --without-libssh, --without-libssh2, --enable-libtool-lock,
+    #   --with-libuv, --disable-maintainer-mode, --enable-manual, --enable-mime, --disable-mqtt,
+    #   --with-msh3, --enable-negotiate-auth, --enable-netrc, --with-nghttp2, --with-nghttp3,
+    #   --with-ngtcp2, --enable-ntlm, --•?•able-openssl-autoload-config, --with-openssl-quic*,
+    #   --enable-optimize, --enable-option-checking, --enable-pop3, --enable-progress-meter,
+    #   --enable-proxy, enable-pthreads, --with-quiche, --enable-rt, --enable-rtsp,
+    #   --enable-sha512-256, --enable-shared, --enable-silent-rules(?), --enable-smb, --enable-smtp,
+    #   --enable-socketpair, --enable-sspi*, --enable-static, --enable-symbol-hiding*,
+    #   --enable-telnet, --disable-test-bundles, --enable-tftp, --enable-threaded-resolver,
+    #   --enable-tls-srp*, --disable-unity, --enable-unix-sockets, --enable-verbose,
+    #   --disable-versioned-symbols, --disable-warnings, --enable-websockets, --disable-werror,
+    #   --disable-windows-unicode, --with-winidn*, --with-zlib, --with-zsh-functions-dir,
+    #   --with-zstd
+    # At least one must be selected:
+    #     --with-amissl      | --with-bearssl[=…] | --with-gnutls[=…] | --with-mbedtls[=…]
+    #   | --with-openssl[=…] | --with-rustls[=…]  | --with-schannel   | --with-secure-transport
+    #   | --with-wolfssl[=…] | --without-ssl
+    # * These are enabled by default, but only when possible.  (See below.)
+    # These disable nonbinary behaviour:
+    #   --with[out]-pic (Normally both; on Mac OS 10.5, shared is with & static is without.)
+    #   --with-sysroot=… (Replaces the default.)
+    # Options that don't, or don’t always, work for ’brewing:
+    #   --with-apple-idn :  Apple IDN is more recent than Power Macs provide.
+    #   --enable-ech :  LibreSSL doesn’t do it & OpenSSL’s isn’t released yet (and it’s been YEARS).
+    #                   That’s why this is only enabled if GNUTLS is selected.
+    #   --with-openssl-quic :  Requires a specific non‐OpenSSL build and is not well supported.
+    #   --with-quiche :  QUICHE is only supported on little‐endian platforms.
+    #   --with-secure-transport :  Not in Tiger; many versions from Leopard onward are obsolete; &
     #                              cURL loses some features when using it instead of, e.g., OpenSSL
-    #   --enable-tls-srp :  LibreSSL does not have the API, but it’s automatic on OpenSSL
-    # options not listed above, as they need packages:
-    #   --with-ngtcp2, v1.2.0, plus --with-nghttp3, v1.1.0, plus (--with-gnutls
-    #                                                             OR --with-openssl={quicktls}
-    #                                                             OR --with-wolfssl)
-    #       OR --with-msh3 (experimental)
-    #       OR --with-quiche (experimental)
-    #   --enable-websockets
+    #   --enable-symbol-hiding :  Requires compiler support, which Apple’s GCC predates.
+    #   --enable-tls-srp :  LibreSSL does not have the API, but it’s automatic on OpenSSL.
+    # Inapplicable options:
+    #   --with-aix-soname=… :  Only applicable to AIX.
+    #   --with-amissl :  AmiSSL is for AmigaOS.
+    #   --disable-ca-search :  Unsafe CA search behaviour on Windows.
+    #   --enable-ca-search-safe :  Safe CA search behaviour on Windows.
+    #   --with-schannel :  Secure Channel is a Windows thing.
+    #   --enable-sspi :  SSPI is a Windows thing.
+    #   --enable-unity :  Unity is a C# wrapper ecosystem.
+    #   --enable-windows-unicode :  Only applicable to Windows.
+    #   --with-winidn :  Windows IDN.
+    # Options not mentioned above because they need packages, which may or may not already exist:
+    #   --with[out]-brotli[=…] :  A compression protocol.
+    #   --with[out]-fish-functions-dir=… :  The FISh completions directory.
+    #   --with-gssapi=… :  The GSS‐API directory root.
+    #     or, --with-gssapi-includes=… :  The GSS‐API headers directory.
+    #         --with-gssapi-libs=… :  The GSS‐API libraries directory.
+    #   --with[out]-hyper=… :  Hells if I know.
+    #   --with-lber-lib=… :  The LBER library file.
+    #   --with-ldap-lib=… :  The LDAP library file.
+    #   --with[out]-libidn2=… :  The LibIDN2 file.
+    #   --with[out]-librtmp=… :  The LibRTMP file.
+    #   --with-libssh[=…] :  The LibSSH file.
+    #   --with-libssh2[=…] :  The LibSSH2 file.
+    #   --with[out]-libuv=… :  The LibUV file.
+    #   --with[out]-nghttp2=…* :  The LibNGHTTP2 file.
+    #   --with[out]-nghttp3=…* :  The LibNGHTTP3 file.
+    #   --with[out]-ngtcp2=…* (v1.2.0), plus --with-nghttp3 (v1.1.0), plus (--with-gnutls
+    #                                                                 OR --with-openssl=quicktls
+    #                                                                 OR --with-wolfssl)
+    #     OR --with-quiche (quasi‐experimental)
+    #   --with[out]-quiche=…* :  Google’s “QUIC, Http, Etc.” – HTTP/2 & –3 (QUIC).
+    #   --with-test-caddy=…* :  A test program.
+    #   --with-test-httpd=…* :  A test program (from apache, or possibly libnghttp2 if so compiled?).
+    #   --with-test-nghttpx=…* :  A test program (from libnghttp2, if so compiled).
+    #   --with-test-vsftpd=… :  A test program.
+    #   --with-wolfssh[=…] :  The WolfSSH library file.
+    #   --with[out]-zlib[=…]* :  The ZLib file.
+    #   --with[out]-zsh-functions-dir=… :  The ZSh completions directory.
+    #   --with[out]-zstd[=…]* :  A compression protocol.
+    # Installation locations that, if specified, are preferably done via PKG_CONFIG_PATH:
+    #   {brotli}, {libpsl}, {(libssh) | libssh2}, {libressl|openssl3}, {rtmpdump}, ({!wolfssh}),
+    #   {zstd}
     args = [
       "--prefix=#{prefix}",
       '--disable-dependency-tracking',
-      '--enable-symbol-hiding',  # Apple GCC does not comply; request anyway because some others do
+      '--disable-silent-rules',
+      # Old Mac OSes ship with unusably outdated certs.
       "--with-ca-bundle=#{HOMEBREW_PREFIX}/share/ca-bundle.crt",
       '--with-ca-fallback',
       '--with-gssapi',
+      '--enable-httpsrr',
+      '--enable-libgcc',
       '--enable-mqtt',
-      "--with-zlib=#{Formula['zlib'].opt_prefix}",
       "--with-fish-functions-dir=#{fish_completion}",
       "--with-zsh-functions-dir=#{zsh_completion}"
     ]
 
-    # cURL now wants to find SSL with pkg-config instead of using “--with-openssl=”.
-    # “When possible, set the PKG_CONFIG_PATH environment variable instead of using
-    # this option.”  Multi-SSL choice breaks without using it.
-    if build.with? 'gnutls'
-      ENV.prepend_path 'PKG_CONFIG_PATH', "#{Formula['gnutls'].opt_lib}/pkgconfig"
-      args << "--with-gnutls=#{Formula['gnutls'].opt_prefix}"
-    end
+    # cURL now wants to find a lot of things via pkg-config instead of using
+    # “--with-xxx=”:  “When possible, set the PKG_CONFIG_PATH environment
+    # variable instead of using this option.”  Multi-SSL choice breaks without
+    # doing this.  On the other hand, the prerequisites‐assembly process sets
+    # all of them for us already, so it doesn’t much matter.
+
+    # The documentation is ambiguous as to whether this should be set via
+    # ./configure argument or via pkg-config.  Can’t test it until GNUTLS
+    # compiles successfully (which needs a newer compiler).
+    args << "--with-gnutls=#{Formula['gnutls'].opt_prefix}" if build.with? 'gnutls'
+
     if build.with? 'libressl'
-      ENV.prepend_path 'PKG_CONFIG_PATH', "#{Formula['libressl'].opt_lib}/pkgconfig"
-      args << "--with-openssl=#{Formula['libressl'].opt_prefix}"
+      args << '--with-openssl'
     elsif build.with? 'ssl'
-      ENV.prepend_path 'PKG_CONFIG_PATH', "#{Formula['openssl3'].opt_lib}/pkgconfig"
-      args << "--with-openssl=#{Formula['openssl3'].opt_prefix}"
+      args << '--with-openssl'
       args << '--enable-openssl-auto-load-config'
     elsif build.without? 'gnutls'
       args << '--without-ssl'
     end
 
-    if build.with? 'libssh2'
-      ENV.prepend_path 'PKG_CONFIG_PATH', "#{Formula['libssh2'].opt_lib}/pkgconfig"
-      args << '--with-libssh2'
-    end
-
     if build.with? 'more-dns'
       args << '--enable-ares'
-      ENV.prepend_path 'PKG_CONFIG_PATH', "#{Formula['libpsl'].opt_lib}/pkgconfig"
     else
-      args << '--disable-ares' << '--without-libidn2' << '--without-libpsl'
+      args << '--without-libidn2' << '--without-libpsl'
     end
 
-    if build.with? 'rtmpdump'
-      ENV.prepend_path 'PKG_CONFIG_PATH', "#{Formula['rtmpdump'].opt_lib}/pkgconfig"
-    else
-      args << '--without-librtmp'
-    end
-
-    if build.with? 'zstd'
-      ENV.prepend_path 'PKG_CONFIG_PATH', "#{Formula['zstd'].opt_lib}/pkgconfig"
-    else
-      args << '--without-zstd'
-    end
-
-    if enhanced_by? 'brotli'
-      ENV.prepend_path 'PKG_CONFIG_PATH', "#{Formula['brotli'].opt_lib}/pkgconfig"
-    else
-      args << '--without-brotli'
-    end
-
-    # Tiger/Leopard ship with a horrendously outdated set of certs,
-    # breaking any software that relies on curl, e.g. git
+    args << '--without-brotli' unless enhanced_by? 'brotli'
+    args << '--with-libssh2' if build.with? 'libssh2'
+    args << '--without-librtmp' if build.without? 'rtmpdump'
+    args << '--without-zstd' if build.without? 'zstd'
 
     archs.each do |arch|
-      if build.universal?
-        case arch
-          when :i386, :ppc then ENV.m32
-          when :ppc64, :x86_64 then ENV.m64
-        end
-      end # universal?
+      ENV.set_build_archs(archs.subset(arch)) if build.universal?
 
+      system './configure', *args
       ENV.deparallelize do
-        system './configure', *args
         system 'make'
+        system 'make', 'test' if build.with? 'tests'
         system 'make', 'install'
+        # Install the shell‐completion scripts.
         system 'make', 'install', '-C', 'scripts'
       end # deparallelize
       libexec.install 'scripts/mk-ca-bundle.pl' if File.exists? 'scripts/mk-ca-bundle.pl'
@@ -177,19 +205,15 @@ class Curl < Formula
       if build.universal?
         system 'make', 'clean'
         Merge.prep(prefix, stashdir/"bin-#{arch}", the_binaries)
-        Merge.cp_mkp prefix/script_to_fix, stashdir/"script-#{arch}/#{script_to_fix}"
-        # undo architecture-specific tweaks before next run
-        case arch
-          when :i386, :ppc then ENV.un_m32
-          when :ppc64, :x86_64 then ENV.un_m64
-        end # case arch
+        Merge.prep(prefix, stashdir/"script-#{arch}", [script_to_fix])
       end # universal?
     end # each |arch|
 
     if build.universal?
+      ENV.set_build_archs(archs)
       Merge.binaries(prefix, stashdir, archs)
-      archs.extend ArchitectureListExtension
-      inreplace stashdir/"script-#{archs.first}/#{script_to_fix}", "-arch #{archs.first}", archs.as_arch_flags
+      inreplace stashdir/"script-#{archs.first}/#{script_to_fix}",
+                                    "-arch #{archs.first}", archs.as_arch_flags
       bin.install stashdir/"script-#{archs.first}/#{script_to_fix}"
     end # universal?
   end # install
@@ -217,28 +241,14 @@ class Merge
   class << self
     include FileUtils
 
-    # The destination is expected to be a Pathname object.
-    # The source is just a string.
-    def cp_mkp(source, destination)
-      if destination.exists?
-        if destination.is_directory?
-          cp source, destination
-        else
-          raise "File exists at destination:  #{destination}"
-        end # directory?
-      else
-        mkdir_p destination.parent unless destination.parent.exists?
-        cp source, destination
-      end # destination exists?
-    end # Merge.cp_mkp
-
     # The keg_prefix and stash_root are expected to be Pathname objects.
     # The list members are just strings.
     def prep(keg_prefix, stash_root, list)
       list.each do |item|
         source = keg_prefix/item
         dest = stash_root/item
-        cp_mkp source, dest
+        mkdir_p dest.parent
+        cp source, dest
       end # each binary
     end # Merge.prep
 
