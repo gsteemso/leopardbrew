@@ -6,8 +6,8 @@ class Gnutls < Formula
   mirror 'https://www.mirrorservice.org/sites/ftp.gnupg.org/gcrypt/gnutls/v3.7/gnutls-3.7.11.tar.xz'
   sha256 '90e337504031ef7d3077ab1a52ca8bac9b2f72bc454c95365a1cd1e0e81e06e9'
 
-  # threads can’t be disabled, but thread-local storage is, apparently, unsupported on PowerPC (or
-  #   at least on ppc64) as of GCC 4.2
+  # Threads can’t be disabled, but thread-local storage is, apparently, unsupported on PowerPC (or
+  #   on ppc64) as of GCC 4.2.
   needs :tls
 
   option :universal
@@ -27,9 +27,10 @@ class Gnutls < Formula
   depends_on 'p11-kit'
   depends_on 'python3'
   depends_on 'zlib'
-  depends_on 'guile'              => :optional
-  depends_on 'unbound'            => :optional
-  depends_group ['more-compressors', :optional] => ['brotli', 'zstd']
+  depends_on 'guile'   => :optional
+  depends_on 'unbound' => :optional
+  depends_group ['more-compressors', ['brotli', 'zstd']
+                ]      => :optional
 
   # Availability.h appeared in Leopard
   patch :DATA
