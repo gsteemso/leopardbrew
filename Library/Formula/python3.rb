@@ -72,20 +72,19 @@ class Python3 < Formula
 
     # There is no simple way to extract a “ppc” slice from a universal file.  We have to
     # specify the exact sub‐architecture we actually put in there in the first place.
-    if Hardware::CPU.ppc?
-      our_ppc_flavour = Hardware::CPU.optimization_flags[Hardware::CPU.model][/^-mcpu=(\d+)/, 1]
+    if Hardware::CPU.powerpc?
+      our_ppc_flavour = Hardware::CPU.optimization_flags(Hardware::CPU.model)[/^-mcpu=(\d+)/, 1]
       inreplace 'configure' do |s| s.gsub! '-extract ppc7400', "-extract ppc#{our_ppc_flavour}" end
     end
 
-    # We want our readline! This is just to outsmart the detection code,
-    # superenv makes cc always find includes/libs!
-    inreplace 'setup.py',
-      'do_readline = self.compiler.find_library_file(self.lib_dirs,
-                readline_lib)',
-      "do_readline = '#{Formula['readline'].opt_lib}/libhistory.dylib'"
-
     inreplace 'setup.py' do |s|
-      s.gsub! 'sqlite_setup_debug = False', 'sqlite_setup_debug = True'
+      # We want our readline! This is just to outsmart the detection code,
+      # superenv makes cc always find includes/libs!
+      s.gsub! 'do_readline = self.compiler.find_library_file(self.lib_dirs, readline_lib)',
+              "do_readline = '#{Formula['readline'].opt_lib}/libhistory.dylib'"
+
+      s.gsub! 'sqlite_setup_debug = False',
+              'sqlite_setup_debug = True'
       s.gsub! 'for d_ in self.inc_dirs + sqlite_inc_paths:',
               "for d_ in ['#{Formula['sqlite'].opt_include}']:"
     end
@@ -94,8 +93,10 @@ class Python3 < Formula
     # even if homebrew is not a /usr/local/lib. Try this with:
     # `brew install enchant && pip install pyenchant`
     inreplace './Lib/ctypes/macholib/dyld.py' do |f|
-      f.gsub! 'DEFAULT_LIBRARY_FALLBACK = [', "DEFAULT_LIBRARY_FALLBACK = [ '#{HOMEBREW_PREFIX}/lib',"
-      f.gsub! 'DEFAULT_FRAMEWORK_FALLBACK = [', "DEFAULT_FRAMEWORK_FALLBACK = [ '#{HOMEBREW_PREFIX}/Frameworks',"
+      f.gsub! 'DEFAULT_LIBRARY_FALLBACK = [',
+              "DEFAULT_LIBRARY_FALLBACK = [ '#{HOMEBREW_PREFIX}/lib',"
+      f.gsub! 'DEFAULT_FRAMEWORK_FALLBACK = [',
+              "DEFAULT_FRAMEWORK_FALLBACK = [ '#{HOMEBREW_PREFIX}/Frameworks',"
     end
 
     tcl_tk = Formula['tcl-tk'].opt_prefix
