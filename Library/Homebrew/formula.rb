@@ -292,8 +292,8 @@ class Formula
   # member of the group is present.
   def enhanced_by?(aid); active_spec.enhanced_by?(aid); end
 
-  # The list of formulæ that, being known to be installed, will enhance the
-  # currently active {SoftwareSpec}.
+  # The list of formula‐groups that, being known to be installed, will enhance
+  # the currently active {SoftwareSpec}.
   # @private
   def active_enhancements; active_spec.active_enhancements; end
 
@@ -351,7 +351,8 @@ class Formula
       and oldrack.subdirs.any? { |keg| is_installed_prefix?(keg) }
   end
 
-  # Returns HEAD (if present), or else the greatest version number among kegs in this rack.
+  # Returns a new Keg:  HEAD (if present), or else the greatest version amongst
+  # kegs in this rack.
   def greatest_installed_keg
     highest_seen = ''
     rack.subdirs.each do |keg|
@@ -360,10 +361,10 @@ class Formula
         if candidate == 'HEAD' then highest_seen = 'HEAD'; break; end
         highest_seen = candidate if candidate.to_s > highest_seen.to_s
       else
-        raise RuntimeError, "#{keg} is located in a rack of kegs, but is not an installed keg"
+        raise NotAnInstalledKegError, keg
       end
     end if rack.directory?
-    raise RuntimeError, "#{name} is not installed." if highest_seen == ''
+    raise FormulaNotInstalledError, full_name if highest_seen == ''
     Keg.new(rack/highest_seen)
   end # greatest_installed_keg
 
@@ -396,7 +397,7 @@ class Formula
   def self.is_installed_prefix?(pn); pn and pn.directory? and (pn/Tab::FILENAME).file?; end
 
   def self.from_installed_prefix(pn)
-    if is_installed_prefix?(pn) and (ts = Tab.from_file(pn/Tab::FILENAME)[:source])
+    if is_installed_prefix?(pn) and (ts = Tab.from_file(pn/Tab::FILENAME).source)
       Formulary.factory(ts['path'], ts['spec'])
     end
   end
@@ -1553,15 +1554,20 @@ class Formula
     # # each generate the option
     # --with-gnutls
     # # in addition to whatever was generated for the 'ssl' set.
-    # # If none of the options is used, the first of the alternates listed is chosen
-    # # by default.  In this case, since it was another set, the default for that set
-    # # is chosen.  Note that the set name goes unused in this case.
+    # # If none of the options is used, the first of the alternates listed is
+    # # chosen by default.  In this case, since it was another set, the default
+    # # for that set is chosen.  Note that the set name goes unused in this
+    # # case.
 #    def depends_on_one(set); specs.each { |spec| spec.depends_on_one(set) }; end
 
-    # # Define a group of dependencies selectable by a single option.  Pass it a one‐
-    # # element hash.  The key MUST be the element-pair ['group-name', priority],
-    # # where “priority” must be either “:optional” or “:recommended”.
-    # depends_group ['more-dns', :recommended] => ['c-ares', 'ibidn2, 'libpsl']
+    # # Define a group of dependencies selectable by a single option.  Pass it
+    # # a two‐element array, where the first element is the group name and the
+    # # second is the array of dependencies.  It is normally tagged in the same
+    # # manner as an individual dependency – “:recommended” or “:optional”, and
+    # # possibly also “:build” (using the same array structure as an individual
+    # # dependency).
+    # depends_group ['more-dns', ['c-ares', 'ibidn2, 'libpsl']] => :recommended
+    # # This example autogenerates a “--without-more-dns” option.
     def depends_group(group); specs.each { |spec| spec.depends_group(group) }; end
 
     # Soft dependencies (those which can be omitted if need be, in order to
