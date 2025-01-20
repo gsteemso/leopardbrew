@@ -18,7 +18,7 @@ module Stdenv
 
   # @private
   def setup_build_environment(formula = nil, archset = nil)
-    super(formula, archset)
+    super
 
     if MacOS.version >= :mountain_lion
       # Mountain Lion's sed errors out on files with mixed character sets
@@ -49,8 +49,7 @@ module Stdenv
       self["CMAKE_FRAMEWORK_PATH"] = frameworks.to_s
     end
 
-    # Os is the default Apple uses for all its stuff so let's trust them
-    # weirdly, GNU autotools look in $CC for -arch flags if they look at all
+    # Os is the default Apple uses for all its stuff so let’s trust them
     set_cflags "-Os #{SAFE_CFLAGS_FLAGS}"
 
     append "LDFLAGS", "-Wl,-headerpad_max_install_names"
@@ -113,7 +112,7 @@ module Stdenv
   def gcc; super; set_cpu_cflags; end
   alias_method :gcc_4_2, :gcc
 
-  GNU_GCC_VERSIONS.each { |n| define_method(:"gcc-#{n}") do super(); set_cpu_cflags; end }
+  GNU_GCC_VERSIONS.each { |n| define_method(:"gcc-#{n}") do super; set_cpu_cflags; end }
 
   def llvm; super; set_cpu_cflags; end
 
@@ -121,7 +120,7 @@ module Stdenv
     super
     replace_in_cflags(/-Xarch_#{Hardware::CPU.arch_32_bit} (-march=\S*)/, '\1')
     # Clang mistakenly enables AES-NI on plain Nehalem
-    map = Hardware::CPU.optimization_flags
+    map = Hardware::CPU.opt_flags_as_map
     map = map.merge(:nehalem => "-march=native -Xclang -target-feature -Xclang -aes")
     set_cpu_cflags "-march=native", map
   end # clang
@@ -214,18 +213,26 @@ module Stdenv
   # we've seen some packages fail to build when warnings are disabled!
   def enable_warnings; remove_from_cflags "-w"; end
 
-  def m32; super; append_to_cflags "-m32"; end
+  def m32
+    super  # This filters the build archs to the 32‐bit ones
+    append_to_cflags "-m32"
+    append LDFLAGS, build_archs.as_arch_flags
+  end
 
   def un_m32
-    super
+    super  # this restores all the build archs
     remove_from_cflags '-m32'
     Hardware::CPU.all_32b_archs.each { |af| remove 'LDFLAGS', "-arch #{af}" }
   end
 
-  def m64; super; append_to_cflags "-m64"; end
+  def m64
+    super  # This filters the build archs to the 64‐bit ones
+    append_to_cflags "-m64"
+    append LDFLAGS, build_archs.as_arch_flags
+  end
 
   def un_m64
-    super
+    super  # this restores all the build archs
     remove_from_cflags '-m64'
     Hardware::CPU.all_64b_archs.each { |af| remove 'LDFLAGS', "-arch #{af}" }
   end
@@ -263,7 +270,7 @@ module Stdenv
   # Sets architecture-specific flags for every environment variable
   # given in the list `flags`.
   # @private
-  def set_cpu_flags(flags, default = DEFAULT_FLAGS, map = Hardware::CPU.optimization_flags)
+  def set_cpu_flags(flags, default = DEFAULT_FLAGS, map = Hardware::CPU.opt_flags_as_map)
     cflags =~ /(-Xarch_#{Hardware::CPU.arch_32_bit} )-march=/
     xarch = $1.to_s
     remove flags, /(-Xarch_#{Hardware::CPU.arch_32_bit} )?-march=\S*/
