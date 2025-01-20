@@ -17,6 +17,7 @@ class SoftwareSpec
     :cxx11     => Option.new("c++11", "Build using C++11 mode"),
     "32-bit"   => Option.new("32-bit", "Build 32-bit only")
   }
+  OPT_REC = [:optional, :recommended].freeze
 
   attr_reader :name, :full_name, :owner
   attr_reader :bottle_specification, :build, :compiler_failures, :dependency_collector,
@@ -84,7 +85,7 @@ class SoftwareSpec
 
   def resource(name, klass = Resource, &block)
     if block_given?
-      raise DuplicateResourceError.new(name) if resource_defined?(name)
+      raise DuplicateResourceError, name if resource_defined?(name)
       res = klass.new(name, &block)
       resources[name] = res
       dependency_collector.add(res)
@@ -128,7 +129,10 @@ class SoftwareSpec
     end
   end # deprecated_option
 
-  def depends_on(d_spec); dep = dependency_collector.add(d_spec); add_dep_option(dep) if dep; end
+  def depends_on(d_spec)
+    dep = dependency_collector.add(d_spec)
+    add_dep_option(dep) if dep
+  end
 
 #  def depends_on_one(set)
 #    s_dep = dependency_collector.add_set(set)
@@ -136,18 +140,27 @@ class SoftwareSpec
 #  end
 
   def depends_group(group)
-    group_name, priority = *(group.keys.first)
-    raise UsageError.new "dependency group #{group_name} needs :optional or :recommended priority" \
-      unless [:optional, :recommended].any? { |prio| priority == prio }
-    deps = []
-    group.values.first.each { |f| deps << dependency_collector.add(f => priority) }
-    add_group_option(group_name, priority) unless deps.empty?
+    group_name, group_members = *(group.keys.first)
+    group_tags = Array(group.values.first)
+    raise UsageError, "dependency group “#{group_name}” MUST have :optional or :recommended priority" \
+             unless group_tags.any?{ |tag| OPT_REC.any?{ |prio| tag == prio } }
+    _deps = []
+    group_members.each{ |f| _deps << dependency_collector.add(f => group_tags) }
+    add_group_option(group_name, group_tags.detect{ |tag|
+                                                    OPT_REC.any?{ |prio| tag == prio }
+                                                  }) unless _deps.empty?
   end # depends_group
 
   def enhanced_by(aid)
-    aids = Array(aid).map { |name| Formulary.factory(name) }
-    @named_enhancements << aids
-    @active_enhancements << aids if aids.all? { |f| f.installed? }
+    if Array === aid
+      aids = Array(aid).map { |name| Formulary.factory(name) }
+      @named_enhancements << aids
+      @active_enhancements << aids if aids.all? { |f| f.installed? }
+    else
+      f = Formulary.factory(aid)
+      @named_enhancements << [f]
+      @active_enhancements << [f] if f.installed?
+    end
   end # enhanced_by
 
   def enhanced_by?(aid)
