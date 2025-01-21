@@ -24,17 +24,15 @@ module ArchitectureListExtension  # applicable to arrays of architecture symbols
 
   # Don’t know if these can even be generated, but it’s conceivable.
   # @private
-  def truly_universal?; true if intersects_all?(ARM_ARCHS, INTEL_ARCHS, POWERPC_ARCHS); end
+  def omniversal?; true if intersects_all?(ARM_ARCHS, INTEL_ARCHS, POWERPC_ARCHS); end
 
   # @private
   def universal_2?; true if [:arm64, :x86_64].all? { |arch| self.includes? arch }; end
 
   # @private
-  def universal?; intel_universal? or ppc_universal? or cross_universal? or universal_2? or truly_universal?; end
+  def universal?; intel_universal? or ppc_universal? or cross_universal? or universal_2? or omniversal?; end
 
-  def subset(archs)
-    return self.select { |a| Array(archs).includes? a }
-  end
+  def subset(archs); return self.select { |a| archs.includes? a }; end
 
   def as_arch_flags; map { |a| "-arch #{a.to_s}" }.join(' '); end
 
