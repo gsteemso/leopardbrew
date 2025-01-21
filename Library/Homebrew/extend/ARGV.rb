@@ -10,20 +10,20 @@ module HomebrewArgvExtension
                   sandbox?
                   verbose?  ].freeze
 
-  ENV_FLAG_HASH = { 'build_cross'      => '--cross'
-                    'build_universal?' => '--universal' }.freeze
+  ENV_FLAG_HASH = { 'build_cross?'      => '--cross',
+                    'build_universal?' => '--universal', }.freeze
 
   SWITCHES = { '1' => '--1', # (“do not recurse” – only used by the `deps` command)
-             # 'd' => '--debug' (already handled as an ENV_FLAG)
+             # 'd' => '--debug', (already handled as an ENV_FLAG)
                'f' => '--force',
                'g' => '--git',
                'i' => '--interactive',
                'n' => '--dry-run',
              # 'q' => '--quieter'  (already handled as an ENV_FLAG)
-             # 's' => '--build-from-source' (already handled as an ENV_FLAG)
-             # 'u' => '--universal' (already handled as a hashed ENV_FLAG)
-             # 'v' => '--verbose' (already handled as an ENV_FLAG)
-             # 'x' => '--cross' (already handled as a hashed ENV_FLAG)
+             # 's' => '--build-from-source', (already handled as an ENV_FLAG)
+             # 'u' => '--universal', (already handled as a hashed ENV_FLAG)
+             # 'v' => '--verbose', (already handled as an ENV_FLAG)
+             # 'x' => '--cross', (already handled as a hashed ENV_FLAG)
              }.freeze
 
   BREW_SYSTEM_EQS = %w[ --bottle-arch=
