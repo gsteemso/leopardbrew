@@ -322,8 +322,8 @@ class FormulaInstaller
   def inherited_options_for(dep)
     inherited_options = Options.new
     x = Option.new('cross')
-    inherited_options << x if (options.include?(x) or formula.require_cross_deps?) \
-                      and not(dep.build?) and dep.to_formula.option_defined?(x)
+    inherited_options << x if options.include?(x) and not(dep.build?) \
+                                          and dep.to_formula.option_defined?(x)
     u = Option.new("universal")
     inherited_options << u if (options.include?(u) or formula.require_universal_deps?) \
                       and not(dep.build?) and dep.to_formula.option_defined?(u)
