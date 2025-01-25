@@ -317,7 +317,7 @@ class FormulaAuditor
         when "mercurial"
           problem "Use `depends_on :hg` instead of `depends_on 'mercurial'`"
         when "ruby"
-          problem "Don't use ruby as a dependency. We allow non-Tigerbrew ruby installations."
+          problem "Don't use ruby as a dependency.  We allow non-Tigerbrew ruby installations."
         when "gfortran"
           problem "Use `depends_on :fortran` instead of `depends_on 'gfortran'`"
         when "open-mpi", "mpich"
@@ -1043,11 +1043,6 @@ class ResourceAuditor
     # Check GNU urls; doesn't apply to mirrors
     if url =~ %r{^(?:https?|ftp)://(?!alpha).+/gnu/}
       problem "Please use \"http://ftpmirror.gnu.org\" instead of #{url}."
-    end
-
-    # GNU's ftpmirror does NOT support SSL/TLS.
-    if url =~ %r{^https://ftpmirror\.gnu\.org/}
-      problem "Please use http:// for #{url}"
     end
 
     if mirrors.include?(url)
