@@ -39,6 +39,7 @@ CPU_TYPES = {
   '00000011' => 'RS6000',
   '00000012' => 'PPC',
   '01000012' => 'PPC64',
+  '000000ff' => 'VEO',
 }.freeze
 
 PPC_SUBTYPES = {
@@ -57,8 +58,7 @@ PPC_SUBTYPES = {
   '00000064' => 'ppc970'
 }.freeze
 
-module Trm # standard terminal display-control sequences (yes, can be a wrong assumption)
-  module_function
+module TerminalANSI # standard terminal display-control sequences (yes, can be a wrong assumption)
   # - In the 7‐bit environment UTF‐8 imposes, the Control Sequence Introducer (ᴄꜱɪ) is “ᴇꜱᴄ ‘[’”.
   def csi ; "\033[" ; end
   # - Control sequences containing multiple parameters separate them by ‘;’.
@@ -135,8 +135,8 @@ module Trm # standard terminal display-control sequences (yes, can be a wrong as
   # - If ɢʀᴄᴍ is in the REPLACING state and needs to be set CUMULATIVE, the Set Mode (ꜱᴍ) sequence
   #   is “ᴄꜱɪ ⟨Pₛ⟩ ... ‘h’” and the parameter value for ɢʀᴄᴍ is 21.  Should it for some reason need
   #   to be changed back to REPLACING, the Reset Mode (ʀᴍ) sequence is “ᴄꜱɪ ⟨Pₛ⟩ ... ‘l’”.
-  def self.set_grcm_cumulative ; "#{csi}21h" ; end
-  def self.set_grcm_replacing  ; "#{csi}21l" ; end
+  def set_grcm_cumulative ; "#{csi}21h" ; end
+  def set_grcm_replacing  ; "#{csi}21l" ; end
 
   def bolder_on_black ; sgr(boldr, on_blk) ; end
   def in_yellow(msg) ; sgr(ylw) + msg.to_s + sgr(dflt) ; end
@@ -147,13 +147,14 @@ module Trm # standard terminal display-control sequences (yes, can be a wrong as
   def in_br_blue(msg) ; sgr(br_blu) + msg.to_s + sgr(dflt) ; end
   def in_br_cyan(msg) ; sgr(br_cyn) + msg.to_s + sgr(dflt) ; end
   def in_br_white(msg) ; sgr(br_wht) + msg.to_s + sgr(dflt) ; end
-  def reset_ ; sgr(rst) ; end
-end # Trm
+  def resetgr ; sgr(rst) ; end
+end # TerminalANSI
 
 module Homebrew
-  Trm.set_grcm_cumulative
+  extend TerminalANSI
+  set_grcm_cumulative
 
-  def oho(*msg); puts "#{Trm.bolder_on_black}#{Trm.in_br_blue '==>'} #{msg.to_a * ''}#{Trm.reset_}"; end
+  def oho(*msg); puts "#{bolder_on_black}#{in_br_blue '==>'} #{msg.to_a * ''}#{resetgr}"; end
 
   def ohey(title, *msg); oho title; puts msg; end
 
@@ -165,7 +166,7 @@ module Homebrew
 
     def scour(loc)
       possibles = []
-      Dir["#{loc}/{*,.*}"].reject { |f| f =~ %r{/\.{1,2}$} }.map { |f| Pathname.new(f) }.each do |pn|
+      Dir["#{loc}/{*,.*}"].reject{ |f| f =~ %r{/\.\.?$} }.map{ |f| Pathname.new(f) }.each do |pn|
         unless pn.symlink?
           if pn.directory? then possibles += scour(pn)
           elsif pn.mach_o_signature_at?(0) or pn.ar_signature_at?(0) then possibles << pn
@@ -178,7 +179,9 @@ module Homebrew
     def cpu_valid(type, subtype)
       case CPU_TYPES[type]
         when /^ARM/, 'i386', 'x86-64' then CPU_TYPES[type]
-        when 'PPC' then got_generic_ppc = true if (val = PPC_SUBTYPES[subtype]) and val == 'ppc‐*'; val
+        when 'PPC'
+          got_generic_ppc = (val = PPC_SUBTYPES[subtype] and val == 'ppc‐*')
+          val
         when 'PPC64' then 'ppc64'
         else nil
       end
@@ -188,12 +191,12 @@ module Homebrew
       # Generate a key from a one‐architecture (sub‐)file:
       return [nil, nil] unless pname.size > offset + 12
       cpu_type, cpu_subtype = pname.binread(8, offset + 4).unpack('H8H8')
-      if arch = cpu_valid(cpu_type, cpu_subtype) then key = [Trm.in_br_cyan(arch)]; alien_report = nil
+      if arch = cpu_valid(cpu_type, cpu_subtype) then key = [in_br_cyan(arch)]; alien_report = nil
       else # alien arch
         ct = (CPU_TYPES[cpu_type] or cpu_type)
-        key = [Trm.in_cyan("#{ct}:#{cpu_subtype}")]
+        key = [in_cyan("#{ct}:#{cpu_subtype}")]
         alien_report = \
-          "File #{Trm.in_white(pname)}:\n  [foreign CPU type #{Trm.in_cyan(ct)} with subtype #{Trm.in_cyan(cpu_subtype)}].\n"
+          "File #{in_white(pname)}:\n  [foreign CPU type #{in_cyan(ct)} with subtype #{in_cyan(cpu_subtype)}].\n"
       end # native arch?
       return [key, alien_report]
     end
@@ -209,40 +212,40 @@ module Homebrew
             if (arch_count = pn.fat_count_at(0)) > 0
               # Generate a key describing this set of architectures.  First, extract the list of them:
               parts = []
-              arch_count.times { |i| parts << pn.binread(8, 8 + 20*i).unpack('H8H8') }
+              arch_count.times{ |i| parts << pn.binread(8, 8 + 20*i).unpack('H8H8') }
               native_parts = []
               foreign_parts = []
               parts.each do |part|
                 cpu_type, cpu_subtype = part
                 if arch = cpu_valid(cpu_type, cpu_subtype)
-                  native_parts << Trm.in_br_cyan(arch)
+                  native_parts << in_br_cyan(arch)
                 else
                   ct = (CPU_TYPES[cpu_type] or cpu_type)
                   foreign_parts << {
-                    { :type => ct, :subtype => cpu_subtype } =>
-                      "[foreign CPU type #{Trm.in_cyan(ct)} with subtype #{Trm.in_cyan(cpu_subtype)}.]"
-                  }
+                      { :type => ct, :subtype => cpu_subtype } =>
+                        "[foreign CPU type #{in_cyan(ct)} with subtype #{in_cyan(cpu_subtype)}.]"
+                    }
                 end # valid arch?
               end # do each |part|
               # Second, sort the list:
-              native_parts.uniq!
               native_parts.sort! do |a, b|
                 # the ꜱɢʀ sequences at beginning and end are 5 characters each
-                if (a[5..7] == 'ppc' and b[5..7] == 'ppc') # sort ppc64 after all other ppc types
-                  if a[8..-6] == '64' then 1
+                if a[5..7] == 'ppc' and b[5..7] == 'ppc' # sort ppc64 after all other ppc types
+                  if a[8..-6] == '64' then b[8..-6] == '64' ? 0 : 1
                   elsif b[8..-6] == '64' then -1
                   else a <=> b; end  # sort other ppc types
                 else a <=> b; end  # sort all other types
               end if native_parts.length > 1
-              foreign_parts.uniq!
               foreign_parts.sort! do |a, b|
                 if a.keys.first[:type] < b.keys.first[:type] then -1
                 elsif a.keys.first[:type] > b.keys.first[:type] then 1
                 else a.keys.first[:subtype] <=> b.keys.first[:subtype]; end
               end if foreign_parts.length > 1
               # Third, use the sorted list as a search key:
-              key = native_parts + foreign_parts.map { |fp| "#{Trm.in_cyan(fp.keys.first[:type])}:#{Trm.in_cyan(fp.keys.first[:subtype])}" }
-              alien_reports << "File #{Trm.in_white(pn)}:\n  #{foreign_parts.map { |fp| fp.values.first } * "\n  "}\n" \
+              key = native_parts + foreign_parts.map{ |fp|
+                  "#{in_cyan(fp.keys.first[:type])}:#{in_cyan(fp.keys.first[:subtype])}"
+                }
+              alien_reports << "File #{in_white(pn)}:\n  #{foreign_parts.map{ |fp| fp.values.first } * "\n  "}\n" \
                                                                              if foreign_parts != []
             end # (arch_count > 0)?
           elsif sig # :MH_MAGIC, :MH_MAGIC_64
@@ -255,29 +258,31 @@ module Homebrew
           else arch_reports[key] = 1; end
         end
       end # do each |pn|
-
       if arch_reports == {}
-        oho "#{Trm.in_white(keg.name)} appears to contain #{Trm.in_yellow('no valid Mach-O files')}."
+        oho "#{in_white(keg.name)} appears to contain #{in_yellow('no valid Mach-O files')}."
         no_archs_msg = true
-      else
-        ohey("#{Trm.in_white(keg.name)} appears to contain some foreign code:", alien_reports * '') if alien_reports != []
+      else # there are arch reports
+        machO_count = arch_reports.values.sum
+        ohey("#{in_white(keg.name)} appears to contain some foreign code:", alien_reports * '') \
+                                                                             if alien_reports != []
         unless thorough_flag
-          combo_incidence = arch_reports.values.max  # How often did we see the most common arch combinations?
-          arch_reports.select! { |k, v| v == combo_incidence }  # Only report those most‐common combos
+          combo_incidence = arch_reports.values.max  # How often did the most common arch combos occur?
+          arch_reports.select!{ |k, v| v == combo_incidence }  # Only report those most‐common combos
           if arch_reports.length > 1
-            arch_count = arch_reports.keys.map { |k| k.length }.max  # How many archs appear in the most complex combos?
-            arch_reports.select! { |k, v| k.length == arch_count }  # only report those most‐complex combos
-          end
-          arch_reports.reject! { |r| r.any? { |rr| rr =~ /ppc‐\*/ } } if arch_reports.length > 1
+            arch_count = arch_reports.keys.map{ |k| k.length }.max  # How many archs appear in the most complex combos?
+            arch_reports.select!{ |k, v| k.length == arch_count }  # only report those most‐complex combos
+          end # more than one arch report?
+          arch_reports.reject!{ |r| r.any?{ |rr| rr =~ /ppc‐\*/ } } if arch_reports.length > 1
         end # not thorough?
-        oho "#{Trm.in_white("#{keg.name} #{keg.base.basename}")} is built for ",
-          "#{Trm.in_br_white(arch_reports.length)} combination#{plural(arch_reports.length)} of architectures:  ",
-          arch_reports.keys.sort { |a, b| b.length <=> a.length }.map {
-              |k| "#{k * Trm.in_white('/')} (#{'×' + arch_reports[k].to_s})"
-            } * ', ', '.'
+        oho "#{in_white("#{keg.name} #{keg.base.basename}")} is built#{thorough_flag ? '' : ' primarily'} for ",
+          "#{in_br_white(arch_reports.length)} combination#{plural(arch_reports.length)} of architectures:  ",
+          arch_reports.keys.sort{ |a, b|        # descending by incidence, then by complexity
+              (c = arch_reports[b] <=> arch_reports[a]) == 0 ? (b.length <=> a.length) : c
+            }.map{
+              |k| "#{k * in_white('/')} (#{'×' + arch_reports[k].to_s})"
+            } * ', ', " (#{machO_count} Mach-O binaries in total)."
       end # any archs found?
     end # do each |keg|
-
     if no_archs_msg
       puts <<-_.undent
         Sometimes a successful brew produces no Mach-O binary files.  This can happen
@@ -287,3 +292,5 @@ module Homebrew
     end # no_archs_msg?
   end # list_archs
 end # Homebrew
+
+class Array; def sum; total = 0; each{ |e| total += e.to_i }; total; end; end
