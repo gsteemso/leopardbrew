@@ -99,7 +99,8 @@ module SharedEnvExtension
   def remove(keys, value, sep = ' ')
     Array(keys).each do |key|
       next unless self[key]
-      self[key] = self[key].sub(value, '').gsub(/#{sep}{2,}/, sep)
+      # Make sure to only delete whole entries – not from the middle of one.
+      self[key] = self[key].sub(/(\W)#{value}(?!\w)/, $1 || '').gsub(/#{sep}{2,}/, sep).chomp
       delete(key) if self[key].empty?
     end if value
   end # remove
@@ -175,7 +176,7 @@ module SharedEnvExtension
   def make_jobs
     self['HOMEBREW_MAKE_JOBS'].nuzzle \
       || (self['MAKEFLAGS'] =~ %r{-\w*j(\d)+})[1].nuzzle \
-      || Hardware::CPU.cores
+      || CPU.cores
   end
 
   # Edits $MAKEFLAGS, causing Make to use a single job.  This is useful for
@@ -274,48 +275,49 @@ module SharedEnvExtension
     end # no GCC formula
   end # warn_about_non_apple_gcc
 
-  def cross_binary; set_build_archs(Hardware::CPU.cross_archs); end
+  def cross_binary; set_build_archs(CPU.cross_archs); end
 
-  def universal_binary; set_build_archs(Hardware::CPU.universal_archs); end
+  def universal_binary; set_build_archs(CPU.universal_archs); end
 
+  # This will have already been set up with a correctly-extended Array
+  # argument by stdenv or by superenv.
   def set_build_archs(archset)
-    Hardware::CPU.all_archs.each { |arch| remove COMPILER_VARS, "-arch #{arch}" }
-    archset.extend ArchitectureListExtension unless archset.respond_to?(:fat?)
+    CPU.all_archs.each { |arch| remove COMPILER_VARS, "-arch #{arch}" }
     self['HOMEBREW_BUILD_ARCHS'] = archset.as_build_archs
     append_if_set COMPILER_VARS, archset.as_arch_flags
   end # set_build_archs
 
   def m32
     @build_arch_stash ||= build_archs
-    set_build_archs Hardware::CPU.select_32b_archs(@build_arch_stash)
+    set_build_archs CPU.select_32b_archs(@build_arch_stash)
   end
 
   def un_m32
-    Hardware::CPU.all_32b_archs.each { |af|
-      remove COMPILER_VARS, "-arch #{af}"
-      remove HOMEBREW_BUILD_ARCHS, af.to_s
+    CPU.all_32b_archs.each { |arch|
+      remove COMPILER_VARS, "-arch #{arch}"
+      remove HOMEBREW_BUILD_ARCHS, arch.to_s
     }
     set_build_archs @build_arch_stash
   end
 
   def m64
     @build_arch_stash ||= build_archs
-    set_build_archs Hardware::CPU.select_64b_archs(@build_arch_stash)
+    set_build_archs CPU.select_64b_archs(@build_arch_stash)
   end
 
   def un_m64
-    Hardware::CPU.all_64b_archs.each do |af|
-      remove COMPILER_VARS, "-arch #{af}"
-      remove HOMEBREW_BUILD_ARCHS, af.to_s
+    CPU.all_64b_archs.each do |arch|
+      remove COMPILER_VARS, "-arch #{arch}"
+      remove HOMEBREW_BUILD_ARCHS, arch.to_s
     end
     set_build_archs @build_arch_stash
   end # un_m64
 
   private
 
-  def cc=(val); self['CC'] = self['OBJC'] = val.to_s + build_archs.as_arch_flags; end
+  def cc=(val); self['CC'] = self['OBJC'] = val.to_s + ' ' + build_archs.as_arch_flags; end
 
-  def cxx=(val); self['CXX'] = self['OBJCXX'] = val.to_s + build_archs.as_arch_flags; end
+  def cxx=(val); self['CXX'] = self['OBJCXX'] = val.to_s + ' ' + build_archs.as_arch_flags; end
 
   def homebrew_cc; self['HOMEBREW_CC']; end
 

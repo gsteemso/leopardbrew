@@ -84,7 +84,7 @@ module Superenv
 
   private
 
-  def determine_make_jobs; self["HOMEBREW_MAKE_JOBS"].nuzzle || Hardware::CPU.cores; end
+  def determine_make_jobs; self["HOMEBREW_MAKE_JOBS"].nuzzle || CPU.cores; end
 
   def determine_path
     paths = [Superenv.bin]
@@ -147,15 +147,15 @@ module Superenv
 
   def determine_optflags
     if ARGV.build_bottle?
-      arch = ARGV.bottle_arch || Hardware.oldest_cpu
-      Hardware::CPU.optimization_flags(arch)
-    elsif Hardware::CPU.intel? && !Hardware::CPU.sse4?
+      arch = ARGV.bottle_arch || CPU.oldest
+      CPU.optimization_flags(arch)
+    elsif CPU.intel? and not CPU.sse4?
       # If the CPU doesn't support SSE4, we cannot trust -march=native or
       # -march=<cpu family> to do the right thing because we might be running
       # in a VM or on a Hackintosh.
-      Hardware::CPU.optimization_flags(Hardware.oldest_cpu)
+      CPU.optimization_flags(CPU.oldest)
     elsif compiler == :clang then "-march=native"
-    else Hardware::CPU.optimization_flags(Hardware::CPU.model)
+    else CPU.optimization_flags(CPU.model)
       # TODO:  Match these to the compiler version (GCC 4.2 doesn’t know
       # about any of the more recent stuff)
     end
@@ -232,6 +232,7 @@ module Superenv
   end
 
   def set_build_archs(archset)
+    archset = Array(archset).extend ArchitectureListExtension unless archset.respond_to?(:fat?)
     super
     self['HOMEBREW_ARCHFLAGS'] = archset.as_arch_flags
     self['CMAKE_OSX_ARCHITECTURES'] = archset.as_cmake_arch_flags
@@ -248,8 +249,7 @@ module Superenv
 
   def un_m32
     super  # this restores all the build archs
-    remove 'HOMEBREW_ARCHFLAGS', '-m32'
-    Hardware::CPU.all_32b_archs.each { |af| remove 'HOMEBREW_ARCHFLAGS', "-arch #{af}" }
+    self['HOMEBREW_ARCHFLAGS'] = build_archs.as_arch_flags
   end
 
   def m64
@@ -259,8 +259,7 @@ module Superenv
 
   def un_m64
     super  # this restores all the build archs
-    remove 'HOMEBREW_ARCHFLAGS', '-m64'
-    Hardware::CPU.all_64b_archs.each { |af| remove 'HOMEBREW_ARCHFLAGS', "-arch #{af}" }
+    self['HOMEBREW_ARCHFLAGS'] = build_archs.as_arch_flags
   end
 
   def cxx11

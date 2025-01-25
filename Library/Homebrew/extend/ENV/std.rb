@@ -1,4 +1,4 @@
-require "hardware"
+require 'cpu'
 require "macos"
 require "extend/ENV/shared"
 
@@ -20,7 +20,7 @@ module Stdenv
   def setup_build_environment(formula = nil, archset = nil)
     super
 
-    if MacOS.version >= :mountain_lion
+    if MacOS.version >= '10.8'
       # Mountain Lion's sed errors out on files with mixed character sets
       delete("LC_ALL")
       self["LC_CTYPE"]="C"
@@ -69,7 +69,7 @@ module Stdenv
 
     # Leopard's ld needs some convincing that it's building 64-bit
     # See: https://github.com/mistydemeo/tigerbrew/issues/59
-    if MacOS.version == :leopard and MacOS.prefer_64_bit? and archset.detect{ |a| a.to_s.ends_with? '64' }
+    if MacOS.version == '10.5' and MacOS.prefer_64_bit? and archset.detect{ |a| a.to_s.ends_with? '64' }
       append 'LDFLAGS', archset.as_arch_flags
       # Many, many builds are broken by Leopard’s buggy ld.  Our ld64 fixes
       # many of them, though obviously we can’t depend on it to build itself.
@@ -118,9 +118,9 @@ module Stdenv
 
   def clang
     super
-    replace_in_cflags(/-Xarch_#{Hardware::CPU.arch_32_bit} (-march=\S*)/, '\1')
+    replace_in_cflags(/-Xarch_#{CPU._32b_arch} (-march=\S*)/, '\1')
     # Clang mistakenly enables AES-NI on plain Nehalem
-    map = Hardware::CPU.opt_flags_as_map
+    map = CPU.opt_flags_as_map
     map = map.merge(:nehalem => "-march=native -Xclang -target-feature -Xclang -aes")
     set_cpu_cflags "-march=native", map
   end # clang
@@ -216,28 +216,25 @@ module Stdenv
   def m32
     super  # This filters the build archs to the 32‐bit ones
     append_to_cflags "-m32"
-    append LDFLAGS, build_archs.as_arch_flags
   end
 
   def un_m32
     super  # this restores all the build archs
     remove_from_cflags '-m32'
-    Hardware::CPU.all_32b_archs.each { |af| remove 'LDFLAGS', "-arch #{af}" }
   end
 
   def m64
     super  # This filters the build archs to the 64‐bit ones
     append_to_cflags "-m64"
-    append LDFLAGS, build_archs.as_arch_flags
   end
 
   def un_m64
     super  # this restores all the build archs
     remove_from_cflags '-m64'
-    Hardware::CPU.all_64b_archs.each { |af| remove 'LDFLAGS', "-arch #{af}" }
   end
 
   def set_build_archs(archset)
+    archset = Array(archset).extend ArchitectureListExtension unless archset.respond_to?(:fat?)
     super
     append_to_cflags archset.as_arch_flags
     append "LDFLAGS", archset.as_arch_flags
@@ -269,17 +266,17 @@ module Stdenv
   # Sets architecture-specific flags for every environment variable
   # given in the list `flags`.
   # @private
-  def set_cpu_flags(flags, default = DEFAULT_FLAGS, map = Hardware::CPU.opt_flags_as_map)
-    cflags =~ /(-Xarch_#{Hardware::CPU.arch_32_bit} )-march=/
-    xarch = $1.to_s
-    remove flags, /(-Xarch_#{Hardware::CPU.arch_32_bit} )?-march=\S*/
+  def set_cpu_flags(flags, default = DEFAULT_FLAGS, map = CPU.opt_flags_as_map)
+    cflags =~ /(-Xarch_#{CPU._32b_arch} )-march=/
+    xarch = $1 || ''
+    remove flags, /(#{xarch})?-march=\S*/
     remove flags, /( -Xclang \S+)+/
     remove flags, /-mssse3/
     remove flags, /-msse4(\.\d)?/
     append flags, xarch unless xarch.empty?
     append flags, map.fetch(effective_arch, default)
-    # Works around a buggy system header on Tiger
-    append flags, "-faltivec" if MacOS.version == :tiger and Hardware::CPU.ppc?
+    # Work around a buggy system header on Tiger
+    append flags, "-faltivec" if MacOS.version == '10.4' and CPU.powerpc?
     # not really a 'CPU' cflag, but is only used with clang
     remove flags, '-Qunused-arguments'
   end # set_cpu_flags
@@ -287,19 +284,19 @@ module Stdenv
   # @private
   def effective_arch
     if ARGV.build_bottle?
-      ARGV.bottle_arch || Hardware.oldest_cpu
-    elsif Hardware::CPU.intel? and not Hardware::CPU.sse4?
+      ARGV.bottle_arch || CPU.oldest
+    elsif CPU.intel? and not CPU.sse4?
       # If the CPU doesn't support SSE4, we cannot trust -march=native or
       # -march=<cpu family> to do the right thing because we might be running
       # in a VM or on a Hackintosh.
-      Hardware.oldest_cpu
+      CPU.oldest
     else
-      Hardware::CPU.model
+      CPU.model
     end
   end # effective_arch
 
   # @private
-  def set_cpu_cflags(default = DEFAULT_FLAGS, map = Hardware::CPU.optimization_flags)
+  def set_cpu_cflags(default = DEFAULT_FLAGS, map = CPU.opt_flags_as_map)
     set_cpu_flags CC_FLAG_VARS, default, map
   end
 
