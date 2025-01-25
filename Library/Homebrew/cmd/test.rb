@@ -15,7 +15,8 @@ module Homebrew
         next
       end
 
-      named_spec = ((ARGV.build_head? or f.head_only?) ? :head : ((ARGV.build_devel? or f.devel_only?) ? :devel : :stable))
+      named_spec = ((ARGV.build_head? or f.head_only?) ? :head \
+                   : ((ARGV.build_devel? or f.devel_only?) ? :devel : :stable))
       named_version = f.send(named_spec).version.to_s
 
       # Cannot test uninstalled formulae
@@ -24,7 +25,8 @@ module Homebrew
         next
       end
 
-      if f.rack.subdirs.length > 1 and f.spec_prefix(named_spec) != f.opt_prefix.resolved_path
+      if f.rack.subdirs.length > 1 and
+                        f.spec_prefix(named_spec) != f.opt_prefix.resolved_path
         if f.keg_only?
           Keg.new(f.spec_prefix(named_spec)).optlink
         else
