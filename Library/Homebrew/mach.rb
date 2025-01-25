@@ -10,31 +10,32 @@ POWERPC_ARCHS = [:ppc, :ppc64].freeze;
 module ArchitectureListExtension  # applicable to arrays of architecture symbols
   # @private
   def fat?; length > 1; end
+  alias_method :universal?, :fat?
 
   # @private
-  def intel_universal?; true if INTEL_ARCHS.all? { |arch| self.include? arch }; end
+  def fat_intel?; true if INTEL_ARCHS.all?{ |arch| includes? arch }; end
 
   # @private
-  def ppc_universal?; true if POWERPC_ARCHS.all? { |arch| self.include? arch }; end
+  def fat_powerpc?; true if POWERPC_ARCHS.all?{ |arch| includes? arch }; end
 
-  # Most often old-style 32-bit PPC/Intel universal, e.g. ppc and i386, but can
-  # also be Leopard‐style quad fat binaries, or what have you.
   # @private
-  def cross_universal?; true if intersects_all?(INTEL_ARCHS, POWERPC_ARCHS); end
+  def universal_1?; true if [:ppc, :i386].all?{ |arch| includes? arch }; end
 
-  # Don’t know if these can even be generated, but it’s conceivable.
+  # @private
+  def universal_2?; true if [:arm64, :x86_64].all?{ |arch| includes? arch }; end
+
+  # Most often old-style 32-bit PowerPC/Intel universal, e.g. ppc and i386, but
+  # can also be Leopard‐style quad fat binaries, or modern “universal2” crosses
+  # with arm64 and x86_64.
+  # @private
+  def cross_universal?; true if intersects_all?(INTEL_ARCHS, POWERPC_ARCHS) or universal_2?; end
+
+  # Don’t know if these can even be generated without compiler shenanigans, but
+  # it’s conceivable.
   # @private
   def omniversal?; true if intersects_all?(ARM_ARCHS, INTEL_ARCHS, POWERPC_ARCHS); end
 
-  # @private
-  def universal_2?; true if [:arm64, :x86_64].all? { |arch| self.includes? arch }; end
-
-  # @private
-  def universal?; intel_universal? or ppc_universal? or cross_universal? or universal_2? or omniversal?; end
-
-  def subset(archs); return self.select { |a| archs.includes? a }; end
-
-  def as_arch_flags; map { |a| "-arch #{a.to_s}" }.join(' '); end
+  def as_arch_flags; map{ |a| "-arch #{a.to_s}" }.join(' '); end
 
   def as_cmake_arch_flags; map(&:to_s).join(';'); end
 
@@ -42,7 +43,7 @@ module ArchitectureListExtension  # applicable to arrays of architecture symbols
 
   protected
 
-  def intersects_all?(*asets); asets.all? { |aset| aset.any? { |a| self.includes? a } }; end
+  def intersects_all?(*asets); asets.all?{ |aset| aset.any?{ |a| self.includes? a } }; end
 end # ArchitectureListExtension
 
 # only useable when included in Pathname
@@ -53,9 +54,9 @@ module MachO
 
   # @private
   MACH_SIGNATURES = {
-    'cafebabe' => :FAT_MAGIC,
-    'feedface' => :MH_MAGIC,
-    'feedfacf' => :MH_MAGIC_64,
+    0xcafebabe => :FAT_MAGIC,
+    0xfeedface => :MH_MAGIC,
+    0xfeedfacf => :MH_MAGIC_64,
   }.freeze
   MACH_FILE_TYPE = {
     0x00000001 => :MH_OBJECT,       # Relatively small object‐code file
@@ -81,16 +82,15 @@ module MachO
       begin
         offsets = []
         data = []
-
         if candidate = ar_sigseek_from(0) then offsets << candidate
         elsif sig = mach_o_signature_at?(0)
           if sig == :FAT_MAGIC
             if (fct = fat_count_at(0)) and fct > 0
               fct.times do |i|
-                # The second quad is the number of `struct fat_arch` in the file.  Each `struct
-                #   fat_arch` is 5 quads (20 bytes); the `offset` member is the 3rd (8 bytes into
-                #   the struct), with an additional 8 byte offset due to the 2-quad `struct
-                #   fat_header` at the beginning of the file.
+                # The second uint32 is the number of `struct fat_arch` in the file.  Each `struct
+                # fat_arch` is 5 uint32 (20 octets); the `offset` member is the 3rd (8 octets into
+                # the struct), with an additional 8‐octet offset due to the two-uint32 `struct
+                # fat_header` at the beginning of the file.
                 candidate = binread(4, 16 + 20*i).unpack("N").first
                 offsets << (ar_sigseek_from(candidate) or candidate)
               end
@@ -98,27 +98,26 @@ module MachO
           else offsets << 0 # single arch (:MH_MAGIC or :MH_MAGIC_64)
           end # mach-O signature?
         end # signatures?
-
         offsets.each do |offset|
-          if size >= (offset + 16)
-            # The first quad (at offset + 0) is the signature, the second (at offset + 4) is the
-            #   CPU type (with flags in the high‐order byte), the third (at offset + 8) is the CPU
-            #   subtype, and the fourth (at offset + 12) is the Mach file type.
-            sig, cputype, cpu_subtype, mach_filetype = binread(16, offset).unpack('H8H8H8N')
-            sig = MACH_SIGNATURES[sig]
-            arch = \
-              if sig == :MH_MAGIC then case cputype
-                when '00000007' then :i386
-                when '0000000c' then :arm
-                when '00000012' then :ppc
-                else :dunno; end
-              elsif sig == :MH_MAGIC_64 then case cputype
-                when '01000007' then :x86_64
-                when '0100000c' then :arm64
-                when '0200000c' then :arm64_32
-                when '01000012' then :ppc64
-                else :dunno; end
-              end # determine arch
+          if size >= (offset + 16)  # Mach headers:  We only care about the first 4 uint32 (16
+            # octets) of the 7 in the header.  The first (at offset + 0) is the signature, the
+            # second (at offset + 4) is the CPU type (with flags in the high‐order octet), the
+            # third (at offset + 8) is the CPU subtype (with flags in the high‐order octet), and
+            # the fourth (at offset + 12) is the Mach file type.
+            sig, cputype, cpu_subtype, mach_filetype = binread(16, offset).unpack('NH8H8N')
+            sig = MACH_SIGNATURES[sig & 0xfffffffe]
+            arch = if sig == :MH_MAGIC
+                     case cputype
+                       when '00000007' then :i386
+                       when '0000000c' then :arm
+                       when '00000012' then :ppc
+                       when '01000007' then :x86_64
+                       when '0100000c' then :arm64
+                       when '01000012' then :ppc64
+                       when '0200000c' then :arm64_32
+                       else :dunno
+                     end
+                   end # determine arch
             data << { :arch => arch,
                       :cpu_subtype => cpu_subtype,
                       :type => MACH_FILE_TYPE[mach_filetype]
@@ -126,24 +125,24 @@ module MachO
           end # valid offset
         end # each offset
         data.uniq
-      rescue # from error during @mach_data construction
+      rescue  # from error during @mach_data construction
         []
       end # @mach_data construction
-
-    @mach_data
   end # mach_data
 
-  def archs; @archs ||= mach_data.map { |m| m.fetch :arch, :dunno }.uniq.extend(ArchitectureListExtension); end
+  def archs
+    @archs ||= mach_data.map{ |m| m.fetch :arch, :dunno }.uniq.extend(ArchitectureListExtension)
+  end
 
   def arch
     case archs.length
       when 0 then :dunno
       when 1 then archs.first
-      else :universal
+      else :fat
     end
   end # arch
 
-  def universal?; arch == :universal; end
+  def fat?; arch == :fat; end
   def ppc?; arch == :ppc; end
   def ppc64?; arch == :ppc64; end
   def i386?; arch == :i386; end
@@ -152,18 +151,22 @@ module MachO
   def arm64?; arch == :arm64; end
   def arm64_32?; arch == :arm64_32; end
 
-  # @private
-  def dylib?; mach_data.any? { |m| m.fetch(:type) == :MH_DYLIB }; end
+  def fat_intel?; fat? and archs.fat_intel?; end
+  def fat_powerpc?; fat? and archs.fat_powerpc?; end
+  def local_fat?; fat? and fat_intel? or fat_powerpc?; end
 
   # @private
-  def mach_o_executable?; mach_data.any? { |m| m.fetch(:type) == :MH_EXECUTE }; end
+  def dylib?; mach_data.any?{ |m| m.fetch(:type) == :MH_DYLIB }; end
 
   # @private
-  def mach_o_bundle?; mach_data.any? { |m| m.fetch(:type) == :MH_BUNDLE }; end
+  def mach_o_executable?; mach_data.any?{ |m| m.fetch(:type) == :MH_EXECUTE }; end
+
+  # @private
+  def mach_o_bundle?; mach_data.any?{ |m| m.fetch(:type) == :MH_BUNDLE }; end
 
   def tracked_mach_o?
-    mach_data.any? { |m| mtype = m.fetch(:type)
-      [:MH_EXECUTE, :MH_DYLIB, :MH_BUNDLE].any? { |mh| mh == mtype }
+    mach_data.any?{ |m| mtype = m.fetch(:type)
+      [:MH_EXECUTE, :MH_DYLIB, :MH_BUNDLE].any?{ |mh| mh == mtype }
     }
   end
 
@@ -172,15 +175,15 @@ module MachO
   #   be a real fat binary; Java files, for example, will produce a figure well in excess of 60
   #   thousand.  Assume up to 7 architectures, in case we start handling ARM binaries as well:  ppc,
   #   ppc64, i386, x86_64, arm, arm64, arm64_32.  Not all will run on a Mac, but who knows whether
-  #   there are apps that also run on iOS?
+  #   there are apps that also run on iOS or some such?
   def mach_o_signature_at?(offset)
     sig = nil unless (file? and size >= (offset + 4) and
-                (sig = MACH_SIGNATURES[binread(4, offset).unpack('H8').first]) and
+                (sig = MACH_SIGNATURES[binread(4, offset).unpack('N').first]) and
                 (sig != :FAT_MAGIC or (fct = fat_count_at(offset) and fct <= 7)))
     sig
   end # mach_o_signature_at?
 
-  # Only call this if we already know it’s a universal binary!
+  # Only call this if we already know it’s a fat binary!
   # @private
   def fat_count_at(offset); size > (offset + 8) and binread(4, offset + 4).unpack('N').first; end
 
@@ -198,16 +201,16 @@ module MachO
     return [nil, nil] if size <= (body_offset = initial_offset + AR_MEMBER_HDR_SIZE)
     header = binread(AR_MEMBER_HDR_SIZE, initial_offset)
     extent = (header.b[0, 16] =~ %r{^#1/(\d+)} ? $1.to_i : 0)   # extended name after header block?
-    startpoint = body_offset + extent
+    startpoint = body_offset + extent                           # → extent has its size
     return [nil, nil] if size < (startpoint + 8)
-    extent = (header.b[48, 10] =~ %r{^(\d+)} ? $1.to_i : 0)
-    return [startpoint, nil] if size < (endpoint = body_offset + extent)
+    extent = (header.b[48, 10] =~ %r{^(\d+)} ? $1.to_i : 0)     # now, extent == the payload size
+    endpoint = body_offset + extent
     endpoint += (endpoint & 1)                                  # pad to an even number of bytes
 
     [startpoint, (size > endpoint ? endpoint : nil)]
   end # ar_walk_from
 
-  # Returns either the offset of the first valid Mach-O ‘ar’ member, or ‘nil’.
+  # Returns either the offset of the next valid Mach-O ‘ar’ member, or ‘nil’.
   # @private
   def ar_sigseek_from(offset)
     return nil unless ar_signature_at?(offset)
