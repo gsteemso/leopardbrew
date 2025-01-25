@@ -1,10 +1,9 @@
 class Libmpc < Formula
   desc "C library for the arithmetic of high precision complex numbers"
-  homepage "http://multiprecision.org"
-  # audit --strict complained about this URL
-  url "http://ftpmirror.gnu.org/mpc/mpc-1.3.1.tar.gz"
+  homepage "https://multiprecision.org"
+  url "https://ftpmirror.gnu.org/mpc/mpc-1.3.1.tar.gz"
   mirror "https://ftp.gnu.org/gnu/mpc/mpc-1.3.1.tar.gz"
-  mirror "http://multiprecision.org/mpc/download/mpc-1.3.1.tar.gz"
+  mirror "https://multiprecision.org/mpc/download/mpc-1.3.1.tar.gz"
   sha256 "ab642492f5cf882b74aa0cb730cd410a81edcdbec895183ce930e706c1c759b8"
 
   bottle do
@@ -44,8 +43,7 @@ class Libmpc < Formula
         return 0;
       }
     EOS
-    ENV.universal_binary if build.universal?
     system ENV.cc, "test.c", "-lgmp", "-lmpfr", "-lmpc", "-o", "test"
-    system "./test"
+    arch_system "./test"
   end
 end
