@@ -23,35 +23,35 @@ class Cmd
     @sysroot = ENV['HOMEBREW_SDKROOT']
     @archflags = ENV.fetch('HOMEBREW_ARCHFLAGS', '').split(' ')
     @optflags = ENV.fetch('HOMEBREW_OPTFLAGS', '').split(' ')
-  end
+  end # initialize
 
   def mode
-    if @arg0 == 'cpp' or @arg0 == 'ld' then @arg0.to_sym
-    elsif @given_args.include? '-c'
-      if @arg0 =~ /(?:c|g|clang)\+\+/ then :cxx
-      else :cc
-      end
-    elsif @given_args.include? '-E' then :ccE
-    else @arg0 =~ /(?:c|g|clang)\+\+/ ? :cxxld : :ccld
-    end
-  end
+    @mode ||= if @arg0 == 'cpp' or @arg0 == 'ld'
+                @arg0.to_sym
+              elsif @given_args.include? '-c'
+                @arg0 =~ /(?:c|g|clang)\+\+/ ? :cxx : :cc
+              elsif @given_args.include? '-E'
+                :ccE
+              elsif @arg0 =~ /(?:c|g|clang)\+\+/
+                :cxxld
+              else
+                :ccld
+              end
+  end # mode
 
   def tool
     @tool ||= case @arg0
-    when 'ld' then 'ld'
-    when 'cpp' then 'cpp'
-    when /\w\+\+(-\d+(\.\d)?)?$/
-      case ENV['HOMEBREW_CC']  # note that all of these ignore anything else in $CC
-        when /clang/ then 'clang++'
-        when /llvm-gcc/ then 'llvm-g++-4.2'
-        when /gcc(-\d+(\.\d)?)?$/ then 'g++' + $1.to_s
-      end
-    else
-      # Note that this is a universal fallback, so that we'll always invoke HOMEBREW_CC regardless
-      # of what name the tool was invoked under.
-      ENV['HOMEBREW_CC'].split(' ', 2)[0]  # leave out everything except the actual tool name
-    end
-  end
+                when 'ld' then 'ld'
+                when 'cpp' then 'cpp'
+                when /\w\+\+(-\d+(\.\d)?)?$/
+                  case ENV['HOMEBREW_CC']
+                    when /clang/ then 'clang++'
+                    when /llvm-gcc/ then 'llvm-g++-4.2'
+                    when /gcc(-\d+(\.\d)?)?$/ then 'g++' + $1.to_s
+                  end
+                else ENV['HOMEBREW_CC']  # Universal fallback, regardless of invocation name.
+              end
+  end # tool
 
   def distill_args
     if ['-v', '-V', '-version', '--version'].any? { |a| a == @given_args[-1] }
@@ -60,12 +60,12 @@ class Cmd
       # error.  Some software misuses `gcc -v` to sniff the GCC version; this covers all bases.
       # This formerly only tested for '-v' and only if it was the only argument, but some software
       # now erroneously prepends `--std=gnu99` or the like to it, so testing for it as the last
-      # argument will have to do.  This actually also fixes a bug in some `configure` scripts,
+      # argument will have to do.  This actually also covers for a bug in some `configure` scripts,
       # which cause `gcc -V` to wrongly fail by accidentally calling it as `gcc --std=gnu99 -V`.
       return [@given_args[-1]]
     end
 
-    if !refurbish_args? || tool == 'ld' || configure?
+    if not(refurbish_args?) or tool == 'ld' or configure?
       distilled_args = @given_args.dup
     else
       distilled_args = refurbished_args
@@ -80,22 +80,15 @@ class Cmd
     end
 
     case mode
-    when :ccld
-      cflags + distilled_args + cppflags + ldflags
-    when :cxxld
-      cxxflags + distilled_args + cppflags + ldflags
-    when :cc
-      cflags + distilled_args + cppflags
-    when :cxx
-      cxxflags + distilled_args + cppflags
-    when :ccE
-      distilled_args + cppflags
-    when :cpp
-      distilled_args + cppflags
-    when :ld
-      ldflags + distilled_args
+      when :ccld  then cflags + distilled_args + cppflags + ldflags
+      when :cxxld then cxxflags + distilled_args + cppflags + ldflags
+      when :cc    then cflags + distilled_args + cppflags
+      when :cxx   then cxxflags + distilled_args + cppflags
+      when :ccE   then de_archflag(distilled_args) + cppflags
+      when :cpp   then distilled_args + cppflags
+      when :ld    then ldflags + distilled_args
     end
-  end
+  end # distill_args
 
   def refurbished_args
     @lset = Set.new(library_paths + system_library_paths)
@@ -106,27 +99,27 @@ class Cmd
 
     loop do
       case arg = enum.next
-      when '-arch'
-        if permit_arch_flags?
-          refurbed_args << arg << enum.next
+        when '-arch'
+          if permit_arch_flags?
+            refurbed_args << arg << enum.next
+          else
+            enum.next
+          end
+        when '-m32', '-m64'
+          refurbed_args << arg if permit_arch_flags?
+        when /^-Xarch_/
+          refurbished = refurbish_arg(enum.next, enum)
+          unless refurbished.empty?
+            refurbed_args << arg
+            refurbed_args += refurbished
+          end
         else
-          enum.next
-        end
-      when '-m32', '-m64'
-        refurbed_args << arg if permit_arch_flags?
-      when /^-Xarch_/
-        refurbished = refurbish_arg(enum.next, enum)
-        unless refurbished.empty?
-          refurbed_args << arg
-          refurbed_args += refurbished
-        end
-      else
-        refurbed_args += refurbish_arg(arg, enum)
-      end
-    end
+          refurbed_args += refurbish_arg(arg, enum)
+      end # case arg
+    end # loop
 
     refurbed_args
-  end
+  end # refurbished_args
 
   def refurbish_arg(arg, enum)
     refurb_arg_parts = []
@@ -169,20 +162,27 @@ class Cmd
       # Support both '-Ifoo' (one argument) and '-I foo' (two arguments)
       val  = chuzzle($1) || enum.next
       path = canonical_path(val)
-      refurb_arg_parts << "-I#{val}" if keep?(path) && @iset.add?(path)
+      refurb_arg_parts << "-I#{val}" if keep?(path) and @iset.add?(path)
     when /^-L(.+)?/
       val  = chuzzle($1) || enum.next
       path = canonical_path(val)
-      refurb_arg_parts << "-L#{val}" if keep?(path) && @lset.add?(path)
+      refurb_arg_parts << "-L#{val}" if keep?(path) and @lset.add?(path)
     else
       refurb_arg_parts << arg
     end
 
     refurb_arg_parts
-  end
+  end # refurbish_arg
+
+  def de_archflag(these)
+    while i = these.index('-arch')
+      these.slice!(i, (i + 1) < these.length ? 2 : 1)
+    end
+    these
+  end # de_archflag
 
   def keep?(path)
-    path.start_with?(prefix, cellar, tmpdir) || !path.start_with?('/opt', '/sw', '/usr/X11')
+    path.start_with?(prefix, cellar, tmpdir) or not path.start_with?('/opt', '/sw', '/usr/X11')
   end
 
   def cflags
@@ -197,7 +197,7 @@ class Cmd
     cflag_args << "-std=#{@arg0}" if @arg0 =~ /c[89]9/
     cflag_args.concat(ENV.fetch('HOMEBREW_FORCE_FLAGS', '').split ' ')
     cflag_args
-  end
+  end # cflags
 
   def cxxflags
     cxxflag_args = cflags
@@ -205,63 +205,39 @@ class Cmd
     cxxflag_args << '-stdlib=libc++' if libcxx?
     cxxflag_args << '-stdlib=libstdc++' if libstdcxx?
     cxxflag_args
-  end
+  end # cxxflags
 
-  def cppflags
-    path_flags('-isystem', isystem_paths) + path_flags('-I', include_paths)
-  end
+  def cppflags; path_flags('-isystem', isystem_paths) + path_flags('-I', include_paths); end
 
   def ldflags
     ldflag_args = path_flags('-L', library_paths)
     case mode
-    when :ld
-      ldflag_args << '-headerpad_max_install_names'
-    when :ccld, :cxxld
-      ldflag_args << '-Wl,-headerpad_max_install_names'
+      when :ld           then ldflag_args << '-headerpad_max_install_names'
+      when :ccld, :cxxld then ldflag_args << '-Wl,-headerpad_max_install_names'
     end
     ldflag_args
-  end
+  end # ldflags
 
-  def isystem_paths
-    path_split('HOMEBREW_ISYSTEM_PATHS')
-  end
+  def isystem_paths; path_split('HOMEBREW_ISYSTEM_PATHS'); end
 
-  def include_paths
-    path_split('HOMEBREW_INCLUDE_PATHS')
-  end
+  def include_paths; path_split('HOMEBREW_INCLUDE_PATHS'); end
 
-  def library_paths
-    path_split('HOMEBREW_LIBRARY_PATHS')
-  end
+  def library_paths; path_split('HOMEBREW_LIBRARY_PATHS'); end
 
-  def system_library_paths
-    %W[#{sysroot}/usr/lib /usr/local/lib]
-  end
+  def system_library_paths; %W[#{sysroot}/usr/lib /usr/local/lib]; end
 
-  def configure?
-    # configure scripts generated with autoconf 2.61 or later export as_nl
-    ENV.key? 'as_nl'
-  end
+  # configure scripts generated with autoconf 2.61 or later export as_nl
+  def configure?; ENV.key? 'as_nl'; end
 
-  def refurbish_args?
-    config.include?('O')
-  end
+  def refurbish_args?; config.include?('O'); end
 
-  def cxx11?
-    config.include?('x')
-  end
+  def cxx11?; config.include?('x'); end
 
-  def libcxx?
-    config.include?('g')
-  end
+  def libcxx?; config.include?('g'); end
 
-  def libstdcxx?
-    config.include?('h')
-  end
+  def libstdcxx?; config.include?('h'); end
 
-  def permit_arch_flags?
-    config.include?('K')
-  end
+  def permit_arch_flags?; config.include?('K'); end
 
   def canonical_path(path)
     path = Pathname.new(path)
@@ -274,16 +250,14 @@ class Cmd
     paths.map! { |path| prefix + path }
   end
 
-  def path_split(key)
-    ENV.fetch(key) { '' }.split(File::PATH_SEPARATOR)
-  end
+  def path_split(key); ENV.fetch(key) { '' }.split(File::PATH_SEPARATOR); end
 
   def chuzzle(val)
     return val if val.nil?
     val = val.chomp
     return val unless val.empty?
   end
-end
+end # Cmd
 
 def log(basename, argv, tool, net_args)
   return unless ENV.key?('HOMEBREW_CC_LOG_PATH')
@@ -297,7 +271,7 @@ def log(basename, argv, tool, net_args)
   s << "superenv added:    #{adds.join(' ')}\n" unless adds.empty?
   s << "superenv executed: #{tool} #{net_args.join(' ')}\n\n"
   File.open("#{ENV['HOMEBREW_CC_LOG_PATH']}.cc", 'a+') { |f| f.write(s) }
-end
+end # log
 
 if __FILE__ == $PROGRAM_NAME
   ##################################################################### sanity
