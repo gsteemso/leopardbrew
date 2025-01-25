@@ -1,3 +1,5 @@
+require 'merge'
+
 class Perl < Formula
   desc 'Highly capable, feature-rich programming language'
   homepage 'https://www.perl.org/'
@@ -40,7 +42,7 @@ class Perl < Formula
 
   def install
     if build.universal?
-      archs = Hardware::CPU.universal_archs
+      archs = CPU.local_archs
       stashdir = buildpath/'arch-stashes'
     else
       archs = [MacOS.preferred_arch]
@@ -74,7 +76,7 @@ class Perl < Formula
     args << '-Dusedtrace' if build.with? 'dtrace'
 
     archs.each do |arch|
-      ENV.append_to_cflags "-arch #{arch}" if build.universal?
+      ENV.set_build_archs(arch) if build.universal?
 
       arch_args = []
       if arch == :ppc64 or arch == :x86_64
@@ -91,12 +93,13 @@ class Perl < Formula
       if build.universal?
         ENV.deparallelize { system 'make', 'veryclean' }
         Merge.scour_keg(prefix, stashdir/"bin-#{arch}")
-        # undo architecture-specific tweak before next run
-        ENV.remove_from_cflags "-arch #{arch}"
       end # universal?
     end # each |arch|
 
-    Merge.binaries(prefix, stashdir, archs) if build.universal?
+    if build.universal?
+      ENV.set_build_archs(archs)
+      Merge.binaries(prefix, stashdir, archs)
+    end # universal?
   end # install
 
   def caveats; <<-EOS.undent
@@ -119,65 +122,6 @@ class Perl < Formula
     arch_system perl, 'test.pl'
   end # test
 end # Perl
-
-class Merge
-  class << self
-    include FileUtils
-
-    # The stash_root is expected to be a Pathname object.
-    # The keg_prefix and the sub_path are just strings.
-    def scour_keg(keg_prefix, stash_root, sub_path = '')
-      # don’t suffer a double slash when sub_path is null:
-      s_p = (sub_path == '' ? '' : sub_path + '/')
-      stash_p = stash_root/s_p
-      mkdir_p stash_p unless stash_p.directory?
-      Dir["#{keg_prefix}/#{s_p}*"].each do |f|
-        pn = Pathname.new(f)
-        spb = s_p + pn.basename
-        if pn.directory?
-          scour_keg(keg_prefix, stash_root, spb)
-        # the number of things that look like Mach-O files but aren’t is horrifying, so test
-        elsif not(pn.symlink?) and (pn.mach_o_signature_at?(0) or pn.ar_sigseek_from 0)
-          cp pn, stash_root/spb
-        end # what is pn?
-      end # each pathname
-    end # Merge.scour_keg
-
-    # The keg_prefix is expected to be a Pathname object.  The rest are just strings.
-    def binaries(keg_prefix, stash_root, archs, sub_path = '')
-      # don’t suffer a double slash when sub_path is null:
-      s_p = (sub_path == '' ? '' : sub_path + '/')
-      # generate a full list of files, even if some are not present on all architectures; bear in
-      # mind that the current _directory_ may not even exist on all archs
-      basename_list = []
-      arch_dirs = archs.map {|a| "bin-#{a}"}
-      arch_dir_list = arch_dirs.join(',')
-      Dir["#{stash_root}/{#{arch_dir_list}}/#{s_p}*"].map { |f|
-        File.basename(f)
-      }.each { |b|
-        basename_list << b unless basename_list.count(b) > 0
-      }
-      basename_list.each do |b|
-        spb = s_p + b
-        the_arch_dir = arch_dirs.detect { |ad| File.exist?("#{stash_root}/#{ad}/#{spb}") }
-        pn = Pathname("#{stash_root}/#{the_arch_dir}/#{spb}")
-        if pn.directory?
-          binaries(keg_prefix, stash_root, archs, spb)
-        else
-          arch_files = Dir["#{stash_root}/{#{arch_dir_list}}/#{spb}"]
-          if arch_files.length > 1
-            system 'lipo', '-create', *arch_files, '-output', keg_prefix/spb
-          else
-            # presumably there's a reason this only exists for one architecture, so no error;
-            # the same rationale would apply if it only existed in, say, two out of three
-            cp arch_files.first, keg_prefix/spb
-          end # if > 1 file?
-        end # if directory?
-      end # each basename |b|
-    end # Merge.binaries
-
-  end # << self
-end # Merge
 
 __END__
 --- old/installperl
