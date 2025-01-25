@@ -1,5 +1,4 @@
 require "open-uri"  # Ruby libraries.
-require "pathname"  #
 # The rest are Homebrew libraries:
 require "exceptions"
 require "utils/fork"
@@ -147,9 +146,9 @@ end # arch_system
 #     end # each arch |a|
 def for_archs (cmd, &block)
   cmd = which(cmd) unless cmd.to_s =~ %r{^\.?/}
-  cmd = Pathname.new(cmd) unless cmd.class == Pathname
+  cmd = Pathname.new(cmd) unless Pathname === cmd
   if (is_fat = cmd.fat?) and (arch_cmd = which 'arch')
-    cmd.archs.select { |a| Hardware::CPU.can_run?(a) }.each(&block)
+    cmd.archs.select { |a| CPU.can_run?(a) }.each(&block)
   else
     opoo 'Can’t find the “arch” command.',
          "Running #{cmd} with the default architecture only." if is_fat

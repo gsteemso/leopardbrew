@@ -1,7 +1,7 @@
 # This file is loaded before `global.rb`, so must eschew most Homebrew‐isms at
 # eval time.
 
-require "hardware"
+require 'cpu'
 require "macos/version"
 require "macos/xcode"
 require "macos/xquartz"
@@ -10,8 +10,7 @@ module MacOS
   extend self
 
   def prefer_64_bit?
-    Hardware::CPU.is_64_bit? and version > '10.5' or
-                                (version == '10.5' and ENV["HOMEBREW_PREFER_64_BIT"])
+    CPU._64b? and version > '10.5' or version == '10.5' and ENV["HOMEBREW_PREFER_64_BIT"]
   end
 
   def locate(tool)
@@ -164,7 +163,7 @@ module MacOS
     paths.uniq
   end # macports_or_fink
 
-  def preferred_arch; prefer_64_bit? ? Hardware::CPU.arch_64_bit : Hardware::CPU.arch_32_bit; end
+  def preferred_arch; prefer_64_bit? ? CPU._64b_arch : CPU._32b_arch; end
 
   def preferred_arch_as_list; [preferred_arch].extend(ArchitectureListExtension); end
 

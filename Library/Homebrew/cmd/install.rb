@@ -25,8 +25,8 @@ require 'blacklist'
 require 'cmd/doctor'
 require 'cmd/search'
 require 'cmd/tap'
+require 'cpu'
 require 'formula/installer'
-require 'hardware'
 
 module Homebrew
   def install

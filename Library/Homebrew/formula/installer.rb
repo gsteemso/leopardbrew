@@ -161,7 +161,7 @@ class FormulaInstaller
     end
     return if only_deps?
 
-    if build_bottle? and (arch = ARGV.bottle_arch) and not Hardware::CPU.known_models.include?(arch)
+    if build_bottle? and (arch = ARGV.bottle_arch) and not CPU.known_models.include?(arch)
       raise "Unrecognized architecture for --bottle-arch: #{arch}"
     end
 
@@ -740,8 +740,8 @@ class FormulaInstaller
 
   def lock
     # ruby 1.8.2 doesn't implement flock
-    # TODO backport the flock feature and reenable it
-    return if MacOS.version == :tiger
+    # TODO backport the flock feature to Tiger and reenable it
+    return if RUBY_VERSION < '1.8.6'
 
     if (@@locked ||= []).empty?
       formula.recursive_dependencies.each do |dep|

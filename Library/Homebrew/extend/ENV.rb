@@ -1,4 +1,4 @@
-require "hardware"
+require 'cpu'
 require "extend/ENV/shared"
 require "extend/ENV/std"
 require "extend/ENV/super"

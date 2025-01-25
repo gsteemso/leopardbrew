@@ -1,17 +1,17 @@
 require "testing_env"
-require "hardware"
+require 'cpu'
 
-class HardwareTests < Homebrew::TestCase
-  def test_hardware_cpu_type
-    assert_includes [:intel, :ppc], Hardware::CPU.type
+class CPUTests < Homebrew::TestCase
+  def test_cpu_type
+    assert_includes [:intel, :powerpc], CPU.type
   end
 
-  def test_hardware_arch
-    assert_includes [:i386, :ppc, :ppc64, :x86_64], Hardware::CPU.arch
+  def test_cpu_arch
+    assert_includes [:i386, :ppc, :ppc64, :x86_64], CPU.arch
   end
 
-  def test_hardware_intel_model
+  def test_cpu_intel_model
     models = [:core, :core2, :penryn, :nehalem, :arrandale, :sandybridge, :ivybridge, :haswell, :broadwell]
-    assert_includes models, Hardware::CPU.model
-  end if Hardware::CPU.intel?
+    assert_includes models, CPU.model
+  end if CPU.intel?
 end

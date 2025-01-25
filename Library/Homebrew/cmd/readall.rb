@@ -18,7 +18,7 @@ module Homebrew
 
       failed = false
       nostdout do
-        workers = (0...Hardware::CPU.cores).map do
+        workers = (0...CPU.cores).map do
           Thread.new do
             begin
               while rb = ruby_files.pop(true)

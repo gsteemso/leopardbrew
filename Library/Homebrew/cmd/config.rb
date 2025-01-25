@@ -1,4 +1,4 @@
-require "hardware"
+require 'cpu'
 require "software_spec"
 require "rexml/document"
 
@@ -74,7 +74,7 @@ module Homebrew
   end # describe_ruby
 
   def hardware
-    "CPU: #{Hardware.cores_as_words}-core #{Hardware::CPU.bits}-bit #{Hardware::CPU.model}"
+    "CPU:  #{CPU.cores_as_words}-core #{CPU.bits}-bit #{CPU.model}"
   end
 
   def kernel; `uname -m`.chomp; end

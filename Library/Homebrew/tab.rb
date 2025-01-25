@@ -138,8 +138,8 @@ class Tab < OpenStruct
   def built_archs
     # Older tabs won’t have this field, so compute a plausible default.
     if super.empty? then 
-      if cross? then Hardware::CPU.cross_archs
-      elsif universal? then Hardware::CPU.universal_archs
+      if cross? then CPU.cross_archs
+      elsif universal? then CPU.universal_archs
       else MacOS.preferred_arch_as_list; end
     else super.map(&:to_sym).extend ArchitectureListExtension; end
   end

@@ -22,21 +22,21 @@ def bottle_native_regex
 end
 
 def bottle_tag
-  if MacOS.version >= :big_sur
-    if Hardware::CPU.arm?
+  if MacOS.version >= '11'
+    if CPU.arm?
       "#{MacOS.codename}_arm".to_sym
     else
       "#{MacOS.codename}_intel".to_sym
     end
-  elsif MacOS.version >= :lion  # Everything up to Catalina can run 32‐bit, but
+  elsif MacOS.version >= '10.7'  # Everything up to Catalina can run 32‐bit, but
     MacOS.codename           # from Lion onward we only build 64‐bit
-  elsif MacOS.version == :snow_leopard
-    Hardware::CPU.is_64_bit? ? :snow_leopard : :snow_leopard_32
+  elsif MacOS.version == '10.6'
+    CPU._64b? ? :snow_leopard : :snow_leopard_32
   else
     # Return, e.g., :tiger_g3, :leopard_g5_64, :leopard_intel_64
-    case Hardware::CPU.arch
+    case CPU.arch
       when :i386   then "#{MacOS.codename}_intel".to_sym
-      when :ppc    then "#{MacOS.codename}_#{Hardware::CPU.model}".to_sym
+      when :ppc    then "#{MacOS.codename}_#{CPU.model}".to_sym
       when :ppc64  then "#{MacOS.codename}_g5_64".to_sym
       when :x86_64 then "#{MacOS.codename}_intel_64".to_sym
       else "#{MacOS.codename}_unknown".to_sym

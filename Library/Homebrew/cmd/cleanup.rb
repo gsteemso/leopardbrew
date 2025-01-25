@@ -120,7 +120,7 @@ module Homebrew
     paths = Queue.new
     %w[Cellar Frameworks Library bin etc include lib opt sbin share var].
       map { |p| HOMEBREW_PREFIX/p }.each { |p| paths << p if p.exist? }
-    workers = (0...Hardware::CPU.cores).map do
+    workers = (0...CPU.cores).map do
       Thread.new do
         begin
           while p = paths.pop(true)

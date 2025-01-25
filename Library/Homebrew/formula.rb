@@ -1,10 +1,10 @@
 require "formula/support"
 require "formula/lock"
 require "formula/pin"
-require "hardware"
 require "bottles"
 require "build_environment"
 require "build_options"
+require 'cpu'
 require "formulary"
 require "software_spec"
 require "install_renamed"
@@ -1187,9 +1187,10 @@ class Formula
 
   def exec_cmd(cmd, args, out, logfn)
     ENV["HOMEBREW_CC_LOG_PATH"] = logfn
+    cmd = cmd.to_s
 
     # TODO: system "xcodebuild" is deprecated, this should be removed soon.
-    if cmd.to_s.start_with? "xcodebuild"
+    if cmd.starts_with? "xcodebuild"
       ENV.remove_cc_etc
     end
 
@@ -1207,8 +1208,9 @@ class Formula
     $stdout.reopen(out)
     $stderr.reopen(out)
     out.close
+    cmd = cmd.split(' ')
     args.collect!(&:to_s)
-    exec(cmd, *args) rescue nil
+    exec(*cmd, *args) rescue nil
     puts "Failed to execute: #{cmd}"
     exit! 1 # never gets here unless exec threw or failed
   end # exec_cmd
