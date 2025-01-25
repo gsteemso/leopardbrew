@@ -3,10 +3,8 @@
 
 require 'mach'
 
-class Hardware
-  module CPU
-    extend self
-
+class CPU
+  class << self
     # TODO:  Match to compiler version
     MODEL_FLAGS = {
       :g3          => [32, :powerpc, '-mcpu=750'],
@@ -24,12 +22,24 @@ class Hardware
       :broadwell   => [64, :intel,   '-march=core2 -msse4.2'],
     }.freeze
     def known_models; MODEL_FLAGS.keys; end
-    def optimization_flags(model); MODEL_FLAGS[model][2]; end
+    def optimization_flags(model); MODEL_FLAGS[model][2] if MODEL_FLAGS[model]; end
     def opt_flags_as_map; h = {}; MODEL_FLAGS.each_pair { |k, v| h[k] = v[2] }; h; end
-    def hw_type(model); MODEL_FLAGS[model][1]; end
-    def bit_width(model); MODEL_FLAGS[model][0]; end
+    def hw_type(model); MODEL_FLAGS[model][1] if MODEL_FLAGS[model]; end
+    def bit_width(model); MODEL_FLAGS[model][0] if MODEL_FLAGS[model]; end
 
-  # The following harvest sysctl spewage.  See <mach/machine.h> to decode.
+    def oldest(arch_type = type)
+      case arch_type
+        when :intel   then :core
+        when :powerpc then :g3
+        else :dunno
+      end
+    end # CPU⸬oldest
+    # Backwards compatibility – existing usage is pervasive.
+    alias_method :oldest_cpu, :oldest
+
+  # Many of the following use things spewed out by sysctl.  See <sys/sysctl.h>
+  # for sysctl keys along with some related constants, and <mach/machine.h> for
+  # constants associated with Mach‐O CPU encoding.
 
     def type
       @type ||= case sysctl_int('hw.cputype')
@@ -38,54 +48,74 @@ class Hardware
                   when 18 then :powerpc
                   else :dunno
                 end
-    end # type
+    end # CPU⸬type
 
     %w[arm intel powerpc].each { |t| define_method("#{t}?") { type == t } }
-    alias_method :ppc?, :powerpc?  # Backwards compatibility – MANY existing uses.
+    # Backwards compatibility – existing usage is pervasive.
+    alias_method :ppc?, :powerpc?
 
     def arch
       case type
         when :arm     then :arm64
-        when :intel   then is_64_bit? ? :x86_64 : :i386
-        when :powerpc then is_64_bit? ? :ppc64  : :ppc
+        when :intel   then _64b? ? :x86_64 : :i386
+        when :powerpc then _64b? ? :ppc64  : :ppc
       end
-    end
+    end # CPU⸬arch
 
     def model
       case type
         when :intel
           case sysctl_int('hw.cpufamily')
-            when 0x73d67300 then :core        # Yonah: Core Solo/Duo
-            when 0x426f69ef then :core2       # Merom: Core 2 Duo
-            when 0x78ea4fbc then :penryn      # Penryn
-            when 0x6b5a4cd2 then :nehalem     # Nehalem
+            when 0x73D67300 then :core        # Yonah: Core Solo/Duo
+            when 0x426F69EF then :core2       # Merom: Core 2 Duo
+            when 0x78EA4FBC then :penryn      # Penryn
+            when 0x6B5A4CD2 then :nehalem     # Nehalem
             when 0x573B5EEC then :arrandale   # Arrandale (on Wikipedia see under “Westmere”)
             when 0x5490B78C then :sandybridge # Sandy Bridge
             when 0x1F65E835 then :ivybridge   # Ivy Bridge
             when 0x10B282DC then :haswell     # Haswell
-            when 0x582ed09c then :broadwell   # Broadwell
+            when 0x582ED09C then :broadwell   # Broadwell
             else :dunno
           end
         when :powerpc
           case sysctl_int('hw.cpusubtype')
             when 0x09 then :g3  # PowerPC 750
-            when 0x0a then :g4  # PowerPC 7400
-            when 0x0b then :g4e # PowerPC 7450
+            when 0x0A then :g4  # PowerPC 7400
+            when 0x0B then :g4e # PowerPC 7450
             when 0x64 then :g5  # PowerPC 970
             else :dunno
           end
         else :dunno
       end
-    end # model
+    end # CPU⸬model
 
-    def extmodel; sysctl_int('machdep.cpu.extmodel'); end
+    def type_of(source)
+      # source is either a specific model, or an architecture
+      self.hw_type(source) or case source
+                                when :ppc, :ppc64  then :powerpc
+                                when :x86, :x86_64 then :intel
+                                when :arm64        then :arm
+                                else                    :dunno
+                              end
+    end # CPU⸬type_of
 
     def cores; sysctl_int('hw.ncpu'); end
 
-    def bits; @bits ||= sysctl_bool('hw.cpu64bit_capable') ? 64 : 32; end
+    def cores_as_words
+      case cores
+        when 1 then 'single'
+        when 2 then 'dual'
+        when 4 then 'quad'
+        else cores
+      end
+    end # CPU⸬cores_as_words
 
-    def is_32_bit?; bits == 32; end
-    def is_64_bit?; bits == 64; end
+    def bits; _64b? ? 64 : 32; end
+
+    def _32b?; not _64b?; end
+    alias_method :is_32_bit?, :_32b?
+    def _64b?; @_64b ||= sysctl_bool('hw.cpu64bit_capable'); end
+    alias_method :is_64_bit?, :_64b?
 
     def _32b_arch
       case type
@@ -93,7 +123,7 @@ class Hardware
         when :powerpc then :ppc
         else :dunno
       end
-    end # _32b_arch
+    end # CPU⸬_32b_arch
     # Backwards compatibility – existing usage is pervasive.
     alias_method :arch_32_bit, :_32b_arch
 
@@ -104,7 +134,7 @@ class Hardware
         when :powerpc then :ppc64
         else :dunno
       end
-    end # _64b_arch
+    end # CPU⸬_64b_arch
     # Backwards compatibility – existing usage is pervasive.
     alias_method :arch_64_bit, :_64b_arch
 
@@ -114,38 +144,37 @@ class Hardware
     # Tiger, and unevenly supported on Leopard.  Don't even try unless 64‐bit
     # builds are enabled, which they generally aren’t prior to Leopard.
     def all_32b_archs; [:i386, :ppc].extend ArchitectureListExtension; end
-    def _64b_archs; [:ppc64, :x86_64].extend ArchitectureListExtension; end
+    def _64b_archs_1; [:ppc64, :x86_64].extend ArchitectureListExtension; end
     def _64b_archs_2; [:arm64, :x86_64].extend ArchitectureListExtension; end
     def all_64b_archs; [:arm64, :ppc64, :x86_64].extend ArchitectureListExtension; end
-    def _4FB_archs; (all_32b_archs + _64b_archs).extend ArchitectureListExtension; end
+    def quad_fat_archs; (all_32b_archs + _64b_archs_1).extend ArchitectureListExtension; end
     def all_archs; (all_32b_archs + all_64b_archs).extend ArchitectureListExtension; end
-    def universal_archs
+    def local_archs
       ( if MacOS.version <= '10.5' and not MacOS.prefer_64_bit? then [_32b_arch]
         elsif MacOS.version >= '10.7' then [_64b_arch]
         else [_32b_arch, _64b_arch]; end
       ).extend ArchitectureListExtension
-    end # universal_archs
+    end # CPU⸬local_archs
+    # Backwards compatibility – existing usage is pervasive.
+    alias_method :universal_archs, :local_archs
     def cross_archs
-      if MacOS.version <= '10.5' and MacOS.prefer_64_bit? then _4FB_archs
+      if MacOS.version <= '10.5' and MacOS.prefer_64_bit? then quad_fat_archs
       elsif MacOS.version >= '11' then _64b_archs_2
       elsif MacOS.version >= '10.7' then [_64b_arch].extend ArchitectureListExtension
       elsif MacOS.version >= '10.4' then all_32b_archs
-      else [:ppc]; end
-    end # cross_archs
+      else [:ppc].extend ArchitectureListExtension
+      end
+    end # CPU⸬cross_archs
 
     def select_32b_archs(archlist)
-      archlist.select { |arch|
-          all_32b_archs.any? { |a32| a32 == arch }
-        }.extend ArchitectureListExtension
+      archlist.select{ |a| all_32b_archs.any?{ |a32| a == a32 }}.extend ArchitectureListExtension
     end
 
     def select_64b_archs(archlist)
-      archlist.select { |arch|
-          all_64b_archs.any? { |a64| a64 == arch }
-        }.extend ArchitectureListExtension
+      archlist.select{ |a| all_64b_archs.any?{ |a64| a == a64 }}.extend ArchitectureListExtension
     end
 
-    # Determines whether the current CPU and macOS combination can run an
+    # Determines whether the current CPU and Mac OS combination can run an
     # executable of the specified architecture.  “this” is an arch symbol.
     def can_run?(this)
       case type
@@ -154,7 +183,9 @@ class Hardware
         when :powerpc then powerpc_can_run? this
         else false
       end
-    end # can_run?
+    end # CPU⸬can_run?
+
+    def extmodel; sysctl_int('machdep.cpu.extmodel'); end
 
     def features
       @features ||= sysctl_n(
@@ -162,7 +193,7 @@ class Hardware
         'machdep.cpu.extfeatures',
         'machdep.cpu.leaf7_features'
       ).split(' ').map { |s| s.downcase.to_sym }
-    end # features
+    end # CPU⸬features
 
     def feature?(name); features.include?(name); end
 
@@ -196,53 +227,24 @@ class Hardware
         when :arm64, :x86_64     then true
         else false  # dunno
       end
-    end # arm_can_run?
+    end # CPU⸬arm_can_run?
 
     def intel_can_run?(this)
       case this
         when :ppc           then MacOS.version < '10.7'  # Rosetta still available?
         when :arm64, :ppc64 then false  # No forward compatibility, & Rosetta never did PPC64
-        when :x86_64        then Hardware::CPU.is_64_bit?
+        when :x86_64        then _64b?
         when :i386          then MacOS.version <= '10.14'
         else false  # dunno
       end
-    end # intel_can_run?
+    end # CPU⸬intel_can_run?
 
     def powerpc_can_run?(this)
       case this
         when :ppc then true
-        when :ppc64 then Hardware::CPU.is_64_bit?
+        when :ppc64 then _64b?
         else false  # No forwards compatibility
       end
-    end # ppc_can_run?
-  end # Hardware⸬CPU
-
-  class << self
-    def cores_as_words
-      case Hardware::CPU.cores
-        when 1 then 'single'
-        when 2 then 'dual'
-        when 4 then 'quad'
-        else Hardware::CPU.cores
-      end
-    end # Hardware⸬cores_as_words
-
-    def oldest_cpu(arch_type = Hardware::CPU.type)
-      case arch_type
-        when :intel   then :core
-        when :powerpc then :g3
-        else :dunno
-      end
-    end # Hardware⸬oldest_cpu
-
-    def type_of(source)
-      # source is either a specific model, or an architecture
-      CPU.hw_type(source) or case source
-                               when :ppc, :ppc64  then :powerpc
-                               when :x86, :x86_64 then :intel
-                               when :arm64        then :arm
-                               else                    :dunno
-                             end
-    end # type_of
+    end # CPU⸬ppc_can_run?
   end # << self
-end # Hardware
+end # CPU
