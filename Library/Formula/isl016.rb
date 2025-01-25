@@ -1,16 +1,17 @@
 class Isl016 < Formula
   desc "Integer Set Library for the polyhedral model"
   homepage "https://libisl.sourceforge.io"
-  # Track gcc infrastructure releases.
-  url "https://libisl.sourceforge.io/isl-0.16.1.tar.bz2"
-  mirror "https://gcc.gnu.org/pub/gcc/infrastructure/isl-0.16.1.tar.bz2"
-  sha256 '412538bb65c799ac98e17e8cfcdacbb257a57362acfaaff254b0fcae970126d2'
+  url "https://libisl.sourceforge.io/isl-0.16.1.tar.xz"
+  sha256 '45292f30b3cb8b9c03009804024df72a79e9b5ab89e41c94752d6ea58a1e4b02'
 
   keg_only "Conflicts with isl in main repository."
+
+  option :universal
 
   depends_on "gmp"
 
   def install
+    ENV.universal_binary if build.universal?
     system "./configure", "--disable-dependency-tracking",
                           "--disable-silent-rules",
                           "--prefix=#{prefix}",
@@ -18,6 +19,7 @@ class Isl016 < Formula
                           "--with-gmp-prefix=#{Formula["gmp"].opt_prefix}"
     system "make"
     system "make", "install"
+    mv lib/'pkgconfig/isl.pc', lib/'pkgconfig/isl-0.16.pc'
     (share/"gdb/auto-load").install Dir["#{lib}/*-gdb.py"]
   end
 
@@ -33,6 +35,6 @@ class Isl016 < Formula
       }
     EOS
     system ENV.cc, "test.c", "-I#{include}", "-L#{lib}", "-lisl", "-o", "test"
-    system "./test"
+    arch_system "./test"
   end
 end
