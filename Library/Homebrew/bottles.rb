@@ -23,22 +23,23 @@ end
 
 def bottle_tag
   if MacOS.version >= '11'
-    if CPU.arm?
+    if CPU.bottle_target_arch == :arm64e
       "#{MacOS.codename}_arm".to_sym
     else
       "#{MacOS.codename}_intel".to_sym
     end
-  elsif MacOS.version >= '10.7'  # Everything up to Catalina can run 32‐bit, but
-    MacOS.codename           # from Lion onward we only build 64‐bit
-  elsif MacOS.version == '10.6'
-    CPU._64b? ? :snow_leopard : :snow_leopard_32
+  elsif MacOS.version >= '10.6'  # Everything up to Catalina can run 32‐bit, but from Snow Leopard
+    MacOS.codename               # onward we only build 64‐bit (too many obsolescences w/ 32‐bit)
+  elsif ARGV.bottle_arch == :altivec
+    # really a euphemism for “..._g4”, but more widely applicable for end users
+    "#{MacOS.codename}_altivec".to_sym
   else
     # Return, e.g., :tiger_g3, :leopard_g5_64, :leopard_intel_64
-    case CPU.arch
-      when :i386   then "#{MacOS.codename}_intel".to_sym
-      when :ppc    then "#{MacOS.codename}_#{CPU.model}".to_sym
-      when :ppc64  then "#{MacOS.codename}_g5_64".to_sym
-      when :x86_64 then "#{MacOS.codename}_intel_64".to_sym
+    case CPU.bottle_target_arch
+      when :i386             then "#{MacOS.codename}_intel".to_sym
+      when :ppc              then "#{MacOS.codename}_#{CPU.bottle_target_model}".to_sym
+      when :ppc64            then "#{MacOS.codename}_g5_64".to_sym
+      when :x86_64, :x86_64h then "#{MacOS.codename}_intel_64".to_sym
       else "#{MacOS.codename}_unknown".to_sym
     end
   end
