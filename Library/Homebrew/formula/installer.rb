@@ -161,8 +161,8 @@ class FormulaInstaller
     end
     return if only_deps?
 
-    if build_bottle? and (arch = ARGV.bottle_arch) and not CPU.known_models.include?(arch)
-      raise "Unrecognized architecture for --bottle-arch: #{arch}"
+    if build_bottle? and not CPU.bottle_target_model
+      raise "Invalid target for --bottle-arch:  #{ARGV.bottle_arch}"
     end
 
     formula.deprecated_args.each do |deprecated_option|
