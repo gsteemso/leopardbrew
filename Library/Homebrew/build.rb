@@ -181,7 +181,7 @@ begin
   build   = Build.new(formula, ARGV.effective_flags)
   build.install
 rescue Exception => e
-  Marshal.dump(e, error_pipe)
+  Marshal.dump(e.message, error_pipe)
   error_pipe.close
   exit! 1
 end
