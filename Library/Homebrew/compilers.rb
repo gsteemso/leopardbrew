@@ -3,6 +3,7 @@ module CompilerConstants
   GNU_GCC_VERSIONS = %w[4.3 4.4 4.5 4.6 4.7 4.8 4.9 5 6 7]
   GNU_GCC_REGEXP = /^gcc-(4\.[3-9]|[5-7])$/
   GNU_CXX11_REGEXP = /^gcc-(4\.[89]|[5-7])$/
+  GNU_CXX14_REGEXP = /^gcc-([5-7])$/
   GNU_C11_REGEXP = /^gcc-(4\.9|[5-7])$/
   CLANG_CXX11_MIN = '5'
   COMPILER_SYMBOL_MAP = {
@@ -58,6 +59,18 @@ class CompilerFailure
   def inspect; "#<#{self.class.name}: #{name} #{version}>"; end
 
   COLLECTIONS = {
+    :c11 => [
+      create(:gcc_4_0),
+      create(:gcc),
+      create(:llvm),
+      create(:clang),  # build unknown
+      create(:gcc => '4.3'),
+      create(:gcc => '4.4'),
+      create(:gcc => '4.5'),
+      create(:gcc => '4.6'),
+      create(:gcc => '4.7'),
+      create(:gcc => '4.8')
+    ],
     :cxx11 => [
       create(:gcc_4_0),
       create(:gcc),
@@ -68,6 +81,19 @@ class CompilerFailure
       create(:gcc => "4.5"),
       create(:gcc => "4.6"),
       create(:gcc => "4.7")  # the very last features of C++11 were not stable until GCC 4.8.1
+    ],
+    :cxx14 => [
+      create(:gcc_4_0),
+      create(:gcc),
+      create(:llvm),
+      create(:clang),  # build unknown
+      create(:gcc => '4.3'),
+      create(:gcc => '4.4'),
+      create(:gcc => '4.5'),
+      create(:gcc => '4.6'),
+      create(:gcc => '4.7'),
+      create(:gcc => '4.8'),
+      create(:gcc => '4.9')  # the very last features of C++14 were not stable until GCC 5.?.0
     ],
     :openmp => [
       create(:clang),
