@@ -148,6 +148,15 @@ module SharedEnvExtension
       else MacOS.default_compiler; end
   end # compiler
 
+# TODO properly account for clang
+  def compiler_version
+    case compiler.to_s
+      when 'gcc_4_0' then 4.0
+      when 'clang', 'gcc', 'llvm' then 4.2
+      when GNU_GCC_REGEXP then $1.to_f
+    end
+  end # compiler_version
+
   # @private
   def determine_cc; COMPILER_SYMBOL_MAP.invert.fetch(compiler, compiler); end
 
@@ -163,10 +172,12 @@ module SharedEnvExtension
     end
   end # define a method for each |compiler| in COMPILERS, for use exactly once during setup
 
-  # TODO:  Fix these so they check the correct _versions_ of clang
+# TODO:  Fix these so they check the correct _versions_ of clang
   def supports_c11?; cc =~ GNU_C11_REGEXP or cc =~ /clang/; end
 
   def supports_cxx11?; cc =~ GNU_CXX11_REGEXP or cc =~ /clang/; end
+
+  def supports_cxx14?; cc =~ GNU_CXX14_REGEXP or cc =~ /clang/; end
 
   # Snow Leopard defines an NCURSES value the opposite of most distros.
   # See: https://bugs.python.org/issue6848
@@ -293,10 +304,7 @@ module SharedEnvExtension
   end
 
   def un_m32
-    CPU.all_32b_archs.each { |arch|
-      remove COMPILER_VARS, "-arch #{arch}"
-      remove HOMEBREW_BUILD_ARCHS, arch.to_s
-    }
+    CPU.all_32b_archs.each { |arch| remove COMPILER_VARS, "-arch #{arch}" }
     set_build_archs @build_arch_stash
   end
 
@@ -306,10 +314,7 @@ module SharedEnvExtension
   end
 
   def un_m64
-    CPU.all_64b_archs.each do |arch|
-      remove COMPILER_VARS, "-arch #{arch}"
-      remove HOMEBREW_BUILD_ARCHS, arch.to_s
-    end
+    CPU.all_64b_archs.each { |arch| remove COMPILER_VARS, "-arch #{arch}" }
     set_build_archs @build_arch_stash
   end # un_m64
 
