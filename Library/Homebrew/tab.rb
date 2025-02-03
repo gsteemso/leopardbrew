@@ -139,7 +139,7 @@ class Tab < OpenStruct
     # Older tabs won’t have this field, so compute a plausible default.
     if super.empty? then 
       if cross? then CPU.cross_archs
-      elsif universal? then CPU.universal_archs
+      elsif universal? then CPU.local_archs
       else MacOS.preferred_arch_as_list; end
     else super.map(&:to_sym).extend ArchitectureListExtension; end
   end

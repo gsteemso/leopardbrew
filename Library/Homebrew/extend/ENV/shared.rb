@@ -288,7 +288,7 @@ module SharedEnvExtension
 
   def cross_binary; set_build_archs(CPU.cross_archs); end
 
-  def universal_binary; set_build_archs(CPU.universal_archs); end
+  def universal_binary; set_build_archs(CPU.local_archs); end
 
   # This will have already been set up with a correctly-extended Array
   # argument by stdenv or by superenv.
