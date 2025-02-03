@@ -32,23 +32,18 @@ class Ld64 < Formula
     build 5370
   end
 
-  # Fix the smurfed‐up PowerPC maximum‐displacement constants, and un‐botch
-  # the logic that chooses whether to do a branch island.  (Accidentally using
-  # “&&” when you meant “||” could happen to anybody, but how does someone get
-  # hired as a systems programmer at a major computer company when they can’t
-  # _count_?)
+  # Fix the smurfed‐up PowerPC maximum‐displacement constants, extending the
+  # MacPorts un‐botching of the logic that chooses whether to do a branch
+  # island.  (Accidentally using “&&” when you meant “||” could happen to
+  # anybody, but how does someone get hired as a systems programmer at a major
+  # computer company when they can’t _count_?)
+  # Also, incorporate a repaired version of the MacPorts version‐number patch.
   patch :DATA
 
   # Remove LTO support
   patch :p0 do
     url "https://trac.macports.org/export/103949/trunk/dports/devel/ld64/files/ld64-97-no-LTO.patch"
     sha256 "2596cc25118981cbc31e82ddcb70508057f1946c46c3d6d6845ab7bd01ff1433"
-  end
-
-  # Fix version number
-  patch :p0 do
-    url "https://trac.macports.org/export/103951/trunk/dports/devel/ld64/files/ld64-version.patch"
-    sha256 "3753b6877641648017eab2bb391361840fe887a2b3eb2e5ef689272a28c374fc"
   end
 
   def install
@@ -98,24 +93,19 @@ __END__
  				else {
 -					const int64_t bl_eightMegLimit = 0x00FFFFFF;
 -					if ( (displacement > bl_eightMegLimit) || (displacement < (-bl_eightMegLimit)) ) {
-+					const int64_t bl_thirtyTwoMegLimit = 0x01FFFFFF;
-+					if ( (displacement > bl_thirtyTwoMegLimit) || (displacement < (-bl_thirtyTwoMegLimit)) ) {
++					const int64_t bl_sixtyFourMegLimit = 0x01FFFFFF;
++					if ( (displacement > bl_sixtyFourMegLimit) || (displacement < (-bl_sixtyFourMegLimit)) ) {
  						//fprintf(stderr, "bl out of range (%lld max is +/-16M) from %s in %s to %s in %s\n", displacement, this->getDisplayName(), this->getFile()->getPath(), target.getDisplayName(), target.getFile()->getPath());
 -						throwf("bl out of range (%lld max is +/-16M) from %s at 0x%08llX in %s of %s to %s at 0x%08llX in %s of  %s",
 +						throwf("bl out of range (%lld max is +/-32M) from %s at 0x%08llX in %s of %s to %s at 0x%08llX in %s of  %s",
  							displacement, inAtom->getDisplayName(), inAtom->getAddress(), inAtom->getSectionName(), inAtom->getFile()->getPath(),
  							ref->getTarget().getDisplayName(), ref->getTarget().getAddress(), ref->getTarget().getSectionName(), ref->getTarget().getFile()->getPath());
  					}
-@@ -7581,10 +7581,10 @@
- 					// the mach-o way of encoding this is that the bl instruction's target addr is the offset into the target
- 					displacement -= ref->getTarget().getAddress();
- 				}
--				const int64_t b_sixtyFourKiloLimit = 0x0000FFFF;
--				if ( (displacement > b_sixtyFourKiloLimit) || (displacement < (-b_sixtyFourKiloLimit)) ) {
-+				const int64_t b_thirtyTwoKLimit = 0x0000FFFF;
-+				if ( (displacement > b_thirtyTwoKLimit) || (displacement < (-b_thirtyTwoKLimit)) ) {
+@@ -7584,7 +7584,7 @@
+ 				const int64_t b_sixtyFourKiloLimit = 0x0000FFFF;
+ 				if ( (displacement > b_sixtyFourKiloLimit) || (displacement < (-b_sixtyFourKiloLimit)) ) {
  					//fprintf(stderr, "bl out of range (%lld max is +/-16M) from %s in %s to %s in %s\n", displacement, this->getDisplayName(), this->getFile()->getPath(), target.getDisplayName(), target.getFile()->getPath());
--					throwf("bcc out of range (%lld max is +/-32K) from %s in %s to %s in %s",
+-					throwf("bcc out of range (%lld max is +/-64K) from %s in %s to %s in %s",
 +					throwf("bcc out of range (%lld max is +/-32K) from %s in %s to %s in %s",
  						displacement, inAtom->getDisplayName(), inAtom->getFile()->getPath(),
  						ref->getTarget().getDisplayName(), ref->getTarget().getFile()->getPath());
@@ -125,11 +115,11 @@ __END__
  {
  	int64_t displacement;
 -	const int64_t bl_sixteenMegLimit = 0x00FFFFFF;
-+	const int64_t bl_thirtyTwoMegLimit = 0x01FFFFFF;
++	const int64_t bl_sixtyFourMegLimit = 0x01FFFFFF;
  	if ( fTarget.getContentType() == ObjectFile::Atom::kBranchIsland ) {
  		displacement = getFinalTargetAdress() - this->getAddress();
 -		if ( (displacement > bl_sixteenMegLimit) && (displacement < (-bl_sixteenMegLimit)) ) {
-+		if ( (displacement > bl_thirtyTwoMegLimit) || (displacement < (-bl_thirtyTwoMegLimit)) ) {
++		if ( (displacement > bl_sixtyFourMegLimit) || (displacement < (-bl_sixtyFourMegLimit)) ) {
  			displacement = fTarget.getAddress() - this->getAddress();
  		}
  	}
@@ -138,11 +128,30 @@ __END__
  {
  	int64_t displacement;
 -	const int64_t bl_sixteenMegLimit = 0x00FFFFFF;
-+	const int64_t bl_thirtyTwoMegLimit = 0x01FFFFFF;
++	const int64_t bl_sixtyFourMegLimit = 0x01FFFFFF;
  	if ( fTarget.getContentType() == ObjectFile::Atom::kBranchIsland ) {
  		displacement = getFinalTargetAdress() - this->getAddress();
 -		if ( (displacement > bl_sixteenMegLimit) && (displacement < (-bl_sixteenMegLimit)) ) {
-+		if ( (displacement > bl_thirtyTwoMegLimit) || (displacement < (-bl_thirtyTwoMegLimit)) ) {
++		if ( (displacement > bl_sixtyFourMegLimit) || (displacement < (-bl_sixtyFourMegLimit)) ) {
  			displacement = fTarget.getAddress() - this->getAddress();
  		}
  	}
+--- old/src/ld/Options.cpp
++++ new/src/ld/Options.cpp
+@@ -40,6 +40,8 @@
+ namespace lto {
+ 	extern const char* version();
+ }
++
++const char *ldVersionString = "@(#)PROGRAM:ld  PROJECT:ld64-@@VERSION@@\n";
+ 
+ // magic to place command line in crash reports
+ const int crashreporterBufferSize = 2000;
+@@ -2821,7 +2823,6 @@ void Options::buildSearchPaths(int argc,
+ 			addStandardLibraryDirectories = false;
+ 		else if ( strcmp(argv[i], "-v") == 0 ) {
+ 			fVerbose = true;
+-			extern const char ldVersionString[];
+ 			fprintf(stderr, "%s", ldVersionString);
+ 			 // if only -v specified, exit cleanly
+ 			 if ( argc == 2 ) {
