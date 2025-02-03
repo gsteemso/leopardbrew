@@ -9,10 +9,6 @@ require "macos/xquartz"
 module MacOS
   extend self
 
-  def prefer_64_bit?
-    CPU._64b? and version > '10.5' or version == '10.5' and ENV["HOMEBREW_PREFER_64_BIT"]
-  end
-
   def locate(tool)
     # Don't call tools (cc, make, strip, etc.) directly!
     # Give the name of the binary you look for as a string to this method
@@ -163,20 +159,30 @@ module MacOS
     paths.uniq
   end # macports_or_fink
 
-  def preferred_arch; prefer_64_bit? ? CPU._64b_arch : CPU._32b_arch; end
+  def prefer_64_bit?
+    CPU._64b? and version > '10.5' or (version == '10.5' and ENV['HOMEBREW_PREFER_64_BIT'])
+  end
+
+  def preferred_arch
+    if ARGV.build_bottle? then CPU.bottle_target_arch
+    else prefer_64_bit? ? CPU._64b_arch : CPU._32b_arch
+    end
+  end
 
   def preferred_arch_as_list; [preferred_arch].extend(ArchitectureListExtension); end
 
-  def counterpart_arch
-    case preferred_arch
-      when :arm64  then :x86_64
-      when :i386   then :ppc
-      when :ppc    then :i386
-      when :ppc64  then :x86_64
-      when :x86_64 then (version >= '10.15' ? :arm64 : :ppc64)
+  def counterpart_arch(main_arch = preferred_arch)
+    case main_arch
+      when :altivec, :ppc    then :i386
+      when :arm64, :arm64e   then :x86_64h
+      when :g5_64, :ppc64    then :x86_64
+      when :i386             then :ppc
+      when :x86_64, :x86_64h then (version >= '10.15' ? :arm64e : :ppc64)
       else :dunno
     end
   end # counterpart_arch
+
+  def counterpart_arch_as_list; [counterpart_arch].extend(ArchitectureListExtension); end
 
   def counterpart_type(main_type)
     case main_type
