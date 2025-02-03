@@ -51,7 +51,7 @@ class Ld64 < Formula
 
     buildpath.install resource("makefile")
     mv "Makefile-97", "Makefile"
-    inreplace "src/ld/Options.cpp", "@@VERSION@@", version
+    inreplace "src/ld/Options.cpp", "@@VERSION@@", version.to_s
 
     if MacOS.version < :leopard
       # No CommonCrypto
@@ -138,16 +138,16 @@ __END__
  	}
 --- old/src/ld/Options.cpp
 +++ new/src/ld/Options.cpp
-@@ -40,6 +40,8 @@
- namespace lto {
- 	extern const char* version();
- }
-+
-+const char *ldVersionString = "@(#)PROGRAM:ld  PROJECT:ld64-@@VERSION@@\n";
+@@ -37,6 +37,8 @@
  
+ extern void printLTOVersion(Options &opts);
+ 
++const char *ldVersionString = "@(#)PROGRAM:ld  PROJECT:ld64-@@VERSION@@\n";
++
  // magic to place command line in crash reports
- const int crashreporterBufferSize = 2000;
-@@ -2821,7 +2823,6 @@ void Options::buildSearchPaths(int argc,
+ extern "C" char* __crashreporter_info__;
+ static char crashreporterBuffer[1000];
+@@ -2596,7 +2598,6 @@
  			addStandardLibraryDirectories = false;
  		else if ( strcmp(argv[i], "-v") == 0 ) {
  			fVerbose = true;
