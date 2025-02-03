@@ -146,18 +146,14 @@ module Superenv
   end
 
   def determine_optflags
-    if ARGV.build_bottle?
-      arch = ARGV.bottle_arch || CPU.oldest
-      CPU.optimization_flags(arch)
-    elsif CPU.intel? and not CPU.sse4?
-      # If the CPU doesn't support SSE4, we cannot trust -march=native or
-      # -march=<cpu family> to do the right thing because we might be running
-      # in a VM or on a Hackintosh.
-      CPU.optimization_flags(CPU.oldest)
-    elsif compiler == :clang then "-march=native"
-    else CPU.optimization_flags(CPU.model)
-      # TODO:  Match these to the compiler version (GCC 4.2 doesn’t know
-      # about any of the more recent stuff)
+    if compiler == :clang then "-march=native"
+    else
+      mdl = if ARGV.build_bottle? then CPU.bottle_target_model
+            # If the CPU doesn't support SSE4, we cannot trust -march=native or -march=<cpu family>
+            # to do the right thing because we might be running in a VM or on a Hackintosh.
+            elsif CPU.intel? and not CPU.sse4? then CPU.oldest(CPU._64b? ? :x86_64 : :i386)
+            else CPU.model; end
+      CPU.optimization_flags(mdl, compiler_version)
     end
   end # determine_optflags
 

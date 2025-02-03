@@ -120,7 +120,7 @@ module Stdenv
     super
     replace_in_cflags(/-Xarch_#{CPU._32b_arch} (-march=\S*)/, '\1')
     # Clang mistakenly enables AES-NI on plain Nehalem
-    map = CPU.opt_flags_as_map
+    map = CPU.opt_flags_as_map(compiler_version)
     map = map.merge(:nehalem => "-march=native -Xclang -target-feature -Xclang -aes")
     set_cpu_cflags "-march=native", map
   end # clang
@@ -266,7 +266,7 @@ module Stdenv
   # Sets architecture-specific flags for every environment variable
   # given in the list `flags`.
   # @private
-  def set_cpu_flags(flags, default = DEFAULT_FLAGS, map = CPU.opt_flags_as_map)
+  def set_cpu_flags(flags, default = DEFAULT_FLAGS, map = CPU.opt_flags_as_map(compiler_version))
     cflags =~ /(-Xarch_#{CPU._32b_arch} )-march=/
     xarch = $1 || ''
     remove flags, /(#{xarch})?-march=\S*/
@@ -276,27 +276,25 @@ module Stdenv
     append flags, xarch unless xarch.empty?
     append flags, map.fetch(effective_arch, default)
     # Work around a buggy system header on Tiger
-    append flags, "-faltivec" if MacOS.version == '10.4' and CPU.powerpc?
+    append flags, "-faltivec" if MacOS.version == '10.4' and CPU.powerpc? and not CPU.model == :g3
     # not really a 'CPU' cflag, but is only used with clang
     remove flags, '-Qunused-arguments'
   end # set_cpu_flags
 
   # @private
   def effective_arch
-    if ARGV.build_bottle?
-      ARGV.bottle_arch || CPU.oldest
+    if ARGV.build_bottle? then CPU.bottle_target_arch
     elsif CPU.intel? and not CPU.sse4?
       # If the CPU doesn't support SSE4, we cannot trust -march=native or
       # -march=<cpu family> to do the right thing because we might be running
       # in a VM or on a Hackintosh.
-      CPU.oldest
-    else
-      CPU.model
+      CPU.oldest(CPU._64b? ? :x86_64 : :i386)
+    else CPU.model
     end
   end # effective_arch
 
   # @private
-  def set_cpu_cflags(default = DEFAULT_FLAGS, map = CPU.opt_flags_as_map)
+  def set_cpu_cflags(default = DEFAULT_FLAGS, map = CPU.opt_flags_as_map(compiler_version))
     set_cpu_flags CC_FLAG_VARS, default, map
   end
 
