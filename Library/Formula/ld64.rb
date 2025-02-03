@@ -1,18 +1,12 @@
 class Ld64 < Formula
   desc "Updated version of the ld shipped by Apple"
   homepage "https://github.com/apple-oss-distributions/ld64/tree/ld64-97.17"
-  # Latest is 134.9, but it no longer supports building for PPC.
-  # 127.2 won't build on Tiger, at least without some patching.
-  # Leopard users: if you like, add a 127.2 option or fix the build
-  # on Tiger.
-  #
+  # The latest version available that nominally builds for PPC is 127.2, which
+  # won’t build on Tiger, at least not without some patching.
+  # Leopard users:  If you like, add a 127.2 option, or fix the build on Tiger.
   url "https://github.com/apple-oss-distributions/ld64/archive/refs/tags/ld64-97.17.tar.gz"
   sha256 "dc609d295365f8f5853b45e8dbcb44ca85e7dbc7a530e6fb5342f81d3c042db5"
-  revision 1
-
-  bottle do
-    sha256 "bb9853e7c2428a48282eb917ac0b05672b1a00350cc2c6585a05c8d7d567bfcb" => :tiger_altivec
-  end
+  revision 2
 
   resource "makefile" do
     url "https://trac.macports.org/export/123511/trunk/dports/devel/ld64/files/Makefile-97", :using => :nounzip
@@ -38,11 +32,12 @@ class Ld64 < Formula
     build 5370
   end
 
-  # Fixes logic on PPC branch islands
-  patch :p0 do
-    url "https://trac.macports.org/export/103948/trunk/dports/devel/ld64/files/ld64-97-ppc-branch-island.patch"
-    sha256 "a6bbf25c6e4fa348eee3d4756ad65f42ba42b78922dc0f75669023cdf9c25d72"
-  end
+  # Fix the smurfed‐up PowerPC maximum‐displacement constants, and un‐botch
+  # the logic that chooses whether to do a branch island.  (Accidentally using
+  # “&&” when you meant “||” could happen to anybody, but how does someone get
+  # hired as a systems programmer at a major computer company when they can’t
+  # _count_?)
+  patch :DATA
 
   # Remove LTO support
   patch :p0 do
@@ -93,3 +88,61 @@ class Ld64 < Formula
     system "make", "install", "PREFIX=#{prefix}"
   end
 end
+
+__END__
+--- old/src/ld/MachOWriterExecutable.hpp
++++ new/src/ld/MachOWriterExecutable.hpp
+@@ -7559,10 +7559,10 @@
+ 					displacement -= ref->getTarget().getAddress();
+ 				}
+ 				else {
+-					const int64_t bl_eightMegLimit = 0x00FFFFFF;
+-					if ( (displacement > bl_eightMegLimit) || (displacement < (-bl_eightMegLimit)) ) {
++					const int64_t bl_thirtyTwoMegLimit = 0x01FFFFFF;
++					if ( (displacement > bl_thirtyTwoMegLimit) || (displacement < (-bl_thirtyTwoMegLimit)) ) {
+ 						//fprintf(stderr, "bl out of range (%lld max is +/-16M) from %s in %s to %s in %s\n", displacement, this->getDisplayName(), this->getFile()->getPath(), target.getDisplayName(), target.getFile()->getPath());
+-						throwf("bl out of range (%lld max is +/-16M) from %s at 0x%08llX in %s of %s to %s at 0x%08llX in %s of  %s",
++						throwf("bl out of range (%lld max is +/-32M) from %s at 0x%08llX in %s of %s to %s at 0x%08llX in %s of  %s",
+ 							displacement, inAtom->getDisplayName(), inAtom->getAddress(), inAtom->getSectionName(), inAtom->getFile()->getPath(),
+ 							ref->getTarget().getDisplayName(), ref->getTarget().getAddress(), ref->getTarget().getSectionName(), ref->getTarget().getFile()->getPath());
+ 					}
+@@ -7581,10 +7581,10 @@
+ 					// the mach-o way of encoding this is that the bl instruction's target addr is the offset into the target
+ 					displacement -= ref->getTarget().getAddress();
+ 				}
+-				const int64_t b_sixtyFourKiloLimit = 0x0000FFFF;
+-				if ( (displacement > b_sixtyFourKiloLimit) || (displacement < (-b_sixtyFourKiloLimit)) ) {
++				const int64_t b_thirtyTwoKLimit = 0x0000FFFF;
++				if ( (displacement > b_thirtyTwoKLimit) || (displacement < (-b_thirtyTwoKLimit)) ) {
+ 					//fprintf(stderr, "bl out of range (%lld max is +/-16M) from %s in %s to %s in %s\n", displacement, this->getDisplayName(), this->getFile()->getPath(), target.getDisplayName(), target.getFile()->getPath());
+-					throwf("bcc out of range (%lld max is +/-32K) from %s in %s to %s in %s",
++					throwf("bcc out of range (%lld max is +/-32K) from %s in %s to %s in %s",
+ 						displacement, inAtom->getDisplayName(), inAtom->getFile()->getPath(),
+ 						ref->getTarget().getDisplayName(), ref->getTarget().getFile()->getPath());
+ 				}
+@@ -10996,10 +10996,10 @@
+ void BranchIslandAtom<ppc>::copyRawContent(uint8_t buffer[]) const
+ {
+ 	int64_t displacement;
+-	const int64_t bl_sixteenMegLimit = 0x00FFFFFF;
++	const int64_t bl_thirtyTwoMegLimit = 0x01FFFFFF;
+ 	if ( fTarget.getContentType() == ObjectFile::Atom::kBranchIsland ) {
+ 		displacement = getFinalTargetAdress() - this->getAddress();
+-		if ( (displacement > bl_sixteenMegLimit) && (displacement < (-bl_sixteenMegLimit)) ) {
++		if ( (displacement > bl_thirtyTwoMegLimit) || (displacement < (-bl_thirtyTwoMegLimit)) ) {
+ 			displacement = fTarget.getAddress() - this->getAddress();
+ 		}
+ 	}
+@@ -11014,10 +11014,10 @@
+ void BranchIslandAtom<ppc64>::copyRawContent(uint8_t buffer[]) const
+ {
+ 	int64_t displacement;
+-	const int64_t bl_sixteenMegLimit = 0x00FFFFFF;
++	const int64_t bl_thirtyTwoMegLimit = 0x01FFFFFF;
+ 	if ( fTarget.getContentType() == ObjectFile::Atom::kBranchIsland ) {
+ 		displacement = getFinalTargetAdress() - this->getAddress();
+-		if ( (displacement > bl_sixteenMegLimit) && (displacement < (-bl_sixteenMegLimit)) ) {
++		if ( (displacement > bl_thirtyTwoMegLimit) || (displacement < (-bl_thirtyTwoMegLimit)) ) {
+ 			displacement = fTarget.getAddress() - this->getAddress();
+ 		}
+ 	}
