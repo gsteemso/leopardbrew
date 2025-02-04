@@ -32,12 +32,12 @@ class Ld64 < Formula
     build 5370
   end
 
-  # Fix the smurfed‐up PowerPC maximum‐displacement constants, extending the
-  # MacPorts un‐botching of the logic that chooses whether to do a branch
+  # Fix the smurfed‐up PowerPC maximum‐displacement constants, incorporating
+  # MacPorts’ un‐botching of the logic that chooses whether to do a branch
   # island.  (Accidentally using “&&” when you meant “||” could happen to
   # anybody, but how does someone get hired as a systems programmer at a major
-  # computer company when they can’t _count_?)
-  # Also, incorporate a repaired version of the MacPorts version‐number patch.
+  # computer company when they can’t _count_?)  Also incorporates MacPorts’
+  # version‐number patch, tuned to this revision of ld64.
   patch :DATA
 
   # Remove LTO support
