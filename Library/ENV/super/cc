@@ -59,9 +59,9 @@ class Cmd
       # This stops `gcc -v` et sim, with no other meaningful arguments, from outputting a linker
       # error.  Some software misuses `gcc -v` to sniff the GCC version; this covers all bases.
       # This formerly only tested for '-v' and only if it was the only argument, but some software
-      # now erroneously prepends `--std=gnu99` or the like to it, so testing for it as the last
-      # argument will have to do.  This actually also covers for a bug in some `configure` scripts,
-      # which cause `gcc -V` to wrongly fail by accidentally calling it as `gcc --std=gnu99 -V`.
+      # now erroneously prepends things to that, so testing for it as the last argument will have
+      # to do.  This actually also covers for a bug in some `configure` scripts, which cause `gcc
+      # -V` to wrongly fail by accidentally calling it as `gcc --std=gnu99 -V`.
       return [@given_args[-1]]
     end
 
