@@ -1,4 +1,4 @@
-require "open-uri"  # Ruby libraries.
+require "open-uri"  # Ruby library.
 # The rest are Homebrew libraries:
 require "exceptions"
 require "utils/fork"
@@ -112,6 +112,19 @@ ensure
   ENV["HOMEBREW_DEVELOPER"] = old
 end # run_as_not_developer
 
+def without_archflags(&_block)
+  cc_with_archs = ENV.cc
+  cxx_with_archs = ENV.cxx
+  ENV['CC'] = ENV['OBJC'] = ENV['HOMEBREW_CC']
+  ENV['CXX'] = ENV['OBJCXX'] = ENV['HOMEBREW_CXX']
+  arch_flags = ENV['HOMEBREW_ARCHFLAGS']
+  ENV.delete 'HOMEBREW_ARCHFLAGS'
+  yield
+ensure
+  ENV['CC'] = cc_with_archs
+  ENV['HOMEBREW_ARCHFLAGS'] = arch_flags
+end
+
 # Kernel.system but with exceptions
 def safe_system(cmd, *args)
   Homebrew.system(cmd, *args) or raise(ErrorDuringExecution.new(cmd, args))
@@ -145,13 +158,15 @@ end # arch_system
 #       system *(arch_cmd << cmd), args ...
 #     end # each arch |a|
 def for_archs (cmd, &block)
-  cmd = which(cmd) unless cmd.to_s =~ %r{^\.?/}
+  cmd = which(cmd) unless cmd.to_s =~ %r{/}
   cmd = Pathname.new(cmd) unless Pathname === cmd
-  if (is_fat = cmd.fat?) and (arch_cmd = which 'arch')
+  if (is_fat = cmd.fat?) and (which 'arch').chuzzle
     cmd.archs.select { |a| CPU.can_run?(a) }.each(&block)
   else
-    opoo 'Can’t find the “arch” command.',
-         "Running #{cmd} with the default architecture only." if is_fat
+    opoo <<-_.undent if is_fat
+      Can’t find the “arch” command.  Running only the default architecture of
+      #{cmd}.
+    _
     block.call(nil)
   end
 end # for_archs
