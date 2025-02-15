@@ -49,9 +49,7 @@ module MacOS
 
   # This can be compared to numerics, strings, or symbols
   # using the standard Ruby Comparable methods.
-  def version
-    @version ||= Version.new(MACOS_VERSION)
-  end
+  def version; @version ||= Version.new(MACOS_VERSION); end
 
   def codename; version.to_sym; end
 
