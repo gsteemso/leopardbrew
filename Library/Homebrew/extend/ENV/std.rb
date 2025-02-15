@@ -234,8 +234,8 @@ module Stdenv
   end
 
   def set_build_archs(archset)
-    archset = Array(archset).extend ArchitectureListExtension unless archset.respond_to?(:fat?)
     super
+    CPU.all_archs.each { |arch| remove_from_cflags "-arch #{arch}" }
     append_to_cflags archset.as_arch_flags
     append "LDFLAGS", archset.as_arch_flags
     self['CMAKE_OSX_ARCHITECTURES'] = archset.as_cmake_arch_flags

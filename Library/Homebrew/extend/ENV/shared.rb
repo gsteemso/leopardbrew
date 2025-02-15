@@ -14,10 +14,10 @@ module SharedEnvExtension
   # @private
   FC_FLAG_VARS = %w[FCFLAGS FFLAGS]
   # @private
-  COMPILER_VARS = %w[CC CXX F77 FC OBJC OBJCXX]
+  COMPILER_VARS = %w[CC CXX FC OBJC OBJCXX]
   # @private
   SANITIZED_VARS = %w[
-    CDPATH GREP_OPTIONS CLICOLOR_FORCE
+    CDPATH GREP_OPTIONS
     CPATH C_INCLUDE_PATH CPLUS_INCLUDE_PATH OBJC_INCLUDE_PATH
     CC CXX OBJC OBJCXX CPP MAKE LD LDSHARED
     CFLAGS CXXFLAGS OBJCFLAGS OBJCXXFLAGS LDFLAGS CPPFLAGS
@@ -25,13 +25,14 @@ module SharedEnvExtension
     CMAKE_PREFIX_PATH CMAKE_INCLUDE_PATH CMAKE_FRAMEWORK_PATH
     GOBIN GOPATH GOROOT
     LIBRARY_PATH
-  ]
+  ] # CLICOLOR_FORCE  ← why was this in there?
 
   # @private
   def setup_build_environment(formula = nil, archset = nil)
     @formula = formula
     reset
-    set_build_archs(archset || build_archs || MacOS.preferred_arch_as_list)
+    @build_archs = archset || homebrew_build_archs || MacOS.preferred_arch_as_list
+    set_build_archs(@build_archs)
   end # setup_build_environment
 
   # @private
@@ -123,8 +124,10 @@ module SharedEnvExtension
 
   def fcflags; self['FCFLAGS']; end
 
-  def build_archs;
-    ((hba = self['HOMEBREW_BUILD_ARCHS']) ? hba.split(' ') : []).extend ArchitectureListExtension
+  def homebrew_build_archs
+    if (hba = self['HOMEBREW_BUILD_ARCHS'])
+      hba.split(' ').extend ArchitectureListExtension
+    end
   end
 
   # Outputs the current compiler.
@@ -275,10 +278,11 @@ module SharedEnvExtension
     rescue FormulaUnavailableError => e
       raise <<-EOS.undent
         Leopardbrew GCC requested, but formula #{e.name} not found!
-        You may need to:  brew tap homebrew/versions
+        You may need to:
+            brew tap homebrew/versions
       EOS
     end # get GCC formula
-    unless gcc_formula.opt_prefix.exist?
+    unless gcc_formula.opt_prefix.exists?
       raise <<-EOS.undent
       The requested Leopardbrew GCC was not installed.  You must:
           brew install #{gcc_formula.full_name}
@@ -293,36 +297,40 @@ module SharedEnvExtension
   # This will have already been set up with a correctly-extended Array
   # argument by stdenv or by superenv.
   def set_build_archs(archset)
-    CPU.all_archs.each { |arch| remove COMPILER_VARS, "-arch #{arch}" }
+    archset = Array(archset).extend ArchitectureListExtension unless archset.respond_to?(:fat?)
+    clear_compiler_archflags
+    @build_archs = archset
     self['HOMEBREW_BUILD_ARCHS'] = archset.as_build_archs
-    append_if_set COMPILER_VARS, archset.as_arch_flags
+    set_compiler_archflags archset.as_arch_flags
   end # set_build_archs
 
+  def clear_compiler_archflags
+    CPU.all_archs.each{ |arch| remove COMPILER_VARS, "-arch #{arch}" }
+  end
+
+  def set_compiler_archflags(flagstring = @build_archs.as_arch_flags)
+    append_if_set COMPILER_VARS, flagstring
+  end
+
   def m32
-    @build_arch_stash ||= build_archs
+    @build_arch_stash ||= @build_archs
     set_build_archs CPU.select_32b_archs(@build_arch_stash)
   end
 
-  def un_m32
-    CPU.all_32b_archs.each { |arch| remove COMPILER_VARS, "-arch #{arch}" }
-    set_build_archs @build_arch_stash
-  end
+  def un_m32; set_build_archs @build_arch_stash; @build_arch_stash = nil; end
 
   def m64
-    @build_arch_stash ||= build_archs
+    @build_arch_stash ||= @build_archs
     set_build_archs CPU.select_64b_archs(@build_arch_stash)
   end
 
-  def un_m64
-    CPU.all_64b_archs.each { |arch| remove COMPILER_VARS, "-arch #{arch}" }
-    set_build_archs @build_arch_stash
-  end # un_m64
+  def un_m64; set_build_archs @build_arch_stash; @build_arch_stash = nil; end
 
   private
 
-  def cc=(val); self['CC'] = self['OBJC'] = val.to_s + ' ' + build_archs.as_arch_flags; end
+  def cc=(val); self['CC'] = self['OBJC'] = val.to_s + ' ' + @build_archs.as_arch_flags; end
 
-  def cxx=(val); self['CXX'] = self['OBJCXX'] = val.to_s + ' ' + build_archs.as_arch_flags; end
+  def cxx=(val); self['CXX'] = self['OBJCXX'] = val.to_s + ' ' + @build_archs.as_arch_flags; end
 
   def homebrew_cc; self['HOMEBREW_CC']; end
 

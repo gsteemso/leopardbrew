@@ -159,7 +159,8 @@ module Superenv
 
   def determine_archflags(archset)
     if archset then archset.as_arch_flags
-    elsif build_archs then build_archs.as_arch_flags
+    elsif @build_archs then @build_archs.as_arch_flags
+    elsif homebrew_build_archs then homebrew_build_archs.as_arch_flags
     else self['HOMEBREW_ARCHFLAGS'] || ''; end
   end
 
@@ -228,7 +229,6 @@ module Superenv
   end
 
   def set_build_archs(archset)
-    archset = Array(archset).extend ArchitectureListExtension unless archset.respond_to?(:fat?)
     super
     self['HOMEBREW_ARCHFLAGS'] = archset.as_arch_flags
     self['CMAKE_OSX_ARCHITECTURES'] = archset.as_cmake_arch_flags
@@ -238,25 +238,15 @@ module Superenv
                             if compiler != :clang and archset.includes? :x86_64
   end # set_build_archs
 
-  def m32
-    super  # This filters the build archs to the 32‐bit ones
-    append "HOMEBREW_ARCHFLAGS", "-m32 #{build_archs.as_arch_flags}"
-  end
+  # This filters the build archs to the 32‐bit ones via set_build_archs
+  def m32; super; append 'HOMEBREW_ARCHFLAGS', '-m32'; end
 
-  def un_m32
-    super  # this restores all the build archs
-    self['HOMEBREW_ARCHFLAGS'] = build_archs.as_arch_flags
-  end
+  def un_m32; super; remove 'HOMEBREW_ARCHFLAGS', '-m32'; end
 
-  def m64
-    super  # This filters the build archs to the 64‐bit ones
-    append "HOMEBREW_ARCHFLAGS", "-m64 #{build_archs.as_arch_flags}"
-  end
+  # This filters the build archs to the 64‐bit ones via set_build_archs
+  def m64; super; append 'HOMEBREW_ARCHFLAGS', '-m64'; end
 
-  def un_m64
-    super  # this restores all the build archs
-    self['HOMEBREW_ARCHFLAGS'] = build_archs.as_arch_flags
-  end
+  def un_m64; super; remove 'HOMEBREW_ARCHFLAGS', '-m64'; end
 
   def cxx11
     case homebrew_cc
