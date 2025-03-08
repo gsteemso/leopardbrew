@@ -206,6 +206,6 @@ module Homebrew
     raise
   else
     fi.finish
-    fi.insinuate
+    f.insinuate
   end # install_formula
 end # Homebrew
