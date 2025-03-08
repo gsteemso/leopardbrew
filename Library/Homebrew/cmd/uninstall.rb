@@ -5,6 +5,7 @@ require "migrator"
 module Homebrew
   def uninstall
     raise KegUnspecifiedError if ARGV.named.empty?
+    f = nil
     unless ARGV.force? # remove active version only
       ARGV.kegs.each do |keg|
         was_linked = keg.linked?
@@ -12,10 +13,7 @@ module Homebrew
           puts "Uninstalling #{keg}... (#{keg.abv})"
           keg.unlink
           keg.uninstall  # this also deletes the whole rack, if it’s empty
-          if f = attempt_from_keg(keg)
-            f.unpin rescue nil
-            f.uninsinuate
-          end
+          if f = attempt_from_keg(keg) then f.unpin rescue nil; end
           rack = keg.rack
           if rack.directory?
             if (dirs = rack.subdirs) != []
@@ -49,8 +47,7 @@ module Homebrew
             keg.uninstall  # this also deletes the whole rack when it’s empty
           end
         end
-        f.uninsinuate if f  # call this only after the rack is gone, so any
-      end                   # helper scripts can delete themselves
+      end
     end # --force?
   rescue MultipleVersionsInstalledError => e
     ofail e
@@ -61,6 +58,7 @@ module Homebrew
     HOMEBREW_CELLAR.children.each do |rack|
       rack.unlink if rack.symlink? and not rack.resolved_path_exists?
     end
+    f.uninsinuate if f  # Do only after the rack is gone, so helper scripts can delete themselves.
   end # uninstall
 
   def attempt_from_keg(k)
