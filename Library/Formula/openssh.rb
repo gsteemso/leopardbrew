@@ -1,45 +1,47 @@
 class Openssh < Formula
-  desc "OpenBSD freely-licensed SSH connectivity tools"
-  homepage "https://www.openssh.com/"
-  url "https://cdn.openbsd.org/pub/OpenBSD/OpenSSH/portable/openssh-9.6p1.tar.gz"
-  mirror "https://cloudflare.cdn.openbsd.org/pub/OpenBSD/OpenSSH/portable/openssh-9.6p1.tar.gz"
-  version "9.6p1"
-  sha256 "910211c07255a8c5ad654391b40ee59800710dd8119dd5362de09385aa7a777c"
-  license "SSH-OpenSSH"
-
-  bottle do
-    sha256 "aa2b8f0ba3a79c9c162a8996bae00486077e379ce86f53d8e7d75d19fcaf831a" => :tiger_altivec
-  end
+  desc 'OpenBSD freely-licensed SSH connectivity tools'
+  homepage 'https://www.openssh.com/'
+  url 'https://cdn.openbsd.org/pub/OpenBSD/OpenSSH/portable/openssh-9.9p2.tar.gz'
+  mirror 'https://cloudflare.cdn.openbsd.org/pub/OpenBSD/OpenSSH/portable/openssh-9.9p2.tar.gz'
+  version '9.9p2'
+  sha256 '91aadb603e08cc285eddf965e1199d02585fa94d994d6cae5b41e1721e215673'
+  license 'SSH-OpenSSH'
 
   # Please don't resubmit the keychain patch option. It will never be accepted.
   # https://archive.is/hSB6d#10%25
 
   option :universal
 
-  depends_on "pkg-config" => :build
-  depends_on "ldns"
-  depends_on "openssl3"
-  depends_on "zlib"
+  depends_on 'pkg-config' => :build
+  depends_on 'ldns'
+  depends_on 'openssl3'
+  depends_on 'zlib'
 
-    # Both these patches are applied by Apple.
-    # https://github.com/apple-oss-distributions/OpenSSH/blob/main/openssh/sandbox-darwin.c#L66
-    patch do
-      url "https://raw.githubusercontent.com/Homebrew/patches/1860b0a745f1fe726900974845d1b0dd3c3398d6/openssh/patch-sandbox-darwin.c-apple-sandbox-named-external.diff"
-      sha256 "d886b98f99fd27e3157b02b5b57f3fb49f43fd33806195970d4567f12be66e71"
-    end
+  keg_only :provided_by_osx
 
-    # https://github.com/apple-oss-distributions/OpenSSH/blob/main/openssh/sshd.c#L532
-    patch do
-      url "https://raw.githubusercontent.com/Homebrew/patches/d8b2d8c2612fd251ac6de17bf0cc5174c3aab94c/openssh/patch-sshd.c-apple-sandbox-named-external.diff"
-      sha256 "3505c58bf1e584c8af92d916fe5f3f1899a6b15cc64a00ddece1dc0874b2f78f"
-    end
-
-  resource "com.openssh.sshd.sb" do
-    url "https://raw.githubusercontent.com/apple-oss-distributions/OpenSSH/OpenSSH-268.100.4/com.openssh.sshd.sb"
-    sha256 "a273f86360ea5da3910cfa4c118be931d10904267605cdd4b2055ced3a829774"
+  # This patch is applied by Apple.
+  # https://github.com/apple-oss-distributions/OpenSSH/blob/main/openssh/sandbox-darwin.c#L66
+  patch do
+    url 'https://raw.githubusercontent.com/Homebrew/patches/1860b0a745f1fe726900974845d1b0dd3c3398d6/openssh/patch-sandbox-darwin.c-apple-sandbox-named-external.diff'
+    sha256 'd886b98f99fd27e3157b02b5b57f3fb49f43fd33806195970d4567f12be66e71'
   end
 
+  # defines.h:
+  # - Testing for endian.h is insufficient – the older‐Mac‐OS one defined different macros than the
+  #   Linux one does.  Test for one of the affected #define names directly.
+  patch :DATA
+
+  resource 'com.openssh.sshd.sb' do
+    url 'https://raw.githubusercontent.com/apple-oss-distributions/OpenSSH/OpenSSH-268.100.4/com.openssh.sshd.sb'
+    sha256 'a273f86360ea5da3910cfa4c118be931d10904267605cdd4b2055ced3a829774'
+  end
+
+  to  = HOMEBREW_PREFIX/'bin/to-brewed-openssh'
+  fro = HOMEBREW_PREFIX/'bin/to-stock-openssh'
+
   def install
+    inreplace 'sftp-server.c', /\bHandle\b/, 'SFTP_Handle'
+
     ENV.universal_binary if build.universal?
 
     args = %W[
@@ -49,44 +51,264 @@ class Openssh < Formula
       --with-libedit
       --with-kerberos5
       --with-pam
-      --with-ssl-dir=#{Formula["openssl3"].opt_prefix}
-      --with-zlib=#{Formula["zlib"].opt_prefix}
+      --with-ssl-dir=#{Formula['openssl3'].opt_prefix}
+      --with-zlib=#{Formula['zlib'].opt_prefix}
     ]
 
-    ENV.append "CPPFLAGS", "-D__APPLE_SANDBOX_NAMED_EXTERNAL__"
+    ENV.append 'CPPFLAGS', '-D__APPLE_SANDBOX_NAMED_EXTERNAL__'
 
     # Ensure sandbox profile prefix is correct.
     # We introduce this issue with patching, it's not an upstream bug.
-    inreplace "sandbox-darwin.c", "@PREFIX@/share/openssh", etc/"ssh"
+    inreplace 'sandbox-darwin.c', '@PREFIX@/share/openssh', etc/'ssh'
 
-    system "./configure", *args
-    system "make"
-    ENV.deparallelize
-    system "make", "install"
+    system './configure', *args
+    system 'make'
+    ENV.deparallelize { system 'make', 'install' }
 
     # This was removed by upstream with very little announcement and has
     # potential to break scripts, so recreate it for now.
     # Debian have done the same thing.
-    bin.install_symlink bin/"ssh" => "slogin"
+    bin.install_symlink 'ssh' => 'slogin'
+    man1.install_symlink 'ssh.1' => 'slogin.1'
 
-    buildpath.install resource("com.openssh.sshd.sb")
-    (etc/"ssh").install "com.openssh.sshd.sb" => "org.openssh.sshd.sb"
+    buildpath.install resource('com.openssh.sshd.sb')
+    (etc/'ssh').install 'com.openssh.sshd.sb' => 'org.openssh.sshd.sb'
+
+    to.binwrite switch_to
+    fro.binwrite switch_from
+    chmod 0755, [to, fro]
+  end # install
+
+  def insinuate
+    system to if to.exists?
+  end
+
+  def uninsinuate
+    # This command also deletes `to-*-openssh` if the `openssh` rack is gone.
+    system fro if fro.exists?
   end
 
   test do
-    require "socket"
+    require 'socket'
     def free_port
       server = TCPServer.new 0
       _, port, = server.addr
       server.close
       port
+    end # free_port
+
+    for_archs(bin/'ssh') do |a|
+      arch_cmd = (a.nil? ? '' : "arch -arch #{a.to_s} ")
+      assert_match "OpenSSH_#{version}", shell_output("#{arch_cmd}#{bin}/ssh -V 2>&1")
     end
 
-    assert_match "OpenSSH_", shell_output("#{bin}/ssh -V 2>&1")
+    for_archs(sbin/'sshd') do |a|
+      arch_cmd = (a.nil? ? [] : ['arch', '-arch', a.to_s])
+      port = free_port
+      unless sshd_pid = fork
+        exec *(arch_cmd << "#{sbin}/sshd"), '-D', '-p', port.to_s
+      else
+        sleep 2
+        assert_match 'sshd', shell_output("lsof -i :#{port}   # arch #{a}")
+        Process.kill 9, sshd_pid
+        Process.waitpid sshd_pid
+      end
+    end
+  end # test
 
-    port = free_port
-    fork { exec sbin/"sshd", "-D", "-p", port.to_s }
-    sleep 2
-    assert_match "sshd", shell_output("lsof -i :#{port}")
-  end
-end
+  def switch_to; <<-_.undent
+    #/bin/sh
+    # to-brewed-openssh:  Switches system SSH from stock to brewed OpenSSH.
+    # There are two families of files.  Host keys and similar live in /etc/ssh*, while executables and
+    # manpages live in /usr/*.  Not only the directory trees are different – in newer OpenSSHes, the
+    # former assortment of items in /etc is entirely contained within a single directory, /etc/ssh/.
+    # Both possibilities must be accommodated.
+
+    brewed_etc_prefix="$(brew --prefix)/etc/"
+
+    brewed_prefix="$(brew --prefix)/opt/openssh/"
+
+    prefix_2=([0]='bin/' \\
+              [1]='libexec/' \\
+              [2]='sbin/' \\
+              [3]='share/man/man1/' \\
+              [4]='share/man/man5/' \\
+              [5]='share/man/man8/')
+    stock_file_infix=([0]='scp sftp ssh ssh-add ssh-agent ssh-keygen ssh-keyscan' \\
+                      [1]='sftp-server ssh-keysign sshd-keygen-wrapper' \\
+                      [2]='sshd' \\
+                      [3]='scp sftp ssh ssh-add ssh-agent ssh-keygen ssh-keyscan' \\
+                      [4]='ssh_config sshd_config' \\
+                      [5]='sftp-server ssh-keysign sshd sshd-keygen-wrapper')
+    suffix=([3]='.1' \\
+            [4]='.5' \\
+            [5]='.8')
+
+    # We need to ask SSH its version, but if we already replaced it, we’d get the wrong answer; in that
+    # case, look for where we moved it to.  (If multiple, assume the oldest present is stock.)
+    if [ -L '/usr/bin/ssh' ] && [ \\! $(readlink '/usr/bin/ssh') != "${brewed_prefix}bin/ssh" ]; then
+      stock_version="$(ls /usr/bin/ssh-* | egrep -o '[0-9.]+p[0-9]+' | cut -d$'\\n' -f 1)"
+    else
+      stock_version="$(/usr/bin/ssh -V 2>&1 | cut -d, -f1 | cut -c9-)"
+    fi
+
+    # Step 1:  Rename a set of stock files to get them out of the way.
+    # Step 2:  Symlink the corresponding set of brewed files into its place.
+
+    # Clean out all old symlinks (they are left over from previous switches).
+    for stock_file in /etc/ssh*; do if [ -L "$stock_file" ]; then sudo rm -f "$stock_file"; fi; done
+    for stock_file in /etc/ssh*; do   # A bunch of loose files, or a directory.
+      if [ "${stock_file##*-}" != "$stock_version" ]; then   # This file was not already moved, so do so.
+        sudo mv -f "$stock_file" "${stock_file}-$stock_version"
+      fi
+    done
+    sudo ln -fs "${brewed_etc_prefix}ssh" '/etc/ssh'   # A directory.
+
+    declare -i i=0
+    while [ $i -le $((5)) ]; do
+      for infix in ${stock_file_infix[$i]}; do
+        stock_file="/usr/${prefix_2[$i]}$infix${suffix[$i]}"
+        moved_file="/usr/${prefix_2[$i]}${infix}-$stock_version${suffix[$i]}"
+        if [ "x${suffix[$i]}" != 'x' ] && [ -e "${stock_file}.gz" ]; then   # check for compressed manpages
+          stock_file="${stock_file}.gz"
+          moved_file="${moved_file}.gz"
+        fi
+        if [ -L "$stock_file" ]; then   # The file was already moved and replaced.
+          # If the symlink points to moved stock version, delete it.
+          if [ \\! "$(readlink "$stock_file")" != "${moved_file##*/}" ]; then sudo rm -f "$stock_file"; fi
+        elif [ -e "$stock_file" ]; then sudo mv -f "$stock_file" "$moved_file"; fi   # Not moved yet.
+      done
+      for brewed_file in $brewed_prefix${prefix_2[$i]}*; do
+        link_file="/usr/${prefix_2[$i]}${brewed_file##*/}"
+        if [ \\! -L "$brewed_file" ] &&   # The brewed “slogin” is a symlink, and handled later.
+           [ \\! -L "$link_file" ] || [ "$(readlink $link_file)" != "$brewed_file" ]; then   # not already linked
+          sudo ln -fs "$brewed_file" "$link_file"
+        fi
+      done
+      let i=$(($i + 1))
+    done
+    sudo ln -fs "${brewed_prefix}bin/ssh" '/usr/bin/slogin'
+    sudo ln -fs "${brewed_prefix}share/man/man1/ssh.1" '/usr/share/man/man1/slogin.1'
+    if [ -e '/usr/share/man/man1/ssh.1' ] && [ -L '/usr/share/man/man1/slogin.1.gz' ]; then
+      sudo rm -f '/usr/share/man/man1/slogin.1.gz'
+    fi
+
+    echo 'Invocations of SSH, and/or its various ancillary tools, shall henceforth use the'
+    echo 'brewed versions.'
+  _
+  end # switch_to
+
+  def switch_from; <<-_.undent
+    #/bin/bash
+    # to-stock-openssh:  Switches system SSH from brewed to stock OpenSSH.
+    set +f   # enable pathname expansion
+    shopt -s nullglob   # allow null pattern matches
+    shopt -u failglob   # don’t act out if a pattern fails to match
+
+    # We need to find the stock SSH’s version.  Look for where we moved it to and yoink the version
+    # number from its suffix; if multiple, assume the oldest present is stock.
+    stock_version="$(ls /usr/bin/ssh-* | egrep -o '[0-9.]+p[0-9]+' | cut -d$'\\n' -f 1)"
+
+    if [ "x$stock_version" != 'x' ]; then   # If there _was_ no stock version, we never switched over
+                                            # in the first place and don’t need to do anything.
+
+      # There are two sets of files.  Host keys and the like live in /etc/ssh*, while executables and
+      # manpages live in /usr/*.  Not just the directory trees are different – in newer OpenSSHes, the
+      # stuff in /etc is entirely contained within a single directory, /etc/ssh/.  Both possibilities
+      # must be accommodated.
+
+      brewed_etc_prefix="$(brew --prefix)/etc/"
+
+      brewed_prefix="$(brew --prefix)/opt/openssh/"
+
+      prefix_2=([0]='bin/' \\
+                [1]='libexec/' \\
+                [2]='sbin/' \\
+                [3]='share/man/man1/' \\
+                [4]='share/man/man5/' \\
+                [5]='share/man/man8/')
+      stock_file_infix=([0]='scp sftp ssh ssh-add ssh-agent ssh-keygen ssh-keyscan' \\
+                        [1]='sftp-server ssh-keysign sshd-keygen-wrapper' \\
+                        [2]='sshd' \\
+                        [3]='scp sftp ssh ssh-add ssh-agent ssh-keygen ssh-keyscan' \\
+                        [4]='ssh_config sshd_config' \\
+                        [5]='sftp-server ssh-keysign sshd sshd-keygen-wrapper')
+      brewed_file_infix=([0]='scp sftp ssh ssh-add ssh-agent ssh-keygen ssh-keyscan' \\
+                         [1]='sftp-server ssh-keysign ssh-pkcs11-helper ssh-sk-helper sshd-session' \\
+                         [2]='sshd' \\
+                         [3]='scp sftp ssh ssh-add ssh-agent ssh-keygen ssh-keyscan' \\
+                         [4]='moduli ssh_config sshd_config' \\
+                         [5]='sftp-server ssh-keysign ssh-pkcs11-helper ssh-sk-helper sshd')
+      suffix=([3]='.1' \\
+              [4]='.5' \\
+              [5]='.8')
+
+      # Step 1:  Delete symlinks to the brewed versions.
+      # Step 2:  Make new symlinks to the previously‐renamed stock versions.
+
+      for ssh_file in /etc/ssh*; do if [ -L "$ssh_file" ]; then sudo rm -f "$ssh_file"; fi; done
+      for ssh_file in /etc/ssh*; do
+        # The previous step deleted all the symlinks we added when switching to the brewed version.
+        # Now we need to find everything we renamed and symlink it to the original names.
+        deversioned_file="${ssh_file%-${stock_version}}"
+        # If they differ, $ssh_file is something we renamed from $deversioned_file.
+        if [ "$deversioned_file" != "$ssh_file" ]; then sudo ln -fs "${ssh_file##*/}" "$deversioned_file"; fi
+      done
+
+      declare -i i=0
+      while [ $i -le $((5)) ]; do
+        for infix in ${brewed_file_infix[$i]}; do
+          brewed_file="$brewed_prefix${prefix_2[$i]}$infix${suffix[$i]}"
+          link_file="/usr/${prefix_2[$i]}$infix${suffix[$i]}"
+          if [ -L "$link_file" ] && [ \\! "$(readlink "$link_file")" != "$brewed_file" ]; then
+            sudo rm -f "$link_file"
+          fi
+        done
+        for infix in ${stock_file_infix[$i]}; do
+          link_file="/usr/${prefix_2[$i]}$infix${suffix[$i]}"
+          moved_file="/usr/${prefix_2[$i]}${infix}-${stock_version}${suffix[$i]}"
+          if [ "x${suffix[$i]}" != 'x' ] && [ -e "${moved_file}.gz" ]; then   # check for compressed manpages
+            link_file="${link_file}.gz"
+            moved_file="${moved_file}.gz"
+          fi
+          if [ -e "$moved_file" ] && [ \\! -L "$link_file" ]; then   # verify not already replaced
+            sudo ln -fs "${moved_file##*/}" "$link_file"
+          fi
+        done
+        let i=$(($i + 1))
+      done
+      sudo ln -fs "ssh-${stock_version}" '/usr/bin/slogin'
+      if [ -e '/usr/share/man/man1/ssh.1.gz' ]; then
+        if [ -L '/usr/share/man/man1/slogin.1' ]; then sudo rm -f '/usr/share/man/man1/slogin.1'; fi
+        sudo ln -fs "ssh-${stock_version}.1.gz" '/usr/share/man/man1/slogin.1.gz'
+      else
+        sudo ln -fs "ssh-${stock_version}.1" '/usr/share/man/man1/slogin.1'
+      fi
+
+      echo 'Invocations of SSH, and/or its various ancillary tools, shall henceforth use the'
+      echo 'stock versions.'
+    else
+      if [ -f '/usr/bin/ssh' ] && [ -L '/usr/bin/ssh' ]; then   # There’s no stash of it, but the stock
+                                                                # version has been replaced!
+        echo 'Your stock OpenSSH is not where Leopardbrew left it.  Leopardbrew cannot restore'
+        echo 'your system to its stock configuration.'
+      fi
+    fi
+
+    if [ \\! -d "$(brew --cellar)/openssh" ]; then sudo rm -f $(brew --prefix)/bin/to-*-openssh; fi
+  _
+  end # switch_from
+end # Openssh
+
+__END__
+--- old/defines.h
++++ new/defines.h
+@@ -646,7 +646,7 @@
+ # endif /* WORDS_BIGENDIAN */
+ #endif /* BYTE_ORDER */
+ 
+-#ifndef HAVE_ENDIAN_H
++#ifndef le32toh
+ # define openssh_swap32(v)					\
+ 	(uint32_t)(((uint32_t)(v) & 0xff) << 24 |		\
+ 	((uint32_t)(v) & 0xff00) << 8 |				\
