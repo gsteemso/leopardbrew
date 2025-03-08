@@ -101,7 +101,6 @@ module Homebrew
     fi.prelude
     fi.install
     fi.finish  # this links the new keg
-    fi.insinuate
   rescue FormulaInstallationAlreadyAttemptedError
     # next
   rescue Exception
@@ -115,6 +114,7 @@ module Homebrew
     raise
   else
     ignore_interrupts { previously_installed.base.rmtree } if previously_installed.base.exists?
+    fi.insinuate
   end # reinstall_formula
 
   def blenderize_options(use_opts, formula)
