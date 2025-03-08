@@ -1015,7 +1015,7 @@ class Formula
       setup_test_home @testpath
       result = test
       if result == :does_not_apply
-        puts 'This formula produces no executable code, so it cannot meaningfully be tested.'
+        puts 'This formula cannot meaningfully be tested.'
         true
       else
         result
@@ -1046,6 +1046,8 @@ class Formula
   # before formula uninstallation is safe.  THESE METHODS MUST BE IDEMPOTENT!  It is not only
   # possible, but actively expected, for them to be called more than once without their counterpart
   # being called in between, in which case they must not make a mess!
+  # Further, an uninsinuate method must not assume that its rack still exists, as it may be called
+  # after the rack’s removal in order for helper scripts to delete themselves.
   def insinuate; end
 
   def uninsinuate; end
