@@ -24,8 +24,9 @@ shift
 case "$arg0" in
   */* | *-* | *.*)  # not all command names are acceptable as environment variables
     ;;
-  *) exe="HOMEBREW_${arg0}"
+  *) declare -n exe="HOMEBREW_${arg0}"
      if [ -n "$exe" ] && [ -x "$exe" ]; then exec "$exe" "$@"; fi
+     declare +n exe
     ;;
 esac
 
