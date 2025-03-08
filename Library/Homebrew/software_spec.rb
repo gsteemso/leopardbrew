@@ -153,15 +153,9 @@ class SoftwareSpec
   end # depends_group
 
   def enhanced_by(aid)
-    if Array === aid
-      aids = Array(aid).map { |name| Formulary.factory(name) }
-      @named_enhancements << aids
-      @active_enhancements << aids if aids.all? { |f| f.installed? }
-    else
-      f = Formulary.factory(aid)
-      @named_enhancements << [f]
-      @active_enhancements << [f] if f.installed?
-    end
+    aids = Array(aid).map { |name| Formulary.factory(name) }
+    @named_enhancements << aids
+    @active_enhancements << aids if aids.all? { |f| f.installed? }
   end # enhanced_by
 
   def enhanced_by?(aid)
