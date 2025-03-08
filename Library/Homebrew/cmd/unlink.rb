@@ -16,8 +16,8 @@ module Homebrew
 
       keg.lock do
         print "Unlinking #{keg}... "
-        puts if VERBOSE
-        Formulary.from_rack(keg.rack).uninsinuate
+        # Do not uninsinuate here, because formulæ using insinuation are normally keg-only and
+        # would not expect to be linked in the first place.
         puts "#{keg.unlink(mode)} symlinks removed"
       end
     end
