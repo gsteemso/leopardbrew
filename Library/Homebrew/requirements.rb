@@ -27,9 +27,10 @@ class ArchRequirement < Requirement
 
   satisfy(:build_env => false) do
     case @arch
-    when :x86_64 then MacOS.prefer_64_bit? and CPU.intel?
-    when :ppc64 then MacOS.prefer_64_bit? and CPU.powerpc?
+    when :arm64 then CPU.arm?
     when :i386, :ppc then CPU.arch == @arch
+    when :ppc64 then MacOS.prefer_64_bit? and CPU.powerpc?
+    when :x86_64 then MacOS.prefer_64_bit? and CPU.intel?
     end
   end
 
@@ -68,16 +69,17 @@ end
 
 class SelfUnbrewedRequirement < Requirement
   fatal true
-  def initialize(stock_pathname, linked_pathname, unlink_script_name)
-    @stock = stock_pathname
-    @correct = linked_pathname
+  def initialize(stock_pathname, moved_pathname, unlink_script_name)
+    @stock = Pathname.new(stock_pathname)
+    @moved = Pathname.new(moved_pathname)
     @unscript = unlink_script_name
     super()
   end
-  satisfy { (not @stock.symlink?) or (@correct.exists? and @stock.readlink == @correct.basename) }
+  satisfy { (not @stock.symlink?) or (@moved.exists? and @stock.readlink == @moved.basename) }
   def message; <<-_.undent
-      You can’t reïnstall this software while using it!  You need to run the
-      “#{@unscript}” command before proceeding.
+      You can’t reïnstall this software while using it!  You need to run
+          #{@unscript}
+      before proceeding.
     _
   end
 end
