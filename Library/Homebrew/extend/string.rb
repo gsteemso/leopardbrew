@@ -46,6 +46,7 @@ end
 
 class NilClass
   def chuzzle; end
+  def nuzzle; end
 end
 
 # used by the inreplace function (in utils.rb)
