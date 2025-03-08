@@ -16,8 +16,9 @@ module Homebrew
 
       (ARGV.resolved_formulae - outdated).each do |f|
         if f.rack.directory?
-          version = f.greatest_installed_keg.version
-          onoe "#{f.full_name} #{version} is already installed"
+          installed_version = f.greatest_installed_keg.version
+          onoe "#{f.full_name} #{installed_version} is already installed" \
+                                               if f.version == installed_version
         else
           onoe "#{f.full_name} is not installed"
         end
@@ -55,11 +56,6 @@ module Homebrew
   end
 
   def upgrade_formula(f, s)
-    # this correctly unlinks things no matter what version is linked
-    if f.linked_keg.directory?
-      previously_linked = Keg.new(f.linked_keg.resolved_path)
-      previously_linked.unlink
-    end
     case s
       when nil, :stable
         if f.stable.nil?
@@ -75,12 +71,17 @@ module Homebrew
       when :devel then raise "No devel block is defined for #{f.full_name}" if f.devel.nil?
     end
     f.set_active_spec s if s  # otherwise use the default
+    previously_linked = nil
+    if f.linked_keg.directory?
+      previously_linked = Keg.new(f.linked_keg.resolved_path)
+      previously_linked.unlink
+    end
     tab = Tab.for_keg(f.greatest_installed_keg)
     options = tab.used_options
     puts "Original spec = #{tab.spec.to_s or '[none]'}" if DEBUG
     case tab.spec
-      when :head then options += Option.new('HEAD')
-      when :devel then options += Option.new('devel')
+      when :head then options |= Option.new('HEAD')
+      when :devel then options |= Option.new('devel')
     end
     options = Homebrew.blenderize_options(options, f)
     new_spec = (options.include?('HEAD') ? :head : (options.include?('devel') ? :devel : :stable) )
@@ -120,7 +121,14 @@ module Homebrew
     # pin it again to get a symlink pointing to the correct keg.
     if f.pinned? then f.unpin; f.pin; end
 
-    fi.insinuate
+    begin
+      old_stdout = $stdout
+      $stdout.reopen('/dev/null')  # Uninsinuation must, if followed immediately by insinuation, be
+      f.uninsinuate rescue nil     # silent so as to not emit conflicting messages.
+    ensure
+      $stdout.reopen(old_stdout)
+    end
+    f.insinuate
   ensure # Restore the previous installation state if the build failed.
     unless f.installed?
       if f.prefix.exists?
