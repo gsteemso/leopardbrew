@@ -222,6 +222,7 @@ class CPU
       else [:ppc].extend ArchitectureListExtension
       end
     end # CPU⸬cross_archs
+    def runnable_archs; all_archs.select{ |a| can_run?(a) }.extend ArchitectureListExtension; end;
 
     def select_32b_archs(archlist)
       archlist.select{ |a| all_32b_archs.any?{ |a32| a == a32 }}.extend ArchitectureListExtension
