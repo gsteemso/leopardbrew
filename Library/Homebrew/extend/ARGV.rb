@@ -118,9 +118,10 @@ module HomebrewArgvExtension
             if rack.directory? then dirs = rack.subdirs
             else raise NoSuchKegError, name
             end
-            if dirs.length == 1 then Keg.new(dirs.first)
-            elsif dirs.find { |d| Formula.is_installed_prefix? d }
-            else raise MultipleVersionsInstalledError, name
+            case dirs.length
+              when 0 then raise NoSuchKegError, name
+              when 1 then Keg.new(dirs.first)
+              else raise MultipleVersionsInstalledError, name
             end
           end # no formula
         end # formula version is not explicit
