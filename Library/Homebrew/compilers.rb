@@ -102,9 +102,9 @@ class CompilerFailure
     :tls => [
       create(:gcc_4_0),
       create(:gcc),
-      create(:clang),
+      create(:clang),  # build unknown
       create(:llvm)
-      # there are undoubtedly others
+      # not sure when GCC gained its workaround
     ]
   }
 end # CompilerFailure
