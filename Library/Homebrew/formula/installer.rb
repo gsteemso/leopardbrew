@@ -390,11 +390,13 @@ class FormulaInstaller
     previously_linked.link if previously_linked
     raise
   else
-    if previously_installed
-      src = Tab.for_keg(previously_installed.base).source
-      Formulary.factory(src['path'], src['spec']).uninsinuate rescue nil
-      previously_installed.base.rmtree
-    end
+    begin
+      old_stdout = $stdout
+      $stdout.reopen('/dev/null')   # Uninsinuation must, if followed immediately by insinuation,
+      df.uninsinuate rescue nil     # be silent so as to not emit conflicting messages.
+    ensure
+      $stdout.reopen(old_stdout)
+    end if previously_installed
     df.insinuate
   end # install_dependency
 
@@ -720,19 +722,6 @@ class FormulaInstaller
     audit_check_output(check_PATH(formula.sbin))
     super
   end
-
-  def insinuate
-    installing_bash = false
-    @@attempted.each do |f|
-      next unless f.installed?
-      if f.name == 'bash'
-        installing_bash = true
-      else
-        f.insinuate
-      end
-    end
-    Formula['bash'].insinuate if installing_bash
-  end # insinuate
 
   private
 
