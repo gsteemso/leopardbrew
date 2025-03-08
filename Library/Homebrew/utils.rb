@@ -113,16 +113,15 @@ ensure
 end # run_as_not_developer
 
 def without_archflags(&_block)
-  cc_with_archs = ENV.cc
-  cxx_with_archs = ENV.cxx
-  ENV['CC'] = ENV['OBJC'] = ENV['HOMEBREW_CC']
-  ENV['CXX'] = ENV['OBJCXX'] = ENV['HOMEBREW_CXX']
-  arch_flags = ENV['HOMEBREW_ARCHFLAGS']
-  ENV.delete 'HOMEBREW_ARCHFLAGS'
+  ENV.clear_compiler_archflags
+  if superenv?
+    arch_flags = ENV['HOMEBREW_ARCHFLAGS']
+    ENV.delete 'HOMEBREW_ARCHFLAGS'
+  end
   yield
 ensure
-  ENV['CC'] = cc_with_archs
-  ENV['HOMEBREW_ARCHFLAGS'] = arch_flags
+  ENV.set_compiler_archflags
+  ENV['HOMEBREW_ARCHFLAGS'] = arch_flags if superenv?
 end
 
 # Kernel.system but with exceptions
@@ -142,7 +141,7 @@ end # quiet_system
 
 # useful for `test` blocks:
 
-# repeats cmd for each of its fat‐binary architectures
+# repeats cmd for each of its runnable fat‐binary architectures
 def arch_system(cmd, *args)
   for_archs cmd do |a|
     arch_cmd = (a.nil? ? [] : ['arch', '-arch', a.to_s])
@@ -160,7 +159,7 @@ end # arch_system
 def for_archs (cmd, &block)
   cmd = which(cmd) unless cmd.to_s =~ %r{/}
   cmd = Pathname.new(cmd) unless Pathname === cmd
-  if (is_fat = cmd.fat?) and (which 'arch').chuzzle
+  if (is_fat = cmd.fat?) and (which 'arch').to_s.chuzzle
     cmd.archs.select { |a| CPU.can_run?(a) }.each(&block)
   else
     opoo <<-_.undent if is_fat
