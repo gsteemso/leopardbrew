@@ -114,10 +114,7 @@ end # run_as_not_developer
 
 def without_archflags(&_block)
   ENV.clear_compiler_archflags
-  if superenv?
-    arch_flags = ENV['HOMEBREW_ARCHFLAGS']
-    ENV.delete 'HOMEBREW_ARCHFLAGS'
-  end
+  arch_flags = ENV.delete 'HOMEBREW_ARCHFLAGS' if superenv?
   yield
 ensure
   ENV.set_compiler_archflags
@@ -153,7 +150,7 @@ end # arch_system
 # prepared for the case where `nil` is passed into the block, meaning that the
 # “arch” command shouldn’t – or can’t – be called:
 #     for_archs cmd do |a|
-#       arch_args = (a.nil? ? [] : ['arch', '-arch', a.to_s])
+#       arch_cmd = (a.nil? ? [] : ['arch', '-arch', a.to_s])
 #       system *(arch_cmd << cmd), args ...
 #     end # each arch |a|
 def for_archs (cmd, &block)
@@ -222,7 +219,7 @@ def which_editor
   editor = ENV.values_at("HOMEBREW_EDITOR", "VISUAL", "EDITOR").compact.first
   return editor unless editor.nil?
   # Find Textmate, or BBEdit / TextWrangler, or vim, or default to standard vim
-  editor = which('mate') || which('edit') || which('vim') || '/usr/bin/vim'
+  editor = which('mate') || which('edit') || which('bbedit') || which('vim') || '/usr/bin/vim'
   opoo <<-EOS.undent
     Using #{editor} because no editor was set in the environment.
     This may change in the future, so we recommend setting EDITOR, VISUAL,
@@ -282,21 +279,23 @@ end # nostdout
 
 def paths
   @paths ||= ENV["PATH"].split(File::PATH_SEPARATOR).collect do |p|
-    begin
-      File.expand_path(p).chomp("/")
-    rescue ArgumentError
-      onoe "The following PATH component is invalid: #{p}"
-    end
-  end.uniq.compact
+      begin
+        File.expand_path(p).chomp("/")
+      rescue ArgumentError
+        onoe "The following PATH component is invalid: #{p}"
+      end
+    end.uniq.compact
 end # paths
 
 # return the shell profile file based on users' preference shell
 def shell_profile
-  case ENV["SHELL"]
-  when %r{/(ba)?sh} then "~/.bash_profile"
-  when %r{/zsh} then "~/.zshrc"
-  when %r{/ksh} then "~/.kshrc"
-  else "~/.bash_profile"
+  case ENV['SHELL']
+    when %r{/bash$} then '~/.bash_profile'
+    when %r{/zsh$} then '~/.zshrc'
+    when %r{/ksh$} then '~/.kshrc'
+    when %r{/t?csh$} then '~/.cshrc'
+    when %r{/sh$} then '~/.profile'
+    else '~/.login'
   end
 end # shell_profile
 
@@ -315,7 +314,7 @@ module GitHub
         GitHub #{error}
         HOMEBREW_GITHUB_API_TOKEN may be invalid or expired, check:
           https://github.com/settings/tokens
-                    EOS
+      EOS
     end # initialize
   end # AuthenticationFailedError < Error
 
@@ -326,7 +325,7 @@ module GitHub
         Try again in #{pretty_ratelimit_reset(reset)}, or create an personal access token:
           https://github.com/settings/tokens
         and then set the token as: HOMEBREW_GITHUB_API_TOKEN
-                    EOS
+      EOS
     end # initialize
 
     def pretty_ratelimit_reset(reset)
@@ -372,12 +371,9 @@ module GitHub
     end
 
     case e.io.status.first
-    when "401", "403"
-      raise AuthenticationFailedError.new(e.message)
-    when "404"
-      raise HTTPNotFoundError, e.message, e.backtrace
-    else
-      raise Error, e.message, e.backtrace
+      when "401", "403" then raise AuthenticationFailedError.new(e.message)
+      when "404"        then raise HTTPNotFoundError, e.message, e.backtrace
+      else                   raise Error, e.message, e.backtrace
     end
   end # handle_api_error
 
