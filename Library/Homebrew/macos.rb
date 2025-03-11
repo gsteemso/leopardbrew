@@ -160,7 +160,7 @@ module MacOS
   end # macports_or_fink
 
   def prefer_64_bit?
-    CPU._64b? and version > '10.5' or (version == '10.5' and ENV['HOMEBREW_PREFER_64_BIT'])
+    CPU._64b? and version >= '10.7' or ENV['HOMEBREW_PREFER_64_BIT'] and version >= '10.5'
   end
 
   def preferred_arch
