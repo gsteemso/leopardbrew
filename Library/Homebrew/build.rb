@@ -73,7 +73,7 @@ class Build
   end # expand_deps
 
   def install
-    _deps = deps.map(&:to_formula) + aids.flatten
+    _deps = deps.map(&:to_formula) + aids
     keg_only_deps = _deps.select(&:keg_only?)
     _deps.each { |dep| fixopt(dep) unless dep.opt_prefix.directory? }
 
