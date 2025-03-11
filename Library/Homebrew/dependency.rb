@@ -13,25 +13,19 @@ class Dependency
     @tags = tags
     @env_proc = env_proc
     @option_name = option_name
-  end
+  end # initialize
 
-  def to_s
-    name
-  end
+  def to_s; name; end
 
-  def ==(other)
-    instance_of?(other.class) && name == other.name && tags == other.tags
-  end
+  def ==(other); instance_of?(other.class) && name == other.name && tags == other.tags; end
   alias_method :eql?, :==
 
   def <=>(other)
-    return nil unless instance_of?(other.class)
+    return nil unless other.is_a?(Dependency)  # This allows direct comparison of different derived classes.
     name <=> other.name
   end
 
-  def hash
-    name.hash ^ tags.hash
-  end
+  def hash; name.hash ^ tags.hash; end
 
   def to_formula
     formula = Formulary.factory(name)
@@ -39,9 +33,7 @@ class Dependency
     formula
   end
 
-  def installed?
-    to_formula.installed?
-  end
+  def installed?; to_formula.installed?; end
 
   def satisfied?(inherited_options)
     installed? && missing_options(inherited_options).empty?
@@ -52,22 +44,14 @@ class Dependency
     required - Tab.for_formula(to_formula).used_options
   end
 
-  def modify_build_environment
-    env_proc.call unless env_proc.nil?
-  end
+  def modify_build_environment; env_proc.call unless env_proc.nil?; end
 
-  def inspect
-    "#<#{self.class.name}: #{name.inspect} #{tags.inspect}>"
-  end
+  def inspect; "#<#{self.class.name}:  #{name.inspect} #{tags.inspect}>"; end
 
   # Define marshaling semantics because we cannot serialize @env_proc
-  def _dump(*)
-    Marshal.dump([name, tags])
-  end
+  def _dump(*); Marshal.dump([name, tags]); end
 
-  def self._load(marshaled)
-    new(*Marshal.load(marshaled))
-  end
+  def self._load(marshaled); new(*Marshal.load(marshaled)); end
 
   class << self
     # Expand the dependencies of dependent recursively, optionally yielding
@@ -94,10 +78,10 @@ class Dependency
           expanded_deps.concat(expand(f, f.deps, original_dependent, &block))
           expanded_deps << dep
         end
-      end
+      end # each |dep|
 
       merge_repeats(expanded_deps)
-    end
+    end # Dependency⸬expand
 
     def action(dependent, dep, &_block)
       catch(:action) do
@@ -107,22 +91,16 @@ class Dependency
           prune unless dependent.build.with?(dep)
         end
       end
-    end
+    end # Dependency⸬action
 
     # Prune a dependency and its dependencies recursively
-    def prune
-      throw(:action, :prune)
-    end
+    def prune; throw(:action, :prune); end
 
     # Prune a single dependency but do not prune its dependencies
-    def skip
-      throw(:action, :skip)
-    end
+    def skip; throw(:action, :skip); end
 
     # Keep a dependency, but prune its dependencies
-    def keep_but_prune_recursive_deps
-      throw(:action, :keep_but_prune_recursive_deps)
-    end
+    def keep_but_prune_recursive_deps; throw(:action, :keep_but_prune_recursive_deps); end
 
     def merge_repeats(all)
       grouped = all.group_by(&:name)
@@ -132,10 +110,10 @@ class Dependency
         dep  = deps.first
         tags = deps.flat_map(&:tags).uniq
         dep.class.new(name, tags, dep.env_proc)
-      end
-    end
-  end
-end
+      end # all |name|s
+    end # Dependency⸬merge_repeats
+  end # << self
+end # Dependency
 
 class TapDependency < Dependency
   attr_reader :tap
@@ -150,4 +128,25 @@ class TapDependency < Dependency
   rescue FormulaUnavailableError
     false
   end
-end
+end # TapDependency
+
+class GroupDependency
+  include Dependable
+
+  attr_reader :name, :members, :tags
+
+  def initialize(name, deps, tags)
+    @name = name
+    @members = deps
+    @tags = tags
+  end
+
+  def to_s; name; end
+
+  def ==(o); instance_of?(o.class) and name == o.name and members == o.members and tags == o.tags; end
+  alias_method :eql?, :==
+
+  def <=>(other); return nil unless other.is_a?(GroupDependency); name <=> other.name; end
+
+  def sort; self.class.new(name, members.sort, tags); end
+end # GroupDependency
