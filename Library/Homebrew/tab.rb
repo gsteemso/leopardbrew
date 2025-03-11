@@ -13,7 +13,7 @@ class Tab < OpenStruct
 
   def self.create(formula, compiler, stdlib, build_opts, archs)
     attributes = {
-      'active_aid_sets'    => formula.active_enhancements,
+      'active_aids'        => formula.active_enhancements,
       'built_archs'        => archs,
       'built_as_bottle'    => build_opts.bottle?,
       'compiler'           => compiler,
@@ -36,7 +36,7 @@ class Tab < OpenStruct
 
   def self.empty
     attributes = {
-      'active_aid_sets'    => [],
+      'active_aids'        => [],
       'built_archs'        => [],
       'built_as_bottle'    => false,
       'compiler'           => nil,
@@ -74,7 +74,7 @@ class Tab < OpenStruct
     tab
   end # Tab::for_formula
 
-  def self.for_keg(kegpath); (path = kegpath/FILENAME).exists? ? from_file(path) : empty; end
+  def self.for_keg(kegpath); (path = kegpath/FILENAME).file? ? from_file(path) : empty; end
 
   def self.for_name(name); for_formula(Formulary.factory(name)); end
 
@@ -92,10 +92,8 @@ class Tab < OpenStruct
 
   def self.from_file_content(content, path)
     attrs = Utils::JSON.load(content)
-    attrs['active_aid_sets'] ||= []
-    attrs['active_aid_sets'].map! { |a|
-      a.map { |fa| Formulary.from_keg(HOMEBREW_CELLAR/fa[0]/fa[1]) }  # can be nil if missing
-    }
+    attrs['active_aids'] ||= []
+    attrs['active_aids'].map!{ |fa| Formulary.from_keg(HOMEBREW_CELLAR/fa[0]/fa[1]) }  # can be nil if missing
     attrs['built_archs'] ||= []
     attrs['source'] ||= {}
     tp_fm = attrs['tapped_from']
@@ -129,7 +127,7 @@ class Tab < OpenStruct
   def universal?; include?('universal'); end
 
   # older tabs won’t have this, but it’s far too expensive to find them all
-  def active_enhancements; active_aid_sets or []; end
+  def active_enhancements; active_aids or []; end
 
   def bottle?; built_as_bottle; end
 
@@ -160,9 +158,7 @@ class Tab < OpenStruct
 
   def to_json
     attributes = {
-      'active_aid_sets'    => active_aid_sets.map { |a|
-                                a.map{ |f| [f.full_name, f.pkg_version.to_s] }
-                              },
+      'active_aids'        => active_aids.map{ |f| [f.full_name, f.pkg_version.to_s] },
       'built_archs'        => built_archs.map(&:to_s),
       'built_as_bottle'    => built_as_bottle,
       'compiler'           => (compiler.to_s if compiler),
@@ -188,13 +184,7 @@ class Tab < OpenStruct
       s << 'with: '
       s << used_options.to_a.join(' ')
     end
-    unless active_aid_sets.nil? or active_aid_sets.empty?
-      s << "\nEnhanced by: "
-      s << active_aid_sets.map { |set|
-             is_grp = set.length > 1
-             "#{'(' if is_grp}#{set * ' + '}#{')' if is_grp}"
-           }.join(', ')
-    end
+    s << "\nEnhanced by:  #{active_aids * ', '}" unless active_aids.nil? or active_aids.empty?
     s.join(' ')
   end # to_s
 
