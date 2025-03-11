@@ -76,13 +76,13 @@ class DependencyCollectorTests < Homebrew::TestCase
     assert_predicate dep, :optional?
   end
 
-  def test_ld64_dep_pre_leopard
+  def test_ld64_dep_pre_snow_leopard
     MacOS.stubs(:version).returns(MacOS::Version.new("10.4"))
-    assert_equal LD64Dependency.new, @d.build(:ld64)
+    assert_equal Dependency.new, @d.build(:ld64)
   end
 
-  def test_ld64_dep_leopard_or_newer
-    MacOS.stubs(:version).returns(MacOS::Version.new("10.5"))
+  def test_ld64_dep_snow_leopard_or_newer
+    MacOS.stubs(:version).returns(MacOS::Version.new("10.6"))
     assert_nil @d.build(:ld64)
   end
 
