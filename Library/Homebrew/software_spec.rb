@@ -18,7 +18,7 @@ class SoftwareSpec
     :cxx11     => Option.new("c++11", "Build using C++11 mode"),
     "32-bit"   => Option.new("32-bit", "Build 32-bit only")
   }
-  OPT_REC = [:optional, :recommended].freeze
+  OPTL_RCMD = [:optional, :recommended].freeze
 
   attr_reader :name, :full_name, :owner
   attr_reader :bottle_specification, :build, :compiler_failures, :dependency_collector,
@@ -135,32 +135,29 @@ class SoftwareSpec
     add_dep_option(dep) if dep
   end
 
-#  def depends_on_one(set)
+#  def depends_any(set)
 #    s_dep = dependency_collector.add_set(set)
-#    add_depset_options(s_dep) if s_dep
 #  end
 
   def depends_group(group)
     group_name, group_members = *(group.keys.first)
     group_tags = Array(group.values.first)
     raise UsageError, "dependency group “#{group_name}” MUST have :optional or :recommended priority" \
-             unless group_tags.any?{ |tag| OPT_REC.any?{ |prio| tag == prio } }
+           unless group_tags.any?{ |tag| OPTL_RCMD.any?{ |prio| tag == prio } }
     _deps = []
     group_members.each{ |f| _deps << dependency_collector.add(f => group_tags) }
     add_group_option(group_name, group_tags.detect{ |tag|
-                                                    OPT_REC.any?{ |prio| tag == prio }
-                                                  }) unless _deps.empty?
+                                   OPTL_RCMD.any?{ |priority| tag == priority }
+                                 }) unless _deps.empty?
   end # depends_group
 
   def enhanced_by(aid)
-    aids = Array(aid).map { |name| Formulary.factory(name) }
+    aids = Array(aid).map{ |name| Formulary.factory(name) rescue nil }
     @named_enhancements << aids
-    @active_enhancements << aids if aids.all? { |f| f.installed? }
+    @active_enhancements.concat(aids).uniq! if aids.all?{ |f| f and f.installed? }
   end # enhanced_by
 
-  def enhanced_by?(aid)
-    @active_enhancements.flatten.any? { |a| aid == a.name or aid == a.full_name }
-  end
+  def enhanced_by?(aid); active_enhancements.any?{ |a| aid == a.name or aid == a.full_name }; end
 
   def deps; dependency_collector.deps; end
 
@@ -170,7 +167,7 @@ class SoftwareSpec
 
   def fails_with(compiler, &block); compiler_failures << CompilerFailure.create(compiler, &block); end
 
-  def needs(*stds); stds.each { |std| compiler_failures.concat CompilerFailure.for_standard(std) }; end
+  def needs(*stds); stds.each{ |std| compiler_failures.concat CompilerFailure.for_standard(std) }; end
 
   def add_legacy_patches(list)
     list = Patch.normalize_legacy_patches(list)
