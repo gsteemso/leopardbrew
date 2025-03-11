@@ -39,7 +39,7 @@ class Caveats
     <<-_.undent
       This formula will take advantage of the formul#{plural(s, 'æ', 'a')} named as enhancing it,
       if #{plural(s, 'they happen', 'it happens')} to be installed at the time of brewing.  Should #{plural(s, 'they', 'it')} be
-      installed later, this formula will not benefit.
+      installed later, this formula will not benefit unless reïnstalled.
     _
   end
 
