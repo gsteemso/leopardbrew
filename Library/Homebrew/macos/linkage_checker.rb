@@ -52,10 +52,10 @@ class LinkageChecker
     def filter_out(dep)
       dep.build? or ((dep.optional? or dep.recommended?) and formula.build.without?(dep))
     end
-    declared_deps = formula.deps.reject { |dep| filter_out(dep) }.map(&:name)
-    declared_req_deps = formula.requirements.reject { |req| filter_out(req) }.map(&:default_formula).compact
-    declared_aids = formula.active_enhancements.flatten.select { |aid| aid.installed? }.map(&:name)
-    declared_dep_names = (declared_deps + declared_req_deps + declared_aids).map { |dep| dep.split("/").last }
+    declared_deps = formula.deps.reject{ |dep| filter_out(dep) }.map(&:name)
+    declared_req_deps = formula.requirements.reject{ |req| filter_out(req) }.map(&:default_formula).compact
+    declared_aids = formula.active_enhancements.map(&:name)
+    declared_dep_names = (declared_deps + declared_req_deps + declared_aids).map{ |dep| dep.split("/").last }
     undeclared_deps = @brewed_dylibs.keys.select do |full_name|
       name = full_name.split("/").last
       next false if name == formula.name
@@ -120,7 +120,8 @@ class LinkageChecker
 
   def resolve_formula(keg)
     f = Formulary.from_rack(keg.rack)
-    f.build = Tab.for_keg(keg)
+    t = Tab.for_keg(keg)
+    f.build = BuildOptions.new(t.used_options, t.used_options + t.unused_options)
     f
   rescue FormulaUnavailableError
     opoo "Formula unavailable: #{keg.name}"
