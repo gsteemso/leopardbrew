@@ -148,7 +148,6 @@ class CPU
         else :dunno
       end
     end # CPU⸬model
-#define CPUFAMILY_ARM_VORTEX_TEMPEST    0x07d34b9f
 
     def type_of(source)
       # source is either a specific model, or an architecture
@@ -276,10 +275,10 @@ class CPU
 
     def features
       @features ||= sysctl_n(
-        'machdep.cpu.features',
-        'machdep.cpu.extfeatures',
-        'machdep.cpu.leaf7_features'
-      ).split(' ').map { |s| s.downcase.to_sym }
+          'machdep.cpu.features',
+          'machdep.cpu.extfeatures',
+          'machdep.cpu.leaf7_features'
+        ).split(' ').map { |s| s.downcase.to_sym }
     end # CPU⸬features
 
     def feature?(name); features.include?(name); end
