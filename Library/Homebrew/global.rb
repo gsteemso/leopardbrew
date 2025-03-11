@@ -120,7 +120,7 @@ HOMEBREW_LOGS   = Pathname.new(ENV.fetch 'HOMEBREW_LOGS', '~/Library/Logs/Homebr
                   # Where build, postinstall, and test logs of formulæ are written to
 HOMEBREW_TEMP   = Pathname.new(ENV.fetch 'HOMEBREW_TEMP', '/tmp')
                   # Where temporary folders for building and testing formulæ are created
-NO_EMOJI        = ENV['HOMEBREW_NO_EMOJI']    # Don’t show badge at all (see `formula/installer.rb`)
+NO_EMOJI        = ENV['HOMEBREW_NO_EMOJI']    # Don’t show badges at all (see `formula/installer.rb` and `cmd/info.rb`)
 ORIGINAL_PATHS  = ENV['PATH'].split(File::PATH_SEPARATOR).map { |p| Pathname.new(p).expand_path rescue nil }.compact.freeze
 QUIETER         = ARGV.quieter?               # Give less-verbose feedback when VERBOSE (checks all
                                               #   of “-q”, “--quieter”, and $HOMEBREW_QUIET)
