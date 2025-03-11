@@ -1,11 +1,13 @@
 # This file is loaded before `global.rb`, so must eschew many Homebrew‐isms at
 # eval time.
 
-ARM_ARCHS = [:arm64, :arm64e].freeze
+POWERPC_ARCHS = [:ppc, :ppc64].freeze;
 
 INTEL_ARCHS = [:i386, :x86_64, :x86_64h].freeze;
 
-POWERPC_ARCHS = [:ppc, :ppc64].freeze;
+INTEL_ARCHS_64 = [:x86_64, :x86_64h].freeze;
+
+ARM_ARCHS = [:arm64e].freeze
 
 module ArchitectureListExtension  # applicable to arrays of architecture symbols
   # @private
@@ -13,27 +15,22 @@ module ArchitectureListExtension  # applicable to arrays of architecture symbols
   alias_method :universal?, :fat?
 
   # @private
-  def fat_intel?; true if includes? :i386 and includes? :x86_64 or includes? :x86_64h; end
+  def fat_intel?; includes? :i386 and intersects? INTEL_ARCHS_64; end
+  def fat_powerpc?; includes? :ppc and includes? :ppc64; end
 
   # @private
-  def fat_powerpc?; true if includes? :ppc and includes? :ppc64; end
+  # Universal Binaries, original flavour:  Usually old-style 32-bit PowerPC/
+  # Intel, e.g. ppc + i386, but can also be Leopard‐style quad fat binaries, or
+  # in some cases triple fat binaries with no ppc64 slice.  (Other combinations
+  # are not generally found in the wild.)
+  def universal_1?; intersects_all?(POWERPC_ARCHS, INTEL_ARCHS_64); end
+  def universal_2?; intersects_all?(INTEL_ARCHS_64, ARM_ARCHS); end
+  def cross_universal?; universal_1? or universal_2?; end
 
   # @private
-  def universal_1?; true if includes? :ppc and includes? :i386; end
-
-  # @private
-  def universal_2?; true if intersects_all?(ARM_ARCHS, [:x86_64, :x86_64h]); end
-
-  # Most often old-style 32-bit PowerPC/Intel universal, e.g. ppc and i386, but
-  # can also be Leopard‐style quad fat binaries, or modern “universal2” crosses
-  # with arm64[e] and x86_64[h].
-  # @private
-  def cross_universal?; true if intersects_all?(INTEL_ARCHS, POWERPC_ARCHS) or universal_2?; end
-
-  # Don’t know if these can even be generated without compiler shenanigans, but
-  # it’s conceivable.
-  # @private
-  def omniversal?; true if intersects_all?(ARM_ARCHS, INTEL_ARCHS, POWERPC_ARCHS); end
+  def powerpc?; intersects? POWERPC_ARCHS; end
+  def intel?; intersects? INTEL_ARCHS; end
+  def arm?; intersects? ARM_ARCHS; end
 
   def as_arch_flags; map{ |a| "-arch #{a.to_s}" }.join(' '); end
 
@@ -55,7 +52,7 @@ module MachO
   AR_MEMBER_HDR_SIZE = 60.freeze
 
   # @private
-  MACH_SIGNATURES = {
+  FILE_SIGNATURES = {
     0xcafebabe => :FAT_MAGIC,
     0xfeedface => :MH_MAGIC,
     0xfeedfacf => :MH_MAGIC_64,
@@ -107,7 +104,7 @@ module MachO
             # third (at offset + 8) is the CPU subtype (with flags in the high‐order octet), and
             # the fourth (at offset + 12) is the Mach file type.
             sig, cputype, cpu_subtype, mach_filetype = binread(16, offset).unpack('NNNN')
-            sig = MACH_SIGNATURES[sig & 0xfffffffe]
+            sig = FILE_SIGNATURES[sig & 0xfffffffe]
             arch = if sig == :MH_MAGIC
                      case cputype
                        when 0x00000007 then :i386
@@ -143,18 +140,10 @@ module MachO
               end
   end # arch
 
-  def fat?; arch == :fat; end
-  def ppc?; arch == :ppc; end
-  def ppc64?; arch == :ppc64; end
-  def i386?; arch == :i386; end
-  def x86_64?; arch == :x86_64; end
-  def x86_64h?; arch == :x86_64h; end
-  def arm64?; arch == :arm64e or arch == :arm64; end
-
-
-  def fat_intel?; fat? and archs.fat_intel?; end
-  def fat_powerpc?; fat? and archs.fat_powerpc?; end
-  def local_fat?; fat? and fat_intel? or fat_powerpc?; end
+  def fat?; archs.fat?; end
+  def powerpc?; archs.powerpc?; end
+  def intel?; archs.intel?; end
+  def arm?; archs.arm?; end
 
   # @private
   def dylib?; mach_data.any?{ |m| m.fetch(:type) == :MH_DYLIB }; end
@@ -174,12 +163,13 @@ module MachO
   # The universal‐binary file signature is the same as that of Java files, so we do extra sanity‐
   # checking for that case.  If there are an implausibly large number of architectures, it is
   # unlikely to be a real fat binary; Java files, for example, will produce a figure well in excess
-  # of 60 thousand.  Assume up to 7 architectures, in case we start handling ARM binaries as well:
-  # ppc, i386, ppc64, x86_64, x86_64h, arm64, arm64e.
+  # of 60 thousand.  Assume up to 30 architectures, allowing for ARM binaries (some system‐library
+  # stubs contain one slice for each of the possible iPhone architectures!) and slots for future
+  # expansion.  At present we only expect:  ppc, i386, ppc64, x86_64, x86_64h, arm64e.
   def mach_o_signature_at?(offset)
     sig = nil unless (file? and size >= (offset + 4) and
-                (sig = MACH_SIGNATURES[binread(4, offset).unpack('N').first]) and
-                (sig != :FAT_MAGIC or (fct = fat_count_at(offset) and fct <= 7)))
+                (sig = FILE_SIGNATURES[binread(4, offset).unpack('N').first]) and
+                (sig != :FAT_MAGIC or (fct = fat_count_at(offset) and fct <= 30)))
     sig
   end # mach_o_signature_at?
 
