@@ -38,10 +38,10 @@ module Homebrew
       safe_system "git", "am", *patch_args
     rescue ErrorDuringExecution
       if ARGV.include? "--resolve"
-        odie "Patch failed to apply: try to resolve it."
+        odie "Patch failed to apply:  Try to resolve it."
       else
         system "git", "am", "--abort"
-        odie "Patch failed to apply: aborted."
+        odie "Patch failed to apply:  Aborted."
       end
     ensure
       patchpath.unlink
@@ -61,7 +61,7 @@ module Homebrew
 
     ARGV.named.each do |arg|
       if arg.to_i > 0
-        url = "https://github.com/mistydemeo/tigerbrew/pull/#{arg}"
+        url = "https://github.com/gsteemso/leopardbrew/pull/#{arg}"
         issue = arg
       elsif (testing_match = arg.match %r{brew.sh/job/Homebrew.*Testing/(\d+)/})
         _, testing_job = *testing_match
