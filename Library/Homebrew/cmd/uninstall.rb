@@ -14,6 +14,7 @@ module Homebrew
           keg.unlink
           keg.uninstall  # this also deletes the whole rack, if it’s empty
           if f = attempt_from_keg(keg) then f.unpin rescue nil; end
+          f.uninsinuate if f  # Do after the rack has gone, so helper scripts can self‐delete.
           rack = keg.rack
           if rack.directory?
             if (dirs = rack.subdirs) != []
@@ -47,6 +48,7 @@ module Homebrew
             keg.uninstall  # this also deletes the whole rack when it’s empty
           end
         end
+        f.uninsinuate if f  # Do after the rack has gone, so helper scripts can self‐delete.
       end
     end # --force?
   rescue MultipleVersionsInstalledError => e
@@ -58,7 +60,6 @@ module Homebrew
     HOMEBREW_CELLAR.children.each do |rack|
       rack.unlink if rack.symlink? and not rack.resolved_path_exists?
     end
-    f.uninsinuate if f  # Do only after the rack is gone, so helper scripts can delete themselves.
   end # uninstall
 
   def attempt_from_keg(k)
