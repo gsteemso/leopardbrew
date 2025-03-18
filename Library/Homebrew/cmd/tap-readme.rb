@@ -7,22 +7,22 @@ module Homebrew
     titleized_name[0] = titleized_name[0].upcase
 
     template = <<-EOS.undent
-    # Homebrew #{titleized_name}
+        # Homebrew #{titleized_name}
 
-    ## How do I install these formulae?
-    `brew install homebrew/#{name}/<formula>`
+        ## How do I install these formulae?
+        `brew install homebrew/#{name}/<formula>`
 
-    Or `brew tap homebrew/#{name}` and then `brew install <formula>`.
+        Or `brew tap homebrew/#{name}` and then `brew install <formula>`.
 
-    Or install via URL (which will not receive updates):
+        Or install via URL (which will not receive updates):
 
-    ```
-    brew install https://raw.githubusercontent.com/Homebrew/homebrew-#{name}/master/<formula>.rb
-    ```
+        ```
+        brew install https://raw.githubusercontent.com/Homebrew/homebrew-#{name}/master/<formula>.rb
+        ```
 
-    ## Documentation
-    `brew help`, `man brew` or check [Tigerbrew's documentation](https://github.com/mistydemeo/tigerbrew/tree/master/share/doc/homebrew#readme).
-    EOS
+        ## Documentation
+        `brew help`, `man brew` or check [Leopardbrew’s documentation](https://github.com/gsteemso/leopardbrew/tree/master/share/doc/homebrew#readme).
+      EOS
 
     puts template if VERBOSE
     path = HOMEBREW_LIBRARY/"Taps/homebrew/homebrew-#{name}/README.md"
