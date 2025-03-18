@@ -218,7 +218,7 @@ class Formulary
     tap = tab.tap
     spec ||= tab.spec
 
-    if tap.nil? || tap == "mistydemeo/tigerbrew"
+    if tap.nil? || tap == "mistydemeo/tigerbrew" || tap == "gsteemso/leopardbrew"
       factory(rack.basename.to_s, spec)
     else
       factory("#{tap.sub("homebrew-", "")}/#{rack.basename}", spec)

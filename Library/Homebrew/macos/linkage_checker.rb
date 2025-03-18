@@ -38,7 +38,7 @@ class LinkageChecker
             @broken_dylibs << dylib
           else
             tap = Tab.for_keg(owner).tap
-            f = ((tap.nil? or tap == 'mistydemeo/tigerbrew') ? owner.name : "#{tap}/#{owner.name}")
+            f = ((tap.nil? or tap == 'mistydemeo/tigerbrew' or tap == 'gsteemso/leopardbrew') ? owner.name : "#{tap}/#{owner.name}")
             @brewed_dylibs[f] << dylib
           end
         end # does dylib start with '@'?
