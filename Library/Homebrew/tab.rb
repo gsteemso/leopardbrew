@@ -92,7 +92,7 @@ class Tab < OpenStruct
 
   def self.from_file_content(content, path)
     attrs = Utils::JSON.load(content)
-    attrs['active_aids'] ||= []
+    attrs['active_aids'] ||= (attrs['active_aid_sets'] ? attrs['active_aid_sets'].flatten(1) : [])
     attrs['active_aids'].map!{ |fa| Formulary.from_keg(HOMEBREW_CELLAR/fa[0]/fa[1]) }  # can be nil if missing
     attrs['built_archs'] ||= []
     attrs['source'] ||= {}
@@ -125,9 +125,6 @@ class Tab < OpenStruct
   def cross?; include?('cross'); end
 
   def universal?; include?('universal'); end
-
-  # older tabs won’t have this, but it’s far too expensive to find them all
-  def active_enhancements; active_aids or []; end
 
   def bottle?; built_as_bottle; end
 
@@ -184,7 +181,7 @@ class Tab < OpenStruct
       s << 'with: '
       s << used_options.to_a.join(' ')
     end
-    s << "\nEnhanced by:  #{active_aids * ', '}" unless active_aids.nil? or active_aids.empty?
+    s << "\n  Enhanced by:  #{active_aids * ', '}" unless active_aids.empty?
     s.join(' ')
   end # to_s
 
