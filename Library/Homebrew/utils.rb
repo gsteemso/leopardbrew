@@ -395,7 +395,7 @@ module GitHub
 
   def build_search_qualifier_string(qualifiers)
     {
-      :repo => "mistydemeo/tigerbrew",
+      :repo => "gsteemso/leopardbrew",
       :in => "title"
     }.update(qualifiers).map do |qualifier, value|
       "#{qualifier}:#{value}"
