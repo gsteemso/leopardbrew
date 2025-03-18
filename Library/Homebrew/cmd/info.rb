@@ -135,7 +135,7 @@ module Homebrew
         deps = f.deps.send(type).uniq.sort
         puts "#{type.capitalize}:  #{decorate_dependencies deps}" unless deps.empty?
       end
-      puts "Enhanced by:  #{decorate_enhancement_groups(aid_groups)}" unless aid_groups.empty?
+      puts "Enhanceable by:  #{decorate_enhancement_groups(aid_groups)}" unless aid_groups.empty?
     end
 
     unless f.options.empty?
