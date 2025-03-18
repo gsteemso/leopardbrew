@@ -317,7 +317,7 @@ class FormulaAuditor
         when "mercurial"
           problem "Use `depends_on :hg` instead of `depends_on 'mercurial'`"
         when "ruby"
-          problem "Don't use ruby as a dependency.  We allow non-Tigerbrew ruby installations."
+          problem "Don't use ruby as a dependency.  We allow non-brewed Ruby installations."
         when "gfortran"
           problem "Use `depends_on :fortran` instead of `depends_on 'gfortran'`"
         when "open-mpi", "mpich"
@@ -773,7 +773,7 @@ class FormulaAuditor
 
     if line =~ /skip_clean\s+:all/
       problem "`skip_clean :all` is deprecated; brew no longer strips symbols\n" \
-              "\tPass explicit paths to prevent Tigerbrew from removing empty folders."
+              "\tPass explicit paths to prevent Leopardbrew from removing empty folders."
     end
 
     if line =~ /depends_on [A-Z][\w:]+\.new$/

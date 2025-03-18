@@ -21,8 +21,8 @@ module Homebrew
       puts ":lua.f.methods - 1.methods"
       puts ":mpd.f.recursive_dependencies.reject(&:installed?)"
     else
-      ohai "Interactive Tigerbrew Shell"
-      puts "Example commands available with: brew irb --examples"
+      ohai "Interactive Leopardbrew Shell"
+      puts "Example commands available with:  brew irb --examples"
       IRB.start
     end
   end

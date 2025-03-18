@@ -44,7 +44,7 @@ module Homebrew
 
       args = %W[
         --pipe
-        --organization=Tigerbrew
+        --organization=Leopardbrew
         --manual=brew
         #{SOURCE_PATH}/brew.1.md
       ]
