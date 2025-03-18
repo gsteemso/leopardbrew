@@ -14,9 +14,9 @@ class LanguageModuleRequirement < Requirement
   satisfy(:build_env => false) { quiet_system(*the_test) }
 
   def message; <<-EOS.undent
-    Unsatisfied dependency: #{@module_name}
-    Tigerbrew does not provide #{@language.to_s.capitalize} dependencies; install with:
-      #{command_line} #{@module_name}
+      Unsatisfied dependency:  #{@module_name}
+      Leopardbrew does not provide #{@language.to_s.capitalize} dependencies; install with:
+          #{command_line} #{@module_name}
     EOS
   end
 
