@@ -114,7 +114,7 @@ module Homebrew
     raise
   else
     ignore_interrupts { previously_installed.base.rmtree } if previously_installed.base.exists?
-    fi.insinuate
+    f.insinuate
   end # reinstall_formula
 
   def blenderize_options(use_opts, formula)
