@@ -16,22 +16,25 @@ class AppleGcc42 < Formula
 
   # Fiddle the build script and associated files to allow for more possible
   # system configurations, almost (but not quite) all of it specifically for
-  # building arm compilers.
+  # building arm compilers, and also to greatly simplify installation.
   # build_gcc:
-  # - If we don’t use an extra directory offset within $prefix, set it to the
-  #   null string.
+  # - Since we aren’t using the feature that puts two prefixes on everything,
+  #   set the “inner” one to the null string.
   # - Don’t look in weird places for the C++ standard library.
   # - Since older xcodebuild does not understand “Path” or “PlatformPath” (and
   #   there is no clue as to what exactly $ARM_SDK ought to hold even if those
-  #   would be understood), add a case avoiding them that can be triggered by
-  #   setting an environment variable.
+  #   would be understood), bypass them via an environment variable.
   # - Use a lipo version that can recognize an ARM slice.
-  # - Don’t hard‐code the location of shared libraries.
-  # - Don’t hard‐code what ought to be configurable via $DEST_ROOT.
-  # - Build the HTML documentation straight into share/doc, not to an absurdly
-  #   long Xcode‐manuals path.
+  # - Use the split prefix that we DIDN’T set to the null string.
+  # - Put shared libraries in the correct location.
+  # - Use versioned libraries.
+  # - Build the HTML documentation straight into share/doc.
+  # - Don’t symlink to nonexistent files.
   # - Don’t forget to build libgcc_s.1.dylib.
-  # - Only generate debugging data if it isn’t directed to /dev/null.
+  # - Don’t bother copying libgomp.a, it’s already in place because we didn’t
+  #   use the split‐prefix feature.
+  # - Remove several instances of doubled directory separators.
+  # - Don’t generate extra debugging data.
   # - Don’t chgrp.  It is not useful, and when we are not in the destination
   #   group (“wheel”), it fails messily.
   # gcc/config/arm/lib1funcs.asm:
@@ -39,11 +42,13 @@ class AppleGcc42 < Formula
   # - Manually assemble two armv6 instructions that the assembler inexplicably
   #   refuses to process.  Since Apple’s as doesn’t know “.4byte”, express them
   #   each as four discrete .bytes in reverse order.
+  # gcc/Makefile.in:
+  # - Adjust for not using the split‐prefix feature.
   patch :DATA
 
   if MacOS.version > :tiger and MacOS.version < :lion
-    to = HOMEBREW_PREFIX/'bin/to-brewed-gcc42'
-    fro = HOMEBREW_PREFIX/'bin/to-stock-gcc42'
+   def to; HOMEBREW_PREFIX/'bin/to-brewed-gcc42'; end
+   def fro; HOMEBREW_PREFIX/'bin/to-stock-gcc42'; end
   end
 
   def install
@@ -54,10 +59,9 @@ class AppleGcc42 < Formula
       (build.with?('arm') ? 'TARGETS=ppc i386 arm' : 'TARGETS=ppc i386'),
       "SRCROOT=#{buildpath}",
       "OBJROOT=#{buildpath}/build",
-      'SYMROOT=/dev/null',  # We don’t need to debug; don’t waste the time.
-      "DSTROOT=#{prefix}",
-      'PREFIX=/.',          # This is the installation directory within DSTROOT
-    ]                       # and never appears at the beginning of a pathname.
+      "SYMROOT=#{buildpath}/build/sym",
+      "DSTROOT=#{prefix}"
+    ]
     args << "PPC_SYSROOT=#{MacOS.sdk_path}" if MacOS.version < '10.5'
     if build.with? 'arm'
       this_dir = "#{MacOS.active_developer_dir}/Platforms/iPhoneOS.platform"
@@ -86,17 +90,17 @@ class AppleGcc42 < Formula
     end # build.with? 'arm'
     mkdir 'build'
     system 'gnumake', 'install', *args  # this installs the stuff straight into our prefix for us
-    # delete broken symlinks
-    rm Dir.glob("#{libexec}/libexec/gcc/*-apple-darwin*/4.2.1/{as,ld}")
     if MacOS.version > :tiger and MacOS.version < :lion
       to.binwrite switch_to
       fro.binwrite switch_from
       chmod 0755, [to, fro]
-      bin.install_symlink [to, fro]
     end
   end # install
 
   if MacOS.version > :tiger and MacOS.version < :lion
+    # If we put this in #install proper, postprocessing will smurf up the actual files’ permissions.
+    def post_install; bin.install_symlink [to, fro]; end
+
     def insinuate; system to if to.exists?; end
 
     # This command also deletes `to-*-gcc42` if the `apple-gcc42` rack is gone.
@@ -183,8 +187,8 @@ class AppleGcc42 < Formula
     Opt_Pfx="$(brew --prefix)/opt/apple-gcc42/"
 
     Short_Names=(c++ cpp g++ gcc gcov)
-    Targets=(${Opt_Pfx}{bin,share/man/man1}/{i686,powerpc}-apple-darwin*-{cpp,g{++,cc}}-4.2.1{,.1})
-    Dir_Targets=(${Opt_Pfx}lib{,exec}/gcc/{i686,powerpc}-apple-darwin*/4.2.1)
+    Targets=(${Opt_Pfx}{bin,share/man/man1}/{arm,i686,powerpc}-apple-darwin*-{cpp,g{++,cc}}-4.2.1{,.1})
+    Dir_Targets=(${Opt_Pfx}{lib{,exec}/gcc/{i686,powerpc}-apple-darwin*/,share/doc/gcc-}4.2.1)
 
     for Name in "${Short_Names[@]}" ; do
       V_Nm="${Name}-4.2.1.5577"
@@ -208,7 +212,7 @@ class AppleGcc42 < Formula
       Link="/usr/${Target#${Opt_Pfx}}"
       Tail="${Link##*2.1}" ; Nose="${Link%${Tail}}"
       if [ -f "$Link" -a \\! -L "$Link" ] ; then sudo mv "$Link" "${Nose}.5577${Tail}" ; fi
-      sudo ln -fs "$Target" "$Link"
+      if [ -e "$Target" ]; then sudo ln -fs "$Target" "$Link"; fi
     done
 
     for Target in "${Dir_Targets[@]}" ; do
@@ -216,7 +220,7 @@ class AppleGcc42 < Formula
       if [ -L "$Link" ] ; then sudo rm -f "$Link"
       elif [ -d "$Link" ] ; then sudo mv "$Link" "${Link}.5577"
       fi
-      sudo ln -fs "$Target" "$Link"
+      if [ -e "$Target" ]; then sudo ln -fs "$Target" "$Link"; fi
     done
     _
   end # switch_to
@@ -229,7 +233,7 @@ class AppleGcc42 < Formula
 
     Short_Names=(c++ cpp g++ gcc gcov)
     Long_Targets=(/usr/{bin,share/man/man1}/{i686,powerpc}-apple-darwin*-g{++,cc}-4.2.1.5577{,.1})
-    Delete_Links=(/usr/{bin,share/man/man1}/{i686,powerpc}-apple-darwin*-cpp-4.2.1{,.1})
+    Delete_Links=(/usr/{bin,share/man/man1}/{{i686,powerpc}-apple-darwin*-cpp,arm-*}-4.2.1{,.1} /usr/share/doc/gcc-4.2.1)
     Dir_Links=(/usr/lib{,exec}/gcc/{i686,powerpc}-apple-darwin*/4.2.1)
     Disembrew_Scripts=($(brew --prefix)/bin/to-*-gcc42)
 
@@ -281,7 +285,7 @@ __END__
  # normally "/usr".  You can move it once it's built, so this mostly controls
  # the layout of $DEST_DIR.
 -DEST_ROOT="$4"
-+DEST_ROOT="$4"; if [ \! $DEST_ROOT != '/.' ]; then DEST_ROOT= ; fi
++DEST_ROOT=''
  
  # The fifth parameter is the place where the compiler will be copied once
  # it's built.
@@ -325,16 +329,28 @@ __END__
    fi;
    if [ "x$ARM_MULTILIB_ARCHS" == "x" ] ; then
      echo "Error: missing ARM slices in $ARM_SYSROOT"
-@@ -178,7 +187,7 @@
+@@ -174,11 +183,13 @@
+ 
+ # These are the configure and build flags that are used.
+ CONFIGFLAGS="--disable-checking --enable-werror \
+-  --prefix=$DEST_ROOT \
++  --prefix=$DEST_DIR \
    --mandir=\${prefix}/share/man \
    --enable-languages=$LANGUAGES \
    --program-transform-name=/^[cg][^.-]*$/s/$/-$MAJ_VERS/ \
 -  --with-slibdir=/usr/lib \
-+  --with-slibdir=$DEST_DIR$DEST_ROOT/lib \
++  --with-slibdir=\${prefix}/lib \
++  --enable-serial-configure \
++  --enable-version-specific-runtime-libs \
    --build=$BUILD-apple-darwin$DARWIN_VERS"
  
  # Figure out how many make processes to run.
-@@ -229,10 +238,10 @@
+@@ -225,14 +236,14 @@
+ unset RC_DEBUG_OPTIONS
+ make $MAKEFLAGS CFLAGS="$CFLAGS" CXXFLAGS="$CFLAGS" || exit 1
+ make $MAKEFLAGS html CFLAGS="$CFLAGS" CXXFLAGS="$CFLAGS" || exit 1
+-make $MAKEFLAGS DESTDIR=$DIR/dst-$BUILD-$BUILD install-gcc install-target \
++make $MAKEFLAGS prefix=$DIR/dst-$BUILD-$BUILD install-gcc install-target \
    CFLAGS="$CFLAGS" CXXFLAGS="$CFLAGS" || exit 1
  
  # Add the compiler we just built to the path, giving it appropriate names.
@@ -347,7 +363,12 @@ __END__
  
  # The cross-tools' build process expects to find certain programs
  # under names like 'i386-apple-darwin$DARWIN_VERS-ar'; so make them.
-@@ -313,14 +322,14 @@
+@@ -309,18 +320,18 @@
+     # APPLE LOCAL end ARM ARM_CONFIGFLAGS
+    fi
+    make $MAKEFLAGS all CFLAGS="$CFLAGS" CXXFLAGS="$CFLAGS" || exit 1
+-   make $MAKEFLAGS DESTDIR=$DIR/dst-$BUILD-$t install-gcc install-target \
++   make $MAKEFLAGS prefix=$DIR/dst-$BUILD-$t install-gcc install-target \
       CFLAGS="$CFLAGS" CXXFLAGS="$CFLAGS" || exit 1
  
     # Add the compiler we just built to the path.
@@ -364,7 +385,24 @@ __END__
    mv $D/static/libgcc.a $D/libgcc_static.a || exit 1
    mv $D/kext/libgcc.a $D/libcc_kext.a || exit 1
    rm -r $D/static $D/kext || exit 1
-@@ -395,7 +404,7 @@
+@@ -367,13 +378,13 @@
+         export COMPILER_PATH=$ARM_TOOLROOT/usr/bin:$COMPILER_PATH
+       fi
+ 
+-      if [ $h = $t ] ; then
++      if [ $t != 'arm' ] ; then
+ 	  make $MAKEFLAGS all CFLAGS="$CFLAGS" CXXFLAGS="$CFLAGS" || exit 1
+-	  make $MAKEFLAGS DESTDIR=$DIR/dst-$h-$t install-gcc install-target \
++	  make $MAKEFLAGS prefix=$DIR/dst-$h-$t install-gcc install-target \
+ 	      CFLAGS="$CFLAGS" CXXFLAGS="$CFLAGS" || exit 1
+       else
+ 	  make $MAKEFLAGS all-gcc CFLAGS="$CFLAGS" CXXFLAGS="$CFLAGS" || exit 1
+-	  make $MAKEFLAGS DESTDIR=$DIR/dst-$h-$t install-gcc \
++	  make $MAKEFLAGS prefix=$DIR/dst-$h-$t install-gcc \
+ 	      CFLAGS="$CFLAGS" CXXFLAGS="$CFLAGS" || exit 1
+       fi
+ 
+@@ -395,7 +406,7 @@
  rm -rf * || exit 1
  
  # HTML documentation
@@ -373,7 +411,16 @@ __END__
  mkdir -p ".$HTMLDIR" || exit 1
  cp -Rp $DIR/obj-$BUILD-$BUILD/gcc/HTML/* ".$HTMLDIR/" || exit 1
  
-@@ -455,11 +464,23 @@
+@@ -425,8 +436,6 @@
+       cp -p $DIR/dst-$BUILD-$t$DL/$f .$DL/$f || exit 1
+     fi
+   done
+-  ln -s ../../../../bin/as .$DL/as
+-  ln -s ../../../../bin/ld .$DL/ld
+ done
+ 
+ # bin
+@@ -455,11 +464,19 @@
  done
  
  # lib
@@ -386,49 +433,110 @@ __END__
      .$DEST_ROOT/lib/gcc || exit 1
  done
 +$best_lipo -output .$DEST_ROOT/lib/libgcc_s.1.dylib -create \
-+  $DIR/obj-$BUILD-*$DEST_ROOT/gcc/libgcc_s.1.dylib || exit 1
-+$best_lipo -output .$DEST_ROOT/lib/libgcc_s.10.4.dylib -create \
-+  $DIR/obj-$BUILD-*$DEST_ROOT/gcc/libgcc_s.10.4.dylib || exit 1
-+$best_lipo -output .$DEST_ROOT/lib/libgcc_s.10.5.dylib -create \
-+  $DIR/obj-$BUILD-*$DEST_ROOT/gcc/libgcc_s.10.5.dylib || exit 1
-+for link in 'libgcc_s.1.0.dylib libgcc_s_ppc64.1.dylib libgcc_s_x86_64.1.dylib'; do
++  $DIR/obj-$BUILD-*/gcc/libgcc_s.1.dylib || exit 1
++for link in libgcc_s.1.0.dylib libgcc_s_ppc64.1.dylib libgcc_s_x86_64.1.dylib; do
 +  ln -s libgcc_s.1.dylib .$DEST_ROOT/lib/$link
 +done
  
  # APPLE LOCAL begin native compiler support
  # libgomp is not built for ARM
-@@ -599,35 +620,35 @@
+@@ -469,7 +486,7 @@
+ # And copy libgomp stuff by hand...
+ for t in $LIBGOMP_TARGETS ; do
+     for h in $LIBGOMP_HOSTS ; do
+-	if [ $h = $t ] ; then
++	if [ $h != $h ] ; then
+ 	    cp -p $DIR/dst-$h-$t$DEST_ROOT/lib/libgomp.a \
+ 		.$DEST_ROOT/lib/gcc/$t-apple-darwin$DARWIN_VERS/$VERS/ || exit 1
+ 	    cp -p $DIR/dst-$h-$t$DEST_ROOT/lib/libgomp.spec \
+@@ -555,79 +572,69 @@
+ 	-liberty -L$DIR/dst-$BUILD-$h$DEST_ROOT/lib/                           \
+ 	-L$DIR/dst-$BUILD-$h$DEST_ROOT/$h-apple-darwin$DARWIN_VERS/lib/                    \
+         -L$DIR/obj-$h-$BUILD/libiberty/                                        \
+-	-o $DEST_DIR/$DEST_ROOT/bin/tmp-$h-gcc-$MAJ_VERS || exit 1
++	-o $DEST_DIR$DEST_ROOT/bin/tmp-$h-gcc-$MAJ_VERS || exit 1
+     $DIR/dst-$BUILD-$h$DEST_ROOT/bin/$h-apple-darwin$DARWIN_VERS-gcc-$VERS     \
+ 	$ORIG_SRC_DIR/driverdriver.c                               \
+ 	-DPDN="\"-apple-darwin$DARWIN_VERS-cpp-$VERS\""                                    \
+ 	-DIL="\"$DEST_ROOT/bin/\"" -I  $ORIG_SRC_DIR/include                   \
+ 	-I  $ORIG_SRC_DIR/gcc -I  $ORIG_SRC_DIR/gcc/config                     \
+ 	-liberty -L$DIR/dst-$BUILD-$h$DEST_ROOT/lib/                           \
+ 	-L$DIR/dst-$BUILD-$h$DEST_ROOT/$h-apple-darwin$DARWIN_VERS/lib/                    \
+         -L$DIR/obj-$h-$BUILD/libiberty/                                        \
+-	-o $DEST_DIR/$DEST_ROOT/bin/tmp-$h-cpp-$MAJ_VERS || exit 1
++	-o $DEST_DIR$DEST_ROOT/bin/tmp-$h-cpp-$MAJ_VERS || exit 1
+     if [ $BUILD_CXX -eq 1 ]; then
+ 	$DIR/dst-$BUILD-$h$DEST_ROOT/bin/$h-apple-darwin$DARWIN_VERS-gcc-$VERS     \
+ 	    $ORIG_SRC_DIR/driverdriver.c                               \
+ 	    -DPDN="\"-apple-darwin$DARWIN_VERS-g++-$VERS\""                                    \
+ 	    -DIL="\"$DEST_ROOT/bin/\"" -I  $ORIG_SRC_DIR/include                   \
+ 	    -I  $ORIG_SRC_DIR/gcc -I  $ORIG_SRC_DIR/gcc/config                     \
+ 	    -liberty -L$DIR/dst-$BUILD-$h$DEST_ROOT/lib/                           \
+ 	    -L$DIR/dst-$BUILD-$h$DEST_ROOT/$h-apple-darwin$DARWIN_VERS/lib/                    \
+             -L$DIR/obj-$h-$BUILD/libiberty/                                        \
+-	    -o $DEST_DIR/$DEST_ROOT/bin/tmp-$h-g++-$MAJ_VERS || exit 1
++	    -o $DEST_DIR$DEST_ROOT/bin/tmp-$h-g++-$MAJ_VERS || exit 1
+     fi
+ done
+ 
+-lipo -output $DEST_DIR/$DEST_ROOT/bin/gcc-$MAJ_VERS -create \
+-  $DEST_DIR/$DEST_ROOT/bin/tmp-*-gcc-$MAJ_VERS || exit 1
+-rm $DEST_DIR/$DEST_ROOT/bin/tmp-*-gcc-$MAJ_VERS || exit 1
+-lipo -output $DEST_DIR/$DEST_ROOT/bin/cpp-$MAJ_VERS -create \
+-  $DEST_DIR/$DEST_ROOT/bin/tmp-*-cpp-$MAJ_VERS || exit 1
+-rm $DEST_DIR/$DEST_ROOT/bin/tmp-*-cpp-$MAJ_VERS || exit 1
++lipo -output $DEST_DIR$DEST_ROOT/bin/gcc-$MAJ_VERS -create \
++  $DEST_DIR$DEST_ROOT/bin/tmp-*-gcc-$MAJ_VERS || exit 1
++rm $DEST_DIR$DEST_ROOT/bin/tmp-*-gcc-$MAJ_VERS || exit 1
++lipo -output $DEST_DIR$DEST_ROOT/bin/cpp-$MAJ_VERS -create \
++  $DEST_DIR$DEST_ROOT/bin/tmp-*-cpp-$MAJ_VERS || exit 1
++rm $DEST_DIR$DEST_ROOT/bin/tmp-*-cpp-$MAJ_VERS || exit 1
+ 
+ if [ $BUILD_CXX -eq 1 ]; then
+-  lipo -output $DEST_DIR/$DEST_ROOT/bin/g++-$MAJ_VERS -create \
+-       $DEST_DIR/$DEST_ROOT/bin/tmp-*-g++-$MAJ_VERS || exit 1
+-  ln -f $DEST_DIR/$DEST_ROOT/bin/g++-$MAJ_VERS $DEST_DIR/$DEST_ROOT/bin/c++-$MAJ_VERS || exit 1
+-  rm $DEST_DIR/$DEST_ROOT/bin/tmp-*-g++-$MAJ_VERS || exit 1
++  lipo -output $DEST_DIR$DEST_ROOT/bin/g++-$MAJ_VERS -create \
++       $DEST_DIR$DEST_ROOT/bin/tmp-*-g++-$MAJ_VERS || exit 1
++  ln -f $DEST_DIR$DEST_ROOT/bin/g++-$MAJ_VERS $DEST_DIR/bin/c++-$MAJ_VERS || exit 1
++  rm $DEST_DIR$DEST_ROOT/bin/tmp-*-g++-$MAJ_VERS || exit 1
+ 
+   # Remove extraneous stuff
+-  rm -rf $DEST_DIR/$DEST_ROOT/lib/gcc/*/*/include/c++
++  rm -rf $DEST_DIR$DEST_ROOT/lib/gcc/*/*/include/c++
+ fi
+ 
+ 
  ########################################
  # Create SYM_DIR with information required for debugging.
  
-+if [ "$SYM_DIR" != '/dev/null' ]; then
- cd $SYM_DIR || exit 1
+-cd $SYM_DIR || exit 1
  
  # Clean out SYM_DIR in case -noclean was passed to buildit.
- rm -rf * || exit 1
+-rm -rf * || exit 1
  
  # Generate .dSYM files
- find $DEST_DIR -perm -0111 \! -name fixinc.sh \
-     \! -name mkheaders -type f -print | xargs -n 1 -P ${SYSCTL} dsymutil
+-find $DEST_DIR -perm -0111 \! -name fixinc.sh \
+-    \! -name mkheaders -type f -print | xargs -n 1 -P ${SYSCTL} dsymutil
  
  # Save .dSYM files and .a archives
- cd $DEST_DIR || exit 1
- find . \( -path \*.dSYM/\* -or -name \*.a \) -print \
-   | cpio -pdml $SYM_DIR || exit 1
+-cd $DEST_DIR || exit 1
+-find . \( -path \*.dSYM/\* -or -name \*.a \) -print \
+-  | cpio -pdml $SYM_DIR || exit 1
  # Save source files.
- mkdir $SYM_DIR/src || exit 1
+-mkdir $SYM_DIR/src || exit 1
  cd $DIR || exit 1
- find obj-* -name \*.\[chy\] -print | cpio -pdml $SYM_DIR/src || exit 1
-+fi
+-find obj-* -name \*.\[chy\] -print | cpio -pdml $SYM_DIR/src || exit 1
  
  ########################################
  # Remove debugging information from DEST_DIR.
  
--find $DEST_DIR -perm -0111 \! -name fixinc.sh \
--    \! -name mkheaders \! -name libstdc++.dylib -type f -print \
-+find $DEST_DIR -perm -0111 -type f \! -name fixinc.sh \! -name \
-+    libgcc_s\*.dylib \! -name libstdc++.dylib \! -name mkheaders -print \
-   | xargs strip || exit 1
++find $DEST_DIR -name \*.la\* -print | xargs rm -r || exit 1
+ find $DEST_DIR -perm -0111 \! -name fixinc.sh \
+     \! -name mkheaders \! -name libstdc++.dylib -type f -print \
+-  | xargs strip || exit 1
++  | xargs strip -u -x || exit 1
  find $DEST_DIR -name \*.a -print | xargs strip -SX || exit 1
  find $DEST_DIR -name \*.a -print | xargs ranlib || exit 1
  find $DEST_DIR -name \*.dSYM -print | xargs rm -r || exit 1
@@ -465,3 +573,15 @@ __END__
          RET
          FUNC_END restore_vfp_d8_d15_regs
  #endif
+--- old/gcc/Makefile.in
++++ new/gcc/Makefile.in
+@@ -3302,8 +3302,7 @@
+ 	-chmod a+rx include
+ 	if [ -d ../prev-gcc ]; then \
+ 	  cd ../prev-gcc && \
+-	  $(MAKE) real-$(INSTALL_HEADERS_DIR) DESTDIR=`pwd`/../gcc/ \
+-	    libsubdir=. ; \
++	  $(MAKE) real-$(INSTALL_HEADERS_DIR) libsubdir=`pwd`/../gcc/ ; \
+ 	else \
+ 	  (TARGET_MACHINE='$(target)'; srcdir=`cd $(srcdir); ${PWD_COMMAND}`; \
+ 	    SHELL='$(SHELL)'; MACRO_LIST=`${PWD_COMMAND}`/macro_list ; \
