@@ -64,7 +64,7 @@ module MacOS
 
   def default_compiler
     case default_cc
-      # if GCC 4.2 is installed, e.g. via Tigerbrew, prefer it
+      # if GCC 4.2 is installed, e.g. via Leopardbrew, prefer it
       # over the system's GCC 4.0
       when /^gcc-4.0/ then gcc_42_build_version ? :gcc : :gcc_4_0
       when /^gcc-4.2/ then :gcc
