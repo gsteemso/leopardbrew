@@ -1,16 +1,16 @@
 # This script is loaded by formula/installer as a separate instance.
 # Thrown exceptions are propagated back to the parent process over a pipe.
 
-old_trap = trap("INT") { exit! 130 }
+old_trap = trap('INT') { exit! 130 }
 
-require "global"
+require 'global'
 require 'utils'
-require "build_options"
-require "cxxstdlib"
-require "keg"
-require "extend/ENV"
-require "debrew"
-require "fcntl"
+require 'build_options'
+require 'cxxstdlib'
+require 'keg'
+require 'extend/ENV'
+require 'debrew'
+require 'fcntl'
 
 class Build
   attr_reader :formula, :deps, :reqs, :aids
@@ -93,13 +93,13 @@ class Build
     deps.each(&:modify_build_environment)
 
     keg_only_deps.each do |dep|
-      ENV.prepend_path "PATH", dep.opt_bin.to_s
-      ENV.prepend_path "PKG_CONFIG_PATH", "#{dep.opt_lib}/pkgconfig"
-      ENV.prepend_path "PKG_CONFIG_PATH", "#{dep.opt_share}/pkgconfig"
-      ENV.prepend_path "ACLOCAL_PATH", "#{dep.opt_share}/aclocal"
-      ENV.prepend_path "CMAKE_PREFIX_PATH", dep.opt_prefix.to_s
-      ENV.prepend "LDFLAGS", "-L#{dep.opt_lib}" if dep.opt_lib.directory?
-      ENV.prepend "CPPFLAGS", "-I#{dep.opt_include}" if dep.opt_include.directory?
+      ENV.prepend_path 'PATH', dep.opt_bin.to_s
+      ENV.prepend_path 'PKG_CONFIG_PATH', "#{dep.opt_lib}/pkgconfig"
+      ENV.prepend_path 'PKG_CONFIG_PATH', "#{dep.opt_share}/pkgconfig"
+      ENV.prepend_path 'ACLOCAL_PATH', "#{dep.opt_share}/aclocal"
+      ENV.prepend_path 'CMAKE_PREFIX_PATH', dep.opt_prefix.to_s
+      ENV.prepend 'LDFLAGS', "-L#{dep.opt_lib}" if dep.opt_lib.directory?
+      ENV.prepend 'CPPFLAGS', "-I#{dep.opt_include}" if dep.opt_include.directory?
     end unless superenv?
 
     formula.extend(Debrew::Formula) if DEBUG
@@ -108,20 +108,20 @@ class Build
       formula.patch
 
       if ARGV.git?
-        system "git", "init"
-        system "git", "add", "-A"
+        system 'git', 'init'
+        system 'git', 'add', '-A'
       end
 
       formula.prefix.mkpath
       if ARGV.interactive?
-        ohai "Entering interactive mode"
-        puts "Type `exit' to return and finalize the installation"
+        ohai 'Entering interactive mode'
+        puts 'Type “exit” to return and finalize the installation'
         puts "Install to this prefix:  #{Tty.white}#{formula.prefix}#{Tty.reset}"
 
         if ARGV.git?
-          puts "This directory is now a git repo. Make your changes and then use:"
-          puts "  git diff | pbcopy"
-          puts "to copy the diff to the clipboard."
+          puts 'This directory is now a git repo. Make your changes and then use:'
+          puts '    git diff | pbcopy'
+          puts 'to copy the diff to the clipboard.'
         end
 
         interactive_shell(formula)
@@ -172,10 +172,10 @@ class Build
 end # Build
 
 begin
-  error_pipe = IO.new(ENV["HOMEBREW_ERROR_PIPE"].to_i, "w")
+  error_pipe = IO.new(ENV['HOMEBREW_ERROR_PIPE'].to_i, 'w')
   error_pipe.fcntl(Fcntl::F_SETFD, Fcntl::FD_CLOEXEC)
 
-  trap("INT", old_trap)
+  trap('INT', old_trap)
 
   formula = ARGV.formulae.first
   build   = Build.new(formula, ARGV.effective_flags)
