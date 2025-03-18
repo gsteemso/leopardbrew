@@ -1,21 +1,23 @@
 Leopardbrew
 ===========
 
-A fork of [Tigerbrew][tigerbrew], itself a fork of [Homebrew][homebrew], that
-focusses on universal / 64‐bit builds.  (It was originally also going to be
-about properly supporting pure Darwin – i.e., non‐OS‐X – installations, but
-since Apple hasn’t released one of those since the noughties and their proprie‐
-tary additions mean it is no longer possible to construct one, that’s no longer
-the case.)  Despite the name, which was only chosen to differentiate it from
-its ancestor, Leopardbrew still aims for full compatibility with Tiger (Mac OS
-10.4 / Darwin 8) systems.
+Leopardbrew is a fork of [Tigerbrew][tigerbrew], itself a fork of [Homebrew][homebrew],
+focussing on universal / 64‐bit builds.  (Originally, it was also going to give
+proper support for pure Darwin – i.e., non‐Mac‐OS – installations; but since
+Apple have not released one of those since the noughties and their proprietary
+additions mean it is no longer possible to construct one, that’s no longer the
+case.)  Despite the name (only meant to differentiate it from its ancestor),
+Leopardbrew still aims for full compatibility with Tiger (Mac OS 10.4 / Darwin
+8) systems.  In principle, compatibility with all Mac OSes from Tiger to the
+current version is a design goal, but that is not close to being achieved at
+this point.
 
 Unlike its ancestors, Leopardbrew makes no pretense of supporting Linux.  The
 whole point of Linux is that you have complete control over what’s installed on
 your system, whereas Homebrew was made specifically to work around the gaps in
-an unmodifiable Mac OS install.  Plus, darn near every recipe refers to Mac‐OS‐
-specific features.  What is even supposed to be the point of supporting Linux
-here?
+a nearly unmodifiable Mac OS install.  Plus, darn near every recipe refers to
+Mac‐OS‐specific features.  What is even supposed to be the point of supporting
+Linux here?
 
 I get that the user interface of Homebrew is nice & simple compared to a lot of
 Linux‐native package managers, but the design goals here are totally divergent.
