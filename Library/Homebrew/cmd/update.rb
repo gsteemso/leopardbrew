@@ -111,11 +111,11 @@ module Homebrew
     if report.empty?
       puts "Already up-to-date."
     else
-      puts "Updated Tigerbrew from #{master_updater.initial_revision[0, 8]} to #{master_updater.current_revision[0, 8]}."
+      puts "Updated Leopardbrew from #{master_updater.initial_revision[0, 8]} to #{master_updater.current_revision[0, 8]}."
       report.dump
     end
     Descriptions.update_cache(report)
-  end
+  end # update
 
   private
 
@@ -123,7 +123,7 @@ module Homebrew
     if Dir[".git/*"].empty?
       safe_system "git", "init"
       safe_system "git", "config", "core.autocrlf", "false"
-      safe_system "git", "config", "remote.origin.url", "https://github.com/mistydemeo/tigerbrew.git"
+      safe_system "git", "config", "remote.origin.url", "https://github.com/gsteemso/leopardbrew.git"
       safe_system "git", "config", "remote.origin.fetch", "+refs/heads/*:refs/remotes/origin/*"
       safe_system "git", "fetch", "origin"
       safe_system "git", "reset", "--hard", "origin/master"
@@ -136,7 +136,7 @@ module Homebrew
   rescue Exception
     FileUtils.rm_rf ".git"
     raise
-  end
+  end # git_init_if_necessary
 
   def rename_taps_dir_if_necessary
     Dir.glob("#{HOMEBREW_LIBRARY}/Taps/*/") do |tapd|
@@ -151,12 +151,12 @@ module Homebrew
             FileUtils.mv(tapd, "#{HOMEBREW_LIBRARY}/Taps/#{user.downcase}/homebrew-#{repo.downcase}")
 
             if tapd_basename.count("-") >= 2
-              opoo "Tigerbrew changed the structure of Taps like <someuser>/<sometap>. "\
-                + "So you may need to rename #{HOMEBREW_LIBRARY}/Taps/#{user.downcase}/homebrew-#{repo.downcase} manually."
+              opoo "Leopardbrew’s predecessor, Tigerbrew, changed the structure of Taps to <someuser>/<sometap>.  "\
+                + "You may need to rename #{HOMEBREW_LIBRARY}/Taps/#{user.downcase}/homebrew-#{repo.downcase} manually."
             end
           else
-            opoo "Tigerbrew changed the structure of Taps like <someuser>/<sometap>. "\
-              "#{tapd} is incorrect name format. You may need to rename it like <someuser>/<sometap> manually."
+            opoo "Leopardbrew’s predecessor, Tigerbrew, changed the structure of Taps to <someuser>/<sometap>.  "\
+              "#{tapd} is incorrect name format.  You may need to rename it as <someuser>/<sometap> manually."
           end
         end
       rescue => ex
@@ -164,7 +164,7 @@ module Homebrew
         next # next tap directory
       end
     end
-  end
+  end # rename_taps_dir_if_necessary
 
   def load_tap_migrations
     load "tap_migrations.rb"
@@ -177,7 +177,7 @@ module Homebrew
   rescue LoadError
     false
   end
-end
+end # Homebrew
 
 class Updater
   attr_reader :initial_revision, :current_revision, :repository
@@ -248,8 +248,8 @@ class Updater
         system "git", "status", "--short", "--untracked-files"
       end
       @stashed = false
-    end
-  end
+    end # @stashed?
+  end # Updater#pull!
 
   def reset_on_interrupt
     ignore_interrupts { yield }
@@ -259,7 +259,7 @@ class Updater
       safe_system "git", "reset", "--hard", @initial_revision
       safe_system "git", "stash", "pop" if @stashed
     end
-  end
+  end # Updater#reset_on_interrupt
 
   def report
     map = Hash.new { |h, k| h[k] = [] }
@@ -276,32 +276,32 @@ class Updater
         next unless paths.any? { |p| File.dirname(p) == formula_directory }
 
         case status
-        when "A", "D"
-          map[status.to_sym] << repository.join(src)
-        when "M"
-          file = repository.join(src)
-          begin
-            formula = Formulary.factory(file)
-            new_version = if wc_revision == current_revision
-              formula.pkg_version
-            else
-              FormulaVersions.new(formula).formula_at_revision(@current_revision, &:pkg_version)
+          when "A", "D"
+            map[status.to_sym] << repository.join(src)
+          when "M"
+            file = repository.join(src)
+            begin
+              formula = Formulary.factory(file)
+              new_version = if wc_revision == current_revision
+                  formula.pkg_version
+                else
+                  FormulaVersions.new(formula).formula_at_revision(@current_revision, &:pkg_version)
+                end
+              old_version = FormulaVersions.new(formula).formula_at_revision(@initial_revision, &:pkg_version)
+              next if new_version == old_version
+            rescue FormulaUnavailableError, *FormulaVersions::IGNORED_EXCEPTIONS => e
+              onoe e if DEVELOPER
             end
-            old_version = FormulaVersions.new(formula).formula_at_revision(@initial_revision, &:pkg_version)
-            next if new_version == old_version
-          rescue FormulaUnavailableError, *FormulaVersions::IGNORED_EXCEPTIONS => e
-            onoe e if DEVELOPER
-          end
-          map[:M] << file
-        when /^R\d{0,3}/
-          map[:D] << repository.join(src) if File.dirname(src) == formula_directory
-          map[:A] << repository.join(dst) if File.dirname(dst) == formula_directory
+            map[:M] << file
+          when /^R\d{0,3}/
+            map[:D] << repository.join(src) if File.dirname(src) == formula_directory
+            map[:A] << repository.join(dst) if File.dirname(dst) == formula_directory
         end
-      end
-    end
+      end # each diff |line|
+    end # revisions differ?
 
     map
-  end
+  end # Updater#report
 
   private
 
@@ -315,7 +315,7 @@ class Updater
     else
       "."
     end
-  end
+  end # Updater#formula_directory
 
   def read_current_revision
     `git rev-parse -q --verify HEAD`.chomp
@@ -326,7 +326,7 @@ class Updater
       "git", "diff-tree", "-r", "--name-status", "--diff-filter=AMDR",
       "-M85%", initial_revision, current_revision
     )
-  end
+  end # Updater#diff
 
   def `(cmd)
     out = super
@@ -336,25 +336,17 @@ class Updater
     end
     ohai(cmd, out) if VERBOSE
     out
-  end
-end
+  end # Updater#`
+end # Updater
 
 class Report
-  def initialize
-    @hash = {}
-  end
+  def initialize; @hash = {}; end
 
-  def fetch(*args, &block)
-    @hash.fetch(*args, &block)
-  end
+  def fetch(*args, &block); @hash.fetch(*args, &block); end
 
-  def update(*args, &block)
-    @hash.update(*args, &block)
-  end
+  def update(*args, &block); @hash.update(*args, &block); end
 
-  def empty?
-    @hash.empty?
-  end
+  def empty?; @hash.empty?; end
 
   def dump
     # Key Legend: Added (A), Copied (C), Deleted (D), Modified (M), Renamed (R)
@@ -363,7 +355,7 @@ class Report
     dump_formula_report :M, "Updated Formulae"
     dump_formula_report :R, "Renamed Formulae"
     dump_formula_report :D, "Deleted Formulae"
-  end
+  end # Report#dump
 
   def update_renamed
     renamed_formulae = []
@@ -383,14 +375,14 @@ class Report
       if fetch(:A, []).include?(newpath = path.dirname.join("#{newname}.rb"))
         renamed_formulae << [path, newpath]
       end
-    end
+    end # fetch each |path|
 
     unless renamed_formulae.empty?
       @hash[:A] -= renamed_formulae.map(&:last) if @hash[:A]
       @hash[:D] -= renamed_formulae.map(&:first) if @hash[:D]
       @hash[:R] = renamed_formulae
     end
-  end
+  end # Report#update_renamed
 
   def select_formula(key)
     fetch(key, []).map do |path, newpath|
@@ -407,7 +399,7 @@ class Report
         path.basename(".rb").to_s
       end
     end.sort
-  end
+  end # Report#select_formula
 
   def dump_formula_report(key, title)
     formula = select_formula(key)
@@ -416,5 +408,5 @@ class Report
       ohai title
       puts_columns formula
     end
-  end
-end
+  end # Report#dump_formula_report
+end # Report
