@@ -175,8 +175,6 @@ begin
   error_pipe = IO.new(ENV['HOMEBREW_ERROR_PIPE'].to_i, 'w')
   error_pipe.fcntl(Fcntl::F_SETFD, Fcntl::FD_CLOEXEC)
 
-  trap('INT', old_trap)
-
   formula = ARGV.formulae.first
   build   = Build.new(formula, ARGV.effective_flags)
   build.install
