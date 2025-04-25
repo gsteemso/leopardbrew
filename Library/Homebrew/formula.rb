@@ -1541,9 +1541,9 @@ class Formula
     # or build.with?('libressl')”, and “build.without?('openssl3') and
     # build.without?('libressl')”, respectively.  Similarly,
     #     depends_any ['ssl', ['openssl3', 'libressl']] => :recommended
-    # # generates the mutually exclusive options “--with-openssl3”,
+    # generates the mutually exclusive options “--with-openssl3”,
     # “--with-libressl”, and “--without-ssl”.  Note that no “--with-ssl” option
-    # is generated when the priority is :optional.
+    # is generated when the priority is :recommended.
     # If none of the possible options are used when the priority is not
     # :optional, the first installed listed alternate is selected by default;
     # if none are installed, the first satisfiable listed alternate is selected.
