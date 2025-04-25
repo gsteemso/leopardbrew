@@ -38,6 +38,9 @@ class Git < Formula
     depends_on 'subversion' => 'with-perl'  #   https://github.com/Homebrew/homebrew/issues/34554)
   end
 
+  enhanced_by 'expat'
+  enhanced_by 'zlib'
+
   # Fix PowerPC build and support for OS X Tiger & Leopard
   # - Stock regex(3) is too old and lacks some file system monitoring functionality.
   # - Needs arc4random_buf(3) which is missing on Leopard and prior, so just use OpenSSL since
