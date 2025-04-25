@@ -35,7 +35,7 @@ class Pcre < Formula
               "--enable-pcregrep-libbz2" ]
 
     # JIT fails tests very badly on PPC right now
-    args << "--enable-jit" unless Hardware::CPU.type == :ppc
+    args << "--enable-jit" unless CPU.powerpc?
 
     system "./configure", *args
     system "make"
@@ -45,6 +45,6 @@ class Pcre < Formula
   end
 
   test do
-    system "#{bin}/pcregrep", "regular expression", "#{prefix}/README"
+    arch_system "#{bin}/pcregrep", "regular expression", "#{prefix}/README"
   end
 end
