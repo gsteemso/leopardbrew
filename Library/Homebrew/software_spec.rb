@@ -126,8 +126,8 @@ class SoftwareSpec
           @deprecated_actuals << d_o
         end
         @build.fix_deprecation(d_o)  # does nothing unless the old flag is actually present
-      end
-    end
+      end # each |old optstring|
+    end # each |{old, new} optstrings|
   end # deprecated_option
 
   def depends_on(d_spec)
@@ -143,12 +143,12 @@ class SoftwareSpec
     group_name, group_members = *(group.keys.first)
     group_tags = Array(group.values.first)
     raise UsageError, "dependency group “#{group_name}” MUST have :optional or :recommended priority" \
-           unless group_tags.any?{ |tag| OPTL_RCMD.any?{ |prio| tag == prio } }
+      unless group_tags.any?{ |tag| OPTL_RCMD.any?{ |priority| tag == priority } }
     _deps = []
-    group_members.each{ |f| _deps << dependency_collector.add(f => group_tags) }
-    add_group_option(group_name, group_tags.detect{ |tag|
-                                   OPTL_RCMD.any?{ |priority| tag == priority }
-                                 }) unless _deps.empty?
+    group_members.each{ |name| _deps << dependency_collector.add(Dependency.new(name, group_tags, nil, group_name)) }
+    add_group_option( group_name,
+                      group_tags.detect{ |tag| OPTL_RCMD.any?{ |priority| tag == priority }}
+                    ) unless _deps.empty?
   end # depends_group
 
   def enhanced_by(aid)
