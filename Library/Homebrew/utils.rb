@@ -215,6 +215,21 @@ def which(cmd, path = ENV["PATH"])
   nil
 end # which
 
+def which_for_users(cmd, path = ENV["PATH"])
+  path.split(File::PATH_SEPARATOR).each do |p|
+    if p.starts_with? HOMEBREW_LIBRARY.to_s then next; end
+    begin
+      pcmd = File.expand_path(cmd, p)
+    rescue ArgumentError
+      # File.expand_path will raise an ArgumentError if the path is malformed.
+      # See https://github.com/Homebrew/homebrew/issues/32789
+      next
+    end
+    return Pathname.new(pcmd) if File.file?(pcmd) && File.executable?(pcmd)
+  end
+  nil
+end # which_for_users
+
 def which_editor
   editor = ENV.values_at("HOMEBREW_EDITOR", "VISUAL", "EDITOR").compact.first
   return editor unless editor.nil?
