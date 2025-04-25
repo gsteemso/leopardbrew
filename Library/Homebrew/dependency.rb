@@ -129,24 +129,3 @@ class TapDependency < Dependency
     false
   end
 end # TapDependency
-
-class GroupDependency
-  include Dependable
-
-  attr_reader :name, :members, :tags
-
-  def initialize(name, deps, tags)
-    @name = name
-    @members = deps
-    @tags = tags
-  end
-
-  def to_s; name; end
-
-  def ==(o); instance_of?(o.class) and name == o.name and members == o.members and tags == o.tags; end
-  alias_method :eql?, :==
-
-  def <=>(other); return nil unless other.is_a?(GroupDependency); name <=> other.name; end
-
-  def sort; self.class.new(name, members.sort, tags); end
-end # GroupDependency
