@@ -127,6 +127,15 @@ class Cctools < Formula
 
     system "make", "install_tools", *args
 
+    # The documentation is in a ridiculous place because it was built for Apple’s Developer/
+    # heirarchy.  Move it into doc/ where it belongs:
+    doc.install prefix/'Developer/Documentation/DocSets/com.apple.ADC_Reference_Library.DeveloperTools.docset/Contents/Resources/Documents/documentation/DeveloperTools/CompilerTools.html'
+
+    # We didn’t build the obsolete `ld` from this package, but (on version 806, at least) `strip`
+    # expects it to be present and when called with certain options, will fail when it isn’t there.
+    # Fill in for it with a symlink to whatever other version we can find.
+    bin.install_symlink(which 'ld')
+
     # cctools installs into a /-style prefix in the supplied DSTROOT,
     # so need to move the files into the standard paths.
     # Also merge the /usr and /usr/local trees.
@@ -148,7 +157,7 @@ class Cctools < Formula
   end
 
   def caveats; <<-EOS.undent
-    cctools's version of ld was not built.
+    cctools’s version of ld was not built.
     EOS
   end
 
