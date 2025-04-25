@@ -1,21 +1,25 @@
 class Ld64128ppc < Formula
   desc 'Updated version of the ld shipped by Apple'
   homepage 'https://github.com/apple-oss-distributions/ld64/tree/ld64-128.2'
+  # The patch is actually smaller if we start from the prior revision.  The diff is less extreme
+  # because 127.2 doesn’t need all the PowerPC stuff put back in like 128.2 does.
   url 'https://github.com/apple-oss-distributions/ld64/archive/refs/tags/ld64-127.2.tar.gz'
   sha256 'acfc5c3340a24ad8696ff22027b121cb3807c75fade7dec48b2b52494698e05f'
   version '128.2_ppc'
 
   resource 'makefile' do
-    url 'file:///Users/gsteemso/devel/_ld64/new-Makefile'
+    url 'file:///Volumes/Nosferalpard/Users/gsteemso/devel/_ld64/new-Makefile'
     sha256 '02857a391fc7e911d9ceea9aec793d429414eb31cc071088ad6a4509c6f08461'
   end
 
-  option :universal
+#  option :universal
   option 'with-tests', 'Perform build‐time unit tests'
 
   depends_on MaximumMacOSRequirement => :mountain_lion
 
-  # Tiger either includes old versions of these headers, or doesn't ship them at all.
+  # Tiger (and in some cases Leopard) either includes old versions of these
+  # headers, or doesn't ship them at all.
+# depends_on 'arm-headers' => :build    # this package doesn’t exist yet
   depends_on 'cctools-headers' => :build
   depends_on 'dyld-headers' => :build
   depends_on 'libunwind-headers' => :build
@@ -26,7 +30,8 @@ class Ld64128ppc < Formula
 
   fails_with :gcc_4_0 do build 5370; end  # does it really?  hells if I know
 
-  # Apply 127.2 → 128.2 diff, except file renaming, without PowerPC stripping:
+  # Apply 127.2 → 128.2 diff, except the file renaming which `patch` cannot do,
+  # without the PowerPC stripping:
   patch :p1 do
     url 'file:///Users/gsteemso/devel/_ld64/ld64-127.2-to-128.2_ppc-shorter.patch'
     sha256 '06eea28c5422966a8e3bdfc93af51f484454af06abad7fa8cde8cb86aaa03cfd'
@@ -34,14 +39,16 @@ class Ld64128ppc < Formula
 
   # Omnibus collection of MacPorts, Tigerbrew, and Leopardbrew patches.
   # src/abstraction/MachOFileAbstraction.hpp:
+  # - Remove a duplicate header‐file inclusion.
   # - Correct error‐message and preprocessor‐constant typos.
-  # - Implement an ugly hack to get machochecker working correctly (the file
+  # - Fix a malformed structure‐constant definition.
+  # - Reïmplement class macho_thread_command so machochecker can work (the file
   #   abstraction fails to account for there being more than 1 variable-length
-  #   member of a specific variable-length array, which is a concept so painful
-  #   to define in C++ terms that I just didn’t).
+  #   member of a specific variable-length array).
   # src/ld/HeaderAndLoadCommands.hpp:
-  # - Add a missing header‐file inclusion.
+  # - Add missing header‐file inclusions.
   # - Correct an error‐message typo.
+  # - Use symbolic constants instead of literals.
   # src/ld/InputFiles.cpp:
   # - Remove dependencies on Clang/LLVM.
   # src/ld/ld.cpp:
@@ -57,7 +64,8 @@ class Ld64128ppc < Formula
   # - Refine when to use scattered relocation on x86.
   # - Error message:  “Invalid”, not “illegal”.  No one is going to jail.
   # src/ld/Options.cpp:
-  # - Improve version reporting.
+  # - Improve version reporting.  Note that this requires postprocessing to
+  #   insert the actual version number.
   # - Function name:  “Invalid”, not “illegal”.  No one is going to jail.
   # - Correct error‐message typos.
   # - Tweak version‐minimum adjustment to allow for iOS simulation on x86_64.
@@ -114,21 +122,28 @@ class Ld64128ppc < Formula
   # src/other/machochecker.cpp:
   # - Fix the mess where it assumes the first member of a variable‐length array
   #   of variable‐length arrays is the one it’s searching for (spoiler alert:
-  #   a non‐trivial proportion of the time, it isn’t).
+  #   it isn’t always).
   # - Correct error‐message and function‐name typos.
   # src/other/ObjectDump.cpp:
   # - Remove dependencies on Clang/LLVM.
   # - Remove over‐processing of thin binaries.
   # src/other/rebase.cpp:
   # - Add a missing header‐file inclusion.
+  # unit-tests/bin/make-recursive.pl:
+  # - Fix a logic error.
   # unit-tests/bin/result-filter.pl:
-  # - Correct error‐message typo.
+  # - Correct an error‐message typo.
   # unit-tests/include/common.makefile:
-  # - Do not set variables to excessively‐specific SDK versions.
+  # - Set variables to tailored, rather than predefined, SDK versions.
+  # - Do not hard‐code Clang.
+  # unit-tests/run-all-unit-tests:
+  # - Use a better test for Arm architectures.
   # unit-tests/test-cases/allow_heap_execute/Makefile:
   # - Add the ppc64 case.
   # unit-tests/test-cases/archive-basic/Makefile:
   # - Only report success AFTER the last test has run.
+  # unit-tests/test-cases/blank-stubs/Makefile:
+  # - Fix an overthought pattern substitution.
   patch :DATA
 
   # Tweak the unit tests during formula tuning – see patches at end of above
@@ -142,7 +157,8 @@ class Ld64128ppc < Formula
   # - Print the names and outcomes of all tests, not just the failed ones.
   # unit-tests/include/common.makefile:
   # - Add “-v” to CFLAGS and CXXFLAGS so that the exact commands emitted by the
-  #   compiler driver will be shown.
+  #   compiler driver will be shown.  This causes most tests to wrongly appear
+  #   failed due to data appearing on stderr.
   # - Add code to dump the environment variables during each test, into a
   #   different file according to whether the test is being run individually or
   #   as part of the whole set.
@@ -157,7 +173,7 @@ class Ld64128ppc < Formula
     mv 'src/ld/passes/order_file.h',   'src/ld/passes/order.h'
     mv 'src/ld/passes/order_file.cpp', 'src/ld/passes/order.cpp'
 
-    ENV.universal_binary if build.universal?
+#    ENV.universal_binary if build.universal?
 
     buildpath.install resource('makefile')
     mv 'new-Makefile', 'Makefile'
@@ -172,14 +188,22 @@ class Ld64128ppc < Formula
       ENV.append 'LDFLAGS', '-lcrypto'
 
       inreplace 'Makefile', '-Wl,-exported_symbol,__mh_execute_header', ''
+      inreplace 'unit-tests/include/common.makefile', 'MacOSX10.6.sdk', 'MacOSX10.4u.sdk' if build.with? 'tests'
     end
 
     if build.with? 'tests'
-      # The stuff that can’t be fixed with this substitution was already `patch`ed out.
-      inreplace 'unit-tests/include/common.makefile', '10.6', '10.4' if MacOS.version < '10.6'
-
       runnable_archs = CPU.all_archs.select{ |a| CPU.can_run?(a) }.map(&:to_s)
       inreplace 'unit-tests/run-all-unit-tests', /x86_64 +i386/, runnable_archs * ' '
+
+      # The stuff that can’t be fixed with these substitutions was already `patch`ed out.
+      use_version = MacOS.version.to_s
+      if MacOS.version < '10.6'
+        inreplace 'unit-tests/include/common.makefile',             '10.6', use_version
+        inreplace 'unit-tests/test-cases/absolute-symbol/Makefile', '10.6', use_version
+      end
+      if MacOS.version < '10.7'
+        inreplace 'unit-tests/run-all-unit-tests',                  '10.7', use_version
+      end
     end
 
     system 'make'
@@ -196,7 +220,15 @@ end # Ld64128ppc
 __END__
 --- old/src/abstraction/MachOFileAbstraction.hpp
 +++ new/src/abstraction/MachOFileAbstraction.hpp
-@@ -166,7 +166,7 @@
+@@ -26,7 +26,6 @@
+ 
+ #include <mach-o/loader.h>
+ #include <mach-o/nlist.h>
+-#include <mach-o/reloc.h>
+ #include <mach-o/fat.h>
+ #include <mach-o/stab.h>
+ #include <mach-o/reloc.h>
+@@ -166,7 +165,7 @@
  	#define X86_64_RELOC_TLV    9
  #endif
  
@@ -205,26 +237,210 @@ __END__
  
  #ifndef EXPORT_SYMBOL_FLAGS_STUB_AND_RESOLVER
  	#define EXPORT_SYMBOL_FLAGS_STUB_AND_RESOLVER 0x10
-@@ -883,6 +883,8 @@
- 	uint64_t		thread_register(uint32_t index) const				INLINE { return P::getP(thread_registers[index]); }
- 	void			set_thread_register(uint32_t index, uint64_t value)	INLINE { P::setP(thread_registers[index], value); }
- 	
-+	uint32_t*		raw_array() const									INLINE { return (uint32_t*) &fields_flavor; }
+@@ -232,7 +231,7 @@
+ 	{ "armv7", "thumbv7-",  CPU_SUBTYPE_ARM_V7,    true },
+ 	{ "armv7f", "thumbv7f-", CPU_SUBTYPE_ARM_V7F,   true },
+ 	{ "armv7k", "thumbv7k-", CPU_SUBTYPE_ARM_V7K,   true },
+-	{ 0, NULL, false }
++	{ NULL, NULL, 0, false }
+ };
+ 
+ 
+@@ -250,8 +249,6 @@
+ template <typename P> struct macho_header_content {};
+ template <> struct macho_header_content<Pointer32<BigEndian> >    { mach_header		fields; };
+ template <> struct macho_header_content<Pointer64<BigEndian> >	  { mach_header_64	fields; };
+-template <> struct macho_header_content<Pointer32<LittleEndian> > { mach_header		fields; };
+-template <> struct macho_header_content<Pointer64<LittleEndian> > { mach_header_64	fields; };
+ 
+ template <typename P>
+ class macho_header {
+@@ -310,8 +307,6 @@
+ template <typename P> struct macho_segment_content {};
+ template <> struct macho_segment_content<Pointer32<BigEndian> >    { segment_command	fields; enum { CMD = LC_SEGMENT		}; };
+ template <> struct macho_segment_content<Pointer64<BigEndian> >	   { segment_command_64	fields; enum { CMD = LC_SEGMENT_64	}; };
+-template <> struct macho_segment_content<Pointer32<LittleEndian> > { segment_command	fields; enum { CMD = LC_SEGMENT		}; };
+-template <> struct macho_segment_content<Pointer64<LittleEndian> > { segment_command_64	fields; enum { CMD = LC_SEGMENT_64	}; };
+ 
+ template <typename P>
+ class macho_segment_command {
+@@ -365,8 +360,6 @@
+ template <typename P> struct macho_section_content {};
+ template <> struct macho_section_content<Pointer32<BigEndian> >    { section	fields; };
+ template <> struct macho_section_content<Pointer64<BigEndian> >	   { section_64	fields; };
+-template <> struct macho_section_content<Pointer32<LittleEndian> > { section	fields; };
+-template <> struct macho_section_content<Pointer64<LittleEndian> > { section_64	fields; };
+ 
+ template <typename P>
+ class macho_section {
+@@ -590,8 +583,6 @@
+ template <typename P> struct macho_routines_content {};
+ template <> struct macho_routines_content<Pointer32<BigEndian> >    { routines_command		fields; enum { CMD = LC_ROUTINES	}; };
+ template <> struct macho_routines_content<Pointer64<BigEndian> >	{ routines_command_64	fields; enum { CMD = LC_ROUTINES_64	}; };
+-template <> struct macho_routines_content<Pointer32<LittleEndian> > { routines_command		fields; enum { CMD = LC_ROUTINES	}; };
+-template <> struct macho_routines_content<Pointer64<LittleEndian> > { routines_command_64	fields; enum { CMD = LC_ROUTINES_64	}; };
+ 
+ template <typename P>
+ class macho_routines_command {
+@@ -745,9 +736,7 @@
+ //
+ template <typename P> struct macho_dylib_module_content {};
+ template <> struct macho_dylib_module_content<Pointer32<BigEndian> >    { struct dylib_module		fields; };
+-template <> struct macho_dylib_module_content<Pointer32<LittleEndian> > { struct dylib_module		fields; };
+ template <> struct macho_dylib_module_content<Pointer64<BigEndian> >    { struct dylib_module_64	fields; };
+-template <> struct macho_dylib_module_content<Pointer64<LittleEndian> > { struct dylib_module_64	fields; };
+ 
+ template <typename P>
+ class macho_dylib_module {
+@@ -868,28 +857,78 @@
+ template <typename P>
+ class macho_thread_command {
+ public:
+-	uint32_t		cmd() const											INLINE { return E::get32(fields.cmd); }
+-	void			set_cmd(uint32_t value)								INLINE { E::set32(fields.cmd, value); }
++	uint32_t		cmd() const											INLINE { return E::get32(thr_cmd.cmd); }
++	void			set_cmd(uint32_t value)								INLINE { E::set32(thr_cmd.cmd, value); }
+ 
+-	uint32_t		cmdsize() const										INLINE { return E::get32(fields.cmdsize); }
+-	void			set_cmdsize(uint32_t value)							INLINE { E::set32(fields.cmdsize, value); }
++	uint32_t		cmdsize() const										INLINE { return E::get32(thr_cmd.cmdsize); }
++	void			set_cmdsize(uint32_t value)							INLINE { E::set32(thr_cmd.cmdsize, value); }
+ 
+-	uint32_t		flavor() const										INLINE { return E::get32(fields_flavor); }
+-	void			set_flavor(uint32_t value)							INLINE { E::set32(fields_flavor, value);  }
+-	
+-	uint32_t		count() const										INLINE { return E::get32(fields_count); }
+-	void			set_count(uint32_t value)							INLINE { E::set32(fields_count, value);  }
+-	
+-	uint64_t		thread_register(uint32_t index) const				INLINE { return P::getP(thread_registers[index]); }
+-	void			set_thread_register(uint32_t index, uint64_t value)	INLINE { P::setP(thread_registers[index], value); }
+-	
++	uint32_t		find_flavour_index(uint32_t target_flavour) const	{
++	  uint32_t running_array_index  = 0;
++	  uint32_t running_struct_index = 0;
++	   int32_t total_array_uint32s  = (cmdsize() >> 2) - 2;
++	  if (total_array_uint32s <= 0) {
++	    throw "Mach-O thread-description load command does not contain any state structures";
++	  }
++	  while ( E::get32(thr_st[running_array_index]) != target_flavour ) {
++	    running_array_index += E::get32(thr_st[running_array_index + 1]);  // size of this state structure in uint32s
++	    running_struct_index++;
++	    if ( running_array_index >= total_array_uint32s ) {
++	      throw "Mach-O thread-description load command does not contain a state structure with the requested flavour";
++	    }
++	  }
++	  return running_struct_index;
++	}
++
++	uint32_t		flavor(uint32_t state_index) const					INLINE { return E::get32(thr_st[seek_state_structure(state_index)]); }
++	void			set_flavor(uint32_t state_index, uint32_t value)	INLINE { E::set32(thr_st[seek_state_structure(state_index)], value); }
++
++	uint32_t		count(uint32_t state_index) const					INLINE { return E::get32(thr_st[seek_state_structure(state_index) + 1]); }
++	void			set_count(uint32_t state_index, uint32_t value)		INLINE { E::set32(thr_st[seek_state_structure(state_index) + 1], value); }
++
++	uint64_t		thread_register(uint32_t state_index, uint32_t reg_index) const					INLINE {
++	  pint_t* thread_registers = (pint_t*) thr_st[seek_state_structure(state_index) + 2];
++	  return P::getP(thread_registers[reg_index]);
++	}
++	void			set_thread_register(uint32_t state_index, uint32_t reg_index, uint64_t value)	INLINE {
++	  pint_t* thread_registers = (pint_t*) thr_st[seek_state_structure(state_index) + 2];
++	  P::setP(thread_registers[reg_index], value);
++	}
++
++	uint32_t		number_of_state_structures() const					{
++	  uint32_t running_array_index  = 0;
++	  uint32_t running_struct_index = 0;
++	   int32_t total_array_uint32s  = (cmdsize() >> 2) - 2;
++	  if (total_array_uint32s <= 0) { return 0; }
++	  while ( running_array_index < total_array_uint32s ) {
++	    running_array_index += E::get32(thr_st[running_array_index + 1]);  // size of this state structure in uint32s
++	    running_struct_index++;
++	  }
++	  return running_struct_index;
++	}
 +
  	typedef typename P::E		E;
  	typedef typename P::uint_t	pint_t;
  private:
+-	struct thread_command	fields;
+-	uint32_t				fields_flavor;
+-	uint32_t				fields_count;
+-	pint_t					thread_registers[1];
++	uint32_t		seek_state_structure(uint32_t target_struct_index) const	{
++	  uint32_t running_array_index  = 0;
++	  uint32_t running_struct_index = 0;
++	   int32_t total_array_uint32s  = (cmdsize() >> 2) - 2;
++	  if (total_array_uint32s <= 0) {
++	    throw "Mach-O thread-description load command does not contain any state structures";
++	  }
++	  while ( running_struct_index < target_struct_index ) {
++	    running_array_index += E::get32(thr_st[running_array_index + 1]);  // size of this state structure in uint32s
++	    running_struct_index++;
++	    if ( running_array_index >= total_array_uint32s ) {
++	      throw "Mach-O thread-description load command does not contain a state structure with the requested index";
++	    }
++	  }
++	  return running_array_index;
++	}
++
++	struct thread_command  thr_cmd;
++	             uint32_t* thr_st;
+ };
+ 
+ 
+@@ -950,8 +989,6 @@
+ template <typename P> struct macho_nlist_content {};
+ template <> struct macho_nlist_content<Pointer32<BigEndian> >    { struct nlist		fields; };
+ template <> struct macho_nlist_content<Pointer64<BigEndian> >	 { struct nlist_64	fields; };
+-template <> struct macho_nlist_content<Pointer32<LittleEndian> > { struct nlist		fields; };
+-template <> struct macho_nlist_content<Pointer64<LittleEndian> > { struct nlist_64	fields; };
+ 
+ template <typename P>
+ class macho_nlist {
+--- old/src/ld/Architectures.hpp
++++ new/src/ld/Architectures.hpp
+@@ -30,6 +30,7 @@
+ 
+ //
+ // Architectures
++// (note that it is the Mach-O file whose endianness is being declared, not the CPU)
+ //
+ struct ppc
+ {
+@@ -43,17 +44,17 @@
+ 
+ struct x86
+ {
+-	typedef Pointer32<LittleEndian>		P;
++	typedef Pointer32<BigEndian>		P;
+ };
+ 
+ struct x86_64
+ {
+-	typedef Pointer64<LittleEndian>		P;
++	typedef Pointer64<BigEndian>		P;
+ };
+ 
+ struct arm
+ {
+-	typedef Pointer32<LittleEndian>		P;
++	typedef Pointer32<BigEndian>		P;
+ };
+ 
+ #endif // __ARCHITECTURES__
 --- old/src/ld/HeaderAndLoadCommands.hpp
 +++ new/src/ld/HeaderAndLoadCommands.hpp
-@@ -29,6 +29,7 @@
+@@ -29,6 +29,9 @@
  #include <limits.h>
  #include <unistd.h>
  #include <mach-o/loader.h>
++#include <mach/ppc/thread_status.h>
 +#include <mach/i386/thread_status.h>
++#include <mach/arm/thread_status.h>
  
  #include <vector>
  
-@@ -459,7 +460,7 @@
+@@ -459,7 +462,7 @@
  		case Options::kKextBundle:
  			return MH_KEXT_BUNDLE;
  	}
@@ -233,6 +449,119 @@ __END__
  }
  
  template <typename A>
+@@ -1039,7 +1042,7 @@
+ template <>
+ uint32_t HeaderAndLoadCommandsAtom<ppc>::threadLoadCommandSize() const
+ {
+-	return this->alignedSize(16 + 40*4);	// base size + PPC_THREAD_STATE_COUNT * 4
++	return this->alignedSize(16 + PPC_THREAD_STATE_COUNT*4);	// base size + wordcount * 4
+ }
+ 
+ 
+@@ -1051,18 +1054,18 @@
+ 	macho_thread_command<ppc::P>* cmd = (macho_thread_command<ppc::P>*)p;
+ 	cmd->set_cmd(LC_UNIXTHREAD);
+ 	cmd->set_cmdsize(threadLoadCommandSize());
+-	cmd->set_flavor(1);				// PPC_THREAD_STATE
+-	cmd->set_count(40);				// PPC_THREAD_STATE_COUNT;
+-	cmd->set_thread_register(0, start);
++	cmd->set_flavor(0, PPC_THREAD_STATE);
++	cmd->set_count(0, PPC_THREAD_STATE_COUNT);
++	cmd->set_thread_register(0, 0, start);	// pc
+ 	if ( _options.hasCustomStack() )
+-		cmd->set_thread_register(3, _options.customStackAddr());	// r1
++		cmd->set_thread_register(0, 3, _options.customStackAddr());	// r1 == sp
+ 	return p + threadLoadCommandSize();
+ }
+ 
+ template <>
+ uint32_t HeaderAndLoadCommandsAtom<ppc64>::threadLoadCommandSize() const
+ {
+-	return this->alignedSize(16 + 76*4);	// base size + PPC_THREAD_STATE64_COUNT * 4
++	return this->alignedSize(16 + PPC_THREAD_STATE64_COUNT*4);	// base size + wordcount * 4
+ }
+ 
+ template <>
+@@ -1073,18 +1076,18 @@
+ 	macho_thread_command<ppc::P>* cmd = (macho_thread_command<ppc::P>*)p;
+ 	cmd->set_cmd(LC_UNIXTHREAD);
+ 	cmd->set_cmdsize(threadLoadCommandSize());
+-	cmd->set_flavor(5);				// PPC_THREAD_STATE64
+-	cmd->set_count(76);				// PPC_THREAD_STATE64_COUNT;
+-	cmd->set_thread_register(0, start);
++	cmd->set_flavor(0, PPC_THREAD_STATE64);
++	cmd->set_count(0, PPC_THREAD_STATE64_COUNT);
++	cmd->set_thread_register(0, 0, start);	// pc
+ 	if ( _options.hasCustomStack() )
+-		cmd->set_thread_register(3, _options.customStackAddr());	// r1
++		cmd->set_thread_register(0, 3, _options.customStackAddr());	// r1 == sp
+ 	return p + threadLoadCommandSize();
+ }
+ 
+ template <>
+ uint32_t HeaderAndLoadCommandsAtom<x86>::threadLoadCommandSize() const
+ {
+-	return this->alignedSize(16 + 16*4);	// base size + i386_THREAD_STATE_COUNT * 4
++	return this->alignedSize(16 + x86_THREAD_STATE32_COUNT*4);	// base size + wordcount * 4
+ }
+ 
+ template <>
+@@ -1095,18 +1098,18 @@
+ 	macho_thread_command<P>* cmd = (macho_thread_command<P>*)p;
+ 	cmd->set_cmd(LC_UNIXTHREAD);
+ 	cmd->set_cmdsize(threadLoadCommandSize());
+-	cmd->set_flavor(1);				// i386_THREAD_STATE
+-	cmd->set_count(16);				// i386_THREAD_STATE_COUNT;
+-	cmd->set_thread_register(10, start);
++	cmd->set_flavor(0, x86_THREAD_STATE32);
++	cmd->set_count(0, x86_THREAD_STATE32_COUNT);
++	cmd->set_thread_register(0, 10, start);	// ip
+ 	if ( _options.hasCustomStack() )
+-		cmd->set_thread_register(7, _options.customStackAddr());	// r1
++		cmd->set_thread_register(0, 7, _options.customStackAddr());	// sp
+ 	return p + threadLoadCommandSize();
+ }
+ 
+ template <>
+ uint32_t HeaderAndLoadCommandsAtom<x86_64>::threadLoadCommandSize() const
+ {
+-	return this->alignedSize(16 + x86_THREAD_STATE64_COUNT * 4); 
++	return this->alignedSize(16 + x86_THREAD_STATE64_COUNT*4);	// base size + wordcount * 4
+ }
+ 
+ template <>
+@@ -1117,11 +1120,11 @@
+ 	macho_thread_command<P>* cmd = (macho_thread_command<P>*)p;
+ 	cmd->set_cmd(LC_UNIXTHREAD);
+ 	cmd->set_cmdsize(threadLoadCommandSize());
+-	cmd->set_flavor(x86_THREAD_STATE64);			
+-	cmd->set_count(x86_THREAD_STATE64_COUNT);	
+-	cmd->set_thread_register(16, start);		// rip 
++	cmd->set_flavor(0, x86_THREAD_STATE64);
++	cmd->set_count(0, x86_THREAD_STATE64_COUNT);
++	cmd->set_thread_register(0, 16, start);	// ip
+ 	if ( _options.hasCustomStack() )
+-		cmd->set_thread_register(7, _options.customStackAddr());	// r1
++		cmd->set_thread_register(0, 7, _options.customStackAddr());	// sp
+ 	return p + threadLoadCommandSize();
+ }
+ 
+@@ -1141,11 +1144,11 @@
+ 	macho_thread_command<P>* cmd = (macho_thread_command<P>*)p;
+ 	cmd->set_cmd(LC_UNIXTHREAD);
+ 	cmd->set_cmdsize(threadLoadCommandSize());
+-	cmd->set_flavor(1);			
+-	cmd->set_count(17);	
+-	cmd->set_thread_register(15, start);		// pc
++	cmd->set_flavor(0, 1);                   // ARM_THREAD_STATE
++	cmd->set_count(0, 17);                   // ARM_THREAD_STATE_COUNT
++	cmd->set_thread_register(0, 15, start);  // PC
+ 	if ( _options.hasCustomStack() )
+-		cmd->set_thread_register(13, _options.customStackAddr());	// sp
++		cmd->set_thread_register(0, 13, _options.customStackAddr());  // SP
+ 	return p + threadLoadCommandSize();
+ }
+ 
 --- old/src/ld/InputFiles.cpp
 +++ new/src/ld/InputFiles.cpp
 @@ -58,7 +58,6 @@
@@ -1165,6 +1494,15 @@ __END__
  					warning("object file compiled with -mlong-branch which is no longer needed. "
  							"To remove this warning, recompile without -mlong-branch: %s", parser._path);
  				parser._hasLongBranchStubs = true;
+@@ -6795,7 +6801,7 @@
+ 	}
+ 	if ( mach_o::relocatable::Parser<arm>::validFile(fileContent, false, 0) ) {
+ 		*result = CPU_TYPE_ARM;
+-		const macho_header<Pointer32<LittleEndian> >* header = (const macho_header<Pointer32<LittleEndian> >*)fileContent;
++		const macho_header<Pointer32<BigEndian> >* header = (const macho_header<Pointer32<BigEndian> >*)fileContent;
+ 		*subResult = header->cpusubtype();
+ 		return true;
+ 	}
 --- old/src/ld/passes/objc.cpp
 +++ new/src/ld/passes/objc.cpp
 @@ -813,7 +813,7 @@
@@ -1459,7 +1797,17 @@ __END__
  					if ( (cpu_subtype_t)fHeader->cpusubtype() == t->subType) {
 --- old/src/other/machochecker.cpp
 +++ new/src/other/machochecker.cpp
-@@ -121,12 +121,16 @@
+@@ -30,6 +30,9 @@
+ #include <fcntl.h>
+ #include <unistd.h>
+ #include <errno.h>
++#include <mach/ppc/thread_status.h>
++#include <mach/i386/thread_status.h>
++#include <mach/arm/thread_status.h>
+ 
+ #include <vector>
+ #include <set>
+@@ -121,12 +124,16 @@
  	void										checkLoadCommands();
  	void										checkSection(const macho_segment_command<P>* segCmd, const macho_section<P>* sect);
  	uint8_t										loadCommandSizeMask();
@@ -1478,7 +1826,7 @@ __END__
  	pint_t										relocBase();
  	bool										addressInWritableSegment(pint_t address);
  	bool										hasTextRelocInRange(pint_t start, pint_t end);
-@@ -261,68 +265,63 @@
+@@ -261,68 +268,39 @@
  template <> uint8_t MachOChecker<arm>::loadCommandSizeMask()	{ return 0x03; }
  
  
@@ -1544,67 +1892,52 @@ __END__
 -arm::P::uint_t MachOChecker<arm>::getEntryPoint(const macho_thread_command<arm::P>* threadInfo)
 -{
 -	return threadInfo->thread_register(15);
-+template <> uint32_t MachOChecker<ppc>::threadStateFlavour()	{ return 1; }  // PPC_THREAD_STATE
-+template <> uint32_t MachOChecker<ppc64>::threadStateFlavour()	{ return 5; }  // PPC_THREAD_STATE64
-+template <> uint32_t MachOChecker<x86>::threadStateFlavour()	{ return 1; }  // x86_THREAD_STATE32
-+template <> uint32_t MachOChecker<x86_64>::threadStateFlavour()	{ return 4; }  // x86_THREAD_STATE64
-+template <> uint32_t MachOChecker<arm>::threadStateFlavour()	{ return 1; }  // ARM_THREAD_STATE
-+
++template <> uint32_t MachOChecker<ppc>::threadStateFlavour()    { return PPC_THREAD_STATE;   }
++template <> uint32_t MachOChecker<ppc64>::threadStateFlavour()  { return PPC_THREAD_STATE64; }
++template <> uint32_t MachOChecker<x86>::threadStateFlavour()    { return x86_THREAD_STATE32; }
++template <> uint32_t MachOChecker<x86_64>::threadStateFlavour() { return x86_THREAD_STATE64; }
++template <> uint32_t MachOChecker<arm>::threadStateFlavour()    { return ARM_THREAD_STATE;   }
 +
 +template <typename A>
 +typename A::P::uint_t MachOChecker<A>::threadCommand_threadStateRegister(const macho_thread_command<P>* threadInfo, const uint32_t register_index) {
-+		uint32_t*	word32_array;
-+		uint32_t	word32_index;
-+		uint32_t	max_word32_index;
-+	const uint32_t	target_flavour = MachOChecker<A>::threadStateFlavour();
-+		uint32_t	current_flavour = threadInfo->flavor();
-+		pint_t*		register_block = NULL;
-+	if (current_flavour == target_flavour) {
-+		return threadInfo->thread_register(register_index);
-+	}
-+	// At this point we need to start scanning through a variable-length array of variable-length arrays
-+	word32_array = threadInfo->raw_array();
-+	word32_index = threadInfo->count() + 2;  // this puts the offset at the start of the next data structure
-+	max_word32_index = (threadInfo->cmdsize() - 8) >> 2;  // “index” of the next load command -- stay out!
-+	current_flavour = E::get32(word32_array[word32_index++]);
-+	while (word32_index < max_word32_index && current_flavour != target_flavour) {
-+		if (word32_index >= max_word32_index)
-+			return NULL;
-+		word32_index += (E::get32(word32_array[word32_index]) + 1);
-+		current_flavour = E::get32(word32_array[word32_index++]);
-+	}
-+	register_block = (pint_t*) &(word32_array[++word32_index]);
-+	return P::getP(register_block[register_index]);
++  return threadInfo->thread_register(threadInfo->find_flavour_index(MachOChecker<A>::threadStateFlavour()), register_index);
 +}
 +
 +
-+template <> uint32_t MachOChecker<ppc>::stackPointerReg()		{ return  3; }
-+template <> uint32_t MachOChecker<ppc64>::stackPointerReg()		{ return  3; }
-+template <> uint32_t MachOChecker<x86>::stackPointerReg()		{ return  7; }
-+template <> uint32_t MachOChecker<x86_64>::stackPointerReg()	{ return  7; }
-+template <> uint32_t MachOChecker<arm>::stackPointerReg()		{ return 13; }
-+
++template <> uint32_t MachOChecker<ppc>::stackPointerReg()    { return  3; }
++template <> uint32_t MachOChecker<ppc64>::stackPointerReg()  { return  3; }
++template <> uint32_t MachOChecker<x86>::stackPointerReg()    { return  7; }
++template <> uint32_t MachOChecker<x86_64>::stackPointerReg() { return  7; }
++template <> uint32_t MachOChecker<arm>::stackPointerReg()    { return 13; }
 +
 +template <typename A>
 +typename A::P::uint_t MachOChecker<A>::getInitialStackPointer(const macho_thread_command<P>* threadInfo) {
-+	return MachOChecker<A>::threadCommand_threadStateRegister(threadInfo, MachOChecker<A>::stackPointerReg());
++  return MachOChecker<A>::threadCommand_threadStateRegister(threadInfo, MachOChecker<A>::stackPointerReg());
 +}
 +
 +
-+template <> uint32_t MachOChecker<ppc>::programCounterReg()		{ return  0; }
-+template <> uint32_t MachOChecker<ppc64>::programCounterReg()	{ return  0; }
-+template <> uint32_t MachOChecker<x86>::programCounterReg()		{ return 10; }
-+template <> uint32_t MachOChecker<x86_64>::programCounterReg()	{ return 16; }
-+template <> uint32_t MachOChecker<arm>::programCounterReg()		{ return 15; }
-+
++template <> uint32_t MachOChecker<ppc>::programCounterReg()    { return  0; }
++template <> uint32_t MachOChecker<ppc64>::programCounterReg()  { return  0; }
++template <> uint32_t MachOChecker<x86>::programCounterReg()    { return 10; }
++template <> uint32_t MachOChecker<x86_64>::programCounterReg() { return 16; }
++template <> uint32_t MachOChecker<arm>::programCounterReg()    { return 15; }
 +
 +template <typename A>
 +typename A::P::uint_t MachOChecker<A>::getEntryPoint(const macho_thread_command<P>* threadInfo) {
-+	return MachOChecker<A>::threadCommand_threadStateRegister(threadInfo, MachOChecker<A>::programCounterReg());
++  return MachOChecker<A>::threadCommand_threadStateRegister(threadInfo, MachOChecker<A>::programCounterReg());
  }
  
  
-@@ -570,9 +569,9 @@
+@@ -397,7 +375,7 @@
+ 		uint32_t size = cmd->cmdsize();
+ 		if ( (size & this->loadCommandSizeMask()) != 0 )
+ 			throwf("load command #%d has a unaligned size", i);
+-		const uint8_t* endOfCmd = ((uint8_t*)cmd)+cmd->cmdsize();
++		const uint8_t* endOfCmd = ((uint8_t*)cmd)+size;
+ 		if ( endOfCmd > endOfLoadCommands )
+ 			throwf("load command #%d extends beyond the end of the load commands", i);
+ 		if ( endOfCmd > endOfFile )
+@@ -570,9 +548,9 @@
  		pint_t initialSP = getInitialStackPointer(threadInfo);
  		if ( initialSP != 0 ) {
  			if ( stackSegment == NULL )
@@ -1616,7 +1949,7 @@ __END__
  		}
  	}
  	
-@@ -975,7 +974,7 @@
+@@ -975,7 +953,7 @@
  
  
  template <>
@@ -1625,7 +1958,7 @@ __END__
  {
  	if ( reloc->r_length() != 2 ) 
  		throw "bad external relocation length";
-@@ -991,7 +990,7 @@
+@@ -991,7 +969,7 @@
  }
  
  template <>
@@ -1634,7 +1967,7 @@ __END__
  {
  	if ( reloc->r_length() != 3 ) 
  		throw "bad external relocation length";
-@@ -1007,7 +1006,7 @@
+@@ -1007,7 +985,7 @@
  }
  
  template <>
@@ -1643,7 +1976,7 @@ __END__
  {
  	if ( reloc->r_length() != 2 ) 
  		throw "bad external relocation length";
-@@ -1024,7 +1023,7 @@
+@@ -1024,7 +1002,7 @@
  
  
  template <>
@@ -1652,7 +1985,7 @@ __END__
  {
  	if ( reloc->r_length() != 3 ) 
  		throw "bad external relocation length";
-@@ -1040,7 +1039,7 @@
+@@ -1040,7 +1018,7 @@
  }
  
  template <>
@@ -1661,7 +1994,7 @@ __END__
  {
  	if ( reloc->r_length() != 2 ) 
  		throw "bad external relocation length";
-@@ -1057,7 +1056,7 @@
+@@ -1057,7 +1035,7 @@
  
  
  template <>
@@ -1670,7 +2003,7 @@ __END__
  {
  	if ( reloc->r_address() & R_SCATTERED ) {
  		// scattered
-@@ -1077,7 +1076,7 @@
+@@ -1077,7 +1055,7 @@
  
  
  template <>
@@ -1679,7 +2012,7 @@ __END__
  {
  	if ( reloc->r_length() != 3 ) 
  		throw "bad local relocation length";
-@@ -1092,13 +1091,13 @@
+@@ -1092,13 +1070,13 @@
  }
  
  template <>
@@ -1695,7 +2028,7 @@ __END__
  {
  	if ( reloc->r_length() != 3 ) 
  		throw "bad local relocation length";
-@@ -1113,7 +1112,7 @@
+@@ -1113,7 +1091,7 @@
  }
  
  template <>
@@ -1704,7 +2037,7 @@ __END__
  {
  	if ( reloc->r_address() & R_SCATTERED ) {
  		// scattered
-@@ -1142,7 +1141,7 @@
+@@ -1142,7 +1120,7 @@
  	uint32_t lastSymbolIndex = 0xFFFFFFFF;
  	const macho_relocation_info<P>* const externRelocsEnd = &fExternalRelocations[fExternalRelocationsCount];
  	for (const macho_relocation_info<P>* reloc = fExternalRelocations; reloc < externRelocsEnd; ++reloc) {
@@ -1713,7 +2046,7 @@ __END__
  		if ( reloc->r_symbolnum() != lastSymbolIndex ) {
  			if ( previouslySeenSymbolIndexes.count(reloc->r_symbolnum()) != 0 )
  				throw "external relocations not sorted";
-@@ -1153,7 +1152,7 @@
+@@ -1153,7 +1131,7 @@
  	
  	const macho_relocation_info<P>* const localRelocsEnd = &fLocalRelocations[fLocalRelocationsCount];
  	for (const macho_relocation_info<P>* reloc = fLocalRelocations; reloc < localRelocsEnd; ++reloc) {
@@ -1768,6 +2101,16 @@ __END__
  #include <fcntl.h>
  #include <errno.h>
  #include <unistd.h>
+--- old/unit-tests/bin/make-recursive.pl
++++ new/unit-tests/bin/make-recursive.pl
+@@ -118,6 +118,6 @@
+ 	    &print_line("stderr", "$_");
+ 	}
+ 	close(ERR) || die("$!");
+-    }
+ 	unlink("/tmp/unit-tests-stderr");
++    }
+ }
 --- old/unit-tests/bin/result-filter.pl
 +++ new/unit-tests/bin/result-filter.pl
 @@ -134,7 +134,7 @@
@@ -1781,26 +2124,98 @@ __END__
  	#foreach $line1 (@{$$tbl{stdout}})
 --- old/unit-tests/include/common.makefile
 +++ new/unit-tests/include/common.makefile
-@@ -8,8 +8,6 @@
+@@ -8,7 +8,19 @@
  # set default to be all
  VALID_ARCHS ?= "i386 x86_64 armv6"
  
 -IOS_SDK = /Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS5.0.Internal.sdk
--
++arm_tool_root = '/Developer/Platforms/iPhoneOS.platform/Developer'
++arm_sdk_dir   = $(arm_tool_root)/SDKs
++IOS_SDK       = $(shell \
++  if [ -d "$(arm_sdk_dir)" ]; then \
++    arm_sdks=(${arm_sdk_dir}/iPhoneOS*.sdk); \
++    if [ $${#arm_sdks[@]} -gt '1' ]; then \
++      for (( i=0; $$i < $${#arm_sdks[@]}; i+=1 )); do \
++        arm_sdks[$$i]="$$(echo "$${arm_sdks[$$i]}" | sed -E -e 's/^.*\/iPhoneOS//' -e 's/.sdk$$//')"; \
++      done; \
++      arm_sdks=( $$(echo "$${arm_sdks[*]}" | tr -s ' ' $$'\n' | sort | tr $$'\n' ' ') ); \
++    fi; \
++    if [ $${#arm_sdks[@]} -gt '0' ]; then echo "$(arm_sdk_dir)/iPhoneOS$${arm_sdks[-1]}.sdk"; fi; \
++  fi)
+ 
  MYDIR=$(shell cd ../../bin;pwd)
  LD			= ld
- OBJECTDUMP	= ObjectDump
-@@ -52,10 +50,6 @@
- export COMPILER_PATH
- export GCC_EXEC_PREFIX=garbage
+@@ -65,8 +85,8 @@
+ ifeq ($(ARCH),armv6)
+   LDFLAGS := -syslibroot $(IOS_SDK)
+   override FILEARCH = arm
+-  CC = /Developer/Platforms/iPhoneOS.platform/Developer/usr/bin/clang -arch ${ARCH} -ccc-install-dir ${LD_PATH} -miphoneos-version-min=5.0 -isysroot $(IOS_SDK)
+-  CXX = /Developer/Platforms/iPhoneOS.platform/Developer/usr/bin/clang++ -arch ${ARCH} -ccc-install-dir ${LD_PATH} -miphoneos-version-min=5.0 -isysroot $(IOS_SDK)
++  CC = $(arm_tool_root)/usr/bin/cc -arch ${ARCH} -ccc-install-dir ${LD_PATH} -miphoneos-version-min=5.0 -isysroot $(IOS_SDK)
++  CXX = $(arm_tool_root)/usr/bin/c++ -arch ${ARCH} -ccc-install-dir ${LD_PATH} -miphoneos-version-min=5.0 -isysroot $(IOS_SDK)
+   VERSION_NEW_LINKEDIT = -miphoneos-version-min=4.0
+   VERSION_OLD_LINKEDIT = -miphoneos-version-min=3.0
+   LD_SYSROOT = -syslibroot $(IOS_SDK)
+@@ -78,8 +98,8 @@
+ ifeq ($(ARCH),armv7)
+   LDFLAGS := -syslibroot $(IOS_SDK)
+   override FILEARCH = arm
+-  CC = /Developer/Platforms/iPhoneOS.platform/Developer/usr/bin/clang -arch ${ARCH} -ccc-install-dir ${LD_PATH} -miphoneos-version-min=5.0 -isysroot $(IOS_SDK)
+-  CXX = /Developer/Platforms/iPhoneOS.platform/Developer/usr/bin/clang++ -arch ${ARCH} -ccc-install-dir ${LD_PATH} -miphoneos-version-min=5.0 -isysroot $(IOS_SDK)
++  CC = $(arm_tool_root)/usr/bin/cc -arch ${ARCH} -ccc-install-dir ${LD_PATH} -miphoneos-version-min=5.0 -isysroot $(IOS_SDK)
++  CXX = $(arm_tool_root)/usr/bin/c++ -arch ${ARCH} -ccc-install-dir ${LD_PATH} -miphoneos-version-min=5.0 -isysroot $(IOS_SDK)
+   VERSION_NEW_LINKEDIT = -miphoneos-version-min=4.0
+   VERSION_OLD_LINKEDIT = -miphoneos-version-min=3.0
+   LD_SYSROOT = -syslibroot $(IOS_SDK)
+@@ -94,8 +114,8 @@
+   CXXFLAGS += -mthumb
+   override ARCH = armv6
+   override FILEARCH = arm
+-  CC = /Developer/Platforms/iPhoneOS.platform/Developer/usr/bin/clang -arch ${ARCH} -ccc-install-dir ${LD_PATH} -miphoneos-version-min=5.0 -isysroot $(IOS_SDK)
+-  CXX = /Developer/Platforms/iPhoneOS.platform/Developer/usr/bin/clang++ -arch ${ARCH} -ccc-install-dir ${LD_PATH} -miphoneos-version-min=5.0 -isysroot $(IOS_SDK)
++  CC = $(arm_tool_root)/usr/bin/cc -arch ${ARCH} -ccc-install-dir ${LD_PATH} -miphoneos-version-min=5.0 -isysroot $(IOS_SDK)
++  CXX = $(arm_tool_root)/usr/bin/c++ -arch ${ARCH} -ccc-install-dir ${LD_PATH} -miphoneos-version-min=5.0 -isysroot $(IOS_SDK)
+   VERSION_NEW_LINKEDIT = -miphoneos-version-min=4.0
+   VERSION_OLD_LINKEDIT = -miphoneos-version-min=3.0
+   LD_SYSROOT = -syslibroot $(IOS_SDK)
+@@ -110,8 +130,8 @@
+   CXXFLAGS += -mthumb
+   override ARCH = armv7
+   override FILEARCH = arm
+-  CC = /Developer/Platforms/iPhoneOS.platform/Developer/usr/bin/clang -arch ${ARCH} -ccc-install-dir ${LD_PATH} -miphoneos-version-min=5.0 -isysroot $(IOS_SDK)
+-  CXX = /Developer/Platforms/iPhoneOS.platform/Developer/usr/bin/clang++ -arch ${ARCH} -ccc-install-dir ${LD_PATH} -miphoneos-version-min=5.0 -isysroot $(IOS_SDK)
++  CC = $(arm_tool_root)/usr/bin/cc -arch ${ARCH} -ccc-install-dir ${LD_PATH} -miphoneos-version-min=5.0 -isysroot $(IOS_SDK)
++  CXX = $(arm_tool_root)/usr/bin/c++ -arch ${ARCH} -ccc-install-dir ${LD_PATH} -miphoneos-version-min=5.0 -isysroot $(IOS_SDK)
+   VERSION_NEW_LINKEDIT = -miphoneos-version-min=4.0
+   VERSION_OLD_LINKEDIT = -miphoneos-version-min=3.0
+   LD_SYSROOT = -syslibroot $(IOS_SDK)
+--- old/unit-tests/run-all-unit-tests
++++ new/unit-tests/run-all-unit-tests
+@@ -15,10 +15,21 @@
+ all_archs="x86_64  i386"
+ valid_archs="x86_64 i386"
+ # only test arm code if iOS platform tools installed
+-if [ -d /Developer/Platforms/iPhoneOS.platform/Developer/SDKs ]
++arm_tool_root='/Developer/Platforms/iPhoneOS.platform/Developer'
++arm_sdk_dir="${arm_tool_root}/SDKs"
++if [ -d "${arm_sdk_dir}" ]
+ then
+-    all_archs="${all_archs}  armv7"
+-    valid_archs="${valid_archs} armv7"
++  arm_sdks=(${arm_sdk_dir}/iPhoneOS*.sdk)
++  if [ ${#arm_sdks[@]} -gt '1' ]; then
++    for (( i=0; $i < ${#arm_sdks[@]}; i+=1 )); do
++      arm_sdks[$i]="$(echo "${arm_sdks[$i]}" | sed -E -e 's/^.*\/iPhoneOS//' -e 's/.sdk$$//')"
++    done
++    arm_sdks=( $(echo "${arm_sdks[*]}" | tr -s ' ' $'\n' | sort | tr $'\n' ' ') )
++  fi
++  arm_sdk="$(if [ ${#arm_sdks[@]} -gt '0' ]; then echo "${arm_sdk_dir}/iPhoneOS${arm_sdks[-1]}.sdk"; fi)"
++  arm_archs="$(${arm_tool_root}/usr/bin/lipo -info "${arm_sdk}/usr/lib/libSystem.dylib" | cut -d':' -f 3 | sed -E -e 's/ppc[^ ]*|x86_64|i.86//')"
++  all_archs="${all_archs} ${arm_archs[*]}"
++  valid_archs="${valid_archs} ${arm_archs[*]}"
+ fi
  
--ifeq ($(ARCH),ppc)
--	SDKExtra = -isysroot /Developer/SDKs/MacOSX10.6.sdk
--endif
--
- CC		 = cc -arch ${ARCH} ${SDKExtra}
- CCFLAGS = -Wall 
- ASMFLAGS =
+ 
 --- old/unit-tests/test-cases/allow_heap_execute/Makefile
 +++ new/unit-tests/test-cases/allow_heap_execute/Makefile
 @@ -20,6 +20,8 @@
@@ -1826,6 +2241,17 @@ __END__
  
  clean:
  	rm -rf main-* *.o *.a
+--- old/unit-tests/test-cases/blank-stubs/Makefile
++++ new/unit-tests/test-cases/blank-stubs/Makefile
+@@ -23,7 +23,7 @@
+ TESTROOT = ../..
+ include ${TESTROOT}/include/common.makefile
+ 
+-ALL_ARCH_OPTIONS = $(patsubst %,-arch %,$(subst ppc,,$(VALID_ARCHS)) )
++ALL_ARCH_OPTIONS = $(patsubst %,-arch %,$(VALID_ARCHS))
+ 
+ #
+ # Test that blank stubs are handled properly
 --- old/unit-tests/bin/result-filter.pl
 +++ new/unit-tests/bin/result-filter.pl
 @@ -27,6 +27,7 @@
@@ -1928,12 +2354,12 @@ __END__
  }
 --- old/unit-tests/include/common.makefile
 +++ new/unit-tests/include/common.makefile
-@@ -51,14 +51,14 @@
- export GCC_EXEC_PREFIX=garbage
+@@ -69,14 +69,14 @@
+ endif
  
  CC		 = cc -arch ${ARCH} ${SDKExtra}
 -CCFLAGS = -Wall 
-+CCFLAGS = -v -Wall
++CCFLAGS  = -v -Wall
  ASMFLAGS =
  VERSION_NEW_LINKEDIT = -mmacosx-version-min=10.6
  VERSION_OLD_LINKEDIT = -mmacosx-version-min=10.4
@@ -1941,11 +2367,11 @@ __END__
  
  CXX		  = c++ -arch ${ARCH} ${SDKExtra}
 -CXXFLAGS = -Wall
-+CXXFLAGS = -v -Wall
++CXXFLAGS  = -v -Wall
  
  ifeq ($(ARCH),armv6)
    LDFLAGS := -syslibroot $(IOS_SDK)
-@@ -137,3 +137,14 @@
+@@ -155,3 +155,14 @@
  PASS_IFF_GOOD_MACHO	= ${PASS_IFF} ${MACHOCHECK}
  FAIL_IF_BAD_MACHO	= ${FAIL_IF_ERROR} ${MACHOCHECK}
  FAIL_IF_BAD_OBJ		= ${FAIL_IF_ERROR} ${OBJECTDUMP} >/dev/null
