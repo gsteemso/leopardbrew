@@ -28,13 +28,13 @@ CONFIG_RUBY_PATH        = RbConfig.respond_to?(:ruby) \
                                                                       + RbConfig::CONFIG['EXEEXT'])
                                                                     # The current Ruby binary
   CONFIG_RUBY_BIN       =   CONFIG_RUBY_PATH.dirname                # Where it lives
-CURL_PATH               = Pathname.new(ENV['HOMEBREW_CURL_PATH'])
+CURL_PATH               = Pathname.new(ENV['HOMEBREW_CURL_PATH'])   # our internal Portable Curl
 HOMEBREW_CACHE          = Pathname.new(ENV['HOMEBREW_CACHE'])
-                          # Where downloads (bottles, source tarballs, etc.) are cached
+                          # Where downloads (bottles, source tarballs, etc.) are cached (/Library/Caches/Homebrew)
   HOMEBREW_FORMULA_CACHE =  HOMEBREW_CACHE/'Formula'
                             # Where formulæ specified by URL are cached
 HOMEBREW_CELLAR         = Pathname.new(ENV['HOMEBREW_CELLAR']).realpath
-HOMEBREW_LIBRARY        = Pathname.new(ENV['HOMEBREW_LIBRARY'])
+HOMEBREW_LIBRARY        = Pathname.new(ENV['HOMEBREW_LIBRARY'])     # In HOMEBREW_REPOSITORY
   HOMEBREW_CONTRIB      =   HOMEBREW_LIBRARY/'Contributions'
   LINKDIR               =   HOMEBREW_LIBRARY/'LinkedKegs'           # Records which kegs are linked
   PINDIR                =   HOMEBREW_LIBRARY/'PinnedKegs'           # see `formula/pin.rb`
