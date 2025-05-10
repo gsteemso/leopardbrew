@@ -107,13 +107,13 @@ module Homebrew
     # leave no trace of the failed installation
     if f.prefix.exists?
       oh1 "Cleaning up the failed installation #{f.prefix}" if DEBUG
-      ignore_interrupts { f.prefix.rmtree }
+      ignore_interrupts { f.prefix.rmtree; f.rack.rmdir_if_possible }
     end
     ignore_interrupts { previously_installed.rename } if previously_installed
     ignore_interrupts { previously_linked.link } if previously_linked and not f.linked_keg.directory?
     raise
   else
-    ignore_interrupts { previously_installed.base.rmtree } if previously_installed.base.exists?
+    ignore_interrupts { previously_installed.path.rmtree } if previously_installed.path.exists?
     f.insinuate
   end # reinstall_formula
 
