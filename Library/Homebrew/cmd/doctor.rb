@@ -46,14 +46,19 @@ class Volumes
 end # Volumes
 
 class Checks
-  env_cellar = ENV['HOMEBREW_CELLAR']
+
+  def initialize
+    @env_cellar = ENV['HOMEBREW_CELLAR']
+    @seen_prefix_bin = @seen_prefix_sbin = false
+  end
+
   ############# HELPERS
   # Finds files in HOMEBREW_PREFIX *and* /usr/local.
   # Specify paths relative to a prefix eg. "include/foo.h".
   # Sets @found for your convenience.
   def find_relative_paths(*relative_paths)
     @found = %W[#{HOMEBREW_PREFIX} /usr/local].uniq.inject([]) do |found, prefix|
-      found + relative_paths.map { |f| File.join(prefix, f) }.select { |f| File.exists? f }
+      found + relative_paths.map{ |f| File.join(prefix, f) }.select{ |f| File.exists? f }
     end
   end
 
@@ -569,47 +574,45 @@ class Checks
   end # check_sdk_path_not_nil_yosemite
 
   def check_user_path_1
-    $seen_prefix_bin = false
-    $seen_prefix_sbin = false
-
     out = nil
 
     paths.each do |p|
       case p
-      when "/usr/bin"
-        unless $seen_prefix_bin
-          # only show the doctor message if there are any conflicts
-          # rationale: a default install should not trigger any brew doctor messages
-          conflicts = Dir["#{HOMEBREW_PREFIX}/bin/*"].
-                      map { |fn| File.basename fn }.
-                      select { |bn| File.exists? "/usr/bin/#{bn}" }
-          if conflicts.size > 0
-            out = inject_file_list conflicts, <<-EOS.undent
-              /usr/bin occurs before #{HOMEBREW_PREFIX}/bin
-              This means that system-provided programs will be used instead of those
-              provided by Leopardbrew. The following tools exist at both paths:
-            EOS
-            out += <<-EOS.undent
+        when "/usr/bin"
+          unless @seen_prefix_bin
+            # only show the doctor message if there are any conflicts
+            # rationale: a default install should not trigger any brew doctor messages
+            conflicts = Dir["#{HOMEBREW_PREFIX}/bin/*"].
+                        map { |fn| File.basename fn }.
+                        select { |bn| File.exists? "/usr/bin/#{bn}" }
+            if conflicts.size > 0
+              out = inject_file_list conflicts, <<-EOS.undent
+                /usr/bin occurs before #{HOMEBREW_PREFIX}/bin
+                This means that system-provided programs will be used instead of those
+                provided by Leopardbrew. The following tools exist at both paths:
+              EOS
+              out += <<-EOS.undent
 
-              Consider setting your PATH so that #{HOMEBREW_PREFIX}/bin
-              occurs before /usr/bin. Here is a one-liner:
-                  echo 'export PATH="#{HOMEBREW_PREFIX}/bin:$PATH"' >> #{shell_profile}
-            EOS
+                Consider setting your PATH so that #{HOMEBREW_PREFIX}/bin
+                occurs before /usr/bin. Here is a one-liner:
+                    echo 'export PATH="#{HOMEBREW_PREFIX}/bin:$PATH"' >> #{shell_profile}
+              EOS
+            end
           end
-        end
-      when HOMEBREW_PREFIX/'bin'
-        $seen_prefix_bin = true
-      when HOMEBREW_PREFIX/'sbin'
-        $seen_prefix_sbin = true
+        when HOMEBREW_PREFIX/'bin'
+          @seen_prefix_bin = true
+        when HOMEBREW_PREFIX/'sbin'
+          @seen_prefix_sbin = true
       end
     end
     out
   end # check_user_path_1
 
   def check_user_path_2
-    unless $seen_prefix_bin
+    unless @seen_prefix_bin
       <<-EOS.undent
-        Leopardbrew’s bin was not found in your PATH.
+        Leopardbrew’s bin was not found in your PATH, which is
+        “#{ENV['PATH']}”.
         Consider setting the PATH for example like so
             echo 'export PATH="#{HOMEBREW_PREFIX}/bin:$PATH"' >> #{shell_profile}
       EOS
@@ -620,7 +623,7 @@ class Checks
     # Don't complain about sbin not being in the path if it doesn't exist
     sbin = HOMEBREW_PREFIX/'sbin'
     if sbin.directory? and sbin.children.length > 0
-      unless $seen_prefix_sbin
+      unless @seen_prefix_sbin
         <<-EOS.undent
           Leopardbrew’s sbin was not found in your PATH but you have installed
           formulae that put executables in #{HOMEBREW_PREFIX}/sbin.
@@ -737,7 +740,7 @@ class Checks
       next if whitelist.include?(p.downcase) or not File.directory?(p)
 
       realpath = Pathname.new(p).realpath.to_s
-      next if realpath.start_with?(HOMEBREW_CELLAR.to_s, env_cellar)
+      next if realpath.start_with?(HOMEBREW_CELLAR.to_s, @env_cellar)
 
       scripts += Dir.chdir(p) { Dir["*-config"] }.map { |c| File.join(p, c) }
     end
@@ -775,9 +778,9 @@ class Checks
 
   def check_for_symlinked_cellar
     return unless HOMEBREW_CELLAR.exists?
-    if Pathname.new(env_cellar).symlink?; <<-EOS.undent
+    if Pathname.new(@env_cellar).symlink?; <<-EOS.undent
         Symlinked Cellars can cause problems.
-        Your Cellar is a symlink: #{env_cellar}
+        Your Cellar is a symlink: #{@env_cellar}
                which resolves to: #{HOMEBREW_CELLAR}
 
         The recommended Leopardbrew installations are either:
@@ -785,9 +788,9 @@ class Checks
         (B) From your $HOMEBREW_REPOSITORY, symlink “bin/brew” into your prefix, but
             don’t symlink “Cellar”.
 
-        Older installations of Homebrew or Leopardbrew may have created a symlinked
-        Cellar, but this can cause problems when two formulæ install to locations that
-        are mapped on top of each other during the linking step.
+        Older installations of Homebrew, Tigerbrew, or Leopardbrew may have created a
+        symlinked Cellar, but this can cause problems when different formulæ install
+        to locations that are mapped on top of each other during the linking step.
       EOS
     end
   end # check_for_symlinked_cellar
