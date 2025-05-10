@@ -1,9 +1,8 @@
-#:
 #:  Usage:  brew install [/options/] /formula/ [...]
 #:
 #:Install each listed /formula/, applying the /options/ to each one.
 #:
-#:  --build-bottle   - Build a bottled version of the software.  Specify what
+#:  --build-bottle   - Prepare a bottled version of the software.  Specify what
 #:                     platform to build it for with “--bottle-arch=____”.
 #:  --build-from-source - Build from source code, even if a bottle is available.
 #:  --cc=/compiler/  - Use /compiler/ to build the software.
@@ -14,12 +13,12 @@
 #:  --force-bottle   - Use the bottled version.  Overrides --build-from-source.
 #:  --git (-g)       - Install by making a Git repository.  Implies -i.
 #:  --ignore-dependencies - Assume that the software’s dependencies are present.
-#:  --interactive (-i) - Install the formula manually, starting right after any
-#:                       patches are applied.
+#:  --interactive (-i) - Install “by hand” using the command line.  Any patches
+#:                       the formula defines will have already been applied.
+#:  --no-enhancements - Install dependencies, but do not apply enhancements.
 #:  --only-dependencies - Install its dependencies, but not the formula itself.
 #:  --quieter (-q)   - Don’t be verbose when brewing dependencies.  Implies -v.
 #:  --verbose (-v)   - See lots of progress messages as the software builds.
-#:
 
 require 'blacklist'
 require 'cmd/doctor'
@@ -88,7 +87,7 @@ module Homebrew
         elsif f.oldname_installed? and not ARGV.force?
           # Check if the formula we try to install is the same as installed
           # but not migrated one. If --force passed then install anyway.
-          opoo "#{f.oldname} is already installed, it's just not migrated",
+          opoo "#{f.oldname} is already installed, it’s just not migrated",
             "You can migrate this formula with `brew migrate #{f}`,\n",
             "Or you can force install it with `brew install #{f} --force`"
         else
@@ -170,7 +169,7 @@ module Homebrew
     # Leave no trace of the failed installation.
     if f.prefix.exists?
       oh1 "Cleaning up the failed installation #{f.prefix}" if DEBUG
-      ignore_interrupts { f.prefix.rmtree }
+      ignore_interrupts { f.prefix.rmtree; f.rack.rmdir_if_possible }
     end
   end # remove_failed_install
 
