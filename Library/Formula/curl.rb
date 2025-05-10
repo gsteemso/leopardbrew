@@ -3,8 +3,8 @@ require 'merge'
 class Curl < Formula
   desc 'Get a file from an HTTP, HTTPS or FTP server'
   homepage 'https://curl.se/'
-  url 'https://curl.se/download/curl-8.11.1.tar.xz'
-  sha256 'c7ca7db48b0909743eaef34250da02c19bc61d4f1dcedd6603f109409536ab56'
+  url 'https://curl.se/download/curl-8.13.0.tar.xz'
+  sha256 '4a093979a3c2d02de2fbc00549a32771007f2e78032c6faa5ecd2f7a9e152025'
 
   keg_only :provided_by_osx
 
