@@ -1,6 +1,4 @@
-require 'cpu'
-require "macos"
-require "extend/ENV/shared"
+require 'extend/ENV/shared'
 
 # @deprecated
 module Stdenv
@@ -234,7 +232,7 @@ module Stdenv
   end
 
   def set_build_archs(archset)
-    super
+    archset = super
     CPU.all_archs.each { |arch| remove_from_cflags "-arch #{arch}" }
     append_to_cflags archset.as_arch_flags
     append "LDFLAGS", archset.as_arch_flags

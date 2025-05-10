@@ -1,5 +1,4 @@
-require "macos"
-require "extend/ENV/shared"
+require 'extend/ENV/shared'
 
 # ### Why `superenv`?
 #
@@ -38,7 +37,7 @@ module Superenv
 
     send(compiler)
 
-    self["MAKEFLAGS"]            ||= "-j#{determine_make_jobs}"
+    self["MAKEFLAGS"]            ||= "-j#{make_jobs}"
     self["PATH"]                   = determine_path
     self["PKG_CONFIG_PATH"]        = determine_pkg_config_path
     self["PKG_CONFIG_LIBDIR"]      = determine_pkg_config_libdir
@@ -84,8 +83,6 @@ module Superenv
 
   private
 
-  def determine_make_jobs; self["HOMEBREW_MAKE_JOBS"].nuzzle || CPU.cores; end
-
   def determine_path
     paths = [Superenv.bin]
 
@@ -105,15 +102,17 @@ module Superenv
     # Homebrew's apple-gcc42 will be outside the PATH in superenv,
     # so xcrun may not be able to find it
     case homebrew_cc
-    when 'gcc-4.2'
-      begin
-        apple_gcc42 = Formulary.factory('apple-gcc42')
-      rescue FormulaUnavailableError
-      end
-      paths << apple_gcc42.opt_bin.to_s if apple_gcc42
-    when GNU_GCC_REGEXP
-      gcc_formula = gcc_version_formula($&)
-      paths << gcc_formula.opt_bin.to_s
+      when 'gcc-4.2'
+        unless MacOS.locate('gcc-4.2')  # ignore Homebrew’s if one is already installed
+          begin
+            apple_gcc42 = Formulary.factory('apple-gcc42')
+          rescue FormulaUnavailableError
+          end
+          paths << apple_gcc42.opt_bin.to_s if apple_gcc42 and apple_gcc42.installed?
+        end
+      when GNU_GCC_REGEXP
+        gcc_formula = gcc_version_formula($&)
+        paths << gcc_formula.opt_bin.to_s if gcc_formula.installed?
     end
 
     paths.to_path_s
@@ -229,7 +228,7 @@ module Superenv
   end
 
   def set_build_archs(archset)
-    super
+    archset = super
     self['HOMEBREW_ARCHFLAGS'] = archset.as_arch_flags
     self['CMAKE_OSX_ARCHITECTURES'] = archset.as_cmake_arch_flags
     # GCC doesn’t accept “-march” for a 32-bit CPU with “-arch x86_64”
@@ -288,6 +287,6 @@ end # module Superenv
 
 class Array
   def to_path_s
-    map(&:to_s).uniq.select { |s| File.directory? s }.join(File::PATH_SEPARATOR).chuzzle
+    map(&:to_s).uniq.select { |s| File.directory? s }.join(File::PATH_SEPARATOR).choke
   end
 end

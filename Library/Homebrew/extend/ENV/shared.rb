@@ -1,5 +1,6 @@
-require 'formula'
 require 'compilers'
+require 'formula'
+require 'macos'
 
 # Homebrew extends Ruby's `ENV` to make our code more readable.  Implemented in
 # {SharedEnvExtension} and either {Superenv} or {Stdenv}, per the build mode.
@@ -68,7 +69,7 @@ module SharedEnvExtension
   end # prepend
 
   def append_if_set(keys, value, separator = ' ')
-    _keys = Array(keys).select{ |k| self[k].chuzzle }
+    _keys = Array(keys).select{ |k| self[k].choke }
     append(_keys, value, separator)
   end
 
@@ -182,15 +183,17 @@ module SharedEnvExtension
 
   def supports_cxx14?; cc =~ GNU_CXX14_REGEXP or cc =~ /clang/; end
 
+  def building_pure_64_bit?; not @build_archs.detect{ |a| a.to_s !~ %r{64} }; end
+
   # Snow Leopard defines an NCURSES value the opposite of most distros.
   # See: https://bugs.python.org/issue6848
   # Currently only used by aalib in core.
   def ncurses_define; append 'CPPFLAGS', '-DNCURSES_OPAQUE=0'; end
 
   def make_jobs
-    self['HOMEBREW_MAKE_JOBS'].nuzzle \
-      || (self['MAKEFLAGS'] =~ %r{-\w*j(\d)+})[1].nuzzle \
-      || CPU.cores
+    self['HOMEBREW_MAKE_JOBS'].nope \
+      || (self['MAKEFLAGS'] =~ %r{-\w*j(\d+)})[1].nope \
+      || 2 * CPU.cores
   end
 
   # Edits $MAKEFLAGS, causing Make to use a single job.  This is useful for
@@ -294,14 +297,13 @@ module SharedEnvExtension
 
   def universal_binary; set_build_archs(CPU.local_archs); end
 
-  # This will have already been set up with a correctly-extended Array
-  # argument by stdenv or by superenv.
   def set_build_archs(archset)
     archset = Array(archset).extend ArchitectureListExtension unless archset.respond_to?(:fat?)
     clear_compiler_archflags
     @build_archs = archset
     self['HOMEBREW_BUILD_ARCHS'] = archset.as_build_archs
     set_compiler_archflags archset.as_arch_flags
+    archset
   end # set_build_archs
 
   def clear_compiler_archflags
@@ -328,9 +330,15 @@ module SharedEnvExtension
 
   private
 
-  def cc=(val); self['CC'] = self['OBJC'] = val.to_s + ' ' + @build_archs.as_arch_flags; end
+  def cc=(val)
+    if val then self['CC'] = self['OBJC'] = val.to_s + ' ' + @build_archs.as_arch_flags
+    else        self['CC'] = self['OBJC'] = ''; end
+  end
 
-  def cxx=(val); self['CXX'] = self['OBJCXX'] = val.to_s + ' ' + @build_archs.as_arch_flags; end
+  def cxx=(val)
+    if val then self['CXX'] = self['OBJCXX'] = val.to_s + ' ' + @build_archs.as_arch_flags
+    else        self['CXX'] = self['OBJCXX'] = ''; end
+  end
 
   def homebrew_cc; self['HOMEBREW_CC']; end
 
