@@ -1,10 +1,8 @@
 class Ld64128ppc < Formula
   desc 'Updated version of the ld shipped by Apple'
   homepage 'https://github.com/apple-oss-distributions/ld64/tree/ld64-128.2'
-  # The patch is actually smaller if we start from the prior revision.  The diff is less extreme
-  # because 127.2 doesn’t need all the PowerPC stuff put back in like 128.2 does.
-  url 'https://github.com/apple-oss-distributions/ld64/archive/refs/tags/ld64-127.2.tar.gz'
-  sha256 'acfc5c3340a24ad8696ff22027b121cb3807c75fade7dec48b2b52494698e05f'
+  url 'https://github.com/apple-oss-distributions/ld64/archive/refs/tags/ld64-128.2.tar.gz'
+  sha256 'e430654dfac97e1a681cc5e4d6f4312c8d474b38015826aee8d50ceb21e6af0e'
   version '128.2_ppc'
 
   resource 'makefile' do
@@ -15,26 +13,24 @@ class Ld64128ppc < Formula
 #  option :universal
   option 'with-tests', 'Perform build‐time unit tests'
 
-  depends_on MaximumMacOSRequirement => :mountain_lion
+  depends_on MaximumMacOSRequirement => '10.8'
 
   # Tiger (and in some cases Leopard) either includes old versions of these
   # headers, or doesn't ship them at all.
-# depends_on 'arm-headers' => :build    # this package doesn’t exist yet
-  depends_on 'cctools-headers' => :build
-  depends_on 'dyld-headers' => :build
+  depends_on 'cctools-headers'   => :build
+  depends_on 'dyld-headers'      => :build
   depends_on 'libunwind-headers' => :build
   # No CommonCrypto
-  depends_on 'openssl' if MacOS.version < :leopard
+  depends_on 'openssl3' if MacOS.version < '10.5'
 
   keg_only :provided_by_osx, 'An older version is already installed as part of the OS.'
 
   fails_with :gcc_4_0 do build 5370; end  # does it really?  hells if I know
 
-  # Apply 127.2 → 128.2 diff, except the file renaming which `patch` cannot do,
-  # without the PowerPC stripping:
+  # Apply 128.2 → 128.2-for-PPC diff:
   patch :p1 do
-    url 'file:///Users/gsteemso/devel/_ld64/ld64-127.2-to-128.2_ppc-shorter.patch'
-    sha256 '06eea28c5422966a8e3bdfc93af51f484454af06abad7fa8cde8cb86aaa03cfd'
+    url 'file:///Users/gsteemso/devel/_ld64/ld64-128.2-to-128.2_ppc.patch'
+    sha256 '87ebf9f6d70fc205d39f4cef8739d0e0c4db2cb1e774ffcfcbb4465bb753f733'
   end
 
   # Omnibus collection of MacPorts, Tigerbrew, and Leopardbrew patches.
@@ -146,7 +142,7 @@ class Ld64128ppc < Formula
   # - Fix an overthought pattern substitution.
   patch :DATA
 
-  # Tweak the unit tests during formula tuning – see patches at end of above
+  # Tweak the unit tests during formula tuning
   # unit-tests/bin/result-filter.pl:
   # - Insert a blank line between tests.
   # - Uncomment the bits that print the stdout and stderr captured during each
@@ -156,23 +152,18 @@ class Ld64128ppc < Formula
   #   output to stderr.
   # - Print the names and outcomes of all tests, not just the failed ones.
   # unit-tests/include/common.makefile:
-  # - Add “-v” to CFLAGS and CXXFLAGS so that the exact commands emitted by the
-  #   compiler driver will be shown.  This causes most tests to wrongly appear
-  #   failed due to data appearing on stderr.
   # - Add code to dump the environment variables during each test, into a
   #   different file according to whether the test is being run individually or
   #   as part of the whole set.
   # unit-tests/run-all-unit-tests:
   # - Add an environment‐variable export to indicate that all tests are being
   #   run at once, for consumption by the modified “common.makefile”.
+  patch :p1 do
+    url 'file:///Users/gsteemso/devel/_ld64/ld64-128.2_ppc-for-build-testing.patch'
+    sha256 '09a9c6519810916da9bd93a0197819f634cd04843083c9d4faf36885aabd2727'
+  end if build.with? 'tests'
 
   def install
-    # Complete the 127.2 → 128.2 update patch by renaming the two files that
-    # were renamed by Apple.  (The “patch” program, designed to do as little
-    # damage as possible when misapplied, never renames files.)
-    mv 'src/ld/passes/order_file.h',   'src/ld/passes/order.h'
-    mv 'src/ld/passes/order_file.cpp', 'src/ld/passes/order.cpp'
-
 #    ENV.universal_binary if build.universal?
 
     buildpath.install resource('makefile')
@@ -1797,17 +1788,7 @@ __END__
  					if ( (cpu_subtype_t)fHeader->cpusubtype() == t->subType) {
 --- old/src/other/machochecker.cpp
 +++ new/src/other/machochecker.cpp
-@@ -30,6 +30,9 @@
- #include <fcntl.h>
- #include <unistd.h>
- #include <errno.h>
-+#include <mach/ppc/thread_status.h>
-+#include <mach/i386/thread_status.h>
-+#include <mach/arm/thread_status.h>
- 
- #include <vector>
- #include <set>
-@@ -121,12 +124,16 @@
+@@ -121,12 +121,16 @@
  	void										checkLoadCommands();
  	void										checkSection(const macho_segment_command<P>* segCmd, const macho_section<P>* sect);
  	uint8_t										loadCommandSizeMask();
@@ -1826,7 +1807,7 @@ __END__
  	pint_t										relocBase();
  	bool										addressInWritableSegment(pint_t address);
  	bool										hasTextRelocInRange(pint_t start, pint_t end);
-@@ -261,68 +268,39 @@
+@@ -261,68 +265,39 @@
  template <> uint8_t MachOChecker<arm>::loadCommandSizeMask()	{ return 0x03; }
  
  
@@ -1892,11 +1873,11 @@ __END__
 -arm::P::uint_t MachOChecker<arm>::getEntryPoint(const macho_thread_command<arm::P>* threadInfo)
 -{
 -	return threadInfo->thread_register(15);
-+template <> uint32_t MachOChecker<ppc>::threadStateFlavour()    { return PPC_THREAD_STATE;   }
-+template <> uint32_t MachOChecker<ppc64>::threadStateFlavour()  { return PPC_THREAD_STATE64; }
-+template <> uint32_t MachOChecker<x86>::threadStateFlavour()    { return x86_THREAD_STATE32; }
-+template <> uint32_t MachOChecker<x86_64>::threadStateFlavour() { return x86_THREAD_STATE64; }
-+template <> uint32_t MachOChecker<arm>::threadStateFlavour()    { return ARM_THREAD_STATE;   }
++template <> uint32_t MachOChecker<ppc>::threadStateFlavour()    { return 1; }  // PPC_THREAD_STATE
++template <> uint32_t MachOChecker<ppc64>::threadStateFlavour()  { return 5; }  // PPC_THREAD_STATE64
++template <> uint32_t MachOChecker<x86>::threadStateFlavour()    { return 1; }  // x86_THREAD_STATE32
++template <> uint32_t MachOChecker<x86_64>::threadStateFlavour() { return 4; }  // x86_THREAD_STATE64
++template <> uint32_t MachOChecker<arm>::threadStateFlavour()    { return 1; }  // ARM_THREAD_STATE
 +
 +template <typename A>
 +typename A::P::uint_t MachOChecker<A>::threadCommand_threadStateRegister(const macho_thread_command<P>* threadInfo, const uint32_t register_index) {
@@ -1928,7 +1909,7 @@ __END__
  }
  
  
-@@ -397,7 +375,7 @@
+@@ -397,7 +372,7 @@
  		uint32_t size = cmd->cmdsize();
  		if ( (size & this->loadCommandSizeMask()) != 0 )
  			throwf("load command #%d has a unaligned size", i);
@@ -1937,7 +1918,7 @@ __END__
  		if ( endOfCmd > endOfLoadCommands )
  			throwf("load command #%d extends beyond the end of the load commands", i);
  		if ( endOfCmd > endOfFile )
-@@ -570,9 +548,9 @@
+@@ -570,9 +545,9 @@
  		pint_t initialSP = getInitialStackPointer(threadInfo);
  		if ( initialSP != 0 ) {
  			if ( stackSegment == NULL )
@@ -1949,7 +1930,7 @@ __END__
  		}
  	}
  	
-@@ -975,7 +953,7 @@
+@@ -975,7 +950,7 @@
  
  
  template <>
@@ -1958,7 +1939,7 @@ __END__
  {
  	if ( reloc->r_length() != 2 ) 
  		throw "bad external relocation length";
-@@ -991,7 +969,7 @@
+@@ -991,7 +966,7 @@
  }
  
  template <>
@@ -1967,7 +1948,7 @@ __END__
  {
  	if ( reloc->r_length() != 3 ) 
  		throw "bad external relocation length";
-@@ -1007,7 +985,7 @@
+@@ -1007,7 +982,7 @@
  }
  
  template <>
@@ -1976,7 +1957,7 @@ __END__
  {
  	if ( reloc->r_length() != 2 ) 
  		throw "bad external relocation length";
-@@ -1024,7 +1002,7 @@
+@@ -1024,7 +999,7 @@
  
  
  template <>
@@ -1985,7 +1966,7 @@ __END__
  {
  	if ( reloc->r_length() != 3 ) 
  		throw "bad external relocation length";
-@@ -1040,7 +1018,7 @@
+@@ -1040,7 +1015,7 @@
  }
  
  template <>
@@ -1994,7 +1975,7 @@ __END__
  {
  	if ( reloc->r_length() != 2 ) 
  		throw "bad external relocation length";
-@@ -1057,7 +1035,7 @@
+@@ -1057,7 +1032,7 @@
  
  
  template <>
@@ -2003,7 +1984,7 @@ __END__
  {
  	if ( reloc->r_address() & R_SCATTERED ) {
  		// scattered
-@@ -1077,7 +1055,7 @@
+@@ -1077,7 +1052,7 @@
  
  
  template <>
@@ -2012,7 +1993,7 @@ __END__
  {
  	if ( reloc->r_length() != 3 ) 
  		throw "bad local relocation length";
-@@ -1092,13 +1070,13 @@
+@@ -1092,13 +1067,13 @@
  }
  
  template <>
@@ -2028,7 +2009,7 @@ __END__
  {
  	if ( reloc->r_length() != 3 ) 
  		throw "bad local relocation length";
-@@ -1113,7 +1091,7 @@
+@@ -1113,7 +1088,7 @@
  }
  
  template <>
@@ -2037,7 +2018,7 @@ __END__
  {
  	if ( reloc->r_address() & R_SCATTERED ) {
  		// scattered
-@@ -1142,7 +1120,7 @@
+@@ -1142,7 +1117,7 @@
  	uint32_t lastSymbolIndex = 0xFFFFFFFF;
  	const macho_relocation_info<P>* const externRelocsEnd = &fExternalRelocations[fExternalRelocationsCount];
  	for (const macho_relocation_info<P>* reloc = fExternalRelocations; reloc < externRelocsEnd; ++reloc) {
@@ -2046,7 +2027,7 @@ __END__
  		if ( reloc->r_symbolnum() != lastSymbolIndex ) {
  			if ( previouslySeenSymbolIndexes.count(reloc->r_symbolnum()) != 0 )
  				throw "external relocations not sorted";
-@@ -1153,7 +1131,7 @@
+@@ -1153,7 +1128,7 @@
  	
  	const macho_relocation_info<P>* const localRelocsEnd = &fLocalRelocations[fLocalRelocationsCount];
  	for (const macho_relocation_info<P>* reloc = fLocalRelocations; reloc < localRelocsEnd; ++reloc) {
@@ -2140,12 +2121,12 @@ __END__
 +      done; \
 +      arm_sdks=( $$(echo "$${arm_sdks[*]}" | tr -s ' ' $$'\n' | sort | tr $$'\n' ' ') ); \
 +    fi; \
-+    if [ $${#arm_sdks[@]} -gt '0' ]; then echo "$(arm_sdk_dir)/iPhoneOS$${arm_sdks[-1]}.sdk"; fi; \
-+  fi)
++    if [ $${#arm_sdks[@]} -gt '0' ]; then echo "$(arm_sdk_dir)/iPhoneOS$${arm_sdks[$${#arm_sdks[@]}-1]}.sdk"; fi; \
++  fi )
  
  MYDIR=$(shell cd ../../bin;pwd)
  LD			= ld
-@@ -65,8 +85,8 @@
+@@ -69,8 +81,8 @@
  ifeq ($(ARCH),armv6)
    LDFLAGS := -syslibroot $(IOS_SDK)
    override FILEARCH = arm
@@ -2156,7 +2137,7 @@ __END__
    VERSION_NEW_LINKEDIT = -miphoneos-version-min=4.0
    VERSION_OLD_LINKEDIT = -miphoneos-version-min=3.0
    LD_SYSROOT = -syslibroot $(IOS_SDK)
-@@ -78,8 +98,8 @@
+@@ -82,8 +94,8 @@
  ifeq ($(ARCH),armv7)
    LDFLAGS := -syslibroot $(IOS_SDK)
    override FILEARCH = arm
@@ -2167,7 +2148,7 @@ __END__
    VERSION_NEW_LINKEDIT = -miphoneos-version-min=4.0
    VERSION_OLD_LINKEDIT = -miphoneos-version-min=3.0
    LD_SYSROOT = -syslibroot $(IOS_SDK)
-@@ -94,8 +114,8 @@
+@@ -98,8 +110,8 @@
    CXXFLAGS += -mthumb
    override ARCH = armv6
    override FILEARCH = arm
@@ -2178,7 +2159,7 @@ __END__
    VERSION_NEW_LINKEDIT = -miphoneos-version-min=4.0
    VERSION_OLD_LINKEDIT = -miphoneos-version-min=3.0
    LD_SYSROOT = -syslibroot $(IOS_SDK)
-@@ -110,8 +130,8 @@
+@@ -114,8 +126,8 @@
    CXXFLAGS += -mthumb
    override ARCH = armv7
    override FILEARCH = arm
@@ -2207,15 +2188,26 @@ __END__
 +    for (( i=0; $i < ${#arm_sdks[@]}; i+=1 )); do
 +      arm_sdks[$i]="$(echo "${arm_sdks[$i]}" | sed -E -e 's/^.*\/iPhoneOS//' -e 's/.sdk$$//')"
 +    done
-+    arm_sdks=( $(echo "${arm_sdks[*]}" | tr -s ' ' $'\n' | sort | tr $'\n' ' ') )
++    arm_sdks=( $(echo "${arm_sdks[*]}" | tr -s ' ' $'\n' | sort | tr $'\n' ' ') )  # sort'll still work correctly in special cases
 +  fi
-+  arm_sdk="$(if [ ${#arm_sdks[@]} -gt '0' ]; then echo "${arm_sdk_dir}/iPhoneOS${arm_sdks[-1]}.sdk"; fi)"
++  arm_sdk="$(if [ ${#arm_sdks[@]} -gt '0' ]; then echo "${arm_sdk_dir}/iPhoneOS${arm_sdks[${#arm_sdks[*]}-1]}.sdk"; fi)"
 +  arm_archs="$(${arm_tool_root}/usr/bin/lipo -info "${arm_sdk}/usr/lib/libSystem.dylib" | cut -d':' -f 3 | sed -E -e 's/ppc[^ ]*|x86_64|i.86//')"
 +  all_archs="${all_archs} ${arm_archs[*]}"
 +  valid_archs="${valid_archs} ${arm_archs[*]}"
  fi
  
  
+--- old/unit-tests/test-cases/16-byte-alignment/Makefile
++++ new/unit-tests/test-cases/16-byte-alignment/Makefile
+@@ -20,6 +20,8 @@
+ 	${FAIL_IF_ERROR} ${CC} ${CCFLAGS} -arch ${ARCH} -c -O2 tl_test2.c -o tl_test2-${ARCH}.o
+ 
+ 	# verify that the alignment is correct in the .o
+-	${OBJECTDUMP} -only _ai -align -no_content tl_test2-${ARCH}.o|${FAIL_IF_ERROR} grep '\<0 mod 16\>' >/dev/null
++	${OBJECTDUMP} -only _ai -align -no_content tl_test2-${ARCH}.o|${FAIL_IF_ERROR} grep '[^0-9]0 mod 16[^0-9]' >/dev/null
+ 
+ 	# now verify the executable
+ 	${FAIL_IF_ERROR} ${CC} ${CCFLAGS} -arch ${ARCH} -O2 tl_test2-${ARCH}.o -o tl_test2-${ARCH}
 --- old/unit-tests/test-cases/allow_heap_execute/Makefile
 +++ new/unit-tests/test-cases/allow_heap_execute/Makefile
 @@ -20,6 +20,8 @@
@@ -2252,147 +2244,3 @@ __END__
  
  #
  # Test that blank stubs are handled properly
---- old/unit-tests/bin/result-filter.pl
-+++ new/unit-tests/bin/result-filter.pl
-@@ -27,6 +27,7 @@
- 	if(length($entry))
- 	{
- 	    &process_entry($root, $entry);
-+		print "\n";
- 	    $entry = '';
- 	}
- 	$entry .= $_;
-@@ -40,6 +41,7 @@
- if(length($entry))
- {
-     &process_entry($root, $entry);
-+    print "\n";
- }
- 
- # show totals
-@@ -93,15 +95,15 @@
-     {
- 	printf "%-40s FAIL Makefile failure\n", $test_name;
- 	$total_count++;
--	#my $line1;
--	#foreach $line1 (@{$$tbl{stdout}})
--	#{
--	#    printf "stdout: %s\n", $line1;
--	#}
--	#foreach $line1 (@{$$tbl{stderr}})
--	#{
--	#    printf "stderr: %s\n", $line1;
--	#}
-+	my $line1;
-+	foreach $line1 (@{$$tbl{stdout}})
-+	{
-+		printf "stdout: %s\n", $line1;
-+	}
-+	foreach $line1 (@{$$tbl{stderr}})
-+	{
-+		printf "stderr: %s\n", $line1;
-+	}
- 	return;
-     }
- 
-@@ -106,10 +108,18 @@
-     }
- 
-     #if there was any output to stderr, mark this as a failure
--    foreach $line (@{$$tbl{stderr}})
-+    if (scalar @{$$tbl{stderr}} > 0)
-     {
--	printf "%-40s FAIL spurious stderr failure: %s\n", $test_name, $line;
-+	printf "%-40s FAIL output to stderr detected\n", $test_name;
- 	$total_count++;
-+	foreach $line (@{$$tbl{stdout}})
-+	{
-+		printf "stdout: %s\n", $line;
-+	}
-+	foreach $line (@{$$tbl{stderr}})
-+	{
-+		printf "stderr: %s\n", $line;
-+	}
- 	return;
-     }
- 
-@@ -124,26 +134,22 @@
- 	    {
- 		$pass_count++;
- 	    }
--	    else
--	    {
--		# only print failure lines
- 		printf "%-40s %s\n", $test_name, $line;
--	    }
- 	    $seen_result = 1;
- 	}
-     }
-     if(!$seen_result)
-     {
- 	printf "%-40s AMBIGUOUS missing [X]PASS/[X]FAIL\n", $test_name;
- 	$total_count++;
--	#my $line1;
--	#foreach $line1 (@{$$tbl{stdout}})
--	#{
--	#    printf "stdout: %s\n", $line1;
--	#}
--	#foreach $line1 (@{$$tbl{stderr}})
--	#{
--	#    printf "stderr: %s\n", $line1;
--	#}
-+	my $line1;
-+	foreach $line1 (@{$$tbl{stdout}})
-+	{
-+		printf "stdout: %s\n", $line1;
-+	}
-+	foreach $line1 (@{$$tbl{stderr}})
-+	{
-+		printf "stderr: %s\n", $line1;
-+	}
-     }
- }
---- old/unit-tests/include/common.makefile
-+++ new/unit-tests/include/common.makefile
-@@ -69,14 +69,14 @@
- endif
- 
- CC		 = cc -arch ${ARCH} ${SDKExtra}
--CCFLAGS = -Wall 
-+CCFLAGS  = -v -Wall
- ASMFLAGS =
- VERSION_NEW_LINKEDIT = -mmacosx-version-min=10.6
- VERSION_OLD_LINKEDIT = -mmacosx-version-min=10.4
- LD_NEW_LINKEDIT = -macosx_version_min 10.6
- 
- CXX		  = c++ -arch ${ARCH} ${SDKExtra}
--CXXFLAGS = -Wall
-+CXXFLAGS  = -v -Wall
- 
- ifeq ($(ARCH),armv6)
-   LDFLAGS := -syslibroot $(IOS_SDK)
-@@ -155,3 +155,14 @@
- PASS_IFF_GOOD_MACHO	= ${PASS_IFF} ${MACHOCHECK}
- FAIL_IF_BAD_MACHO	= ${FAIL_IF_ERROR} ${MACHOCHECK}
- FAIL_IF_BAD_OBJ		= ${FAIL_IF_ERROR} ${OBJECTDUMP} >/dev/null
-+
-+ifdef RUNNING_ALL_TESTS
-+  LISTFILE = all-tests-env-$(ARCH).list
-+else
-+  LISTFILE = test-env-$(ARCH).list
-+endif
-+
-+all : envlist
-+
-+envlist :
-+	@declare -p > $(LISTFILE)
---- old/unit-tests/run-all-unit-tests
-+++ new/unit-tests/run-all-unit-tests
-@@ -7,6 +7,7 @@
- 
- export DYLD_FALLBACK_LIBRARY_PATH=${DYLD_FALLBACK_LIBRARY_PATH}:/Developer/usr/lib
- export MACOSX_DEPLOYMENT_TARGET=10.7
-+export RUNNING_ALL_TESTS='true'
- # cd into test-cases directory
- cd `echo "$0" | sed 's/run-all-unit-tests/test-cases/'`
- 
