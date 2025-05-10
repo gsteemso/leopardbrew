@@ -506,12 +506,9 @@ class Formula
   # The directory where the formula's Frameworks should be installed.
   # This is symlinked into `HOMEBREW_PREFIX` after installation or with
   # `brew link` for formulae that are not keg-only.
-  # This is not symlinked into `HOMEBREW_PREFIX`.
   def frameworks; prefix/'Frameworks'; end
 
   # The directory where the formula's kernel extensions should be installed.
-  # This is symlinked into `HOMEBREW_PREFIX` after installation or with
-  # `brew link` for formulae that are not keg-only.
   # This is not symlinked into `HOMEBREW_PREFIX`.
   def kext_prefix; prefix/'Library/Extensions'; end
 
@@ -545,9 +542,9 @@ class Formula
   # `brew link` for formulae that are not keg-only.
   def zsh_completion; share/'zsh/site-functions'; end
 
-  # The directory used for as the prefix for {#etc} and {#var} files on
-  # installation so, despite not being in `HOMEBREW_CELLAR`, they are installed
-  # there after pouring a bottle.
+  # The directory used as the prefix for {#etc} and {#var} files on installation
+  # so, despite not being in `HOMEBREW_CELLAR`, they are installed there after
+  # pouring a bottle.
   # @private
   def bottle_prefix; prefix/'.bottle'; end
 
@@ -1046,11 +1043,24 @@ class Formula
   # before formula uninstallation is safe.  THESE METHODS MUST BE IDEMPOTENT!  It is not only
   # possible, but actively expected, for them to be called more than once without their counterpart
   # being called in between, in which case they must not make a mess!
+  # It is possible for an insinuate method to be called when a formula’s dependencies are not
+  # necessarily in place or functional.  If this could be a problem, the insinuate method should
+  # test its environment and act accordingly.
   # Further, an uninsinuate method must not assume that its rack still exists, as it may be called
   # after the rack’s removal in order for helper scripts to delete themselves.
   def insinuate; end
 
   def uninsinuate; end
+
+  # @private
+  def insinuate_defined?
+    self.class.public_instance_methods(false).map(&:to_s).include?("insinuate")
+  end
+
+  # @private
+  def uninsinuate_defined?
+    self.class.public_instance_methods(false).map(&:to_s).include?("uninsinuate")
+  end
 
   protected
 
