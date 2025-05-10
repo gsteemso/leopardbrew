@@ -1,8 +1,11 @@
+# This file is loaded before 'global.rb', so must eschew many Homebrew‐isms at
+# eval time.
 require "fileutils"
 require "tmpdir"
 
-# Leopardbrew extends Ruby's `File ` and `FileUtils` to make our code more readable.
+# Leopardbrew extends Ruby's `File` and `FileUtils` to make our code more readable.
 # @see Ruby's FileUtils API at http://docs.ruby-lang.org/
+
 class File
   class << self
     alias_method :exists?, :exist? unless method_defined? :exists?
@@ -10,6 +13,16 @@ class File
 end
 
 module FileUtils
+  # The various File::CONSTANTs do not necessarily exist.  These equivalents can be used freely
+  # without your code continuously needing to test for definedness.
+  # @private
+  %w[ APPEND  DIRECT  FNM_CASEFOLD  FNM_NOESCAPE  LOCK_EX  LOCK_UN  NOFOLLOW  RDONLY  SYNC
+      BINARY  DSYNC   FNM_DOTMATCH  FNM_PATHNAME  LOCK_NB  NOATIME  NONBLOCK  RDWR    TRUNC
+      CREAT   EXCL    FNM_EXTGLOB   FNM_SYSCASE   LOCK_SH  NOCTTY   NULL      RSYNC   WRONLY
+  ].each do |const|
+    const_set("O_#{const}".to_sym, (File::Constants.const_defined?(const) ? eval("File::#{const}") : 0).to_i)
+  end
+
   # Create a temporary directory then yield. When the block returns,
   # recursively delete the temporary directory.
   def mktemp(prefix = name)

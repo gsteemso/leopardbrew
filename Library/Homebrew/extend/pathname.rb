@@ -1,6 +1,8 @@
-require 'fileutils'
+# This file is loaded before 'global.rb', so must eschew many Homebrew‐isms at
+# eval time.
 require "open3"
 require "pathname"
+require 'extend/fileutils'
 require "mach"
 require "metafiles"
 require "resource"
@@ -13,16 +15,6 @@ class Pathname
 
   # @private
   BOTTLE_EXTNAME_RX = /(\.[a-z0-9_]+\.bottle\.(\d+\.)?tar\.gz)$/
-
-  # The various File::CONSTANTs do not necessarily exist.  These equivalents can be used freely
-  # without your code continuously needing to test for definedness.
-  # @private
-  %w[ APPEND  DIRECT  FNM_CASEFOLD  FNM_NOESCAPE  LOCK_EX  LOCK_UN  NOFOLLOW  RDONLY  SYNC
-      BINARY  DSYNC   FNM_DOTMATCH  FNM_PATHNAME  LOCK_NB  NOATIME  NONBLOCK  RDWR    TRUNC
-      CREAT   EXCL    FNM_EXTGLOB   FNM_SYSCASE   LOCK_SH  NOCTTY   NULL      RSYNC   WRONLY
-  ].each do |const|
-    const_set("O_#{const}".to_sym, (File::Constants.const_defined?(const) ? eval("File::#{const}") : 0).to_i)
-  end
 
   alias_method :exists?, :exist? unless method_defined? :exists?
   alias_method :to_str, :to_s unless method_defined? :to_str  # we don’t wanna, but Ruby 1.8.x doesn’t care
@@ -121,6 +113,13 @@ class Pathname
     end
   end # atomic_write
 
+  def append(datum); dirname.mkpath; open(O_APPEND | O_CREAT | O_WRONLY) { |f| f.write(datum) }; end
+
+  alias_method :truncate_old, :truncate
+  def truncate(where); dirname.mkpath; open(O_CREAT | O_WRONLY) { |f| f.seek(where); f.write('') }; end
+
+  def lstat; File.lstat(self); rescue Errno::ENOENT; return nil; end
+
   def default_stat
     sentinel = parent.join(".brew.#{Process.pid}.#{rand(Time.now.to_i)}")
     sentinel.open("w") {}
@@ -166,11 +165,9 @@ class Pathname
   def rmdir_if_possible
     rmdir; true
   rescue Errno::ENOTEMPTY
-    if (ds_store = self+".DS_Store").exists? && children.length == 1
-      ds_store.unlink; retry
+    if (ds_store = self+".DS_Store").exists? then ds_store.unlink; retry
     else false; end
-  rescue Errno::EACCES, Errno::ENOENT
-    false
+  rescue Errno::EACCES, Errno::ENOENT, Errno::ENOTDIR; false
   end # rmdir_if_possible
 
 # Pathname#chmod_R(perms) is deprecated, use FileUtils.chmod_R
@@ -243,10 +240,10 @@ class Pathname
   def subdirs; children.select(&:directory?); end
 
   # @private
-  def resolved_path; self.symlink? ? dirname/readlink : self; end
+  def resolved_path; self.symlink? ? (readlink.to_s.starts_with?('/') ? readlink : dirname/readlink) : self; end
 
   # @private
-  def resolved_real_path; self.symlink? ? (dirname/readlink).realpath : self; end
+  def resolved_real_path; resolved_path.realpath; end
 
   # @private
   def resolved_path_exists?
@@ -263,6 +260,7 @@ class Pathname
     dirname.mkpath
     File.symlink(src.relative_path_from(dirname), self)
   end
+  alias_method :make_relative_symlink_to, :make_relative_symlink
 
   def /(other)
     unless other.respond_to?(:to_s) or other.respond_to?(:to_path)
@@ -447,6 +445,31 @@ module ObserverPathnameExtension
     super
     puts "ln -s #{src.relative_path_from(dirname)} #{basename}" if VERBOSE
     ObserverPathnameExtension.n += 1
+  end
+  alias_method :make_relative_symlink_to, :make_relative_symlink
+
+  def mkdir; super; puts "mkdir #{self}" if VERBOSE; ObserverPathnameExtension.d += 1; end
+
+  def mkpath
+    dirs = []; this = self
+    while not this.root? and not this.exists? do dirs << this; this = this.dirname; end
+    missing_dirs = dirs.length
+    super
+    while not dirs.empty? do puts "mkdir #{dirs.pop}"; end if VERBOSE
+    ObserverPathnameExtension.d += missing_dirs
+  end
+
+  def install(*sources)
+    sources.each do |src|
+      super(src)
+      case src
+        when Resource then puts "install #{self} <- #{src.name}"
+        when Resource::Partial then puts "install #{self} <- #{src.files * ', '}"
+        when Array then puts "install #{self} <- #{src * ', '}"
+        when Hash then src.each{ |s, nm| puts "install #{parent}/#{nm} <- #{s}" }
+        else puts "install #{self} <- #{src.to_s}"
+      end if VERBOSE
+    end # each source |src|
   end
 
   def install_info; super; puts "info #{self}" if VERBOSE; end
