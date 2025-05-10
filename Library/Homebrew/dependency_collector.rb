@@ -113,6 +113,7 @@ class DependencyCollector
     when :macos      then MinimumMacOSRequirement.new(tags)
     when :mpi        then MPIRequirement.new(*tags)
     when :mysql      then MysqlRequirement.new(tags)
+    when :nls        then Dependency.new('gettext', tags)
     when :osxfuse    then OsxfuseRequirement.new(tags)
     when :postgresql then PostgresqlRequirement.new(tags)
     when :python, :python2 then PythonRequirement.new(tags)
