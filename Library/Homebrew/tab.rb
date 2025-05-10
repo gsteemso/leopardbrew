@@ -96,11 +96,18 @@ class Tab < OpenStruct
     attrs['active_aids'].map!{ |fa| Formulary.from_keg(HOMEBREW_CELLAR/fa[0]/fa[1]) }  # can be nil if missing
     attrs['built_archs'] ||= []
     attrs['source'] ||= {}
-    tp_fm = attrs['tapped_from']
+    pn = Pathname.new(attrs['source']['path']).realpath
+    if not pn.exists? and pn.dirname == HOMEBREW_LIBRARY/'Formula'
+      b = pn.basename
+      if (pn = pn.dirname/b[0]/b).exists?
+        attrs['source']['path'] = pn.to_s
+      end
+    end
     if attrs['source']['spec'].nil?
       version = PkgVersion.parse path.to_s.split('/')[-2]
       attrs['source']['spec'] = version.head? ? 'head' : 'stable'  # usually correct, devel is rare
     end
+    tp_fm = attrs['tapped_from']
     attrs['source']['tap'] = attrs.delete('tapped_from') if tp_fm and tp_fm != 'path or URL'
     attrs['source']['tap'] = 'Homebrew/homebrew' if attrs['source']['tap'] == 'mxcl/master'
     attrs['tabfile'] = path
@@ -110,21 +117,22 @@ class Tab < OpenStruct
 
   def with?(val)
     name = val.respond_to?(:name) ? val.name : val
-    include?("with-#{name}") or unused_options.include?("without-#{name}")
+    includes?("with-#{name}") or unused_options.include?("without-#{name}")
   end
 
   def without?(name); not with? name; end
 
   def include?(opt); used_options.include? opt; end
+  alias_method :includes?, :include?
 
-  def build_32_bit?; include?('32-bit'); end
+  def build_32_bit?; includes?('32-bit'); end
 
   # Deprecated
-  def cxx11?; include?('c++11'); end
+  def cxx11?; includes?('c++11'); end
 
-  def cross?; include?('cross'); end
+  def cross?; includes?('cross'); end
 
-  def universal?; include?('universal'); end
+  def universal?; includes?('universal'); end
 
   def bottle?; built_as_bottle; end
 
