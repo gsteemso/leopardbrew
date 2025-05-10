@@ -98,7 +98,7 @@ class Tab < OpenStruct
     attrs['source'] ||= {}
     pn = Pathname.new(attrs['source']['path'])
     if not pn.exists? and pn.dirname == HOMEBREW_LIBRARY/'Formula'
-      b = pn.basename
+      b = pn.basename.to_s
       if (pn = pn.dirname/b[0]/b).exists?
         attrs['source']['path'] = pn.to_s
       end
