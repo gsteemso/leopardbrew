@@ -14,6 +14,10 @@ class Libtool < Formula
   depends_on 'automake' => :run
   depends_on 'gettext' if build.with? 'tests'
 
+  # For some reason, the Libtool maintainers think that Darwin’s loadable‐
+  # module extension is “.so” rather than “.bundle”.
+  patch :DATA
+
   def install
     ENV.universal_binary if build.universal?
     system './configure', "--prefix=#{prefix}",
@@ -21,7 +25,7 @@ class Libtool < Formula
                           '--disable-dependency-tracking',
                           '--enable-ltdl-install'
     system 'make'
-    bombproof_system 'make', 'check' if build.with? 'tests'
+    safe_system('make', 'check') if build.with? 'tests'
     system 'make', 'install'
   end
 
@@ -32,6 +36,21 @@ class Libtool < Formula
   end
 
   test do
-    system bin/'glibtool', 'execute', '/usr/bin/true'  # glibtool is a script – no archs!
+    # glibtool is a script – there are no architectures to separate out.
+    # TODO:  Devise a better test, that exercises LibLTDL.
+    system bin/'glibtool', 'execute', '/usr/bin/true'
   end
 end
+
+__END__
+--- old/configure
++++ new/configure
+@@ -13657,7 +13657,7 @@
+   soname_spec='$libname$release$major$shared_ext'
+   shlibpath_overrides_runpath=yes
+   shlibpath_var=DYLD_LIBRARY_PATH
+-  shrext_cmds='`test .$module = .yes && echo .so || echo .dylib`'
++  shrext_cmds='`test .$module = .yes && echo .bundle || echo .dylib`'
+ 
+   sys_lib_search_path_spec="$sys_lib_search_path_spec /usr/local/lib"
+   sys_lib_dlsearch_path_spec='/usr/local/lib /lib /usr/lib'
