@@ -130,7 +130,7 @@ class Keg
     # will break if its referent has been moved for reïnstallation.
     if working_name.starts_with? HOMEBREW_CELLAR.to_s
       keg = Keg.for(working_name)
-      return working_name.sub(keg.base.to_s, keg.opt_record.to_s)
+      return working_name.sub(keg.path.to_s, keg.opt_record.to_s)
     # If working_name is one of our symlinks in the PREFIX, it will break
     # when its target is unlinked.
     elsif working_name.starts_with? HOMEBREW_PREFIX.to_s
@@ -157,7 +157,7 @@ class Keg
     dylib_basename = File.basename(file.dylib_id)
     # We want the same path WITHIN the keg.
     relative_dirname = file.dirname.relative_path_from(path)
-    # A shortcut was once here using the HOMEBREW_CELLAR path instead of the HOMEBREW_PREFIX one.
+    # A shortcut was once here using the HOMEBREW_PREFIX path instead of the HOMEBREW_CELLAR one.
     # However, that technique failed with software that had been unlinked, making it impossible to
     # upgrade anything used when brewing (like the support libraries for brewed GCC).  Worse, even
     # Cellar-based links fail during a reïnstallation.  Happily, links based on the opt prefix do
