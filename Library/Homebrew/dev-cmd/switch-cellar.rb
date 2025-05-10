@@ -1,9 +1,8 @@
-#:
 #:Unlink, switch out, and relink your Homebrew (Leopardbrew) Cellar.
 #:
 #:  Usage:
 #:
-#:    brew switch-cellar --save-as=/stash name/ [ --use-new=/prior cellar/ ]
+#:    brew switch-cellar [-n] --save-as=/stash_name/ [--use-new=/prior_cellar/]
 #:
 #:    brew switch-cellar --refresh
 #:
@@ -11,13 +10,12 @@
 #:rename it to “/stash name/-Cellar”.  After the thitherto‐active Cellar has been
 #:stashed away, rename “/prior cellar/-Cellar” to become the active Cellar.  Each
 #:expected linkage to it is then restored.  If no replacement Cellar is supplied,
-#:an empty one is created.
+#:an empty one is created.  “-n” is the standard “--dry-run” switch, either form.
 #:
 #:In the second form, disconnect and then immediately reconnect everything within
 #:the current Cellar.  This repairs any and all incorrect or damaged linkages.
 #:
 #:Both forms should correctly handle pinned formulæ.
-#:
 
 require 'formula'
 require 'formula/pin'
@@ -28,53 +26,103 @@ require 'tab'
 
 module Homebrew
   def switch_cellar
+    def get_linked_keg(name)
+      link = LINKDIR/name
+      Keg.for(link.resolved_path) rescue nil if link.exists? and link.directory? and link.symlink?
+    end
+
     def sever_racklist(rack_list, mode)
+      switched_list = HOMEBREW_CELLAR/'SwitchedList'
+      switched_list.truncate(0) unless mode.dry_run
       done_list = []
       rack_list.each do |rack|
-        kegs = rack.subdirs.map { |subdir| Keg.new(subdir) }
-        kegs.each do |keg|
-          begin 
-            keg.unlink(mode) if keg.linked?
+        if (rack/'.DS_Store').exists? then rm rack/'.DS_Store'; end
+        kegs = rack.subdirs.sort.reverse.map{ |k| Keg.new(k) }
+        if kegs.empty? then rack.rmdir_if_possible; next; end
+        (keg = kegs.find{ |k| k.optlinked? } || get_linked_keg(rack.basename) || kegs.first).lock do
+          begin
+            f = Formula.from_installed_prefix(keg)
+            switched_list.append "#{keg.versioned_name.sub(/=/, "\t")}\n" unless mode.dry_run
+            if f.uninsinuate_defined?
+              if mode.dry_run then puts "Would uninsinuate #{f.name}"; else f.uninsinuate; end
+            end
+            keg.unlink(mode) # if keg.linked?
             keg.remove_opt_record unless mode.dry_run
             done_list << rack
           rescue FormulaUnavailableError
-            unsever_racklist(done_list, mode)
+            unsever_racklist(HOMEBREW_CELLAR, done_list, mode)
             raise RuntimeError, "Can’t unlink #{keg.name}:  No formula.  Aborting"
-          rescue
+          rescue Exception => e
+            puts "#{e.class}:  #{e.message}", e.backtrace
             # silently ignore all other errors
           end
-        end # each |keg|
+        end # lock
       end # each |rack|
-      LINKDIR.rmtree if (LINKDIR.exist? and not mode.dry_run)
+      LINKDIR.rmtree if (LINKDIR.exists? and not mode.dry_run)
     end # sever_racklist
 
-    def unsever_racklist(rack_list, mode)
-      rack_list.each do |rack|
-        pin_candidate = PINDIR/rack.basename
-        if (pin_candidate.exist? and pin_candidate.symlink? and pin_candidate.directory?)
-          keg = Keg.new(pin_candidate.realpath)  # meant to pick up the target, not the symlink
-        else
-          keg = Keg.new(rack.subdirs.sort.last)  # link the latest version
-        end
-        begin
-          keg.optlink(mode)
-          keg.link(mode) unless Formulary.from_rack(rack).keg_only?
-        rescue FormulaUnavailableError
-          puts "Couldn’t re‐link #{keg.name}:  No formula.  Skipping it"
-        rescue AlreadyLinkedError
-          begin
-            keg.remove_linked_keg_record
-            redo
-          rescue
-            # silently ignore all further errors
-          end
-        rescue
-          # silently ignore all other errors
-        end
-      end # each |rack|
-    end # unsever_racklist
+    def read_switched_hash(_cellar)
+      hsh = {}
+      File.open(_cellar/'SwitchedList', O_RDONLY) do |f|
+        while line = f.gets do hsh[line[/^[^\t]+/]] = line[/[^\t]+$/].chomp; end
+      end rescue nil
+      hsh
+    end # read_switch_hash
 
-    def annulnil(arg); (arg.nil? ? '' : arg); end
+    def synthesize_switched_hash
+      hsh = {}
+      HOMEBREW_CELLAR.subdirs.each do |rack|
+        if (rack/'.DS_Store').exists? then rm rack/'.DS_Store'; end
+        kegs = rack.subdirs.sort.reverse.map{ |k| Keg.new(k) }
+        if kegs.empty? then rack.rmdir_if_possible; next; end
+        keg = kegs.find{ |k| k.optlinked? } || get_linked_keg(rack.basename) || kegs.first
+        hsh[keg.name] = keg.versioned_name[/[^=]+$/]
+      end
+    end
+
+    def unsever_racklist(_cellar, rack_list, mode)
+      seen_bash = false
+      switched_hash = mode.dry_run ? synthesize_switched_hash : read_switched_hash(_cellar)
+      rack_list.each do |rack|
+        if (rack/'.DS_Store').exists? then rm rack/'.DS_Store'; end
+        pin_candidate = PINDIR/rack.basename; keg = nil
+        if (pin_candidate.exists? and pin_candidate.symlink? and pin_candidate.directory?)
+          keg = Keg.new(pin_candidate.realpath, _cellar)   # Meant to pick up the target, not the symlink.
+        else
+          kegs = rack.subdirs.sort.reverse
+          if kegs.empty? then rack.rmdir_if_possible; next; end
+          bn = rack.basename.to_s; f = Formula[bn]; switched_to_version = switched_hash[bn]
+          keg = (switched_to_version ? kegs.find{ |k| k.basename.to_s == switched_to_version } : kegs.first)
+          if keg then keg = Keg.new(keg, _cellar); else next; end
+        end # pin candidate?
+        keg.lock do
+          begin
+            keg.optlink(mode)
+            f = Formula.from_installed_prefix(keg)
+            if f.name == 'bash' then seen_bash = true
+            elsif f.insinuate_defined?
+              if mode.dry_run then puts "Would insinuate #{f.name}"; else f.insinuate; end
+            end
+            keg.link(mode) unless f.keg_only?
+          rescue FormulaUnavailableError
+            puts "Can’t re‐link #{keg.name}:  No formula.  Skipping it"
+          rescue Keg::AlreadyLinkedError
+            begin
+              keg.remove_linked_keg_record
+              redo
+            rescue Exception => e
+              puts "#{e.class}:  #{e.message}", e.backtrace
+              # silently ignore all further errors
+            end
+          rescue Exception => e
+            puts "#{e.class}:  #{e.message}", e.backtrace
+            # silently ignore all other errors
+          end
+        end # lock
+      end # each |rack|
+      if seen_bash then if mode.dry_run then puts "Would insinuate bash"; else Formula['bash'].insinuate; end; end
+      (_cellar/'SwitchedList').unlink unless mode.dry_run
+    end # unsever_racklist
 
     raise RuntimeError, 'You have no Cellar to switch' unless HOMEBREW_CELLAR.directory?
     HOMEBREW_CELLAR.parent.cd do
@@ -82,92 +130,77 @@ module Homebrew
       mode.dry_run = ARGV.dry_run?
       if ARGV.include? '--refresh'  # regenerating links in place
         sever_racklist(HOMEBREW_CELLAR.subdirs, mode)
-        unsever_racklist(HOMEBREW_CELLAR.subdirs, mode)
+        unsever_racklist(HOMEBREW_CELLAR, HOMEBREW_CELLAR.subdirs, mode)
       else  # swapping Cellars wholesale
         # pathnames – either absolute, or relative to the current (Cellar’s parent) directory:
-        save_as = Pathname(annulnil ARGV.value('save-as'))
-        raise UsageError, 'The “--save-as=_____” flag must give a name' if save_as == ''
-        use_new = Pathname(annulnil ARGV.value('use-new'))
-        # use_new == '' is an expected use case, so no error for that
-        got_pins = PINDIR.exist?
-        cellar_stash = Pathname("#{save_as.to_s}-Cellar")
-        cellar_stash.dirname.mkdir_p unless cellar_stash.dirname.exist?
-        cellar_stash = cellar_stash.realdirpath
-        raise RuntimeError, "#{cellar_stash}:  This entity already exists" if cellar_stash.exist?
-        if got_pins
-          pin_stash = Pathname("#{save_as.dirname}/Library/#{save_as.basename}-PinnedKegs")
-          pin_stash.dirname.mkdir_p unless pin_stash.dirname.exist?
-          pin_stash = pin_stash.realdirpath
-          raise RuntimeError, "#{pin_stash}:  This entity already exists" if pin_stash.exist?
-        end
+        unless (save_as = ARGV.value('save-as').choke)
+          raise UsageError, 'A name must be supplied with the “--save-as” flag'; end
+        use_new = ARGV.value('use-new').choke
+          # use_new being undefined is an expected use case, so no error for that
+        got_pins = PINDIR.exists?
+        cellar_stash = Pathname("#{save_as}-Cellar").realdirpath
+        pin_stash = cellar_stash/'PinnedKegs'
+        raise FileExistsError, cellar_stash if cellar_stash.exists?
         sever_racklist(HOMEBREW_CELLAR.subdirs, mode)
-        if mode.dry_run?
-          puts "Would rename #{HOMEBREW_CELLAR} to #{cellar_stash}"
-          puts "Would rename #{PINDIR} to #{pin_stash}" if got_pins
+        if mode.dry_run
+          puts "Would move #{HOMEBREW_CELLAR} to #{cellar_stash}"
+          puts "Would move #{PINDIR} to #{pin_stash}" if got_pins
         else
+          problem = :none
           begin
+            problem = :cellar
             HOMEBREW_CELLAR.rename cellar_stash
-          rescue
-            unsever_racklist(HOMEBREW_CELLAR.subdirs, mode)
-            raise RuntimeError, 'Couldn’t rename the old Cellar'
-          end
-          if got_pins
-            begin
+            if got_pins
+              problem = :pindir
+              pin_stash.rmtree if pin_stash.exists?
               PINDIR.rename pin_stash
-            rescue
-              cellar_stash.rename HOMEBREW_CELLAR
-              unsever_racklist(HOMEBREW_CELLAR.subdirs, mode)
-              raise RuntimeError, "Couldn’t rename #{PINDIR}"
             end
+          rescue
+            cellar_stash.rename HOMEBREW_CELLAR if cellar_stash.exists?
+            (HOMEBREW_CELLAR/'PinnedKegs').rename PINDIR if (HOMEBREW_CELLAR/'PinnedKegs').exists?
+            unsever_racklist(HOMEBREW_CELLAR, HOMEBREW_CELLAR.subdirs, mode)
+            raise RuntimeError, case problem
+                                  when :cellar  then 'Couldn’t move the old Cellar'
+                                  when :pindir  then "Couldn’t move #{PINDIR}"
+                                end
           end
-        end
-        if use_new != ''
-          new_cellar = Pathname("#{use_new}-Cellar")
-          unless new_cellar.exist?
+        end # dry run?
+        if use_new
+          new_cellar = Pathname("#{use_new}-Cellar").realpath rescue nil
+          unless new_cellar and new_cellar.exists?
             # Create an empty Cellar as a placeholder, because if we don’t, future invocations of
             # Homebrew will switch to the default location regardless of where the current one is.
             HOMEBREW_CELLAR.mkdir unless mode.dry_run
             raise RuntimeError, "#{new_cellar}:  The specified replacement Cellar does not exist"
           end
-          new_pin = Pathname("#{use_new.dirname}/Library/#{use_new.basename}-PinnedKegs")
-          got_pins = new_pin.exist?
-          if mode.dry_run
-            puts "Would rename #{new_cellar} to #{HOMEBREW_CELLAR}"
-            new_cellar.subdirs.each do |rack|
+          new_pin = new_cellar/'PinnedKegs'
+          got_pins = new_pin.exists?
+          cellar_to_unsever = if mode.dry_run
+              puts "Would move #{new_cellar} to #{HOMEBREW_CELLAR}"
+              puts "Would move #{new_pin} to #{PINDIR}" if got_pins
+              new_cellar
+            else # not a dry run
+              problem = :none
               begin
-                f = Formulary.from_rack(rack)
-              rescue FormulaUnavailableError
-                puts "Would be unable to proceed due to lacking a formula for #{rack.basename}"
-              rescue
-                # silently ignore all other errors
-              end
-              if f.keg_only?
-                puts "Would not link #{rack.basename} because it is keg‐only"
-              else
-                pin_candidate = new_pin/rack.basename
-                if (got_pins and pin_candidate.symlink?)
-                  specific_version = pin_candidate.readlink.basename
-                else
-                  specific_version = rack.subdirs.sort.last.basename
+                problem = :cellar
+                new_cellar.rename HOMEBREW_CELLAR
+                if got_pins
+                  problem = :pindir
+                  PINDIR.rmtree if PINDIR.exists?
+                  (HOMEBREW_CELLAR/'PinnedKegs').rename PINDIR
                 end
-                puts "Would link #{rack.basename} version #{specific_version}"
-              end # keg‐only?
-            end # each rack
-          else # not a dry run
-            begin
-              new_cellar.rename HOMEBREW_CELLAR
-            rescue
-              raise RuntimeError, "Couldn’t rename #{new_cellar}"
-            end
-            unsever_racklist(HOMEBREW_CELLAR.subdirs, mode)
-          end # dry run?
-        else # use_new == ''
-          if mode.dry_run
-            puts 'Would create a new, empty Cellar'
-          else
-            HOMEBREW_CELLAR.mkdir  # create an empty Cellar, as specified
-          end
-        end # new cellar
+              rescue
+                HOMEBREW_CELLAR.mkdir unless HOMEBREW_CELLAR.exists?
+                raise RuntimeError, case problem
+                                      when :cellar  then 'Couldn’t move the new Cellar'
+                                      when :pindir  then "Couldn’t move #{new_pin}"
+                                    end
+              end
+              HOMEBREW_CELLAR
+            end # dry run?
+          unsever_racklist(cellar_to_unsever, cellar_to_unsever.subdirs, mode)
+        elsif mode.dry_run then puts 'Would create a new, empty Cellar'
+        else HOMEBREW_CELLAR.mkdir; end
       end # swapping Cellars, not regenerating links in place
     end # cd into HOMEBREW_CELLAR.parent
   end # switch_cellar
