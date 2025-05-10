@@ -1,8 +1,8 @@
 class Libnghttp2 < Formula
   desc 'HTTP/2 C Library'
   homepage 'https://nghttp2.org/'
-  url 'https://github.com/nghttp2/nghttp2/releases/download/v1.64.0/nghttp2-1.64.0.tar.xz'
-  sha256 '88bb94c9e4fd1c499967f83dece36a78122af7d5fb40da2019c56b9ccc6eb9dd'
+  url 'https://github.com/nghttp2/nghttp2/releases/download/v1.65.0/nghttp2-1.65.0.tar.xz'
+  sha256 'f1b9df5f02e9942b31247e3d415483553bc4ac501c87aa39340b6d19c92a9331'
   license 'MIT'
 
   head do
