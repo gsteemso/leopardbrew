@@ -5,7 +5,6 @@ module Homebrew
     raise KegUnspecifiedError if ARGV.named.empty?
 
     mode = OpenStruct.new
-
     mode.overwrite = true if ARGV.include? "--overwrite"
     mode.dry_run = true if ARGV.dry_run?
 
@@ -14,43 +13,36 @@ module Homebrew
         opoo "Already linked: #{keg}"
         puts "To relink: brew unlink #{keg.name} && brew link #{keg.name}"
         next
-      elsif keg_only?(keg.rack) && !ARGV.force?
+      end
+      f = keg.formula
+      if f.keg_only? and not ARGV.force?
         opoo "#{keg.name} is keg-only and must be linked with --force"
         puts "Note that doing so can interfere with building software."
         next
-      elsif mode.dry_run && mode.overwrite
-        puts "Would remove:"
-        keg.link(mode)
-
-        next
       elsif mode.dry_run
-        puts "Would link:"
+        puts(mode.overwrite ? "Would replace:" : "Would link:") 
         keg.link(mode)
-
         next
       end
-
       keg.lock do
+        if f.insinuate_defined?
+          if mode.dry_run
+            puts "Would insinuate #{f.name}"
+          else
+            puts "Insinuating #{f.name}"
+            f.insinuate
+          end
+        end
         print "Linking #{keg}... "
-        puts if VERBOSE
-
         begin
           n = keg.link(mode)
         rescue Keg::LinkError
           puts
           raise
         else
-          puts "#{n} symlinks created"
+          puts "#{n} directories and/or symlinks created"
         end
-      end
-    end
-  end
-
-  private
-
-  def keg_only?(rack)
-    Formulary.from_rack(rack).keg_only?
-  rescue FormulaUnavailableError, TapFormulaAmbiguityError
-    false
-  end
-end
+      end # keg lock
+    end # each ARGV |keg|
+  end # link
+end # Homebrew

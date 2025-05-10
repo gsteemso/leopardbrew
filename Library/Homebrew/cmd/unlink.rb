@@ -13,12 +13,18 @@ module Homebrew
         keg.unlink(mode)
         next
       end
-
       keg.lock do
+        f = Formula.from_installed_prefix(keg)
+        if f.uninsinuate_defined?
+          if mode.dry_run
+            puts "Would uninsinuate #{f.name}"
+          else
+            puts "Uninsinuating #{f.name}"
+            f.uninsinuate
+          end
+        end
         print "Unlinking #{keg}... "
-        # Do not uninsinuate here, because formulæ using insinuation are normally keg-only and
-        # would not expect to be linked in the first place.
-        puts "#{keg.unlink(mode)} symlinks removed"
+        puts "#{keg.unlink(mode)} directories and/or symlinks removed"
       end
     end
   end
