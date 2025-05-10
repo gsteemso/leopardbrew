@@ -1,10 +1,12 @@
 require 'merge'
 
 class Perl < Formula
+  extend Merge;
+
   desc 'Highly capable, feature-rich programming language'
   homepage 'https://www.perl.org/'
-  url 'https://www.cpan.org/src/5.0/perl-5.40.0.tar.xz'
-  sha256 'd5325300ad267624cb0b7d512cfdfcd74fa7fe00c455c5b51a6bd53e5e199ef9'
+  url 'https://www.cpan.org/src/5.0/perl-5.40.2.tar.xz'
+  sha256 '10d4647cfbb543a7f9ae3e5f6851ec49305232ea7621aed24c7cfbb0bef4b70d'
 
   head 'https://github.com/Perl/perl5.git', :branch => 'blead'
 
@@ -13,8 +15,8 @@ class Perl < Formula
   end
 
   devel do
-    url 'https://www.cpan.org/src/5.0/perl-5.41.3.tar.xz'
-    sha256 'e4f23aa6160a3830bdbefa241c87018a33e21da9e0ad915332158832d0fd8230'
+    url 'https://www.cpan.org/src/5.0/perl-5.41.12.tar.xz'
+    sha256 '136225190411feefd0cb7b6a5f732528763d414d5945859fb7e59a6b6469f0f8'
   end
 
   keg_only :provided_by_osx,
@@ -43,7 +45,6 @@ class Perl < Formula
   def install
     if build.universal?
       archs = CPU.local_archs
-      stashdir = buildpath/'arch-stashes'
     else
       archs = [MacOS.preferred_arch]
     end # universal?
@@ -79,11 +80,8 @@ class Perl < Formula
       ENV.set_build_archs(arch) if build.universal?
 
       arch_args = []
-      if arch == :ppc64 or arch == :x86_64
-        arch_args << '-Duse64bitall'
-      elsif Hardware::CPU.model == :g5
-        arch_args << '-Duse64bitint'
-      end
+      if arch.to_s =~ %r{64} then arch_args << '-Duse64bitall'
+      elsif CPU._64b? then arch_args << '-Duse64bitint'; end
 
       system './Configure', *args, *arch_args
       system 'make'
