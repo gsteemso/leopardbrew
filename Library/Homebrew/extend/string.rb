@@ -16,46 +16,34 @@ class String
   alias_method :undent_________________________________________________________72, :undent
 
   # String.chomp, but if result is empty: returns nil instead.
-  # Allows `chuzzle || foo` short-circuits.
-  def chuzzle
-    s = chomp
-    s unless s.empty?
-  end
+  # Allows `choke || foo` short-circuits.
+  def choke; s = chomp; s unless s.empty?; end
 
   # Similar, but for number strings.  If the string does not represent a
   # number, or otherwise evaluates to zero, return nil.
-  def nuzzle
-    n = to_i
-    n unless n == 0
-  end
+  def nope; n = to_i; n unless n == 0; end
 
   # String#chop, but for the front of the string instead of the back.
-  def pre_chop
-    self[1..-1]
-  end
+  def pre_chop; self[1..-1]; end
 
   # String#chomp, but for the front of the string instead of the back.
-  def pre_chomp(kill_this = "\n")
-    (self[0] == kill_this.to_s[0]) ? pre_chop : self
-  end
+  def pre_chomp(kill_this = "\n"); (self[0] == kill_this.to_s[0]) ? pre_chop : self; end
 
   alias_method :includes?,    :include?    unless method_defined? :includes?
   alias_method :starts_with?, :start_with? unless method_defined? :starts_with?
   alias_method :ends_with?,   :end_with?   unless method_defined? :ends_with?
-end
+end # String
 
 class NilClass
-  def chuzzle; end
-  def nuzzle; end
+  def choke; end
+  def nope; end
 end
 
 # used by the inreplace function (in utils.rb)
 module StringInreplaceExtension
   attr_accessor :errors
 
-  def self.extended(str)
-    str.errors = []
-  end
+  def self.extended(str); str.errors = []; end
 
   def sub!(before, after)
     result = super
@@ -63,7 +51,7 @@ module StringInreplaceExtension
       errors << "expected replacement of #{before.inspect} with #{after.inspect}"
     end
     result
-  end
+  end # StringInreplaceExtension#sub!
 
   # Warn if nothing was replaced
   def gsub!(before, after, audit_result = true)
@@ -72,7 +60,7 @@ module StringInreplaceExtension
       errors << "expected replacement of #{before.inspect} with #{after.inspect}"
     end
     result
-  end
+  end # StringInreplaceExtension#gsub!
 
   # Looks for Makefile style variable defintions and replaces the
   # value with "new_value", or removes the definition entirely.
@@ -90,10 +78,8 @@ module StringInreplaceExtension
         errors << "expected to remove #{flag.inspect}"
       end
     end
-  end
+  end # StringInreplaceExtension#remove_make_var!
 
   # Finds the specified variable
-  def get_make_var(flag)
-    self[/^#{Regexp.escape(flag)}[ \t]*=[ \t]*(.*)$/, 1]
-  end
-end
+  def get_make_var(flag); self[/^#{Regexp.escape(flag)}[ \t]*=[ \t]*(.*)$/, 1]; end
+end # StringInreplaceExtension
