@@ -8,23 +8,24 @@ module MacOS
     V4_BUNDLE_ID = "com.apple.dt.Xcode"
     V3_BUNDLE_ID = "com.apple.Xcode"
 
+    XCODE_RELEASE = {
+      '10.4'  => '2.5',
+      '10.5'  => '3.1.4',
+      '10.6'  => '3.2.6',
+      '10.7'  => '4.6.3',
+      '10.8'  => '5.1.1',
+      '10.9'  => '6.2',
+      '10.10' => '6.4',
+      '10.11' => '7.0',
+    }.freeze
+
     def latest_version
-      case MacOS.version
-        when "10.4"  then "2.5"
-        when "10.5"  then "3.1.4"
-        when "10.6"  then "3.2.6"
-        when "10.7"  then "4.6.3"
-        when "10.8"  then "5.1.1"
-        when "10.9"  then "6.2"
-        when "10.10" then "6.4"
-        when "10.11" then "7.0"
-        else
-          # Default to newest known version of Xcode for unreleased OSX versions.
-          if MacOS.version > "10.11"
-            "7.0"
-          else
-            raise "Mac OS '#{MacOS.version}' is unknown"
-          end
+      if (found = XCODE_RELEASE[MacOS.version])
+        found
+      elsif MacOS.version > '10.11'
+        '7.0'
+      else
+        raise "Mac OS “#{MacOS.version}” is unknown"
       end
     end # latest_version
 
@@ -51,7 +52,7 @@ module MacOS
     # is our only option. See: https://superuser.com/questions/390757
     def bundle_path; MacOS.app_with_bundle_id(V4_BUNDLE_ID, V3_BUNDLE_ID); end
 
-    def installed?; !prefix.nil?; end
+    def installed?; not prefix.nil?; end
 
     def version; @version ||= uncached_version; end
     # may return a version string that is guessed based on the compiler, so do not
@@ -71,8 +72,8 @@ module MacOS
           # Xcode 2.x's xcodebuild has a different version string
           `#{path} -version 2>/dev/null` =~ /DevToolsCore-(\d+\.\d)/
           case $1
-          when "515.0" then return "2.0"
-          when "798.0" then return "2.5"
+            when "515.0" then return "2.0"
+            when "798.0" then return "2.5"
           end
         end
       end
@@ -82,41 +83,41 @@ module MacOS
       # Xcode.version would always be non-nil. This is deprecated, and will
       # be removed in a future version. To remain compatible, guard usage of
       # Xcode.version with an Xcode.installed? check.
-      case MacOS.llvm_build_version.to_i
-        when 1..2063 then "3.1.0"
-        when 2064..2065 then "3.1.4"
-        when 2366..2325
-          # we have no data for this range so we are guessing
-          "3.2.0"
-        when 2326
-          # also applies to "3.2.3"
-          "3.2.4"
-        when 2327..2333 then "3.2.5"
-        when 2335
-          # this build number applies to 3.2.6, 4.0 and 4.1
-          # https://github.com/Homebrew/homebrew/blob/master/share/doc/homebrew/Xcode.md
-          "4.0"
-        else
-          case (MacOS.clang_version.to_f * 10).to_i
-            when 0       then "dunno"
-            when 1..14   then "3.2.2"
-            when 15      then "3.2.4"
-            when 16      then "3.2.5"
-            when 17..20  then "4.0"
-            when 21      then "4.1"
-            when 22..30  then "4.2"
-            when 31      then "4.3"
-            when 40      then "4.4"
-            when 41      then "4.5"
-            when 42      then "4.6"
-            when 50      then "5.0"
-            when 51      then "5.1"
-            when 60      then "6.0"
-            when 61      then "6.1"
-            when 70      then "7.0"
-            else "7.0"
-          end
-      end
+#      case MacOS.llvm_build_version.to_i
+#        when 1..2063 then "3.1.0"
+#        when 2064..2065 then "3.1.4"
+#        when 2366..2325
+#          # we have no data for this range so we are guessing
+#          "3.2.0"
+#        when 2326
+#          # also applies to "3.2.3"
+#          "3.2.4"
+#        when 2327..2333 then "3.2.5"
+#        when 2335
+#          # this build number applies to 3.2.6, 4.0 and 4.1
+#          # https://github.com/Homebrew/homebrew/blob/master/share/doc/homebrew/Xcode.md
+#          "4.0"
+#        else
+#          case (MacOS.clang_version.to_f * 10).to_i
+#            when 0       then "dunno"
+#            when 1..14   then "3.2.2"
+#            when 15      then "3.2.4"
+#            when 16      then "3.2.5"
+#            when 17..20  then "4.0"
+#            when 21      then "4.1"
+#            when 22..30  then "4.2"
+#            when 31      then "4.3"
+#            when 40      then "4.4"
+#            when 41      then "4.5"
+#            when 42      then "4.6"
+#            when 50      then "5.0"
+#            when 51      then "5.1"
+#            when 60      then "6.0"
+#            when 61      then "6.1"
+#            when 70      then "7.0"
+#            else "7.0"
+#          end
+#      end
     end # uncached_version
 
     def provides_autotools?; (version < "4.3") && (version > "2.5"); end
