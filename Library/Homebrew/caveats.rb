@@ -46,16 +46,14 @@ class Caveats
   def keg_only_text
     return unless f.keg_only?
 
-    s = "This formula is keg-only, which means it was not symlinked into\n#{HOMEBREW_PREFIX}."
+    s = "This formula is keg-only, which means it is not symlinked into\n#{HOMEBREW_PREFIX}."
     s << "\n\n#{f.keg_only_reason}"
     if f.lib.directory? or f.include.directory?
-      s <<
-        <<-EOS.undent_________________________________________________________72
+      s << <<-EOS.undent
 
-
-        Generally there are no consequences of this for you. If you build your
-        own software and it requires this formula, you’ll need to add to your
-        build variables:
+          Generally there are no consequences of this for you. If you build your
+          own software and it requires this formula, you’ll need to add to your
+          build variables:
 
         EOS
       s << "    LDFLAGS:  -L#{f.opt_lib}\n" if f.lib.directory?
