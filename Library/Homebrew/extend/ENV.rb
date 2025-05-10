@@ -1,10 +1,10 @@
 require 'cpu'
-require "extend/ENV/shared"
-require "extend/ENV/std"
-require "extend/ENV/super"
+require 'extend/ENV/shared'
+require 'extend/ENV/std'
+require 'extend/ENV/super'
 
 def superenv?
-  Superenv.bin && ARGV.env != "std"
+  Superenv.bin && ARGV.env != 'std'
 end
 
 module EnvActivation
