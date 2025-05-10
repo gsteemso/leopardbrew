@@ -1,19 +1,12 @@
-# Upstream project has requested we use a mirror as the main URL
-# https://github.com/Homebrew/homebrew/pull/21419
 class Xz < Formula
   desc 'General-purpose data compression with high compression ratio'
   homepage 'http://tukaani.org/xz/'
-  url 'https://fossies.org/linux/misc/xz-5.6.2.tar.bz2'
-  mirror 'https://github.com/tukaani-project/xz/releases/download/v5.6.2/xz-5.6.2.tar.bz2'
-  version '5.6.2p1'
-  sha256 'e12aa03cbd200597bd4ce11d97be2d09a6e6d39a9311ce72c91ac7deacde3171'
+  url 'https://github.com/tukaani-project/xz/releases/download/v5.8.1/xz-5.8.1.tar.bz2'
+  sha256 '5965c692c4c8800cd4b33ce6d0f6ac9ac9d6ab227b17c512b6561bce4f08d47e'
 
   option :universal
 
-  patch do
-    url 'https://github.com/tukaani-project/xz/releases/download/v5.6.2/xz-5213-547-562-libtool.patch'
-    sha256 '31f58851acdf0d24d15bce14782dafa5a447ee922eaa39859170277dc9a8fae7'
-  end
+  enhanced_by :nls
 
   def install
     ENV.universal_binary if build.universal?
@@ -31,7 +24,7 @@ class Xz < Formula
 
     # compress: data.txt -> data.txt.xz
     system bin/'xz', path
-    assert !path.exist?
+    assert !path.exists?
 
     # decompress: data.txt.xz -> data.txt
     system bin/'xz', '-d', "#{path}.xz"
