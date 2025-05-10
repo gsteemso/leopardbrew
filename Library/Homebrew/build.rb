@@ -136,12 +136,12 @@ class Build
 
       # Find and link metafiles
       formula.prefix.install_metafiles Pathname.pwd
-      formula.prefix.install_metafiles formula.libexec if formula.libexec.exist?
+      formula.prefix.install_metafiles formula.libexec if formula.libexec.exists?
     end # of {formula}#brew block
   end # install
 
   def get_archs
-    if (hba = ENV['HOMEBREW_BUILD_ARCHS']) then hba.split(' ')
+    if (hba = ENV['HOMEBREW_BUILD_ARCHS'].choke) then hba.split(' ')
     else raise RuntimeError, '$HOMEBREW_BUILD_ARCHS is empty!  WTF did we just build?'; end
   end
 
@@ -161,7 +161,7 @@ class Build
       elsif f.prefix.directory?
         f.prefix
       elsif (gik = f.greatest_installed_keg)
-        gik.base
+        gik.path
       else
         raise
       end
