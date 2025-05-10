@@ -2,14 +2,11 @@ require 'pathname'  #
 require 'rbconfig'  # Ruby libraries.
 require 'set'       #
 # These others are Homebrew libraries:
-require 'extend/leopard' if RUBY_VERSION <= '1.8.6'  # also does tiger if needed
-require 'extend/ARGV'
-ARGV.extend(HomebrewArgvExtension)
-require 'extend/fileutils'
+require 'extend/leopard' if RUBY_VERSION <= '1.8.6'  # also pulls in extend/tiger if needed
+require 'extend/string'  # for String#choke
+require 'extend/ARGV'; ARGV.extend(HomebrewArgvExtension)
 require 'extend/misc'
-require 'extend/pathname'
-require 'extend/string'
-require 'macos'
+require 'extend/pathname'                            # also pulls in extend/fileutils, mach, metafiles, & resource
 require 'osay'
 
 if ENV['HOMEBREW_BREW_FILE']
@@ -121,11 +118,13 @@ HOMEBREW_LOGS   = Pathname.new(ENV.fetch 'HOMEBREW_LOGS', '~/Library/Logs/Homebr
 HOMEBREW_TEMP   = Pathname.new(ENV.fetch 'HOMEBREW_TEMP', '/tmp')
                   # Where temporary folders for building and testing formulæ are created
 NO_EMOJI        = ENV['HOMEBREW_NO_EMOJI']    # Don’t show badges at all (see `formula/installer.rb` and `cmd/info.rb`)
-ORIGINAL_PATHS  = ENV['PATH'].split(File::PATH_SEPARATOR).map { |p| Pathname.new(p).expand_path rescue nil }.compact.freeze
+ORIGINAL_PATHS  = ENV['PATH'].split(File::PATH_SEPARATOR).map{ |p| Pathname.new(p).expand_path rescue nil }.compact.freeze
 QUIETER         = ARGV.quieter?               # Give less-verbose feedback when VERBOSE (checks all
                                               #   of “-q”, “--quieter”, and $HOMEBREW_QUIET)
 VERBOSE         = ARGV.verbose?               # Give lots of feedback (checks all of “-v”,
                                               #   “--verbose”, $HOMEBREW_VERBOSE, & $VERBOSE)
+
+require 'extend/ENV'; ENV.activate_extensions!       # also pulls in cpu, compilers, formula, & macos
 
 # include backwards‐compatibility cruft?
 require 'compat' unless ENV['HOMEBREW_NO_COMPAT'] or ARGV.include?('--no-compat')
