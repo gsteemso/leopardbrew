@@ -206,8 +206,8 @@ end # CompilerSelectionError
 # raised in CurlDownloadStrategy.fetch
 class CurlDownloadStrategyError < RuntimeError
   def initialize(url)
-    if url =~ %r{^file://(.+)} then super "File does not exist: #{$1}"
-    else super "Download failed: #{url}"; end
+    if url =~ %r{^file://(.+)} then super "File does not exist:  #{$1}"
+    else super "Download failed:  #{url}"; end
   end
 end # CurlDownloadStrategyError
 
@@ -223,18 +223,20 @@ class DownloadError < RuntimeError
 end # DownloadError
 
 class DuplicateResourceError < ArgumentError
-  def initialize(name)
-    super "The resource #{name} is defined more than once."
-  end
+  def initialize(name); super "The resource #{name} is defined more than once."; end
 end # DuplicateResourceError
 
 # raised by safe_system in utils.rb and ` in cmd/update
 class ErrorDuringExecution < RuntimeError
   def initialize(cmd, args = [])
     args = args.map { |a| a.to_s.gsub " ", "\\ " }.join(" ")
-    super "Failure while executing: #{cmd} #{args}"
+    super "Failure while executing:  #{cmd} #{args}"
   end
 end # ErrorDuringExecution
+
+class FileExistsError < RuntimeError
+  def initialize(pathname); super "The object “#{pathname}” already exists."; end
+end
 
 class FormulaConflictError < RuntimeError
   attr_reader :formula, :conflicts
@@ -245,8 +247,7 @@ class FormulaConflictError < RuntimeError
   end
 
   def conflict_message(conflict)
-    cm = "  #{conflict.name}"
-    cm += ":  because #{conflict.reason}" if conflict.reason
+    cm = "    #{conflict.name}"; cm += ":  because #{conflict.reason}" if conflict.reason
     cm
   end
 
@@ -266,15 +267,11 @@ class FormulaConflictError < RuntimeError
 end # FormulaConflictError
 
 class FormulaInstallationAlreadyAttemptedError < RuntimeError
-  def initialize(formula)
-    super "Formula installation already attempted: #{formula.full_name}"
-  end
+  def initialize(formula); super "Installation already attempted:  #{formula.full_name}"; end
 end
 
 class FormulaNotInstalledError < RuntimeError
-  def initialize(name)
-    super "#{name} is not installed."
-  end
+  def initialize(name); super "#{name} is not installed."; end
 end
 
 class FormulaUnavailableError < RuntimeError
@@ -333,9 +330,7 @@ class NoSuchVersionError < NoSuchKegError
 end # NoSuchVersionError
 
 class NotAKegError < RuntimeError
-  def initialize(path)
-    super "#{path.to_s} is neither a keg nor inside of one."
-  end
+  def initialize(path); super "#{path.to_s} is neither a keg nor inside of one."; end
 end
 
 class NotAnInstalledKegError < RuntimeError
