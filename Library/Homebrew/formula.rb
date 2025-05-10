@@ -63,7 +63,7 @@ class Formula
   attr_reader :full_name
 
   # The full path to this {Formula}.
-  # e.g. `/usr/local/Library/Formula/this-formula.rb`
+  # e.g. `/usr/local/Library/Formula/t/this-formula.rb`
   attr_reader :path
 
   # The stable (and default) {SoftwareSpec} for this {Formula}
@@ -806,7 +806,7 @@ class Formula
   # an array of all core {Formula} files
   # @private
   def self.core_files
-    @core_files ||= Pathname.glob("#{HOMEBREW_LIBRARY}/Formula/*.rb")
+    @core_files ||= Pathname.glob("#{HOMEBREW_LIBRARY}/Formula/*/*.rb")
   end
 
   # an array of all tap {Formula} names

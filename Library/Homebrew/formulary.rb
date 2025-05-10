@@ -319,12 +319,13 @@ class Formulary
     NullLoader.new(ref)
   end # Formulary::loader_for
 
-  def self.core_path(name); Pathname.new("#{HOMEBREW_LIBRARY}/Formula/#{name.downcase}.rb"); end
+  def self.core_path(name); n = name.downcase; Pathname.new("#{HOMEBREW_LIBRARY}/Formula/#{n[0]}/#{n}.rb"); end
 
   def self.tap_paths(name, taps = Dir["#{HOMEBREW_LIBRARY}/Taps/*/*/"])
     name = name.downcase
     taps.map do |tap|
       Pathname.glob([
+        "#{tap}Formula/#{name[0]}/#{name}.rb",
         "#{tap}Formula/#{name}.rb",
         "#{tap}HomebrewFormula/#{name}.rb",
         "#{tap}#{name}.rb",
