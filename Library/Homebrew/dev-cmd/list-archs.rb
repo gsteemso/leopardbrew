@@ -274,7 +274,7 @@ module Homebrew
           end # more than one arch report?
           arch_reports.reject!{ |r| r.any?{ |rr| rr =~ /ppc‐\*/ } } if arch_reports.length > 1
         end # not thorough?
-        oho "#{in_white("#{keg.name} #{keg.base.basename}")} is built#{thorough_flag ? '' : ' primarily'} for ",
+        oho "#{in_white("#{keg.name} #{keg.path.basename}")} is built#{thorough_flag ? '' : ' primarily'} for ",
           "#{in_br_white(arch_reports.length)} combination#{plural(arch_reports.length)} of architectures:  ",
           arch_reports.keys.sort{ |a, b|        # descending by incidence, then by complexity
               (c = arch_reports[b] <=> arch_reports[a]) == 0 ? (b.length <=> a.length) : c
