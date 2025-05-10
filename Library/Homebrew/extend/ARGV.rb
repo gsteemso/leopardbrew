@@ -1,3 +1,5 @@
+# This file is loaded before 'global.rb', so must eschew most Homebrew‐isms at
+# eval time.
 module HomebrewArgvExtension
 
   private
@@ -71,7 +73,7 @@ module HomebrewArgvExtension
   def formulae
     require 'formula'
     @formulae ||= (downcased_unique_named - casks).map do |name|
-        if name.include?('/') or File.exist?(name) then Formulary.factory(name, spec)
+        if name.include?('/') or File.exists?(name) then Formulary.factory(name, spec)
         else Formulary.find_with_priority(name, spec); end
       end
   end # formulae
@@ -108,7 +110,7 @@ module HomebrewArgvExtension
           if (f, ss = attempt_factory(name)) != nil
             if (var = f.opt_prefix).symlink? and var.directory? then Keg.new(var.resolved_path)
             elsif (var = f.linked_keg).symlink? and var.directory? then Keg.new(var.resolved_path)
-            elsif (var = f.spec_prefix(ss)).directory? then Keg.new(var)
+            elsif (var = f.spec_prefix(ss)) and var.directory? then Keg.new(var)
             elsif (rack = f.rack).directory? and (dirs = rack.subdirs).length == 1 then Keg.new(dirs.first)
             elsif (var = f.greatest_installed_keg) then var     # can fail if no install receipts
             else raise MultipleVersionsInstalledError, rack.basename  # can vary from raw “name”
@@ -152,12 +154,12 @@ module HomebrewArgvExtension
   def force?; flag? '--force'; end
 
   def verbose?
-    flag?('--verbose') or not(ENV['VERBOSE'].nil?) or not ENV['HOMEBREW_VERBOSE'].nil?
+    flag?('--verbose') or ENV['VERBOSE'].choke or ENV['HOMEBREW_VERBOSE'].choke
   end
 
-  def debug?; flag?('--debug') or not ENV['HOMEBREW_DEBUG'].nil?; end
+  def debug?; flag?('--debug') or ENV['HOMEBREW_DEBUG'].choke; end
 
-  def quieter?; flag? '--quieter' or not ENV['HOMEBREW_QUIET'].nil?; end
+  def quieter?; flag? '--quieter' or ENV['HOMEBREW_QUIET'].choke; end
 
   def interactive?; flag? '--interactive'; end
 
@@ -168,10 +170,10 @@ module HomebrewArgvExtension
   def git?; flag? '--git'; end
 
   def homebrew_developer?
-    include?('--homebrew-developer') or not ENV['HOMEBREW_DEVELOPER'].nil?
+    include?('--homebrew-developer') or ENV['HOMEBREW_DEVELOPER'].choke
   end
 
-  def sandbox?; include?('--sandbox') or not ENV['HOMEBREW_SANDBOX'].nil?; end
+  def sandbox?; include?('--sandbox') or ENV['HOMEBREW_SANDBOX'].choke; end
 
   def ignore_aids?; include? '--no-enhancements'; end
 
@@ -187,21 +189,21 @@ module HomebrewArgvExtension
 
   def build_stable?; include? '--stable' or not (build_head? or build_devel?); end
 
-  def build_cross?; include? '--cross' or switch? 'x' or not ENV['HOMEBREW_CROSS_COMPILE'].nil?; end
+  def build_cross?; include? '--cross' or switch? 'x' or ENV['HOMEBREW_CROSS_COMPILE'].choke; end
 
-  def build_universal?; flag? '--universal' or not ENV['HOMEBREW_BUILD_UNIVERSAL'].nil?; end
+  def build_universal?; flag? '--universal' or ENV['HOMEBREW_BUILD_UNIVERSAL'].choke; end
 
   # Request a 32-bit only build.
   # This is needed for some use-cases though we prefer to build Universal
   # when a 32-bit version is needed.
   def build_32_bit?; include? '--32-bit'; end
 
-  def build_bottle?; include?('--build-bottle') or not ENV['HOMEBREW_BUILD_BOTTLE'].nil?; end
+  def build_bottle?; include?('--build-bottle') or ENV['HOMEBREW_BUILD_BOTTLE'].choke; end
 
   def bottle_arch; arch = value 'bottle-arch'; arch.to_sym if arch; end
 
   def build_from_source?
-    switch?('s') or include?('--build-from-source') or not ENV['HOMEBREW_BUILD_FROM_SOURCE'].nil?
+    switch?('s') or include?('--build-from-source') or ENV['HOMEBREW_BUILD_FROM_SOURCE'].choke
   end
 
   def flag?(flag); include?(flag) or switch?(flag[2, 1]); end
