@@ -184,7 +184,6 @@ class FormulaInstaller
           formula.prefix.rmtree if formula.prefix.directory?
           formula.rack.rmdir_if_possible
         end
-        raise if DEVELOPER
         @pour_failed = true
         onoe e.message
         opoo "Bottle installation failed:  Building from source."
@@ -384,7 +383,7 @@ class FormulaInstaller
     # leave no trace of the failed installation
     if df.prefix.exists?
       oh1 "Cleaning up failed #{df.prefix}" if DEBUG
-      ignore_interrupts { df.prefix.rmtree }
+      ignore_interrupts { df.prefix.rmtree; df.rack.rmdir_if_possible }
     end
     ignore_interrupts { previously_installed.rename } if previously_installed
     previously_linked.link if previously_linked
