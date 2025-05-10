@@ -1,6 +1,4 @@
 # Routines for addressing the user.
-# This file is loaded before 'global.rb', so must eschew most Homebrew‐isms at
-# eval time.
 
 class Tty
   class << self
