@@ -96,7 +96,7 @@ class Tab < OpenStruct
     attrs['active_aids'].map!{ |fa| Formulary.from_keg(HOMEBREW_CELLAR/fa[0]/fa[1]) }  # can be nil if missing
     attrs['built_archs'] ||= []
     attrs['source'] ||= {}
-    pn = Pathname.new(attrs['source']['path']).realpath
+    pn = Pathname.new(attrs['source']['path'])
     if not pn.exists? and pn.dirname == HOMEBREW_LIBRARY/'Formula'
       b = pn.basename
       if (pn = pn.dirname/b[0]/b).exists?
