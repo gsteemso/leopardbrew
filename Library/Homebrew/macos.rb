@@ -56,7 +56,7 @@ module MacOS
       opts << "#{Xcode.prefix}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX#{v}.sdk"
       # Xcode < 4.3 style
       opts << "/Developer/SDKs/MacOSX#{v}.sdk"
-      @sdk_path[key] = opts.map { |a| Pathname.new(a) }.detect(&:directory?)
+      @sdk_path[key] = opts.map{ |a| Pathname.new(a) }.detect(&:directory?)
     end
   end # sdk_path
 
@@ -79,19 +79,17 @@ module MacOS
   end # default_compiler
 
   def gcc_40_build_version
-    @gcc_40_build_version ||= if (path = locate 'gcc-4.0')
-                                `#{path} --version`[/build (\d{4,})/, 1].to_i
+    @gcc_40_build_version ||= if (gcc = locate 'gcc-4.0')
+                                `#{gcc} --version`[/build (\d{4,})/, 1].to_i
                               end
   end # gcc_40_build_version
   alias_method :gcc_4_0_build_version, :gcc_40_build_version
 
   def gcc_42_build_version
-    @gcc_42_build_version ||=
-      begin
-        gcc = MacOS.locate("gcc-4.2") || OPTDIR/'apple-gcc42/bin/gcc-4.2'
-        `#{gcc} --version`[/build (\d{4,})/, 1].to_i \
-                      if gcc.exist? and gcc.realpath.basename.to_s !~ /^llvm/
-      end
+    @gcc_42_build_version ||= if (gcc = locate("gcc-4.2") || OPTDIR/'apple-gcc42/bin/gcc-4.2') \
+                                  and gcc.exists? and gcc.realpath.basename.to_s !~ /^llvm/
+                                `#{gcc} --version`[/build (\d{4,})/, 1].to_i
+                              end
   end # gcc_42_build_version
   alias_method :gcc_build_version, :gcc_42_build_version
 
@@ -195,6 +193,7 @@ module MacOS
   STANDARD_COMPILERS = {
     "2.0"   => { :gcc_40_build => 4061 },
     "2.5"   => { :gcc_40_build => 5370 },
+    "3.1.2" => { :gcc_40_build => 5490, :gcc_42_build => 5566 },
     "3.1.4" => { :gcc_40_build => 5493, :gcc_42_build => 5577 },
     "3.2.6" => { :gcc_40_build => 5494, :gcc_42_build => 5666, :llvm_build => 2335, :clang => "1.7", :clang_build => 77 },
     "4.0"   => { :gcc_40_build => 5494, :gcc_42_build => 5666, :llvm_build => 2335, :clang => "2.0", :clang_build => 137 },
