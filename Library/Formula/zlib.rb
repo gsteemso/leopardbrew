@@ -1,8 +1,8 @@
 class Zlib < Formula
   desc "General-purpose lossless data-compression library"
   homepage "http://www.zlib.net/"
-  url "https://zlib.net/fossils/zlib-1.3.1.tar.gz"
-  sha256 "9a93b2b7dfdac77ceba5a558a580e74667dd6fede4585b91eefb60f03b72df23"
+  url 'http://zlib.net/zlib-1.3.1.tar.xz'
+  sha256 '38ef96b8dfe510d42707d9c781877914792541133e1870841463bfa73f883e32'
 
   bottle do
     cellar :any
@@ -36,8 +36,8 @@ class Zlib < Formula
     system ENV.cc, 'zpipe.c', "-I#{include}", "-L#{lib}", '-lz', '-o', 'zpipe'
     touch 'foo.txt'
     for_archs './zpipe' do |a|
-      arch_cmd = (a.nil? ? '' : "arch -arch #{a.to_s} ")
-      system "#{arch_cmd}./zpipe < foo.txt > foo.txt.z"
+      cmd = (a.nil? ? '' : "arch -arch #{a.to_s} ") + './zpipe'
+      Kernel.system cmd, {:in => 'foo.txt', :out => 'foo.txt.z'}
       assert File.exists?('foo.txt.z')
       rm 'foo.txt.z'
     end
