@@ -25,6 +25,12 @@ class Bash < Formula
   # the circumstances that led to this patch were not recorded
   patch :DATA
 
+  def ensure_to_fro
+    TO.binwrite switch_to unless TO.exists?
+    FRO.binwrite switch_from unless FRO.exists?
+    chmod 0755, [TO, FRO]
+  end
+
   def install
     ENV.universal_binary if build.universal?
 
@@ -46,15 +52,11 @@ class Bash < Formula
     system 'make'
     # no `make tests`; it outputs blather that only means much if you pore over the test scripts.
     system 'make', 'install'
-
-    TO.binwrite switch_to
-    FRO.binwrite switch_from
-    chmod 0755, [TO, FRO]
   end # install
 
-  def insinuate; system('sudo', TO) if TO.exists?; end
+  def insinuate; ensure_to_fro; system('sudo', TO); end
 
-  def uninsinuate; system('sudo', MOVED_BASH, FRO) if FRO.exists?; end
+  def uninsinuate; ensure_to_fro; system('sudo', MOVED_BASH, FRO); end
 
   def caveats; <<-EOS.undent
       Some older software may rely on behaviour that has changed since your system’s
@@ -128,6 +130,7 @@ class Bash < Formula
     fi
     Compatibility_File="BASH_COMPAT='${Compatibility_Version}'"
     sudo echo "$Compatibility_File" >| "/tmp/${Compatibility_Name}"
+    chmod 0644 "/tmp/${Compatibility_Name}"
     sudo mv -f "/tmp/${Compatibility_Name}" "${Pfx}/etc/${Compatibility_Name}"
     echo 'Future invocations of Bash will use the brewed version.'
     _
