@@ -4,7 +4,7 @@ class MaximumMacOSRequirement < Requirement
   fatal true
 
   def initialize(tags)
-    @version = MacOS::Version.from_symbol(tags.first)
+    @version = MacOS::Version.new(tags.first)
     super
   end
 
