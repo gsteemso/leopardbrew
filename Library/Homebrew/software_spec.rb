@@ -18,7 +18,6 @@ class SoftwareSpec
     :cxx11     => Option.new("c++11", "Build using C++11 mode"),
     "32-bit"   => Option.new("32-bit", "Build 32-bit only")
   }
-  OPTL_RCMD = [:optional, :recommended].freeze
 
   attr_reader :name, :full_name, :owner
   attr_reader :bottle_specification, :build, :compiler_failures, :dependency_collector,
@@ -143,16 +142,14 @@ class SoftwareSpec
     group_name, group_members = *(group.keys.first)
     group_tags = Array(group.values.first)
     raise UsageError, "dependency group “#{group_name}” MUST have :optional or :recommended priority" \
-      unless group_tags.any?{ |tag| OPTL_RCMD.any?{ |priority| tag == priority } }
+      unless group_tags.any?{ |tag| [:optional, :recommended].include? tag }
     _deps = []
     group_members.each{ |name| _deps << dependency_collector.add(Dependency.new(name, group_tags, nil, group_name)) }
-    add_group_option( group_name,
-                      group_tags.detect{ |tag| OPTL_RCMD.any?{ |priority| tag == priority }}
-                    ) unless _deps.empty?
+    add_group_option( group_name, group_tags.detect{ |tag| [:optional, :recommended].include? tag }) unless _deps.empty?
   end # depends_group
 
   def enhanced_by(aid)
-    aids = Array(aid).map{ |name| Formulary.factory(name) rescue nil }
+    aids = Array(aid).map{ |name| if name == :nls then name = 'gettext'; end; Formulary.factory(name) rescue nil }
     @named_enhancements << aids
     @active_enhancements.concat(aids).uniq! if aids.all?{ |f| f and f.installed? }
   end # enhanced_by
