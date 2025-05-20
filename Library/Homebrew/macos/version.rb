@@ -28,6 +28,15 @@ module MacOS
       :panther       => '10.3'
     }.freeze
 
+    def self.from_encumbered_symbol(sym)
+      str = sym.to_s
+      new(MacOS::Version::SYMBOLS.fetch(str[%r{^[^_]+}].to_sym) {
+            MacOS::Version::SYMBOLS.fetch(str[%r{^[^_]+_[^_]+}].to_sym) {
+              raise ArgumentError, "unknown version #{sym.inspect}"
+          } }
+         )
+    end
+
     def self.from_symbol(sym)
       str = SYMBOLS.fetch(sym) { raise ArgumentError, "unknown version #{sym.inspect}" }
       new(str)
@@ -42,7 +51,7 @@ module MacOS
         end
     end # <=>
 
-    def to_sym; SYMBOLS.invert.fetch(@version) { :dunno }; end
+    def to_sym; SYMBOLS.invert.fetch(@version, :dunno); end
 
     def pretty_name; to_sym.to_s.split("_").map(&:capitalize).join(' '); end
   end # MacOS::Version
