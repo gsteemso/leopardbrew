@@ -47,7 +47,7 @@ module Homebrew
     $?.success?
   end # Homebrew⸬_system
 
-  def self.system(cmd, *args); puts "#{cmd} #{args*" "}".strip if VERBOSE; _system(cmd, *args); end
+  def self.system(cmd, *args); oh1 "#{cmd} #{args*" "}".strip if VERBOSE; _system(cmd, *args); end
 
   def self.git_origin
     return unless Utils.git_available?
@@ -157,7 +157,7 @@ def for_archs (cmd, &block)
   cmd = which(cmd) unless cmd.to_s =~ %r{/}
   cmd = Pathname.new(cmd) unless Pathname === cmd
   if (is_fat = cmd.fat?) and (which 'arch').to_s.choke
-    cmd.archs.select { |a| CPU.can_run?(a) }.each(&block)
+    cmd.archs.select{ |a| CPU.can_run?(a) }.each(&block)
   else
     opoo <<-_.undent if is_fat
       Can’t find the “arch” command.  Running only the default architecture of
@@ -418,7 +418,7 @@ module GitHub
   end # build_search_qualifier_string
 
   def uri_escape(query)
-    if URI.respond_to?(:encode_www_form_component)
+    if URI.responds_to?(:encode_www_form_component)
       URI.encode_www_form_component(query)
     else
       require "erb"
