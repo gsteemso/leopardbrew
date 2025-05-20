@@ -85,10 +85,10 @@ class Keg
 
   # If path leads to a file in a keg, this will return the containing Keg object.
   def self.for(path, _cellar = HOMEBREW_CELLAR)
-    path = Pathname.new(path).realpath
-    until path.root?
-      return Keg.new(path) if path.parent.parent == _cellar
-      path = path.parent.realpath # realpath() prevents .root? failing
+    pn = Pathname.new(path).realpath
+    until pn.root?
+      return Keg.new(pn) if pn.parent.parent == _cellar
+      pn = pn.parent.realpath # realpath() prevents .root? failing
     end
     raise NotAKegError, path
   end # Keg::for
@@ -96,12 +96,12 @@ class Keg
   attr_reader :path, :installed_prefix, :name, :linked_keg_record, :opt_record, :version_s
   private :installed_prefix, :version_s
 
-  def initialize(_path, _cellar = HOMEBREW_CELLAR)
-    raise 'Can’t make a keg from a nil pathname' unless _path
-    path = (Pathname === _path ? _path : Pathname.new(_path))
-    raise "#{_path} is not a valid keg" unless path.directory? and path.realpath.parent.parent == _cellar.realpath
-    @path = path
-    @version_s = path.basename(REINSTALL_SUFFIX).to_s
+  def initialize(path, _cellar = HOMEBREW_CELLAR)
+    raise 'Can’t make a keg from a nil pathname' unless path
+    pn = (Pathname === path ? path : Pathname.new(path))
+    raise "#{path} is not a valid keg" unless pn.directory? and pn.realpath.parent.parent == _cellar.realpath
+    @path = pn
+    @version_s = pn.basename(REINSTALL_SUFFIX).to_s
     @name = rack.basename.to_s
     @installed_prefix = HOMEBREW_CELLAR/name/version_s
     @linked_keg_record = LINKDIR/name
@@ -116,7 +116,12 @@ class Keg
   def versioned_name; "#{name}=#{version_s}"; end
 
   def formula
-    (path/Tab::FILENAME).file? ? Formula.from_installed_prefix(path) : Formulary.from_rack(rack)
+    (path/Tab::FILENAME).file? ? Formulary.from_keg(path) : Formulary.from_rack(rack)
+  end
+
+  def spec
+    (path/Tab::FILENAME).file? ? Tab.for_keg(path).spec \
+                               : (version_s.starts_with? 'HEAD' ? :head : :stable)  # usually correct, :devel is rare
   end
 
   def inspect; "#<#{self.class.name}:#{path}>"; end
@@ -280,10 +285,10 @@ class Keg
           when INFOFILE_RX               then :info
           when 'fish', 'ri', *SHARE_PATHS,
                'zsh', MAN_RX             then :mkdir
-          when %r{^(ri|#{SHARE_PATHS * '|'})/},
-               MANPAGE_RX                then :link
           when %r{^(fish/vendor_completions.d|icons|zsh/site_functions)/}, LOCALEDIR_RX
                                          then :link_tree
+          when %r{^(ri|#{SHARE_PATHS * '|'})/},
+               MANPAGE_RX                then :link
           when %r{^(fish|zsh)/}          then :link
                                          else :link
         end
@@ -348,7 +353,8 @@ class Keg
     if mode.dry_run  # cf. git-clean -n: list files to delete, don't really link or delete
       if stats
         if mode.overwrite then puts "Would delete #{dst}"
-        else puts "Conflict!  #{dst} already exists and is a #{(stats.ftype == 'link') ? "link to #{dst.resolved_path}" : stats.ftype}"; end
+        else puts "Conflict!  #{dst} already exists and is a #{(stats.ftype == 'link') ? "link to #{dst.resolved_path}" \
+                                                                                       : stats.ftype}"; end
       end
       puts "#{dst} -> #{_src}"
       return
