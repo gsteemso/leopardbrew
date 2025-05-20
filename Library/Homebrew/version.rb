@@ -136,7 +136,7 @@ class Version
   end # ::detect
 
   def initialize(val)
-    if val.respond_to?(:to_s)
+    if val.responds_to?(:to_s)
       @version = val.to_s
     else
       raise TypeError, "Version value must be a string"
@@ -186,6 +186,24 @@ class Version
   def hash; version.hash; end
 
   def to_s; version.dup; end
+
+  def null?; version.nil?; end
+
+  def major; return NULL_TOKEN if null?; tokens.first; end
+
+  def minor; return NULL_TOKEN if null?; tokens[1]; end
+
+  def patch; return NULL_TOKEN if null?; tokens[2]; end
+
+  def major_minor
+    return self if null?
+    (major_minor = tokens[0..1]).empty? ? NULL : self.class.new(major_minor * '.')
+  end
+
+  def major_minor_patch
+    return self if null?
+    (major_minor_patch = tokens[0..2]).empty? ? NULL : self.class.new(major_minor_patch * '.')
+  end
 
   protected
 
