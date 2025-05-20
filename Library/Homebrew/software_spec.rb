@@ -1,22 +1,22 @@
-require "forwardable"
-require "resource"
-require "checksum"
-require "version"
-require "options"
-require "build_options"
-require "dependency_collector"
-require "bottles"
-require "patch"
-require "compilers"
+require 'forwardable'
+require 'resource'
+require 'checksum'
+require 'version'
+require 'options'
+require 'build_options'
+require 'dependency_collector'
+require 'bottles'
+require 'patch'
+require 'compilers'
 
 class SoftwareSpec
   extend Forwardable
 
   PREDEFINED_OPTIONS = {
-    :universal => Option.new("universal", "Build a universal binary"),
-    :cross     => Option.new("cross", "Build for multiple CPU types"),
-    :cxx11     => Option.new("c++11", "Build using C++11 mode"),
-    "32-bit"   => Option.new("32-bit", "Build 32-bit only")
+    :universal => Option.new('universal', 'Build a universal binary'),
+    :cross     => Option.new('cross', 'Build for multiple CPU types'),
+    :cxx11     => Option.new('c++11', 'Build using C++11 mode'),
+    '32-bit'   => Option.new('32-bit', 'Build 32-bit only')
   }
 
   attr_reader :name, :full_name, :owner
@@ -75,7 +75,7 @@ class SoftwareSpec
       (bottle_specification.compatible_cellar? or ARGV.force_bottle?)
   end
 
-  def bottle(disable_type = nil, disable_reason = nil,  &block)
+  def bottle(disable_type = nil, disable_reason = nil, &block)
     if disable_type
       @bottle_disable_reason = BottleDisableReason.new(disable_type, disable_reason)
     else bottle_specification.instance_eval(&block); end
@@ -96,23 +96,23 @@ class SoftwareSpec
 
   def option_defined?(name); options.include?(name); end
 
-  def option(name, description = "")
+  def option(name, description = '')
     opt = PREDEFINED_OPTIONS.fetch(name) do
-      if Symbol === name
-        opoo "Passing arbitrary symbols to `option` is deprecated: #{name.inspect}"
-        puts "Symbols are reserved for future use, please pass a string instead"
-        name = name.to_s
+        if Symbol === name
+          opoo "Passing arbitrary symbols to `option` is deprecated: #{name.inspect}"
+          puts 'Symbols are reserved for future use, please pass a string instead'
+          name = name.to_s
+        end
+        raise ArgumentError, 'option name is required' if name.empty?
+        raise ArgumentError, 'option name must be longer than one character' unless name.length > 1
+        raise ArgumentError, 'option name must not start with dashes' if name.start_with?('-')
+        Option.new(name, description)
       end
-      raise ArgumentError, "option name is required" if name.empty?
-      raise ArgumentError, "option name must be longer than one character" unless name.length > 1
-      raise ArgumentError, "option name must not start with dashes" if name.start_with?("-")
-      Option.new(name, description)
-    end
     options << opt
   end # option
 
   def deprecated_option(hash)
-    raise ArgumentError, "deprecated_option hash must not be empty" if hash.empty?
+    raise ArgumentError, 'deprecated_option hash must not be empty' if hash.empty?
     hash.each do |old_optstrings, new_optstrings|
       Array(old_optstrings).each do |old_optstring|
         new_optstring = Array(new_optstrings).first
@@ -195,7 +195,7 @@ class SoftwareSpec
 end # SoftwareSpec
 
 class HeadSoftwareSpec < SoftwareSpec
-  def initialize; super; @resource.version = Version.new("HEAD"); end
+  def initialize; super; @resource.version = Version.new('HEAD'); end
   def verify_download_integrity(_fn); nil; end
 end # HeadSoftwareSpec
 
@@ -253,10 +253,10 @@ class Bottle
 end # Bottle
 
 class BottleSpecification
-  DEFAULT_PREFIX = "/usr/local".freeze
-  DEFAULT_CELLAR = "/usr/local/Cellar".freeze
-  DEFAULT_DOMAIN = (ENV["HOMEBREW_BOTTLE_DOMAIN"] or
-                    "https://ia904500.us.archive.org/24/items/tigerbrew").freeze
+  DEFAULT_PREFIX = '/usr/local'.freeze
+  DEFAULT_CELLAR = '/usr/local/Cellar'.freeze
+  DEFAULT_DOMAIN = (ENV['HOMEBREW_BOTTLE_DOMAIN'] ||
+                    'https://ia904500.us.archive.org/24/items/tigerbrew').freeze
 
   attr_rw :prefix, :cellar, :revision
   alias_method :rebuild, :revision
@@ -295,7 +295,7 @@ class BottleSpecification
   def checksums
     checksums = {}
     os_versions = collector.keys
-    os_versions.map! { |osx| MacOS::Version.from_symbol osx rescue nil }.compact!
+    os_versions.map! { |osx| MacOS::Version.from_encumbered_symbol osx rescue nil }.compact!
     os_versions.sort.reverse_each do |os_version|
       osx = os_version.to_sym
       checksum = collector[osx]
