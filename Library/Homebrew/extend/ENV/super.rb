@@ -37,16 +37,15 @@ module Superenv
 
     send(compiler)
 
-    self["MAKEFLAGS"]            ||= "-j#{make_jobs}"
     self["PATH"]                   = determine_path
     self["PKG_CONFIG_PATH"]        = determine_pkg_config_path
     self["PKG_CONFIG_LIBDIR"]      = determine_pkg_config_libdir
     self["HOMEBREW_CCCFG"]         = determine_cccfg
     self["HOMEBREW_OPTIMIZATION_LEVEL"] = "Os"
-    self["HOMEBREW_BREW_FILE"]     = HOMEBREW_BREW_FILE.to_s
-    self["HOMEBREW_PREFIX"]        = HOMEBREW_PREFIX.to_s
-    self["HOMEBREW_CELLAR"]        = HOMEBREW_CELLAR.to_s
-    self["HOMEBREW_REPOSITORY"]    = HOMEBREW_REPOSITORY.to_s
+#   self["HOMEBREW_BREW_FILE"]     = HOMEBREW_BREW_FILE.to_s
+#   self["HOMEBREW_PREFIX"]        = HOMEBREW_PREFIX.to_s
+#   self["HOMEBREW_CELLAR"]        = HOMEBREW_CELLAR.to_s
+#   self["HOMEBREW_REPOSITORY"]    = HOMEBREW_REPOSITORY.to_s
     self["HOMEBREW_TEMP"]          = HOMEBREW_TEMP.to_s
     self["HOMEBREW_SDKROOT"]       = effective_sysroot
     self["HOMEBREW_OPTFLAGS"]      = determine_optflags
@@ -56,7 +55,7 @@ module Superenv
     self["CMAKE_INCLUDE_PATH"]     = determine_cmake_include_path
     self["CMAKE_LIBRARY_PATH"]     = determine_cmake_library_path
     self["ACLOCAL_PATH"]           = determine_aclocal_path
-    self["M4"]                     = determine_m4
+    self["M4"]                     = OPTDIR/'m4/bin/m4' if deps.any?{ |d| d.name == 'libtool' }
     self["HOMEBREW_ISYSTEM_PATHS"] = determine_isystem_paths
     self["HOMEBREW_INCLUDE_PATHS"] = determine_include_paths
     self["HOMEBREW_LIBRARY_PATHS"] = determine_library_paths
@@ -161,7 +160,7 @@ module Superenv
     elsif @build_archs then @build_archs.as_arch_flags
     elsif homebrew_build_archs then homebrew_build_archs.as_arch_flags
     else self['HOMEBREW_ARCHFLAGS'] || ''; end
-  end
+  end # determine_archflags
 
   def determine_cmake_prefix_path
     paths = keg_only_deps.map { |d| d.opt_prefix.to_s }
@@ -190,8 +189,6 @@ module Superenv
     paths << "#{MacOS::X11.share}/aclocal" if x11?
     paths.to_path_s
   end # determine_aclocal_path
-
-  def determine_m4; m4 = Formula['m4']; m4.installed? ? m4.opt_bin/'m4' : MacOS.locate('m4'); end
 
   def determine_isystem_paths; (common_include_paths.unshift "#{HOMEBREW_PREFIX}/include").to_path_s; end
 

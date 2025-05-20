@@ -32,8 +32,6 @@ module Stdenv
     self["ACLOCAL_PATH"] = "#{HOMEBREW_PREFIX}/share/aclocal" \
       if MacOS.has_apple_developer_tools? and MacOS::Xcode.provides_autotools?
 
-    self["MAKEFLAGS"] ||= "-j#{make_jobs}"
-
     # /usr/local is already an -isystem and -L directory so we skip it
     unless HOMEBREW_PREFIX.to_s == "/usr/local"
       self["CPPFLAGS"] = "-isystem#{HOMEBREW_PREFIX}/include"

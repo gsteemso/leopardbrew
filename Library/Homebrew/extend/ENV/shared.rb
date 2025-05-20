@@ -10,6 +10,8 @@ require 'macos'
 module SharedEnvExtension
   include CompilerConstants
 
+  attr_reader :build_archs
+
   # @private
   CC_FLAG_VARS = %w[CFLAGS CXXFLAGS OBJCFLAGS OBJCXXFLAGS]
   # @private
@@ -33,16 +35,17 @@ module SharedEnvExtension
     @formula = formula
     reset
     @build_archs = archset || homebrew_build_archs || MacOS.preferred_arch_as_list
-    set_build_archs(@build_archs)
+    set_build_archs(build_archs)
+    self['MAKEFLAGS'] ||= "-j#{make_jobs}"
   end # setup_build_environment
 
   # @private
   def reset; SANITIZED_VARS.each { |k| delete(k) }; end
 
   def remove_cc_etc
-    keys = %w[CC CXX OBJC OBJCXX LD CPP CFLAGS CXXFLAGS OBJCFLAGS OBJCXXFLAGS LDFLAGS CPPFLAGS]
-    removed = Hash[*keys.flat_map { |key| [key, self[key]] }]
-    keys.each { |key| delete(key) }
+    keys = COMPILER_VARS + CC_FLAG_VARS + FC_FLAG_VARS + %w[LD CPP LDFLAGS CPPFLAGS]
+    removed = Hash[*keys.flat_map{ |key| [key, self[key]] }]
+    keys.each{ |key| delete(key) }
     removed
   end # remove_cc_etc
 
@@ -152,15 +155,6 @@ module SharedEnvExtension
       else MacOS.default_compiler; end
   end # compiler
 
-# TODO properly account for clang
-  def compiler_version
-    case compiler.to_s
-      when 'gcc_4_0' then 4.0
-      when 'clang', 'gcc', 'llvm' then 4.2
-      when GNU_GCC_REGEXP then $1.to_f
-    end
-  end # compiler_version
-
   # @private
   def determine_cc; COMPILER_SYMBOL_MAP.invert.fetch(compiler, compiler); end
 
@@ -183,7 +177,7 @@ module SharedEnvExtension
 
   def supports_cxx14?; cc =~ GNU_CXX14_REGEXP or cc =~ /clang/; end
 
-  def building_pure_64_bit?; not @build_archs.detect{ |a| a.to_s !~ %r{64} }; end
+  def building_pure_64_bit?; not build_archs.detect{ |a| a.to_s !~ %r{64} }; end
 
   # Snow Leopard defines an NCURSES value the opposite of most distros.
   # See: https://bugs.python.org/issue6848
@@ -196,9 +190,9 @@ module SharedEnvExtension
       || 2 * CPU.cores
   end
 
-  # Edits $MAKEFLAGS, causing Make to use a single job.  This is useful for
-  # makefiles with race conditions.  When passed a block, $MAKEFLAGS is altered
-  # only within the block, being restored on its completion.
+  # Edits $MAKEFLAGS, restricting Make to a single job.  This is useful for makefiles with race
+  # conditions.  When passed a block, $MAKEFLAGS is altered only within the block, being restored
+  # on its completion.
   def deparallelize
     old = self['MAKEFLAGS']; j_rex = /(-\w*j)\d+/
     if old =~ j_rex then self['MAKEFLAGS'] = old.sub(j_rex, '\11')
@@ -287,10 +281,10 @@ module SharedEnvExtension
     end # get GCC formula
     unless gcc_formula.opt_prefix.exists?
       raise <<-EOS.undent
-      The requested Leopardbrew GCC was not installed.  You must:
+      The requested Leopardbrew GCC is not installed.  You must:
           brew install #{gcc_formula.full_name}
       EOS
-    end # no GCC formula
+    end # no opt/ prefix
   end # warn_about_non_apple_gcc
 
   def cross_binary; set_build_archs(CPU.cross_archs); end
@@ -298,7 +292,7 @@ module SharedEnvExtension
   def universal_binary; set_build_archs(CPU.local_archs); end
 
   def set_build_archs(archset)
-    archset = Array(archset).extend ArchitectureListExtension unless archset.respond_to?(:fat?)
+    archset = Array(archset).extend ArchitectureListExtension unless archset.responds_to?(:fat?)
     clear_compiler_archflags
     @build_archs = archset
     self['HOMEBREW_BUILD_ARCHS'] = archset.as_build_archs
@@ -310,19 +304,19 @@ module SharedEnvExtension
     CPU.all_archs.each{ |arch| remove COMPILER_VARS, "-arch #{arch}" }
   end
 
-  def set_compiler_archflags(flagstring = @build_archs.as_arch_flags)
+  def set_compiler_archflags(flagstring = build_archs.as_arch_flags)
     append_if_set COMPILER_VARS, flagstring
   end
 
   def m32
-    @build_arch_stash ||= @build_archs
+    @build_arch_stash ||= build_archs
     set_build_archs CPU.select_32b_archs(@build_arch_stash)
   end
 
   def un_m32; set_build_archs @build_arch_stash; @build_arch_stash = nil; end
 
   def m64
-    @build_arch_stash ||= @build_archs
+    @build_arch_stash ||= build_archs
     set_build_archs CPU.select_64b_archs(@build_arch_stash)
   end
 
@@ -331,12 +325,12 @@ module SharedEnvExtension
   private
 
   def cc=(val)
-    if val then self['CC'] = self['OBJC'] = val.to_s + ' ' + @build_archs.as_arch_flags
+    if val then self['CC'] = self['OBJC'] = val.to_s + ' ' + build_archs.as_arch_flags
     else        self['CC'] = self['OBJC'] = ''; end
   end
 
   def cxx=(val)
-    if val then self['CXX'] = self['OBJCXX'] = val.to_s + ' ' + @build_archs.as_arch_flags
+    if val then self['CXX'] = self['OBJCXX'] = val.to_s + ' ' + build_archs.as_arch_flags
     else        self['CXX'] = self['OBJCXX'] = ''; end
   end
 
