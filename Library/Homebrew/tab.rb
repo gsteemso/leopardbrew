@@ -62,7 +62,7 @@ class Tab < OpenStruct
     if (p = f.opt_prefix).symlink? and p.directory? then paths << p.resolved_path; end
     if (p = f.linked_keg).symlink? and p.directory? then paths << p.resolved_path; end
     if (p = f.rack).directory? and (d = p.subdirs).length == 1 then paths << d.first; end
-    if (p = paths.map { |pn| pn.join(FILENAME) }.find(&:file?))
+    if (p = paths.map{ |pn| pn/FILENAME }.find(&:file?))
       tab = from_file(p)
       used_options = remap_deprecated_options(f.deprecated_options, tab.used_options)
       tab.used_options = used_options.as_flags
@@ -116,7 +116,7 @@ class Tab < OpenStruct
 
 
   def with?(val)
-    name = val.respond_to?(:name) ? val.name : val
+    name = val.responds_to?(:name) ? val.name : val
     includes?("with-#{name}") or unused_options.include?("without-#{name}")
   end
 
@@ -138,14 +138,16 @@ class Tab < OpenStruct
 
   def build_bottle?; built_as_bottle and not poured_from_bottle; end
 
+  # Older tabs won’t have this field, so supply an empty list.
+  def active_aids; aa = super; aa.nil? ? [] : aa; end
+
   def built_archs
     # Older tabs won’t have this field, so compute a plausible default.
-    if super.empty? then 
-      if cross? then CPU.cross_archs
-      elsif universal? then CPU.local_archs
-      else MacOS.preferred_arch_as_list; end
+    if super.empty? then if cross? then CPU.cross_archs
+                         elsif universal? then CPU.local_archs
+                         else MacOS.preferred_arch_as_list; end
     else super.map(&:to_sym).extend ArchitectureListExtension; end
-  end
+  end # built_archs
 
   def compiler; super or MacOS.default_compiler; end
 
@@ -185,12 +187,13 @@ class Tab < OpenStruct
            when false then 'Built from source'
            else 'Installed'
          end
+    s << "(for #{built_archs.map(&:to_s) * ', '})"
     unless used_options.empty?
       s << 'with: '
-      s << used_options.to_a.join(' ')
+      s.concat used_options.to_a
     end
-    s << "\n  Enhanced by:  #{active_aids * ', '}" unless active_aids.empty?
-    s.join(' ')
+    s << "\nEnhanced by:  #{active_aids.map(&:full_name) * ', '}" if active_aids.choke
+    s * ' '
   end # to_s
 
   def used_options; Options.create(super); end
