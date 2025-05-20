@@ -4,6 +4,9 @@ require "keg"
 require "language/python"
 require "version"
 
+$env_cellar = ENV['HOMEBREW_CELLAR']
+$seen_prefix_bin = $seen_prefix_sbin = false
+
 class Volumes
   def initialize
     @volumes = get_mounts
@@ -47,11 +50,6 @@ end # Volumes
 
 class Checks
 
-  def initialize
-    @env_cellar = ENV['HOMEBREW_CELLAR']
-    @seen_prefix_bin = @seen_prefix_sbin = false
-  end
-
   ############# HELPERS
   # Finds files in HOMEBREW_PREFIX *and* /usr/local.
   # Specify paths relative to a prefix eg. "include/foo.h".
@@ -67,15 +65,13 @@ class Checks
   end
   ############# END HELPERS
 
-  # Sorry for the lack of an indent here, the diff would have been unreadable.
-  # See https://github.com/Homebrew/homebrew/pull/9986
   def check_path_for_trailing_slashes
-    bad_paths = ENV["PATH"].split(File::PATH_SEPARATOR).select { |p| p[-1..-1] == "/" }
+    bad_paths = ENV["PATH"].split(File::PATH_SEPARATOR).select{ |p| p[-1..-1] == "/" }
     return if bad_paths.empty?
     inject_file_list bad_paths, <<-EOS.undent
-    Some directories in your path end in a slash.
-    Directories in your path should not end in a slash. This can break other
-    doctor checks. The following directories should be edited:
+      Some directories in your path end in a slash.
+      Directories in your path should not end in a slash.  This can break other
+      doctor checks.  The following directories should be edited:
     EOS
   end # check_path_for_trailing_slashes
 
@@ -281,7 +277,7 @@ class Checks
         EOS
       end
     end # check_clt_up_to_date, OS ≥ 10.9
-  elsif MacOS.version > "10.6" and MacOS.version < "10.9"
+  elsif MacOS.version > '10.6'
     def check_for_installed_developer_tools
       unless MacOS::Xcode.installed? or MacOS::CLT.installed? then <<-EOS.undent
           No developer tools installed.
@@ -364,7 +360,7 @@ class Checks
     if MacOS::Xcode.version >= "4.3" and uninstaller.exists? then <<-EOS.undent
         You have leftover files from an older version of Xcode.
         You should delete them using:
-          #{uninstaller}
+            #{uninstaller}
       EOS
     end
   end # check_for_stray_developer_directory
@@ -440,7 +436,7 @@ class Checks
     world_writable = HOMEBREW_TEMP.stat.mode & 0777 == 0777
     if world_writable and not HOMEBREW_TEMP.sticky? then <<-EOS.undent
         #{HOMEBREW_TEMP} is world-writable but does not have the sticky bit set.
-        Please run "Repair Disk Permissions" in Disk Utility.
+        Please run “Repair Disk Permissions” in Disk Utility.
       EOS
     end
   end # check_tmpdir_sticky_bit
@@ -455,7 +451,7 @@ class Checks
           by Leopardbrew. If a formula tries to write a file to this directory, the
           install will fail during the link step.
 
-          You should probably `chown` #{dir}
+          You should probably `chown #{dir}`.
         EOS
       end
     end # check_access_(assorted directories)
@@ -469,7 +465,7 @@ class Checks
         by Leopardbrew. If you install a formula with Python modules, the install
         will fail during the link step.
 
-        You should probably `chown` #{Language::Python.homebrew_site_packages}
+        You should probably `chown #{Language::Python.homebrew_site_packages}`.
       EOS
     end
   end # check_access_site_packages
@@ -480,7 +476,7 @@ class Checks
         #{HOMEBREW_LOGS} isn't writable.
         Leopardbrew writes debugging logs to this location.
 
-        You should probably `chown` #{HOMEBREW_LOGS}
+        You should probably `chown #{HOMEBREW_LOGS}`.
       EOS
     end
   end # check_access_logs
@@ -492,7 +488,7 @@ class Checks
         This can happen if you run `brew install` or `brew fetch` as another user.
         Leopardbrew caches downloaded files to this location.
   
-        You should probably `chown` #{HOMEBREW_CACHE}
+        You should probably `chown #{HOMEBREW_CACHE}`.
       EOS
     end
   end # check_access_cache
@@ -501,7 +497,7 @@ class Checks
     if HOMEBREW_CELLAR.exists? and not HOMEBREW_CELLAR.writable_real?
       <<-EOS.undent
         #{HOMEBREW_CELLAR} isn't writable.
-        You should `chown` #{HOMEBREW_CELLAR}
+        You should `chown #{HOMEBREW_CELLAR}`.
       EOS
     end
   end # check_access_cellar
@@ -510,7 +506,7 @@ class Checks
     if OPTDIR.exists? and not OPTDIR.writable_real?
       <<-EOS.undent
         #{OPTDIR} isn't writable.
-        You should `chown` #{OPTDIR}
+        You should `chown #{OPTDIR}`.
       EOS
     end
   end # check_access_prefix_opt
@@ -518,7 +514,7 @@ class Checks
   def check_homebrew_prefix
     unless HOMEBREW_PREFIX.to_s == "/usr/local"
       <<-EOS.undent
-        Your Leopardbrew is not installed to /usr/local
+        Your Leopardbrew is not installed to /usr/local.
         You can install Leopardbrew anywhere you want, but some brews may only build
         correctly if you install in /usr/local.
       EOS
@@ -542,7 +538,7 @@ class Checks
     unless prefix.exists?
       <<-EOS.undent
         The directory Xcode is reportedly installed to doesn’t exist:
-          #{prefix}
+            #{prefix}
         You may need to `xcode-select` the proper path if you have moved Xcode.
       EOS
     end
@@ -555,7 +551,7 @@ class Checks
       <<-EOS.undent
         Your Xcode is configured with an invalid path.
         You should change it to the correct path:
-          sudo xcode-select -switch #{path}
+            sudo xcode-select -switch #{path}
       EOS
     end
   end # check_xcode_select_path
@@ -579,7 +575,7 @@ class Checks
     paths.each do |p|
       case p
         when "/usr/bin"
-          unless @seen_prefix_bin
+          unless $seen_prefix_bin
             # only show the doctor message if there are any conflicts
             # rationale: a default install should not trigger any brew doctor messages
             conflicts = Dir["#{HOMEBREW_PREFIX}/bin/*"].
@@ -599,17 +595,17 @@ class Checks
               EOS
             end
           end
-        when HOMEBREW_PREFIX/'bin'
-          @seen_prefix_bin = true
-        when HOMEBREW_PREFIX/'sbin'
-          @seen_prefix_sbin = true
+        when "#{HOMEBREW_PREFIX}/bin"
+          $seen_prefix_bin = true
+        when "#{HOMEBREW_PREFIX}/sbin"
+          $seen_prefix_sbin = true
       end
     end
     out
   end # check_user_path_1
 
   def check_user_path_2
-    unless @seen_prefix_bin
+    unless $seen_prefix_bin
       <<-EOS.undent
         Leopardbrew’s bin was not found in your PATH, which is
         “#{ENV['PATH']}”.
@@ -623,7 +619,7 @@ class Checks
     # Don't complain about sbin not being in the path if it doesn't exist
     sbin = HOMEBREW_PREFIX/'sbin'
     if sbin.directory? and sbin.children.length > 0
-      unless @seen_prefix_sbin
+      unless $seen_prefix_sbin
         <<-EOS.undent
           Leopardbrew’s sbin was not found in your PATH but you have installed
           formulae that put executables in #{HOMEBREW_PREFIX}/sbin.
@@ -740,7 +736,7 @@ class Checks
       next if whitelist.include?(p.downcase) or not File.directory?(p)
 
       realpath = Pathname.new(p).realpath.to_s
-      next if realpath.start_with?(HOMEBREW_CELLAR.to_s, @env_cellar)
+      next if realpath.start_with?(HOMEBREW_CELLAR.to_s, $env_cellar)
 
       scripts += Dir.chdir(p) { Dir["*-config"] }.map { |c| File.join(p, c) }
     end
@@ -778,9 +774,9 @@ class Checks
 
   def check_for_symlinked_cellar
     return unless HOMEBREW_CELLAR.exists?
-    if Pathname.new(@env_cellar).symlink?; <<-EOS.undent
+    if Pathname.new($env_cellar).symlink?; <<-EOS.undent
         Symlinked Cellars can cause problems.
-        Your Cellar is a symlink: #{@env_cellar}
+        Your Cellar is a symlink: #{$env_cellar}
                which resolves to: #{HOMEBREW_CELLAR}
 
         The recommended Leopardbrew installations are either:
@@ -1060,7 +1056,7 @@ class Checks
   end # check_for_bad_python_symlink
 
   def check_for_non_prefixed_coreutils
-    gnubin = "#{Formulary.factory("coreutils").iprefix}/libexec/gnubin"
+    gnubin = "#{Formulary.factory("coreutils").libexec}/gnubin"
     <<-EOS.undent if paths.include? gnubin
       Putting non-prefixed coreutils in your path can cause gmp builds to fail.
     EOS
@@ -1220,7 +1216,7 @@ module Homebrew
 
     if ARGV.named.empty?
       methods = checks.all.sort
-      methods << "check_for_linked_keg_only_brews" << "check_for_outdated_homebrew"
+      methods << "check_for_linked_keg_only_brews" << "check_for_outdated_leopardbrew"
       methods = methods.reverse.uniq.reverse
     else
       methods = ARGV.named
