@@ -1,4 +1,6 @@
 class Array
+  def choke; self unless flatten.compact.empty?; end
+
   alias_method :includes?, :include? unless method_defined? :includes?
 end
 
@@ -23,3 +25,7 @@ class Module
     end # each |attr|
   end # attr_rw
 end # Module
+
+class Object
+  alias_method :responds_to?, :respond_to? unless method_defined? :responds_to?
+end
