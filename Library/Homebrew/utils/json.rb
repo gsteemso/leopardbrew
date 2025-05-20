@@ -22,7 +22,7 @@ module Utils
         obj.map { |val| stringify_keys(val) }
       when Hash
         obj.inject({}) do |result, (key, val)|
-          key = key.respond_to?(:to_s) ? key.to_s : key
+          key = key.responds_to?(:to_s) ? key.to_s : key
           val = stringify_keys(val)
           result.merge!(key => val)
         end

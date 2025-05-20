@@ -121,7 +121,7 @@ module Homebrew
   end
 
   def get_body(response)
-    if !response.body.respond_to?(:force_encoding)
+    if !response.body.responds_to?(:force_encoding)
       response.body
     elsif response["Content-Type"].downcase == "application/json; charset=utf-8"
       response.body.dup.force_encoding(Encoding::UTF_8)

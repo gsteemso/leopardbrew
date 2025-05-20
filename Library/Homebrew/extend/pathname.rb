@@ -219,7 +219,7 @@ class Pathname
   # @private
   def incremental_hash(klass)
     digest = klass.new
-    if digest.respond_to?(:file) then digest.file(self)
+    if digest.responds_to?(:file) then digest.file(self)
     else buf = ""; open("rb") { |f| digest << buf while f.read(16384, buf) }; end
     digest.hexdigest
   end # incremental_hash
@@ -263,7 +263,7 @@ class Pathname
   alias_method :make_relative_symlink_to, :make_relative_symlink
 
   def /(other)
-    unless other.respond_to?(:to_s) or other.respond_to?(:to_path)
+    unless other.responds_to?(:to_s) or other.responds_to?(:to_path)
       opoo "Pathname#/ called on #{inspect} with #{other.inspect} as an argument"
       puts "This behavior is deprecated, please pass either a String or a Pathname"
     end
