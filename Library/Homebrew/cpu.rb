@@ -11,6 +11,7 @@ class CPU
       :arm     => [:arm64, :arm64e],
     }.freeze
 
+    # TODO:  Properly account for optflags under Clang
     MODEL_FLAGS = { # bits  type      arch    btl. mdl.  GCC?    GCC optflags
       :g3          => [32, :powerpc, :ppc,     :g3,      4.0,   '-mcpu=750'],
       :g4          => [32, :powerpc, :ppc,     :g4,      4.0,   '-mcpu=7400'],
@@ -44,7 +45,7 @@ class CPU
 
     def hw_type(m = model); MODEL_FLAGS[m][1] if MODEL_FLAGS[m]; end
 
-    def arch(m = model); a = MODEL_FLAGS[m][2] if MODEL_FLAGS[m]; end
+    def arch(m = model); MODEL_FLAGS[m][2] if MODEL_FLAGS[m]; end
 
     def bottle_target_for(m = model); MODEL_FLAGS[m][3] if MODEL_FLAGS[m];end
 
@@ -244,7 +245,7 @@ class CPU
         when :x86_64h              then :haswell
         else bottle_target_for(barch) or
                raise ArgumentError, 'The requested bottle architecture was not recognized.'
-      end if ARGV.build_bottle?
+      end
     end # bottle_target_model
 
     def bottle_target_arch
@@ -257,7 +258,7 @@ class CPU
         when :powerpc     then MacOS.prefer_64_bit? ? :ppc64  : :ppc
         else arch(barch) or
                raise ArgumentError, 'The requested bottle architecture was not recognized.'
-      end if ARGV.build_bottle?
+      end
     end # bottle_target_arch
 
     # Determines whether the current CPU and Mac OS combination can run an
