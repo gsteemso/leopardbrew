@@ -167,15 +167,13 @@ module MachO
   # stubs contain one slice for each of the possible iPhone architectures!) and slots for future
   # expansion.  At present we only expect:  ppc, i386, ppc64, x86_64, x86_64h, arm64e.
   def mach_o_signature_at?(offset)
-    sig = nil unless (file? and size >= (offset + 4) and
-                (sig = FILE_SIGNATURES[binread(4, offset).unpack('N').first]) and
-                (sig != :FAT_MAGIC or (fct = fat_count_at(offset) and fct <= 30)))
-    sig
+    sig = FILE_SIGNATURES[binread(4, offset).unpack('N').first] if file? and size >= (offset + 4)
+    sig if sig and sig != :FAT_MAGIC or (fct = fat_count_at(offset) and fct <= 30)
   end # mach_o_signature_at?
 
   # Only call this if we already know it’s a fat binary!
   # @private
-  def fat_count_at(offset); size > (offset + 8) and binread(4, offset + 4).unpack('N').first; end
+  def fat_count_at(offset); binread(4, offset + 4).unpack('N').first if size > (offset + 8); end
 
   # ‘ar’ archive binary stuff.  See <ar.h> and ar(5).
 
