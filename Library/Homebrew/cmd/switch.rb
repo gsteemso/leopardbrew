@@ -4,13 +4,14 @@ require "tab"
 
 module Homebrew
   def switch
-    if ARGV.named.length != 2
-      onoe "Usage: brew switch <name> <version>"
+    nlen = ARGV.named.length
+    unless (nlen == 1 and ARGV.named.first =~ VERSIONED_NAME_REGEX) or nlen == 2
+      onoe "Usage:  brew switch <name> <version> or brew switch <name>=<version>"
       exit 1
     end
 
-    name = ARGV.shift
-    version = ARGV.shift
+    if nlen == 1 then name, version = $1, $2
+    else name = ARGV.shift; version = ARGV.shift; end
 
     rack = Formulary.to_rack(name)
 
@@ -21,7 +22,7 @@ module Homebrew
 
     # Does the target version exist?
     versions = rack.subdirs.map { |sd| sd.basename.to_s }
-    possibles = versions.select { |v| v =~ /^#{version}(_\d+)?$/ }
+    possibles = versions.select { |v| v =~ %r{^#{version}(_\d+)?$} }
     if possibles == []
       onoe "Version “#{version}” of #{name} is not present in the Cellar."
       puts "Versions available:  #{versions * ', '}"
@@ -30,7 +31,7 @@ module Homebrew
     full_version = possibles.sort.reverse.first
     chosen_prefix = rack/full_version
 
-    unless f = Formula.from_installed_prefix(chosen_prefix)
+    unless f = Formulary.from_keg(chosen_prefix)
       onoe "Version “#{full_version}” of #{name} is not installed properly."
       exit 4
     end
@@ -51,7 +52,7 @@ module Homebrew
       keg.optlink
       puts "opt/ link created for #{keg}"
     else
-      puts "#{keg.link} links created for #{keg}"
+      puts "#{keg.link} links and/or directories created for #{keg}"
     end
   end
 end
