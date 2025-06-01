@@ -306,6 +306,11 @@ class FormulaValidationError < StandardError
   end
 end # FormulaValidationError
 
+class FormulaVersionUnavailableError < RuntimeError
+  def initialize(name, version); @name = name; @version = version; end
+  def to_s; "The formula for #{@name} version #{@version} is no longer available"; end
+end # FormulaUnavailableError
+
 class MultipleVersionsInstalledError < RuntimeError
   attr_reader :name
   def initialize(name)
@@ -315,19 +320,17 @@ class MultipleVersionsInstalledError < RuntimeError
 end # MultipleVersionsInstalledError
 
 class NoSuchKegError < RuntimeError
-  attr_reader :keg
-  def initialize(keg)
-    @keg = keg
-    super "No such formula version is installed:  #{keg}"
+  def initialize(vers_name)
+    vers_name =~ VERSIONED_NAME_REGEX
+    super "No such version is installed:  #{HOMEBREW_CELLAR/$1/$2}"
   end
 end # NoSuchKegError
 
-class NoSuchVersionError < NoSuchKegError
-  def initialize(vers_name)
-    vers_name =~ VERSIONED_NAME_REGEX
-    super HOMEBREW_CELLAR/$1/$2
+class NoSuchRackError < RuntimeError
+  def initialize(rack)
+    super "No such formula is installed:  #{rack}"
   end
-end # NoSuchVersionError
+end # NoSuchRackError
 
 class NotAKegError < RuntimeError
   def initialize(path); super "#{path.to_s} is neither a keg nor inside of one."; end
