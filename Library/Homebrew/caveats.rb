@@ -9,8 +9,8 @@ class Caveats
     caveats = []
     s = f.caveats.to_s
     caveats << s.chomp + "\n" if s.length > 0
-    caveats << enhancements_text
-    caveats << keg_only_text
+    caveats << enhancements_caveats
+    caveats << keg_only_caveats
     caveats << bash_completion_caveats
     caveats << zsh_completion_caveats
     caveats << fish_completion_caveats
@@ -33,17 +33,19 @@ class Caveats
     end.compact.first
   end
 
-  def enhancements_text
-    s = f.named_enhancements.flatten.size
+  def enhancements_caveats
+    ne = f.named_enhancements
+    s = ne.size
     return if s == 0
     <<-_.undent
-      This formula will take advantage of the formul#{plural(s, 'æ', 'a')} named as enhancing it,
-      if #{plural(s, 'they happen', 'it happens')} to be installed at the time of brewing.  Should #{plural(s, 'they', 'it')} be
-      installed later, this formula will not benefit unless reïnstalled.
+      This formula will take advantage of the formul#{plural(s, 'æ', 'a')} named by
+          `brew info #{f.full_name}`
+      as enhancing it, if #{plural(s, 'they happen', 'it happens')} to be installed at the time of brewing.  Should
+      #{plural(s, 'they', 'it')} be installed later, this formula will not benefit unless reïnstalled.
     _
-  end
+  end # enhancements_caveats
 
-  def keg_only_text
+  def keg_only_caveats
     return unless f.keg_only?
 
     s = "This formula is keg-only, which means it is not symlinked into\n#{HOMEBREW_PREFIX}."
@@ -60,7 +62,7 @@ class Caveats
       s << "    CPPFLAGS: -I#{f.opt_include}\n" if f.include.directory?
     end
     s << "\n"
-  end # keg_only_text
+  end # keg_only_caveats
 
   def bash_completion_caveats
     if keg and keg.completion_installed?(:bash) then <<-EOS.undent
