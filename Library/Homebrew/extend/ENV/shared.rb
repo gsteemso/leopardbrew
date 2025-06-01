@@ -155,6 +155,8 @@ module SharedEnvExtension
       else MacOS.default_compiler; end
   end # compiler
 
+  def compiler_version; CompilerSelector.compiler_version(compiler); end
+
   # @private
   def determine_cc; COMPILER_SYMBOL_MAP.invert.fetch(compiler, compiler); end
 
@@ -177,7 +179,7 @@ module SharedEnvExtension
 
   def supports_cxx14?; cc =~ GNU_CXX14_REGEXP or cc =~ /clang/; end
 
-  def building_pure_64_bit?; not build_archs.detect{ |a| a.to_s !~ %r{64} }; end
+  def building_pure_64_bit?; build_archs.all?{ |a| a.to_s =~ %r{64} }; end
 
   # Snow Leopard defines an NCURSES value the opposite of most distros.
   # See: https://bugs.python.org/issue6848
