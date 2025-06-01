@@ -12,8 +12,8 @@ class Gettext < Formula
   # did they think this needed to be keg‐only?
 
   option :universal
-  option 'without-tests', 'Skip the build‐time unit tests (not recommended for a first install)'
-  # former option to leave out the examples is not available in `configure`
+  option 'without-tests', 'Skip the build‐time unit tests (not recommended on first install)'
+  # former option to leave out the examples is no longer available in `configure`
 
   enhanced_by 'libiconv'
 
@@ -41,7 +41,14 @@ class Gettext < Formula
                           '--without-xz'  # avoid a dependency loop
     system 'make'
     ENV.deparallelize do
-      bombproof_system 'make', 'check' if build.with? 'tests'
+      begin
+        safe_system 'make', 'check'
+      rescue ErrorDuringExecution
+        opoo 'Some of the unit tests did not complete successfully.',
+          'This is not unusual.  If you ran Leopardbrew in “verbose” mode, the fraction of',
+          'tests which failed will be visible in the text above; only you can say whether',
+          'the pass rate shown there counts as “good enough”.'
+      end if build.with? 'tests'
       system 'make', 'install'
     end
   end # install

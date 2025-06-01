@@ -26,7 +26,14 @@ class Automake < Formula
 
     system './configure', "--prefix=#{prefix}"
     system 'make'
-    bombproof_system 'make', 'check' if build.with? 'tests'
+    begin
+      safe_system 'make', 'check'
+    rescue ErrorDuringExecution
+      opoo 'Some of the unit tests did not complete successfully.',
+        'This is not unusual.  If you ran Leopardbrew in “verbose” mode, the fraction of',
+        'tests which failed will be visible in the text above; only you can say whether',
+        'the pass rate shown there counts as “good enough”.'
+    end if build.with? 'tests'
     system 'make', 'install'
 
     # Our aclocal must go first. See:
