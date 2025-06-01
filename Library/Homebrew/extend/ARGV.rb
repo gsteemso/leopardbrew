@@ -16,41 +16,45 @@ module HomebrewArgvExtension
                     'build_universal?' => '--universal', }.freeze
 
   SWITCHES = { '1' => '--1', # (“do not recurse” – only used by the `deps` command)
-             # 'd' => '--debug', (already handled as an ENV_FLAG)
+             # 'd' => '--debug', (already handled as an environment flag)
                'f' => '--force',
                'g' => '--git',
                'i' => '--interactive',
                'n' => '--dry-run',
-             # 'q' => '--quieter'  (already handled as an ENV_FLAG)
-             # 's' => '--build-from-source', (already handled as an ENV_FLAG)
-             # 'u' => '--universal', (already handled as a hashed ENV_FLAG)
-             # 'v' => '--verbose', (already handled as an ENV_FLAG)
-             # 'x' => '--cross', (already handled as a hashed ENV_FLAG)
+             # 'q' => '--quieter'  (already handled as an environment flag)
+             # 's' => '--build-from-source', (already handled as an environment flag)
+             # 'u' => '--universal', (already handled as a hashed environment flag)
+             # 'v' => '--verbose', (already handled as an environment flag)
+             # 'x' => '--cross', (already handled as a hashed environment flag)
              }.freeze
 
   BREW_SYSTEM_EQS = %w[ --bottle-arch=
                         --cc=
                         --env=
-                        --json=  ].freeze
+                        --json=        ].freeze
 
   BREW_SYSTEM_FLAGS = %w[ --force-bottle
                           --ignore-dependencies
                           --no-enhancements
-                          --only-dependencies  ].freeze
+                          --only-dependencies   ].freeze
 
   public
 
   def clear
-    @casks = @downcased_unique_named = @formulae = @kegs = @n = @named = @resolved_formulae = nil
+    @casks = @downcased_unique_named = @formulae = @kegs = @n = @named = @racks = @resolved_formulae = nil
     super
   end
 
   def named; @named ||= self - options_only; end
 
+  # Selects both switches (-x) and flags (--xxxx).
   def options_only; select { |arg| arg.to_s.starts_with?('-') }; end
 
   def flags_only; select { |arg| arg.to_s.starts_with?('--') }; end
 
+  # Constructs a list of all flags which would have needed to be passed to convey every datum which
+  # either really was given as a flag, or was actually passed as a switch or through an environment
+  # variable.
   def effective_flags
     flags = flags_only
     ENV_FLAGS.each do |a|
@@ -64,10 +68,14 @@ module HomebrewArgvExtension
     flags
   end # effective_flags
 
+  # Constructs a list of all user-supplied flags that are not specific to the brewing system, i.e.,
+  # only those flags that were (or may have been) defined by a specific formula.  This does involve
+  # a special case in that universal (and/or cross, if implemented) builds can also be specified by
+  # switch or by environment variable.
   def effective_formula_flags
-    flags = flags_only.reject { |f| BREW_SYSTEM_EQS.any? { |eq| f =~ /^#{eq}/ } }
-    ENV_FLAG_HASH.each { |method, flag| flags << flag if (not(include? flag) and send method.to_sym) }
-    flags - BREW_SYSTEM_FLAGS
+    flags = flags_only.reject{ |flag| BREW_SYSTEM_EQS.any?{ |eq| flag =~ /^#{eq}/ }}
+    ENV_FLAG_HASH.each { |method, flag| flags << flag if not include?(flag) and send method.to_sym }
+    flags - BREW_SYSTEM_FLAGS - SWITCHES.values - ENV_FLAGS.map{ |ef| "--#{ef.chop}" }
   end
 
   def formulae
@@ -80,69 +88,46 @@ module HomebrewArgvExtension
 
   def resolved_formulae
     require 'formula'
-    @resolved_formulae ||= (downcased_unique_named - casks).map do |name|
-        if name.include?('/')
-          f = Formulary.factory(name, spec)
-          if spec(default=nil).nil? and f.installed?
-            installed_spec = Tab.for_formula(f).spec
-            f.set_active_spec(installed_spec) if f.send(installed_spec)
-          end
-          f
-        else # name does not include '/'
-          rack = Formulary.to_rack(name)
-          Formulary.from_rack(rack, spec(default=nil))
-        end
-      end # map |name|
+    @resolved_formulae ||= racks.map{ |r| Formulary.from_rack(r)
+                                    }.select{ |f| f.any_version_installed? }
   end # resolved_formulae
 
   def casks; @casks ||= downcased_unique_named.grep HOMEBREW_CASK_TAP_FORMULA_REGEX; end
 
+  def racks
+    @racks ||= downcased_unique_named.map{ |name|
+        if (r = HOMEBREW_CELLAR/name).directory? and r.subdirs != [] then r
+        else raise NoSuchRackError, name; end
+      }
+  end # racks
+
   # this also gathers “kegs” that have no install receipt, so the uninstall command still sees them
   def kegs
-    require 'keg'
     require 'formula'
     @kegs ||= downcased_unique_named.collect do |name|
-        if name =~ VERSIONED_NAME_REGEX
-          keg_path = HOMEBREW_CELLAR/$1/$2
-          raise NoSuchVersionError, name unless keg_path.directory?
-          Keg.new(keg_path)
-        else # formula version is not explicit; go for the active version
-          if (f, ss = attempt_factory(name)) != nil
-            if (var = f.opt_prefix).symlink? and var.directory? then Keg.new(var.resolved_path)
-            elsif (var = f.linked_keg).symlink? and var.directory? then Keg.new(var.resolved_path)
-            elsif (var = f.spec_prefix(ss)) and var.directory? then Keg.new(var)
+        keg = if name =~ VERSIONED_NAME_REGEX
+            keg_path = HOMEBREW_CELLAR/$1/$2
+            raise NoSuchKegError, name unless keg_path.directory?
+            Keg.new(keg_path)
+          elsif (f, ss = attempt_factory(name)) != nil
+            if (pn = f.opt_prefix).symlink? and pn.directory? then Keg.new(pn.resolved_path)
+            elsif (pn = f.linked_keg).symlink? and pn.directory? then Keg.new(pn.resolved_path)
+            elsif (pn = f.spec_prefix(ss)) and pn.directory? then Keg.new(pn)
             elsif (rack = f.rack).directory? and (dirs = rack.subdirs).length == 1 then Keg.new(dirs.first)
-            elsif (var = f.greatest_installed_keg) then var     # can fail if no install receipts
+            elsif (k = f.greatest_installed_keg) then k     # can fail if no install receipts
             else raise MultipleVersionsInstalledError, rack.basename  # can vary from raw “name”
             end
           else # no formula
             rack = HOMEBREW_CELLAR/name
-            if rack.directory? then dirs = rack.subdirs
-            else raise NoSuchKegError, name
-            end
-            case dirs.length
-              when 0 then raise NoSuchKegError, name
-              when 1 then Keg.new(dirs.first)
+            raise NoSuchRackError, name unless rack.directory?
+            case (dirs = rack.subdirs).length
+              when 0 then raise NoSuchRackError, name
+              when 1 then keg = Keg.new(dirs.first)
               else raise MultipleVersionsInstalledError, name
             end
-          end # no formula
-        end # formula version is not explicit
+          end # keg? formula?
       end # collect |name|
   end # kegs
-
-  def installed_kegs
-    require 'keg'
-    require 'formulary'
-    require 'tab'
-    @kegs ||= downcased_unique_named.collect { |name|
-        rack = Formulary.to_rack(name)
-        dirs = rack.directory? ? rack.subdirs : []
-        raise NoSuchKegError, rack.basename if dirs.empty?
-        kegs = []
-        dirs.each { |d| kegs << Keg.new(d) if (d/Tab::FILENAME).exists? }
-        kegs
-      }.flatten
-  end # installed_kegs
 
   # self documenting perhaps?
   def include?(arg); @n = index arg; end
