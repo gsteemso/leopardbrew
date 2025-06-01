@@ -16,7 +16,7 @@ module Homebrew
     raise UsageError if ARGV.named.empty?
 
     # Ensure that the cache exists so we can fetch the tarball
-    HOMEBREW_CACHE.mkpath
+    HOMEBREW_CACHE.mkpath unless HOMEBREW_CACHE.exists?
 
     url = ARGV.named.first # Pull the first (and only) url from ARGV
 
@@ -121,13 +121,13 @@ class FormulaCreator
     # PLEASE REMOVE ALL GENERATED COMMENTS BEFORE SUBMITTING YOUR PULL REQUEST!
 
     class #{Formulary.class_s(name)} < Formula
-      desc ""
-      homepage ""
-      url "#{url}"
+      desc ''
+      homepage ''
+      url '#{url}'
     <% unless version.nil? or version.detected_from_url? %>
-      version "#{version}"
+      version '#{version}'
     <% end %>
-      sha256 "#{sha256}"
+      sha256 '#{sha256}'
 
     <% if mode == :cmake %>
       depends_on 'cmake' => :build

@@ -94,7 +94,7 @@ module Homebrew
       end
 
       # The cache directory seems like a good place to put patches.
-      HOMEBREW_CACHE.mkpath
+      HOMEBREW_CACHE.mkpath unless HOMEBREW_CACHE.exists?
 
       # Store current revision and branch
       revision = `git rev-parse --short HEAD`.strip

@@ -12,7 +12,10 @@ class Descriptions
     def load_cache; @cache = Utils::JSON.load(CACHE_FILE.read) if CACHE_FILE.exists?; end
 
     # Write the cache to disk after ensuring the existence of the containing directory.
-    def save_cache; HOMEBREW_CACHE.mkpath; CACHE_FILE.atomic_write Utils::JSON.dump(@cache); end
+    def save_cache
+      HOMEBREW_CACHE.mkpath unless HOMEBREW_CACHE.exists?
+      CACHE_FILE.atomic_write Utils::JSON.dump(@cache)
+    end
 
     # Create a hash mapping all formulae to their descriptions; save it for future use.
     def generate_cache
