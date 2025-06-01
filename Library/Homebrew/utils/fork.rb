@@ -28,7 +28,10 @@ module Utils
           begin
             socket = server.accept_nonblock
           rescue Errno::EAGAIN, Errno::EWOULDBLOCK, Errno::ECONNABORTED, Errno::EPROTO, Errno::EINTR
-            retry unless Process.waitpid(pid, Process::WNOHANG)
+            unless Process.waitpid(pid, Process::WNOHANG)
+              sleep 0.1
+              retry
+            end
           else
             socket.send_io(write)
             socket.close
