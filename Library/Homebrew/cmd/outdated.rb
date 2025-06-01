@@ -1,4 +1,3 @@
-#:
 #:  Usage:  brew outdated [ [/--HEAD/ | /--devel/] /installed formula/ [...] ]
 #:
 #:Determine which, if any, of the named /installed formulæ/ are out of date
@@ -11,7 +10,7 @@
 #:or recent, a formula installed as --HEAD will always look up‐to‐date, as its
 #:version is always “HEAD”.  This is unaffected by whether the upstream
 #:repository has in fact been updated since the local version was installed).
-#:
+
 require 'formula'
 require 'keg'
 require 'migrator'
@@ -25,41 +24,36 @@ module Homebrew
       outdated = print_outdated(formulae)
     end
     Homebrew.failed = ARGV.resolved_formulae.any? && outdated.any?
-  end
+  end # outdated
 
   def outdated_brews(formulae)
     formulae.map do |f|
       all_versions = []
       older_or_same_tap_versions = []
-
-      if f.oldname && !f.rack.exist? && (dir = HOMEBREW_CELLAR/f.oldname).exist?
+      if f.oldname and not f.rack.exists? and (dir = HOMEBREW_CELLAR/f.oldname).exists?
         if f.tap == Tab.for_keg(dir.subdirs.first).tap
           raise Migrator::MigrationNeededError.new(f)
         end
       end
-
       f.rack.subdirs.each do |keg_dir|
         keg = Keg.new keg_dir
         version = keg.version
         all_versions << version
         older_version = f.pkg_version > version
-
         tap = Tab.for_keg(keg).tap
-        if tap.nil? || f.tap == tap || older_version
+        if tap.nil? or f.tap == tap or older_version
           older_or_same_tap_versions << version
         end
       end
-
       if older_or_same_tap_versions.all? { |version| f.pkg_version > version }
         yield f, all_versions if block_given?
         f
       end
     end.compact
-  end
+  end # outdated_brews
 
   def print_outdated(formulae)
     verbose = ($stdout.tty? or VERBOSE) and not QUIETER
-
     outdated_brews(formulae) do |f, versions|
       if verbose
         puts "#{f.full_name} (#{versions * ', '} < #{f.pkg_version})"
@@ -67,7 +61,7 @@ module Homebrew
         puts f.full_name
       end
     end
-  end
+  end # print_outdated
 
   def print_outdated_json(formulae)
     json = []
@@ -77,7 +71,6 @@ module Homebrew
                 :current_version => f.pkg_version.to_s }
     end
     puts Utils::JSON.dump(json)
-
     outdated
-  end
-end
+  end # print_outdated_json
+end # Homebrew
