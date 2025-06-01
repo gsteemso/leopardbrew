@@ -21,21 +21,23 @@ class ArchRequirement < Requirement
   fatal true
 
   def initialize(arch)
-    @arch = arch.pop
+    @arch = Array(arch).pop
     super
   end
 
   satisfy(:build_env => false) do
-    case @arch
-    when :arm64 then CPU.arm?
-    when :i386, :ppc then CPU.arch == @arch
-    when :ppc64 then MacOS.prefer_64_bit? and CPU.powerpc?
-    when :x86_64 then MacOS.prefer_64_bit? and CPU.intel?
+    case @arch.to_s.downcase
+      when %r{^arm} then CPU.arm?
+      when 'i386', 'ppc' then CPU.arch == @arch
+      when 'intel' then CPU.intel?
+      when 'powerpc' then CPU.powerpc?
+      when 'ppc64' then MacOS.prefer_64_bit? and CPU.powerpc?
+      when 'x86_64' then MacOS.prefer_64_bit? and CPU.intel?
     end
   end
 
-  def message; "This formula requires an #{@arch} architecture."; end
-end
+  def message; "This formula requires a#{@arch.to_s[0] == 'p' ? '' : 'n'} #{@arch} architecture."; end
+end # ArchRequirement
 
 class GitRequirement < Requirement
   fatal true
