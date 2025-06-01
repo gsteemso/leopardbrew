@@ -5,7 +5,7 @@ class FormulaLock
 
   def initialize(name)
     @name = name
-    @path = LOCKDIR.join("#{@name}.brewing")
+    @path = LOCKDIR/"#{@name}.brewing"
     @lockfile = nil
   end
 
@@ -14,26 +14,28 @@ class FormulaLock
     # TODO backport the flock feature and reenable it
     return if MacOS.version == :tiger
 
-    LOCKDIR.mkpath
+    LOCKDIR.mkpath unless LOCKDIR.exists?
     @lockfile = get_or_create_lockfile
     unless @lockfile.flock(File::LOCK_EX | File::LOCK_NB)
       raise OperationInProgressError, @name
     end
-  end
+  end # lock
 
   def unlock
     unless @lockfile.nil? || @lockfile.closed?
       @lockfile.flock(File::LOCK_UN)
       @lockfile.close
     end
-  end
+  end # unlock
 
   def with_lock
     lock
     yield
   ensure
     unlock
-  end
+  end # with_lock
+
+  def delete; @path.delete if @path.file?; end
 
   private
 
@@ -45,5 +47,5 @@ class FormulaLock
     else
       @lockfile
     end
-  end
-end
+  end # get_or_create_lockfile
+end # FormulaLock
