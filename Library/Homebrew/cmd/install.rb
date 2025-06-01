@@ -83,13 +83,20 @@ module Homebrew
           msg = "#{f.full_name} #{f.send(requested_spec).version} is already installed"
           msg << ', it’s just not linked' unless f.keg_only? or (f.linked_keg.symlink? and
                                   f.linked_keg.resolved_real_path == f.spec_prefix(requested_spec))
+          msg << '.'
           opoo msg
+        elsif f.old_version_installed?
+          opoo <<-_.undent
+              An outdated version of #{f.full_name} is already installed.  Use
+                  brew upgrade #{f.full_name}
+              instead.
+            _
         elsif f.oldname_installed? and not ARGV.force?
           # Check if the formula we try to install is the same as installed
           # but not migrated one. If --force passed then install anyway.
-          opoo "#{f.oldname} is already installed, it’s just not migrated",
+          opoo "#{f.oldname} is already installed, it’s just not migrated.",
             "You can migrate this formula with `brew migrate #{f}`,\n",
-            "Or you can force install it with `brew install #{f} --force`"
+            "or you can force‐install it with `brew install #{f} --force`."
         else
           formulae << f
         end
@@ -97,7 +104,13 @@ module Homebrew
 
       perform_preinstall_checks
 
-      formulae.each { |f| install_formula(f) }
+      formulae.each do |f|
+        notice  = "Installing #{f.full_name}"
+        notice += " with #{f.build.used_options * ', '}" unless f.build.used_options.empty?
+        oh1 notice
+
+        install_formula(f)
+      end
     rescue FormulaUnavailableError => e
       if (blacklist = blacklisted?(e.name))
         ofail "#{e.message}\n#{blacklist}"
