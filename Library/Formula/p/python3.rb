@@ -36,6 +36,9 @@ class Python3 < Formula
   end
 
   def install
+    # the installation manages these itself.
+    without_archflags;
+
     # Unset these so that installing pip puts it where we want
     # and not into some other Python the user has installed.
     ENV['PYTHONHOME'] = nil
@@ -55,9 +58,7 @@ class Python3 < Formula
     args << '--without-gcc' if ENV.compiler == :clang
 
     args << '--enable-universalsdk=/'
-    if build.universal? then bitness = ''
-    else bitness = "-#{Hardware::CPU.bits}"; end
-    args << "--with-universal-archs=#{Hardware::CPU.type}#{bitness}"
+    args << "--with-universal-archs=#{Hardware::CPU.type}#{build.universal? ? '' : "-#{Hardware::CPU.bits}"}"
 
     cflags   = []
     ldflags  = []
@@ -80,7 +81,7 @@ class Python3 < Formula
     inreplace 'setup.py' do |s|
       # We want our readline! This is just to outsmart the detection code,
       # superenv makes cc always find includes/libs!
-      s.gsub! 'do_readline = self.compiler.find_library_file(self.lib_dirs, readline_lib)',
+      s.gsub! %r{do_readline = self\.compiler\.find_library_file\(self\.lib_dirs,[ \t\n]+readline_lib\)},
               "do_readline = '#{Formula['readline'].opt_lib}/libhistory.dylib'"
 
       s.gsub! 'sqlite_setup_debug = False',
@@ -92,10 +93,10 @@ class Python3 < Formula
     # Allow python modules to use ctypes.find_library to find homebrew's stuff
     # even if homebrew is not a /usr/local/lib. Try this with:
     # `brew install enchant && pip install pyenchant`
-    inreplace './Lib/ctypes/macholib/dyld.py' do |f|
-      f.gsub! 'DEFAULT_LIBRARY_FALLBACK = [',
+    inreplace './Lib/ctypes/macholib/dyld.py' do |s|
+      s.gsub! 'DEFAULT_LIBRARY_FALLBACK = [',
               "DEFAULT_LIBRARY_FALLBACK = [ '#{HOMEBREW_PREFIX}/lib',"
-      f.gsub! 'DEFAULT_FRAMEWORK_FALLBACK = [',
+      s.gsub! 'DEFAULT_FRAMEWORK_FALLBACK = [',
               "DEFAULT_FRAMEWORK_FALLBACK = [ '#{HOMEBREW_PREFIX}/Frameworks',"
     end
 
@@ -149,9 +150,10 @@ class Python3 < Formula
     cellar_site_packages.parent.install_symlink site_packages
 
     # redo the Pip3 install, which gets smurfed up by the site-packages shenanigans above
-    system bin/'python3', '-m', 'ensurepip', '--upgrade'
+    system bin/'python3', '-m', 'ensurepip', '--upgrade', '--no-warn-script-location'
 
-    # upgrade the stuff pip dragged in
+    # upgrade pip and the stuff it dragged in
+    system bin/'python3', '-m', 'pip', 'install', '--upgrade', 'pip', '--no-warn-script-location'
     ['setuptools', 'wheel'].each do |pkg|
       system bin/'pip3', 'install', '--force-reinstall', '--upgrade', '--no-warn-script-location', pkg
     end
@@ -281,9 +283,9 @@ class Python3 < Formula
   test do
     # Check if sqlite is ok, because we build with --enable-loadable-sqlite-extensions
     # and it can occur that building sqlite silently fails if OSX's sqlite is used.
-    arch_system bin/"python#{xy}", '-c', 'import sqlite3'
+    arch_system bin/"python#{xy}", '-c', "'import sqlite3'"
     # Check if some other modules import. Then the linked libs are working.
-    arch_system bin/"python#{xy}", '-c', 'import tkinter; root = tkinter.Tk()'
+    arch_system bin/"python#{xy}", '-c', "'import tkinter; root = tkinter.Tk()'"
     system bin/'pip3', 'list'  # pip3 is not a binary
   end # test
 end # Python3
@@ -295,17 +297,17 @@ __END__
                 LIPO_INTEL64_FLAGS="-extract x86_64"
                 ARCH_RUN_32BIT="true"
                 ;;
-+            ppc)
++            powerpc)
 +               UNIVERSAL_ARCH_FLAGS="-arch ppc -arch ppc64"
 +               LIPO_32BIT_FLAGS="-extract ppc7400"
 +               ARCH_RUN_32BIT="/usr/bin/arch -ppc"
 +               ;;
-+            ppc-32)
++            powerpc-32)
 +               UNIVERSAL_ARCH_FLAGS="-arch ppc"
 +               LIPO_32BIT_FLAGS=""
 +               ARCH_RUN_32BIT=""
 +               ;;
-+            ppc-64)
++            powerpc-64)
 +               UNIVERSAL_ARCH_FLAGS="-arch ppc64"
 +               LIPO_32BIT_FLAGS=""
 +               ARCH_RUN_32BIT="true"
@@ -318,7 +320,7 @@ __END__
                 ;;
              *)
 -               as_fn_error $? "proper usage is --with-universal-arch=universal2|32-bit|64-bit|all|intel|3-way" "$LINENO" 5
-+               as_fn_error $? "proper usage is --with-universal-arch=universal2|32-bit|64-bit|all|ppc|intel|3-way" "$LINENO" 5
++               as_fn_error $? "proper usage is --with-universal-archs=32-bit|64-bit|all|universal2|powerpc|powerpc-32|powerpc-64|intel|intel-32|intel-64|3-way" "$LINENO" 5
                 ;;
              esac
  
