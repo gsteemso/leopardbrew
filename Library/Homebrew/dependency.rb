@@ -54,40 +54,34 @@ class Dependency
   def self._load(marshaled); new(*Marshal.load(marshaled)); end
 
   class << self
-    # Expand the dependencies of dependent recursively, optionally yielding
-    # [dependent, dep] pairs to allow callers to apply arbitrary filters to
-    # the list.
-    # The default filter, which is applied when a block is not given, omits
-    # optionals and recommendeds based on what the dependent has asked for.
+    # Expand the dependencies of dependent recursively, optionally yielding [dependent, dep] pairs
+    # to allow callers to apply arbitrary filters to the list.
+    # The default filter, which is applied when a block is not given, omits optionals and
+    # recommendeds based on what the dependent has asked for.
     def expand(dependent, deps = dependent.deps, original_dependent = dependent, &block)
       expanded_deps = []
-
       deps.each do |dep|
         raise "The formula #{dep.name} depends on itself!" if dep.name == dependent.name
         raise "The formula #{dependent.name} circularly depends on #{original_dependent.name}!" \
                                                              if dep.name == original_dependent.name
+        next if expanded_deps.include? dep
         f = dep.to_formula
         case action(dependent, dep, &block)
-        when :prune
-          next
-        when :skip
-          expanded_deps.concat(expand(f, f.deps, original_dependent, &block))
-        when :keep_but_prune_recursive_deps
-          expanded_deps << dep
-        else
-          expanded_deps.concat(expand(f, f.deps, original_dependent, &block))
-          expanded_deps << dep
+          when :prune then next
+          when :skip  then expanded_deps.concat(expand(f, f.deps, original_dependent, &block))
+          when :keep_but_prune_recursive_deps then expanded_deps << dep
+          else
+            expanded_deps.concat(expand(f, f.deps, original_dependent, &block))
+            expanded_deps << dep
         end
       end # each |dep|
-
       merge_repeats(expanded_deps)
     end # Dependency⸬expand
 
     def action(dependent, dep, &_block)
       catch(:action) do
-        if block_given?
-          yield dependent, dep
-        elsif dep.optional? || dep.recommended?
+        if block_given? then yield dependent, dep
+        elsif dep.optional? or dep.recommended?
           prune unless dependent.build.with?(dep)
         end
       end
@@ -104,7 +98,6 @@ class Dependency
 
     def merge_repeats(all)
       grouped = all.group_by(&:name)
-
       all.map(&:name).uniq.map do |name|
         deps = grouped.fetch(name)
         dep  = deps.first
