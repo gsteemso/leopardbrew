@@ -74,7 +74,7 @@ class Formulary
     private
 
     def load_file
-      STDERR.puts "#{$0} (#{self.class.name}): loading #{path}" if DEBUG
+      STDERR.puts "#{$0} (#{self.class.name}):  Loading #{path}" if DEBUG
       raise FormulaUnavailableError, name unless path.file?
       Formulary.load_formula_from_path(name, path)
     end
@@ -180,7 +180,7 @@ class Formulary
     end
 
     def klass
-      STDERR.puts "#{$0} (#{self.class.name}): loading #{path}" if DEBUG
+      STDERR.puts "#{$0} (#{self.class.name}):  Loading #{path}" if DEBUG
       namespace = "FormulaNamespace#{Digest::MD5.hexdigest(contents)}"
       Formulary.load_formula(name, path, contents, namespace)
     end
@@ -218,7 +218,7 @@ class Formulary
     tap = tab.tap
     spec ||= tab.spec
 
-    if tap.nil? || tap == "mistydemeo/tigerbrew" || tap == "gsteemso/leopardbrew"
+    if [nil, "mistydemeo/tigerbrew", "gsteemso/leopardbrew"].include? tap
       factory(rack.basename.to_s, spec)
     else
       factory("#{tap.sub("homebrew-", "")}/#{rack.basename}", spec)
