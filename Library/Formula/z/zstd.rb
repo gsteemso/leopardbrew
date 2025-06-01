@@ -38,14 +38,14 @@ class Zstd < Formula
   end # install
 
   test do
-    for_archs bin/'zstd' do |a|
-      arch_args = (a.nil? ? [] : ['arch', '-arch', a.to_s])
-      system *arch_args, bin/'zstd', '-z', '-o', './test.zst', test_fixtures('test.pdf')
-      system *arch_args, bin/'zstd', '-t', 'test.zst'
-      system *arch_args, bin/'zstd', '-d', '--rm', 'test.zst'
-      system 'diff', '-s', 'test', test_fixtures('test.pdf')
+    for_archs bin/'zstd' do |_, cmd|
+      system *cmd, '-z', '-o', './test.zst', test_fixtures('test.pdf')
+      system *cmd, '-t', 'test.zst'
+      system *cmd, '-d', '--rm', 'test.zst'
+      result = system 'diff', '-s', 'test', test_fixtures('test.pdf')
       rm 'test'
-    end # each arch |a|
+      result
+    end # for_archs |zstd|
   end # test
 end # Zstd
 

@@ -53,9 +53,6 @@ class Libnghttp2 < Formula
     EOS
     ENV.universal_binary if build.universal?
     system ENV.cc, 'test.c', "-I#{include}", "-L#{lib}", '-lnghttp2', '-o', 'test'
-    for_archs './test' do |a|
-      arch_cmd = (a.nil? ? '' : "arch -arch #{a.to_s} ")
-      assert_equal version.to_s, shell_output("#{arch_cmd}./test")
-    end
+    for_archs('./test') { |_, cmd| assert_equal version.to_s, shell_output("#{cmd * ' '} ./test") }
   end # test
 end # Libnghttp2

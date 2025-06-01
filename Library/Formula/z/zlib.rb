@@ -35,11 +35,14 @@ class Zlib < Formula
     ENV.universal_binary if build.universal?
     system ENV.cc, 'zpipe.c', "-I#{include}", "-L#{lib}", '-lz', '-o', 'zpipe'
     touch 'foo.txt'
-    for_archs './zpipe' do |a|
-      cmd = (a.nil? ? '' : "arch -arch #{a.to_s} ") + './zpipe'
-      Kernel.system cmd, {:in => 'foo.txt', :out => 'foo.txt.z'}
-      assert File.exists?('foo.txt.z')
+    for_archs './zpipe' do |_, cmd|
+      Homebrew.system(*cmd) do
+        $stdin.reopen('foo.txt')
+        $stdout.reopen('foo.txt.z')
+      end
+      result = assert File.exists?('foo.txt.z')
       rm 'foo.txt.z'
-    end
+      result
+    end # for_archs |zpipe|
   end # test
 end # Zlib

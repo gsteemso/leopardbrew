@@ -38,9 +38,10 @@ class Jbigkit < Formula
 
   test do
     for_archs bin/'jbgtopbm' do
-      system "#{bin}/jbgtopbm #{share}/jbigkit/examples/ccitt7.jbg | #{bin}/pbmtojbg - testoutput.jbg"
-      system '/usr/bin/cmp', share/'jbigkit/examples/ccitt7.jbg', 'testoutput.jbg'
+      system *cmd, "#{share}/jbigkit/examples/ccitt7.jbg", '|', "#{bin}/pbmtojbg", '-', 'testoutput.jbg'
+      result = system '/usr/bin/cmp', "#{share}/jbigkit/examples/ccitt7.jbg", 'testoutput.jbg'
       rm 'testoutput.jbg'
+      result
     end
   end
 end

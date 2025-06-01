@@ -28,18 +28,14 @@ class Libgcrypt < Formula
   end
 
   test do
-    for_archs bin/'mpicalc' do |a|
-      cmd_set = (a.nil? ? [] : ['arch', '-arch', a.to_s])
-      cmd_set << bin/'mpicalc'
-      system *cmd_set, '--version'
-      system *cmd_set, '--print-config'
+    for_archs bin/'mpicalc' do |_, cmd|
+      system *cmd, '--version'
+      system *cmd, '--print-config'
     end
-    for_archs bin/'hmac256' do |a|
-      cmd_set = (a.nil? ? [] : ['arch', '-arch', a.to_s])
-      cmd_set << bin/'hmac256'
-      system *cmd_set, '--version'
-      cmd_set << 'test key' << test_fixtures('test.pdf')
-      assert_match '0b81e0b2f9f9522b045f0016e03abae259b1dca38713630695be05deb82aea88', shell_output(cmd_set * ' ')
+    for_archs bin/'hmac256' do |_, cmd|
+      system *cmd, '--version'
+      assert_match '0b81e0b2f9f9522b045f0016e03abae259b1dca38713630695be05deb82aea88',
+                   shell_output("#{cmd * ' '} 'test key' #{test_fixtures('test.pdf')}")
     end
   end
 end
@@ -47,14 +43,12 @@ end
 __END__
 --- old/random/rndoldlinux.c	2023-11-28 18:04:36 +0000
 +++ new/random/rndoldlinux.c	2023-11-28 18:05:45 +0000
-@@ -29,7 +29,11 @@
+@@ -29,7 +29,9 @@
  #include <fcntl.h>
  #include <poll.h>
  #if defined(__APPLE__) && defined(__MACH__)
-+#ifdef __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__
-+#if __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 1050
++#ifdef __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ && __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 1050
  #include <Availability.h>
-+#endif
 +#endif
  #ifdef __MAC_10_11
  #include <TargetConditionals.h>

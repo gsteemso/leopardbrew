@@ -22,12 +22,14 @@ class Xz < Formula
     original_contents = '.' * 1000
     path.write original_contents
 
-    # compress: data.txt -> data.txt.xz
-    system bin/'xz', path
-    assert !path.exists?
+    for_archs bin/'xz' do |_, cmd|
+      # compress: data.txt -> data.txt.xz
+      system *cmd, path
+      assert !path.exists?
 
-    # decompress: data.txt.xz -> data.txt
-    system bin/'xz', '-d', "#{path}.xz"
-    assert_equal original_contents, path.read
+      # decompress: data.txt.xz -> data.txt
+      system *cmd, '-d', "#{path}.xz"
+      assert_equal original_contents, path.read
+    end # for_archs |xz|
   end # test
 end # Xz

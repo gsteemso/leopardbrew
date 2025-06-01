@@ -22,7 +22,7 @@ class Gcc7 < Formula
   depends_on 'libmpc'
   depends_on 'mpfr'
   depends_on 'isl016'
-  depends_group ['nls', ['gettext', 'libiconv']] => :recommended
+  depends_on :nls => :recommended
 
   # The bottles are built on systems with the CLT installed, and do not work
   # out of the box on Xcode-only systems due to an incorrect sysroot.
@@ -230,10 +230,7 @@ class Gcc7 < Formula
       }
     EOS
     system bin/"gcc-#{version_suffix}", '-o', 'hello-c', 'hello-c.c'
-    for_archs('./hello-c') do |a|
-      arch_cmd = (a.nil? ? [] : ['arch', '-arch', a.to_s])
-      assert_equal "Hello, world!\n", `#{arch_cmd * ' '} ./hello-c`
-    end
+    for_archs './hello-c' { |_, cmd| assert_equal("Hello, world!\n", Utils.popen_read(*cmd)) }
 
     (testpath/'hello-cc.cc').write <<-EOS.undent
       #include <iostream>
@@ -244,10 +241,7 @@ class Gcc7 < Formula
       }
     EOS
     system bin/"g++-#{version_suffix}", '-o', 'hello-cc', 'hello-cc.cc'
-    for_archs('./hello-cc') do |a|
-      arch_cmd = (a.nil? ? [] : ['arch', '-arch', a.to_s])
-      assert_equal "Hello, world!\n", `#{arch_cmd * ' '} ./hello-cc`
-    end
+    for_archs './hello-cc' { |_, cmd| assert_equal("Hello, world!\n", Utils.popen_read(*cmd)) }
 
     (testpath/'test.f90').write <<-EOS.undent
       integer,parameter::m=10000
@@ -261,10 +255,7 @@ class Gcc7 < Formula
       end
     EOS
     system bin/"gfortran-#{version_suffix}", '-o', 'test', 'test.f90'
-    for_archs('./hello-c') do |a|
-      arch_cmd = (a.nil? ? [] : ['arch', '-arch', a.to_s])
-      assert_equal "Done\n", `#{arch_cmd * ' '} ./test`
-    end
+    for_archs './test' { |_, cmd| assert_equal("Done\n", Utils.popen_read(*cmd)) }
   end # test
 end # Gcc7
 

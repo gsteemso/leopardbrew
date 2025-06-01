@@ -94,23 +94,23 @@ class Openssh < Formula
       port
     end # free_port
 
-    for_archs(bin/'ssh') do |a|
-      arch_cmd = (a.nil? ? '' : "arch -arch #{a.to_s} ")
-      assert_match "OpenSSH_#{version}", shell_output("#{arch_cmd}#{bin}/ssh -V 2>&1")
+    for_archs(bin/'ssh') do |_, cmd|
+      assert_match "OpenSSH_#{version}", shell_output("#{cmd * ' '} -V 2>&1")
     end
 
-    for_archs(sbin/'sshd') do |a|
-      arch_cmd = (a.nil? ? [] : ['arch', '-arch', a.to_s])
+    for_archs(sbin/'sshd') do |a, cmd|
+      result = 0
       port = free_port
       unless sshd_pid = fork
-        exec *(arch_cmd << "#{sbin}/sshd"), '-D', '-p', port.to_s
+        result = exec *cmd, '-D', '-p', port.to_s
       else
         sleep 2
-        assert_match 'sshd', shell_output("lsof -i :#{port}   # arch #{a}")
+        result = assert_match 'sshd', shell_output("lsof -i :#{port} # arch #{a}")
         Process.kill 9, sshd_pid
         Process.waitpid sshd_pid
       end
-    end
+      result
+    end # for_archs |sshd|
   end # test
 
   def switch_to; <<-_.undent
@@ -120,9 +120,9 @@ class Openssh < Formula
     # manpages live in /usr/*.  More than the directory trees differ – in newer OpenSSHes, the previous
     # miscellany mixed into /etc is corralled into /etc/ssh/.  Both possibilities must be accommodated.
 
-    brewed_etc_prefix="$(brew --prefix)/etc/"
+    brewed_etc_prefix="#{HOMEBREW_PREFIX}/etc/"
 
-    brewed_prefix="$(brew --prefix)/opt/openssh/"
+    brewed_prefix="#{OPTDIR}/openssh/"
 
     prefix_2=([0]='bin/' \\
               [1]='libexec/' \\
@@ -143,7 +143,7 @@ class Openssh < Formula
     # We need to ask SSH its version, but if we already replaced it, we’d get the wrong answer; in that
     # case, look for where we moved it to.  (If multiple, assume the earliest version is stock.)
     if [ -L '/usr/bin/ssh' ]; then   # SOMETHING’s been done, it’s been moved.  Assume we did it, & get
-                                     # the earliest version of any present renamed as we rename them.
+                                     # the earliest version of any present that’s renamed as we would.
       stock_version="$(ls /usr/bin/ssh-* | egrep -o '[0-9.]+p[0-9]+' | sed -E -e \
                                                 's/^([0-9][.p])/0\\1/g' | sort -u | cut -d$'\\n' -f 1)"
       if [ "x$stock_version" = 'x' ]; then   # We didn’t get any hits.
@@ -213,7 +213,7 @@ class Openssh < Formula
     # that case, check for the stock configuration and abort.  Otherwise, look for our moved version.
     # (If multiple are present, assume we want the earliest.)
     if [ -L '/usr/bin/ssh' ]; then   # SOMETHING’s been done, it’s been moved.  Assume we did it, & get
-                                     # the earliest version of any present renamed as we rename them.
+                                     # the earliest version of any present that’s renamed as we would.
       stock_version="$(ls /usr/bin/ssh-* | egrep -o '[0-9.]+p[0-9]+' | sed -E -e \
                                                 's/^([0-9][.p])/0\\1/g' | sort -u | cut -d$'\\n' -f 1)"
       if [ "x$stock_version" = 'x' ]; then   # We didn’t get any hits.

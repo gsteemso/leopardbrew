@@ -16,7 +16,7 @@ class Binutils241 < Formula
   depends_on 'pkg-config' => :build if build.with? 'zstd'
   depends_on 'isl'
   depends_on 'zlib'
-  depends_group ['nls', ['gettext', 'libiconv']] => :recommended
+  depends_on :nls => :recommended
   depends_on 'zstd' => :optional
 
   def install
@@ -51,12 +51,8 @@ class Binutils241 < Formula
   end # install
 
   test do
-    gnu_nm = (bin/'gnm').to_s
-    for_archs bin/'gnm' do |a|
-      arch_cmd = (a.nil? ? [] : ['arch', '-arch', a.to_s]) << gnu_nm << gnu_nm
-      assert_match /main/, Utils.popen_read(*arch_cmd)
-    end
-  end # test
+    for_archs bin/'gnm' { |_, cmd| assert_match /main/, Utils.popen_read *cmd, "#{bin}/gnm" }
+  end
 end # Binutils241
 
 __END__

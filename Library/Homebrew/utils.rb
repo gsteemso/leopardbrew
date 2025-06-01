@@ -47,7 +47,10 @@ module Homebrew
     $?.success?
   end # Homebrew⸬_system
 
-  def self.system(cmd, *args); oh1 "#{cmd} #{args*" "}".strip if VERBOSE; _system(cmd, *args); end
+  def self.system(cmd, *args, &block)
+    oh1 "#{cmd} #{args * ' '}".strip if VERBOSE
+    _system(cmd, *args, &block)
+  end
 
   def self.git_origin
     return unless Utils.git_available?
@@ -112,14 +115,16 @@ ensure
   ENV["HOMEBREW_DEVELOPER"] = old
 end # run_as_not_developer
 
-def without_archflags(&block)
+def without_archflags
   ENV.clear_compiler_archflags
   arch_flags = ENV.delete 'HOMEBREW_ARCHFLAGS' if superenv?
-  yield
-ensure
-  ENV.set_compiler_archflags
-  ENV['HOMEBREW_ARCHFLAGS'] = arch_flags if superenv?
-end
+  begin
+    yield
+  ensure
+    ENV.set_compiler_archflags
+    ENV['HOMEBREW_ARCHFLAGS'] = arch_flags if superenv?
+  end if block_given?
+end # without_archflags
 
 # Kernel.system but with exceptions
 def safe_system(cmd, *args)
@@ -140,30 +145,26 @@ end # quiet_system
 
 # repeats cmd for each of its runnable fat‐binary architectures
 def arch_system(cmd, *args)
-  for_archs cmd do |a|
-    arch_cmd = (a.nil? ? [] : ['arch', '-arch', a.to_s])
-    system *(arch_cmd << cmd), *args
-  end
+  for_archs(cmd) { |_, a_cmd| system *a_cmd, *args }
 end # arch_system
 
-# Repeats &block for each of cmd’s fat‐binary architectures.  Caller must be
-# prepared for the case where `nil` is passed into the block, meaning that the
-# “arch” command shouldn’t – or can’t – be called:
-#     for_archs cmd do |a|
-#       arch_cmd = (a.nil? ? [] : ['arch', '-arch', a.to_s])
-#       system *(arch_cmd << cmd), args ...
-#     end # each arch |a|
+# Repeats {block} for each of {cmd}’s fat‐binary architectures, passing it the architecture symbol
+# and an array containing the arch-qualified command string’s constituent parts.  Be aware that if
+# the `arch` command can’t or shouldn’t be executed, the architecture symbol will be nil.
+#   for_archs cmd do |arch, cmd_array|
+#     system *cmd_array, args ...
+#   end
 def for_archs (cmd, &block)
   cmd = which(cmd) unless cmd.to_s =~ %r{/}
   cmd = Pathname.new(cmd) unless Pathname === cmd
-  if (is_fat = cmd.fat?) and (which 'arch').to_s.choke
-    cmd.archs.select{ |a| CPU.can_run?(a) }.each(&block)
+  if (is_fat = cmd.fat?) and (a_tool = (which 'arch').to_s.choke)
+    cmd.archs.select{ |a| CPU.can_run?(a) }.each{ |a| yield a, [a_tool, '-arch', a.to_s, cmd] }
   else
     opoo <<-_.undent if is_fat
-      Can’t find the “arch” command.  Running only the default architecture of
+      Can’t find the “arch” tool.  Running only the default architecture of
       #{cmd}.
     _
-    block.call(nil)
+    yield nil, [cmd]
   end
 end # for_archs
 
@@ -200,6 +201,13 @@ def puts_columns(items, star_items = [])
     puts items
   end
 end # puts_columns
+
+def re_which(rex, path = ENV['PATH'])
+  path.split(File::PATH_SEPARATOR).map{ |p| Pathname.new(p).expand_path rescue nil }.each do |pn|
+    next unless pn and pn.directory?
+    pn.children.each{ |cpn| if cpn.basename =~ rex then return cpn; end }
+  end
+end # re_which
 
 def which(cmd, path = ENV["PATH"])
   path.split(File::PATH_SEPARATOR).each do |p|

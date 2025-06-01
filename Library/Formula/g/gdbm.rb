@@ -42,11 +42,10 @@ class Gdbm < Formula
   end # install
 
   test do
-    for_archs(bin/'gdbmtool') do |a|
-      arch_cmd = (a.nil? ? '' : "arch -arch #{a} ")
-      pipe_output("#{arch_cmd}#{bin}/gdbmtool --norc --newdb test", "store 1 2\nquit\n")
+    for_archs bin/'gdbmtool' do |_, cmd|
+      pipe_output("#{cmd * ' '} --norc --newdb test", "store 1 2\nquit\n")
       assert File.exist?('test')
-      assert_match /2/, pipe_output("#{arch_cmd}#{bin}/gdbmtool --norc test", "fetch 1\nquit\n")
+      assert_match /2/, pipe_output("#{cmd * ' '} --norc test", "fetch 1\nquit\n")
     end
   end # test
 end # Gdbm

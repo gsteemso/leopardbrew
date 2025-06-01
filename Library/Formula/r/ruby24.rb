@@ -116,10 +116,9 @@ class Ruby24 < Formula
   end # rubygems_config
 
   test do
-    for_archs bin/"ruby-#{RV}" do |a|
-      arch_cmd = (a.nil? ? '' : "arch -arch #{a.to_s} ")
-      assert_equal "hello\n", shell_output("#{arch_cmd}#{bin}/ruby-#{RV} -e 'puts \"hello\"'")
-    end
+    for_archs(bin/"ruby-#{RV}") { |_, cmd|
+      assert_equal "hello\n", shell_output("#{cmd * ' '} -e 'puts \"hello\"'")
+    }
   end # test
 end # Ruby24
 

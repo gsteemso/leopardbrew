@@ -6,32 +6,25 @@ class Gcc6 < Formula
   sha256 '7ef1796ce497e89479183702635b14bb7a46b53249209a5e0f999bebf4740945'
   revision 1  # For the late‐added C++ compatibility patch.
 
-  option 'with-arm32',
-              'Also build for 32‐bit ARM targets (requires iOS SDK or similar)'
+  option 'with-arm32', 'Also build for 32‐bit ARM targets (requires iOS SDK or similar)'
   option 'with-java', 'Build the gcj compiler (depends on ecj, python, & x11)'
-  option 'with-jit',
-               'Build the just-in-time compiler (slows down the completed GCC)'
-  option 'with-profiled-build',
-           'Use profile‐guided optimization when bootstrapping GCC (very slow)'
-  option 'with-tests',
-         'Run build‐time self‐tests (depends on autogen & deja-gnu; very slow)'
-  option 'without-cross-compiler',
-                  'Don’t build counterpart compilers for building fat binaries'
+  option 'with-jit', 'Build the just-in-time compiler (slows down the completed GCC)'
+  option 'with-tests', 'Run extra build‐time unit tests (depends on autogen & deja-gnu; very slow)'
+  option 'without-cross-compiler', 'Don’t build counterpart compilers for building fat binaries'
   # Enabling multilib on a host that can’t run 64‐bit causes build failures.
-  option 'without-multilib', 'Build without multilib support' \
-                                                        if MacOS.prefer_64_bit?
+  option 'without-multilib', 'Build without multilib support' if CPU._64b?
   option 'without-nls', 'Build without native‐language support (localization)'
 
   # Tiger’s stock as can’t handle the PowerPC assembly found in libitm.
-  depends_on :cctools => :build if MacOS.version < '10.5'
+  depends_on :cctools => :build if MacOS.version < :leopard
   depends_group ['tests', ['autogen', 'deja-gnu']] => [:build, :optional]
 
-  depends_on :ld64 if MacOS.version < '10.6'
+  depends_on :ld64 if MacOS.version < :snow_leopard
   depends_on 'gmp'
   depends_on 'libmpc'
   depends_on 'mpfr'
   depends_on 'isl016'
-  depends_group ['nls', ['gettext', 'libiconv']] => :recommended
+  depends_on :nls => :recommended
   depends_group ['java', ['ecj', :python, :x11]] => :optional
 
   # The bottles are built on systems with the CLT installed, and do not work
@@ -61,7 +54,7 @@ class Gcc6 < Formula
   patch do
     url 'https://gist.githubusercontent.com/mistydemeo/9c5b8dadd892ba3197a9cb431295cc83/raw/582d1ba135511272f7262f51a3f83c9099cd891d/sysdep-unix-tiger-intel.patch'
     sha256 '17afaf7daec1dd207cb8d06a7e026332637b11e83c3ad552b4cd32827f16c1d8'
-  end if MacOS.version < '10.5' && Hardware::CPU.intel?
+  end if MacOS.version < :leopard && Hardware::CPU.intel?
 
   def install
     def add_suffix(file, suffix)
@@ -83,7 +76,8 @@ class Gcc6 < Formula
     end # arch_word
 
     def raise__no_iphoneos_sdk_found
-      raise CannotInstallFormulaError.new('Can’t make compilers for 32‐bit ARM; the iPhoneOS SDK was not found.')
+      raise CannotInstallFormulaError,
+                              'Can’t make compilers for 32‐bit ARM; the iPhoneOS SDK was not found.'
     end
 
     def osmajor; `uname -r`.match(/^(\d+)\./)[1]; end
@@ -117,8 +111,7 @@ class Gcc6 < Formula
          [:gcc, :gcc_4_0, :llvm].include? ENV.compiler
 
     # See the note at the conditional cctools dependency above.
-    ENV['AS'] = ENV['AS_FOR_TARGET'] = Formula['cctools'].bin/'as' \
-                                                      if MacOS.version < '10.5'
+    ENV['AS'] = ENV['AS_FOR_TARGET'] = Formula['cctools'].bin/'as' if MacOS.version < :leopard
 
     # GCC will suffer build errors if forced to use a particular linker.
     ENV.delete 'LD'
@@ -126,19 +119,18 @@ class Gcc6 < Formula
     # Ensure correct install names when linking against libgcc_s;
     # see discussion in https://github.com/Homebrew/homebrew/pull/34303
     inreplace 'libgcc/config/t-slibgcc-darwin', '@shlib_slibdir@',
-                                 "#{HOMEBREW_PREFIX}/lib/gcc/#{version_suffix}"
+                                                      "#{HOMEBREW_PREFIX}/lib/gcc/#{version_suffix}"
 
-    # When unspecified, GCC 6’s default compilers are C/C++/Fortran/Java/ObjC/
-    #   ObjC++ – plus link‐time optimization (which for some reason is handled
-    #   as a language), because --enable-lto is on by default.
-    # There’s no way to bootstrap the Ada compiler, and while Go has nominally
-    #   been available ever since GCC 4.6.0, it has never worked on Darwin.
+    # When unspecified, GCC 6’s default compilers are C/C++/Fortran/Java/ObjC/ObjC++ – plus link‐
+    #   time optimization (which for some reason is handled as a language), because --enable-lto is
+    #   on by default.
+    # There’s no way to bootstrap the Ada compiler, and while Go has nominally been available since
+    #   GCC 4.6.0, it has never worked on Darwin.
     #   See:  https://gcc.gnu.org/bugzilla/show_bug.cgi?id=46986
-    # Java and JIT are possible, but Java is of unclear utility because of its
-    #   implementation as a compiler rather than an interpreter, while the JIT
-    #   feature incurs a performance penalty; so both of them are optional.
-    # Given these constraints, by default, only build the default compiler set
-    #   (including LTO).
+    # Java and JIT are possible, but Java is of unclear utility because of its implementation as a
+    #   compiler rather than an interpreter, while the JIT feature incurs a performance penalty; so
+    #   both of them are optional.
+    # Given these constraints, by default, only build the default compiler set (including LTO).
     languages = %w[c c++ fortran lto objc obj-c++]
     languages << 'java' if build.with? 'java'
     languages << 'jit' if build.with? 'jit'
@@ -163,13 +155,14 @@ class Gcc6 < Formula
             : a[1].to_i <=> b[1].to_i \
           ) : a[0].to_i <=> b[0].to_i   # nil.to_i produces 0
         }[-1] || []).compact * '.'      # drop the nil entries after sorting
-        ).chuzzle or raise__no_iphoneos_sdk_found
+        ).choke or raise__no_iphoneos_sdk_found
       arm32_sysroot = "#{arm32_SDKs}/iPhoneOS#{candidate_version}.sdk"
       arm32_configargs = "#{configargs} --with-build-sysroot=#{arm32_sysroot}"
       arm32_archs = Utils.popen_read("#{arm_toolroot}/usr/bin/lipo", '-info',
                                      "#{arm_sysroot}/usr/lib/libSystem.dylib", '|', 'cut',
                                      "-d':'", '-f', '3').split(' ').select{ |e| e =~ %r{^arm} }
-      raise CannotInstallFormulaError.new('Can’t build compilers for 32‐bit ARM (no library slices found).') \
+      raise CannotInstallFormulaError,
+             'Can’t build compilers for 32‐bit ARM (no library slices found).' \
         if arm32_archs == []
     end # build.with? 'arm32'
     src_dir = buildpath/'build/src'
@@ -217,10 +210,9 @@ class Gcc6 < Formula
     #   later bootstrap stages.
     args << '--with-dwarf2' if MacOS.version < '10.9'
 
-    args << (MacOS.prefer_64_bit? && build.with?('multilib') \
-                                  ? '--enable-multilib' : '--disable-multilib')
+    args << (CPU._64b? && build.with?('multilib') ? '--enable-multilib' : '--disable-multilib')
 
-    args << '--disable-nls' if build.without? 'nls'
+    args << '--disable-nls' if build.without? :nls
 
     # “Building GCC with plugin support requires a host that supports -fPIC,
     # -shared, -ldl and -rdynamic.”
@@ -251,9 +243,7 @@ class Gcc6 < Formula
 
     mktemp do
       system buildpath/'configure', *args, *arch_args
-      # Profiled bootstrap:  Takes far longer to build, and may bug out.  Made
-      # available for those who want to optimise all the way to 11.
-      system 'make', (build.with?('profiled-build') ? 'profiledbootstrap' : 'bootstrap')
+      system 'make', 'bootstrap'
       ENV.deparallelize { system 'make', 'check' } if build.with? 'tests'
       system 'make', 'install'
 
@@ -314,10 +304,7 @@ class Gcc6 < Formula
       }
     EOS
     system bin/"gcc-#{version_suffix}", '-o', 'hello-c', 'hello-c.c'
-    for_archs('./hello-c') do |a|
-      arch_cmd = (a.nil? ? [] : ['arch', '-arch', a.to_s])
-      assert_equal "Hello, world!\n", `#{arch_cmd * ' '} ./hello-c`
-    end
+    for_archs './hello-c' { |_, cmd| assert_equal("Hello, world!\n", Utils.popen_read(*cmd)) }
 
     (testpath/'hello-cc.cc').write <<-EOS.undent
       #include <iostream>
@@ -328,10 +315,7 @@ class Gcc6 < Formula
       }
     EOS
     system bin/"g++-#{version_suffix}", '-o', 'hello-cc', 'hello-cc.cc'
-    for_archs('./hello-cc') do |a|
-      arch_cmd = (a.nil? ? [] : ['arch', '-arch', a.to_s])
-      assert_equal "Hello, world!\n", `#{arch_cmd * ' '} ./hello-cc`
-    end
+    for_archs './hello-cc' { |_, cmd| assert_equal("Hello, world!\n", Utils.popen_read(*cmd)) }
 
     (testpath/'test.f90').write <<-EOS.undent
       integer,parameter::m=10000
@@ -345,10 +329,7 @@ class Gcc6 < Formula
       end
     EOS
     system bin/"gfortran-#{version_suffix}", '-o', 'test', 'test.f90'
-    for_archs('./test') do |a|
-      arch_cmd = (a.nil? ? [] : ['arch', '-arch', a.to_s])
-      assert_equal "Done\n", `#{arch_cmd * ' '} ./test`
-    end
+    for_archs './test' { |_, cmd| assert_equal("Done\n", Utils.popen_read(*cmd)) }
   end # test
 end # Gcc6
 
