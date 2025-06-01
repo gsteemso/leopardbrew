@@ -35,16 +35,16 @@ module MacOS
     }
   end
 
-  # Checks if the user has any developer tools installed, either via Xcode or
-  # the CLT.  Convenient for guarding against formula builds when building is
-  # impossible.
+  # Checks if the user has any developer tools installed, either via Xcode or the CLT.  Convenient
+  # for guarding against formula builds when building is impossible.
   def has_apple_developer_tools?; Xcode.installed? or CLT.installed?; end
 
   def active_developer_dir
     # xcode-select was introduced in Xcode 3 on Leopard
-    return "/Developer" if MacOS.version < '10.5'
-
-    @active_developer_dir ||= Utils.popen_read("/usr/bin/xcode-select", "-print-path").strip
+    @active_developer_dir ||= (MacOS.version < :leopard \
+        ? '/Developer' \
+        : Utils.popen_read('/usr/bin/xcode-select', '-print-path').strip
+      )
   end # active_developer_dir
 
   def sdk_path(v = version)
@@ -115,7 +115,7 @@ module MacOS
   def non_apple_gcc_version(cc)
     (@non_apple_gcc_version ||= {}).fetch(cc) do
         path = OPTDIR/'gcc/bin/cc'
-        path = locate(cc) unless path.exist?
+        path = locate(cc) unless path.exists?
         version = `#{path} --version`[/gcc(?:-\d\d?(?:\.\d)? \(.+\))? (\d\d?\.\d\.\d)/, 1] if path
         @non_apple_gcc_version[cc] = version
       end
@@ -213,21 +213,22 @@ module MacOS
     "4.6.1" => { :llvm_build => 2336, :clang => "4.2", :clang_build => 425 },
     "4.6.2" => { :llvm_build => 2336, :clang => "4.2", :clang_build => 425 },
     "4.6.3" => { :llvm_build => 2336, :clang => "4.2", :clang_build => 425 },
-    "5.0"   => { :clang => "5.0", :clang_build => 500 },
-    "5.0.1" => { :clang => "5.0", :clang_build => 500 },
-    "5.0.2" => { :clang => "5.0", :clang_build => 500 },
-    "5.1"   => { :clang => "5.1", :clang_build => 503 },
-    "5.1.1" => { :clang => "5.1", :clang_build => 503 },
-    "6.0"   => { :clang => "6.0", :clang_build => 600 },
-    "6.0.1" => { :clang => "6.0", :clang_build => 600 },
-    "6.1"   => { :clang => "6.0", :clang_build => 600 },
-    "6.1.1" => { :clang => "6.0", :clang_build => 600 },
-    "6.2"   => { :clang => "6.0", :clang_build => 600 },
-    "6.3"   => { :clang => "6.1", :clang_build => 602 },
-    "6.3.1" => { :clang => "6.1", :clang_build => 602 },
-    "6.3.2" => { :clang => "6.1", :clang_build => 602 },
-    "6.4"   => { :clang => "6.1", :clang_build => 602 },
-    "7.0"   => { :clang => "7.0", :clang_build => 700 }
+    "5.0"   => { :clang =>  "5.0", :clang_build =>  500 },
+    "5.0.1" => { :clang =>  "5.0", :clang_build =>  500 },
+    "5.0.2" => { :clang =>  "5.0", :clang_build =>  500 },
+    "5.1"   => { :clang =>  "5.1", :clang_build =>  503 },
+    "5.1.1" => { :clang =>  "5.1", :clang_build =>  503 },
+    "6.0"   => { :clang =>  "6.0", :clang_build =>  600 },
+    "6.0.1" => { :clang =>  "6.0", :clang_build =>  600 },
+    "6.1"   => { :clang =>  "6.0", :clang_build =>  600 },
+    "6.1.1" => { :clang =>  "6.0", :clang_build =>  600 },
+    "6.2"   => { :clang =>  "6.0", :clang_build =>  600 },
+    "6.3"   => { :clang =>  "6.1", :clang_build =>  602 },
+    "6.3.1" => { :clang =>  "6.1", :clang_build =>  602 },
+    "6.3.2" => { :clang =>  "6.1", :clang_build =>  602 },
+    "6.4"   => { :clang =>  "6.1", :clang_build =>  602 },
+    "7.0"   => { :clang =>  "7.0", :clang_build =>  700 },
+    '16.0'  => { :clang => '17.0', :clang_build => 1700 }
   }.freeze
 
   def compilers_standard?
