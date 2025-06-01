@@ -24,10 +24,14 @@ rescue LoadError
 end
 
 begin
-  trap('INT', std_trap) # restore default CTRL-C handler
+  if ENV['HOMEBREW_DEBUG_RUBY'].choke
+    trap('INT') { puts caller * "\n"; exit! 130 }
+  else
+    trap('INT', std_trap) # restore default CTRL-C handler
+  end
 
   empty_argv = ARGV.empty?
-  help_regex = /(-h$|--help$|--usage$|-\?$|^help$)/
+  help_regex = %r{-h$|--help$|--usage$|-\?$|^help$}
   help_flag = false
   internal_cmd = true
   cmd = nil
