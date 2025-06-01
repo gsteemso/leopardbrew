@@ -1,6 +1,8 @@
 require 'merge'
 
 class Gmp < Formula
+  include Merge
+
   desc 'GNU multiple precision arithmetic library'
   homepage 'https://gmplib.org/'
   url 'https://gmplib.org/download/gmp/gmp-6.3.0.tar.lz'
@@ -30,7 +32,6 @@ class Gmp < Formula
 
     if build.universal?
       archs = CPU.local_archs
-      stashdir = buildpath/'arch-stashes'
       the_binaries = %w[
         lib/libgmp.10.dylib
         lib/libgmp.a
@@ -38,7 +39,7 @@ class Gmp < Formula
         lib/libgmpxx.a
       ]
       the_headers = %w[
-        gmp.h
+        include/gmp.h
       ]
     else
       archs = [MacOS.preferred_arch]
@@ -62,8 +63,6 @@ class Gmp < Formula
 
     archs.each do |arch|
       ENV.set_build_archs(arch) if build.universal?
-      ENV.append_to_cflags '-force_cpusubtype_ALL' \
-                      if CPU.type_of(arch) == :powerpc and host_sym == :g5
 
       arch_args = case arch
           when :arm64, :x86_64 then ['ABI=64']
@@ -80,17 +79,15 @@ class Gmp < Formula
 
       if build.universal?
         system 'make', 'distclean'
-        Merge.prep(prefix, stashdir/"bin-#{arch}", the_binaries)
-        Merge.prep(include, stashdir/"h-#{arch}", the_headers)
-        # undo architecture-specific tweak before next run
-        ENV.remove_from_cflags '-force_cpusubtype_ALL' if found_host == 'powerpc970'
+        merge_prep(:binary, arch, the_binaries)
+        merge_prep(:header, arch, the_headers)
       end # universal?
     end # each |arch|
 
     if build.universal?
       ENV.set_build_archs(archs)
-      Merge.binaries(prefix, stashdir, archs)
-      Merge.c_headers(include, stashdir, archs)
+      merge_binaries(archs)
+      merge_c_headers(archs)
     end # universal?
   end # install
 
