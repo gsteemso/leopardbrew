@@ -5,6 +5,7 @@ class Libarchive < Formula
   sha256 '879acd83c3399c7caaee73fe5f7418e06087ab2aaf40af3e99b9e29beb29faee'
 
   option :universal
+  option 'without-tests', 'Skip the build‐time unit tests'
 
   depends_on 'bzip2'
   depends_on 'lz4'
@@ -30,17 +31,24 @@ class Libarchive < Formula
                           '--without-xml2',
                           'ac_cv_header_sys_queue_h=no' # Use its up‐to‐date copy to obtain STAILQ_FOREACH
     system 'make'
-    bombproof_system 'make', 'check'  # one test fails for no obvious reason
+    begin
+      safe_system 'make', 'check'
+    rescue ErrorDuringExecution
+      opoo 'Some of the unit tests did not complete successfully.',
+        'This is not unusual.  If you ran Leopardbrew in “verbose” mode, the fraction of',
+        'tests which failed will be visible in the text above; only you can say whether',
+        'the pass rate shown there counts as “good enough”.'
+    end if build.with? 'tests'
     system 'make', 'install'
   end # install
 
   test do
     (testpath/'test').write('test')
-    for_archs bin/'bsdtar' do |a|
-      arch_cmd = (a.nil? ? [] : ['arch', '-arch', a.to_s, ''])
-      system *arch_cmd, "#{bin}/bsdtar", '-czvf', 'test.tar.gz', 'test'
-      assert_match /test/, shell_output("#{arch_cmd * ' '}#{bin}/bsdtar -xOzf test.tar.gz")
+    for_archs bin/'bsdtar' do |_, cmd|
+      system *cmd, "#{bin}/bsdtar", '-czvf', 'test.tar.gz', 'test'
+      result = assert_match /test/, Utils.popen_read(*cmd, "#{bin}/bsdtar", '-xOzf', 'test.tar.gz')
       rm 'test.tar.gz'
+      result
     end
   end # test
 end # Libarchive

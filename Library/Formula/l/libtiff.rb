@@ -5,6 +5,7 @@ class Libtiff < Formula
   sha256 '273a0a73b1f0bed640afee4a5df0337357ced5b53d3d5d1c405b936501f71017'
 
   option :universal
+  option 'without-tests', 'Skip the build‐time unit tests'
 
   depends_on 'python3' => :build  # for the documentation
   depends_on 'jbigkit'
@@ -26,7 +27,14 @@ class Libtiff < Formula
                           '--enable-deprecated',  # symbol versioning is off; soften the blow
                           '--with-x'
     system 'make'
-    bombproof_system 'make', '-C', 'test', 'check'
+    begin
+      safe_system 'make', '-C', 'test', 'check'
+    rescue ErrorDuringExecution
+      opoo 'Some of the unit tests did not complete successfully.',
+        'This is not unusual.  If you ran Leopardbrew in “verbose” mode, the fraction of',
+        'tests which failed will be visible in the text above; only you can say whether',
+        'the pass rate shown there counts as “good enough”.'
+    end if build.with? 'tests'
     system 'make', 'install'
   end
 
@@ -43,11 +51,11 @@ class Libtiff < Formula
       }
     EOS
     system ENV.cc, 'test.c', "-L#{lib}", '-ltiff', '-o', 'test'
-    for_archs './test' do |a|
-      arch_cmd = (a.nil? ? [] : ['arch', '-arch', a.to_s])
-      system *arch_cmd, './test', 'test.tif'
-      assert_match /ImageWidth.*10/, shell_output("#{arch_cmd * ' '} #{bin}/tiffdump test.tif")
+    for_archs bin/'tiffdump' do |_, cmd|
+      system *cmd[0..-2], './test', 'test.tif'
+      result = assert_match /ImageWidth.*10/, shell_output("#{cmd * ' '} test.tif")
       rm './test.tif'
+      result
     end
   end # test
 end # Libtiff
