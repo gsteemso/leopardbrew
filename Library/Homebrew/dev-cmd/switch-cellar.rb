@@ -41,7 +41,7 @@ module Homebrew
         if kegs.empty? then rack.rmdir_if_possible; next; end
         (keg = kegs.find{ |k| k.optlinked? } || get_linked_keg(rack.basename) || kegs.first).lock do
           begin
-            f = Formula.from_installed_prefix(keg)
+            f = Formulary.from_keg(keg)
             switched_list.append "#{keg.versioned_name.sub(/=/, "\t")}\n" unless mode.dry_run
             if f.uninsinuate_defined?
               if mode.dry_run then puts "Would uninsinuate #{f.name}"; else f.uninsinuate; end
@@ -98,7 +98,7 @@ module Homebrew
         keg.lock do
           begin
             keg.optlink(mode)
-            f = Formula.from_installed_prefix(keg)
+            f = Formulary.from_keg(keg)
             if f.name == 'bash' then seen_bash = true
             elsif f.insinuate_defined?
               if mode.dry_run then puts "Would insinuate #{f.name}"; else f.insinuate; end
