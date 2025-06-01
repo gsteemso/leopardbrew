@@ -1,7 +1,5 @@
 class String
-  def undent
-    gsub(/^[ \t]{#{(slice(/^[ \t]+/) || '').length}}/, "")
-  end
+  def undent; gsub(%r{^[ \t]{#{(slice(%r{^[ \t]+}) || '').length}}}, ''); end
 
   # eg:
   #   if foo then <<-EOS.undent_________________________________________________________72
@@ -15,6 +13,8 @@ class String
   #               EOS
   alias_method :undent_________________________________________________________72, :undent
 
+  def indent(columns = 8); gsub(%r{^}, ' ' * columns); end
+
   # String.chomp, but if result is empty: returns nil instead.
   # Allows `choke || foo` short-circuits.
   def choke; s = chomp; s unless s.empty?; end
@@ -23,11 +23,11 @@ class String
   # number, or otherwise evaluates to zero, return nil.
   def nope; n = to_i; n unless n == 0; end
 
-  # String#chop, but for the front of the string instead of the back.
-  def pre_chop; self[1..-1]; end
+  # String#chop, but for the leading end of the string instead of the back.
+  def lchop; self[1..-1]; end
 
-  # String#chomp, but for the front of the string instead of the back.
-  def pre_chomp(kill_this = "\n"); (self[0] == kill_this.to_s[0]) ? pre_chop : self; end
+  # String#chomp, but for the leading end of the string instead of the back.
+  def lchomp(kill_this = " "); (self[0] == kill_this.to_s[0]) ? lchop : self; end
 
   alias_method :includes?,    :include?    unless method_defined? :includes?
   alias_method :starts_with?, :start_with? unless method_defined? :starts_with?
@@ -36,6 +36,8 @@ end # String
 
 class NilClass
   def choke; end
+  def lchomp; end
+  def lchop; end
   def nope; end
 end
 
