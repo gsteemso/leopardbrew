@@ -33,135 +33,16 @@ class Ld64128ppc < Formula
     sha256 '87ebf9f6d70fc205d39f4cef8739d0e0c4db2cb1e774ffcfcbb4465bb753f733'
   end
 
-  # Omnibus collection of MacPorts, Tigerbrew, and Leopardbrew patches.
-  # src/abstraction/MachOFileAbstraction.hpp:
-  # - Remove a duplicate header‐file inclusion.
-  # - Correct error‐message and preprocessor‐constant typos.
-  # - Fix a malformed structure‐constant definition.
-  # - Reïmplement class macho_thread_command so machochecker can work (the file
-  #   abstraction fails to account for there being more than 1 variable-length
-  #   member of a specific variable-length array).
-  # src/ld/HeaderAndLoadCommands.hpp:
-  # - Add missing header‐file inclusions.
-  # - Correct an error‐message typo.
-  # - Use symbolic constants instead of literals.
-  # src/ld/InputFiles.cpp:
-  # - Remove dependencies on Clang/LLVM.
-  # src/ld/ld.cpp:
-  # - Remove a duplicate header‐file inclusion.
-  # - Remove dependencies on Clang/LLVM.
-  # src/ld/ld.hpp:
-  # - Correct function‐name typos & remove some trailing whitespace.
-  # src/ld/LinkEdit.hpp:
-  # - Skip zero-length atoms to prevent metadata spillover.  <rdar://problem/10422823>
-  # src/ld/LinkEditClassic.hpp:
-  # - Ensure that __mh_execute_header cannot apply to position‐independent
-  #   executables (support slideable static images).  <rdar://problem/10280094>
-  # - Refine when to use scattered relocation on x86.
-  # - Error message:  “Invalid”, not “illegal”.  No one is going to jail.
-  # src/ld/Options.cpp:
-  # - Improve version reporting.  Note that this requires postprocessing to
-  #   insert the actual version number.
-  # - Function name:  “Invalid”, not “illegal”.  No one is going to jail.
-  # - Correct error‐message typos.
-  # - Tweak version‐minimum adjustment to allow for iOS simulation on x86_64.
-  # - Ensure ppc64 kexts have the correct Mach filetype.
-  # - Adjust determination of when to not use compressed LINKEDIT.
-  # - Don’t emit minimum‐version or function‐start load commands prior to Mac
-  #   OS 10.7 or iOS 4.2.  (These versions are totally guesstimated, and should
-  #   be corrected; we only know for sure that Mac OS 10.5 doesn’t know about
-  #   them, which might not be a problem except none of its tools do either.)
-  # - Don’t use the classic linker unless explicitly requested.
-  # src/ld/Options.h:
-  # - Function name:  “Invalid”, not “illegal”.  No one is going to jail.
-  # src/ld/OutputFile.cpp:
-  # - Improve error logging.
-  # - Correctly alignment‐pad zero‐fill sections.  <rdar://problem/10445047>
-  # - Include PPC32 in 4GiB out‐of‐range warning.  AKA <rdar://problem/9610466>
-  #   for ppc (https://trac.macports.org/ticket/46801)
-  # - Do not warn when -static either.
-  # - Fix bungled limit calculations on PPC branch logic.
-  # - Correct function‐name typos.
-  # - Fix incorrect NOP generation for ppc64.
-  # - Error messages:  “Invalid”, not “illegal”.  No one is going to jail.
-  # - Correctly handle global weak references.
-  # src/ld/parsers/archive_file.cpp:
-  # - Remove dependencies on Clang/LLVM.
-  # src/ld/parsers/libunwind/AddressSpace.hpp:
-  # - Remove an unused header‐file inclusion.  (http://trac.macports.org/ticket/46535)
-  # src/ld/parsers/macho_dylib_file.cpp:
-  # - Add PowerPC platforms to those which special-case older libSystem dylibs,
-  #   leaving Arm platforms as the only ones that don’t.
-  # src/ld/parsers/macho_relocatable_file.cpp:
-  # - Correct function‐name typos.
-  # - Avert crashes/freezes by checking for mach-O files with specific
-  #   malformations.  <rdar://problem/12501376>
-  # - Ensure self‐references are direct.
-  # - Correct error‐message typos.
-  # - Tune up -mlongbranch handling.  (https://trac.macports.org/ticket/44607)
-  # src/ld/passes/objc.cpp:
-  # - Loosen restrictions on size test to allow for padding.  <rdar://problem/10272666>
-  # src/ld/passes/order.cpp:
-  # - Add initializers to the list of things that may have ordering applied.
-  # src/ld/passes/stubs/stubs.cpp:
-  # - Remove an unused (and misspelt) variable.
-  # - Throw an error if resolver functions are attempted for targets prior to
-  #   Mac OS 10.6.
-  # - Add ppc64 to list of architectures not supporting dylib resolver stubs.
-  # src/ld/passes/tlvp.cpp:
-  # - Error message:  “Invalid”, not “illegal”.  No one is going to jail.
-  # src/ld/Resolver.cpp:
-  # - Remove dependencies on Clang/LLVM.
-  # - Resolve dylib stub helper regardless of whether dylib info is compressed.
-  # src/other/dyldinfo.cpp:
-  # - Add omitted ppc64 architecture reporting.
-  # src/other/machochecker.cpp:
-  # - Fix the mess where it assumes the first member of a variable‐length array
-  #   of variable‐length arrays is the one it’s searching for (spoiler alert:
-  #   it isn’t always).
-  # - Correct error‐message and function‐name typos.
-  # src/other/ObjectDump.cpp:
-  # - Remove dependencies on Clang/LLVM.
-  # - Remove over‐processing of thin binaries.
-  # src/other/rebase.cpp:
-  # - Add a missing header‐file inclusion.
-  # unit-tests/bin/make-recursive.pl:
-  # - Fix a logic error.
-  # unit-tests/bin/result-filter.pl:
-  # - Correct an error‐message typo.
-  # unit-tests/include/common.makefile:
-  # - Set variables to tailored, rather than predefined, SDK versions.
-  # - Do not hard‐code Clang.
-  # unit-tests/run-all-unit-tests:
-  # - Use a better test for Arm architectures.
-  # unit-tests/test-cases/allow_heap_execute/Makefile:
-  # - Add the ppc64 case.
-  # unit-tests/test-cases/archive-basic/Makefile:
-  # - Only report success AFTER the last test has run.
-  # unit-tests/test-cases/blank-stubs/Makefile:
-  # - Fix an overthought pattern substitution.
+  # Omnibus collection of MacPorts, Tigerbrew, and Leopardbrew patches.  See the inline comments
+  # between patches for details.
   patch :DATA
 
-  # Tweak the unit tests during formula tuning
-  # unit-tests/bin/result-filter.pl:
-  # - Insert a blank line between tests.
-  # - Uncomment the bits that print the stdout and stderr captured during each
-  #   unsuccessful test.
-  # - Add code to print the stdout and stderr captures of tests that `make` did
-  #   not choke on, but were deemed to have failed anyway because they produced
-  #   output to stderr.
-  # - Print the names and outcomes of all tests, not just the failed ones.
-  # unit-tests/include/common.makefile:
-  # - Add code to dump the environment variables during each test, into a
-  #   different file according to whether the test is being run individually or
-  #   as part of the whole set.
-  # unit-tests/run-all-unit-tests:
-  # - Add an environment‐variable export to indicate that all tests are being
-  #   run at once, for consumption by the modified “common.makefile”.
+  # Tweak the unit tests during tuning of this formula.  See the inline comments between patches
+  # for details.
   patch :p1 do
     url 'file:///Users/gsteemso/devel/_ld64/ld64-128.2_ppc-for-build-testing.patch'
     sha256 '09a9c6519810916da9bd93a0197819f634cd04843083c9d4faf36885aabd2727'
-  end if build.with? 'tests'
+  end if DEVELOPER and build.with? 'tests'
 
   def install
 #    ENV.universal_binary if build.universal?
@@ -185,12 +66,16 @@ class Ld64128ppc < Formula
     if build.with? 'tests'
       runnable_archs = CPU.all_archs.select{ |a| CPU.can_run?(a) }.map(&:to_s)
       inreplace 'unit-tests/run-all-unit-tests', /x86_64 +i386/, runnable_archs * ' '
+      if DEVELOPER
+        inreplace 'unit-tests/include/common.makefile', %r{\$\(shell arch\)|"i386 x86_64 armv6"}, "\"#{runnable_archs * ' '}\""
+      end
 
       # The stuff that can’t be fixed with these substitutions was already `patch`ed out.
       use_version = MacOS.version.to_s
       if MacOS.version < '10.6'
         inreplace 'unit-tests/include/common.makefile',             '10.6', use_version
         inreplace 'unit-tests/test-cases/absolute-symbol/Makefile', '10.6', use_version
+        inreplace 'unit-tests/test-cases/auto-arch/Makefile',       '10.6', use_version
       end
       if MacOS.version < '10.7'
         inreplace 'unit-tests/run-all-unit-tests',                  '10.7', use_version
@@ -211,6 +96,13 @@ end # Ld64128ppc
 __END__
 --- old/src/abstraction/MachOFileAbstraction.hpp
 +++ new/src/abstraction/MachOFileAbstraction.hpp
+# - Remove a duplicate header-file inclusion.
+# - Correct error-message and preprocessor-constant typos.
+# - Fix a malformed structure-constant definition.
+# - Re-implement class macho_thread_command so machochecker can work (the file
+#   abstraction fails to account for there being more than one variable-length
+#   member of a specific variable-length array).  This requires new signatures
+#   for most member functions.
 @@ -26,7 +26,6 @@
  
  #include <mach-o/loader.h>
@@ -237,53 +129,7 @@ __END__
  };
  
  
-@@ -250,8 +249,6 @@
- template <typename P> struct macho_header_content {};
- template <> struct macho_header_content<Pointer32<BigEndian> >    { mach_header		fields; };
- template <> struct macho_header_content<Pointer64<BigEndian> >	  { mach_header_64	fields; };
--template <> struct macho_header_content<Pointer32<LittleEndian> > { mach_header		fields; };
--template <> struct macho_header_content<Pointer64<LittleEndian> > { mach_header_64	fields; };
- 
- template <typename P>
- class macho_header {
-@@ -310,8 +307,6 @@
- template <typename P> struct macho_segment_content {};
- template <> struct macho_segment_content<Pointer32<BigEndian> >    { segment_command	fields; enum { CMD = LC_SEGMENT		}; };
- template <> struct macho_segment_content<Pointer64<BigEndian> >	   { segment_command_64	fields; enum { CMD = LC_SEGMENT_64	}; };
--template <> struct macho_segment_content<Pointer32<LittleEndian> > { segment_command	fields; enum { CMD = LC_SEGMENT		}; };
--template <> struct macho_segment_content<Pointer64<LittleEndian> > { segment_command_64	fields; enum { CMD = LC_SEGMENT_64	}; };
- 
- template <typename P>
- class macho_segment_command {
-@@ -365,8 +360,6 @@
- template <typename P> struct macho_section_content {};
- template <> struct macho_section_content<Pointer32<BigEndian> >    { section	fields; };
- template <> struct macho_section_content<Pointer64<BigEndian> >	   { section_64	fields; };
--template <> struct macho_section_content<Pointer32<LittleEndian> > { section	fields; };
--template <> struct macho_section_content<Pointer64<LittleEndian> > { section_64	fields; };
- 
- template <typename P>
- class macho_section {
-@@ -590,8 +583,6 @@
- template <typename P> struct macho_routines_content {};
- template <> struct macho_routines_content<Pointer32<BigEndian> >    { routines_command		fields; enum { CMD = LC_ROUTINES	}; };
- template <> struct macho_routines_content<Pointer64<BigEndian> >	{ routines_command_64	fields; enum { CMD = LC_ROUTINES_64	}; };
--template <> struct macho_routines_content<Pointer32<LittleEndian> > { routines_command		fields; enum { CMD = LC_ROUTINES	}; };
--template <> struct macho_routines_content<Pointer64<LittleEndian> > { routines_command_64	fields; enum { CMD = LC_ROUTINES_64	}; };
- 
- template <typename P>
- class macho_routines_command {
-@@ -745,9 +736,7 @@
- //
- template <typename P> struct macho_dylib_module_content {};
- template <> struct macho_dylib_module_content<Pointer32<BigEndian> >    { struct dylib_module		fields; };
--template <> struct macho_dylib_module_content<Pointer32<LittleEndian> > { struct dylib_module		fields; };
- template <> struct macho_dylib_module_content<Pointer64<BigEndian> >    { struct dylib_module_64	fields; };
--template <> struct macho_dylib_module_content<Pointer64<LittleEndian> > { struct dylib_module_64	fields; };
- 
- template <typename P>
- class macho_dylib_module {
-@@ -868,28 +857,78 @@
+@@ -868,28 +867,78 @@
  template <typename P>
  class macho_thread_command {
  public:
@@ -306,18 +152,18 @@ __END__
 -	uint64_t		thread_register(uint32_t index) const				INLINE { return P::getP(thread_registers[index]); }
 -	void			set_thread_register(uint32_t index, uint64_t value)	INLINE { P::setP(thread_registers[index], value); }
 -	
-+	uint32_t		find_flavour_index(uint32_t target_flavour) const	{
++	uint32_t		find_flavor_index(uint32_t target_flavor) const	{
 +	  uint32_t running_array_index  = 0;
 +	  uint32_t running_struct_index = 0;
 +	   int32_t total_array_uint32s  = (cmdsize() >> 2) - 2;
 +	  if (total_array_uint32s <= 0) {
 +	    throw "Mach-O thread-description load command does not contain any state structures";
 +	  }
-+	  while ( E::get32(thr_st[running_array_index]) != target_flavour ) {
++	  while ( E::get32(thr_st[running_array_index]) != target_flavor ) {
 +	    running_array_index += E::get32(thr_st[running_array_index + 1]);  // size of this state structure in uint32s
 +	    running_struct_index++;
 +	    if ( running_array_index >= total_array_uint32s ) {
-+	      throw "Mach-O thread-description load command does not contain a state structure with the requested flavour";
++	      throw "Mach-O thread-description load command does not contain a state structure with the requested flavor";
 +	    }
 +	  }
 +	  return running_struct_index;
@@ -379,59 +225,22 @@ __END__
  };
  
  
-@@ -950,8 +989,6 @@
- template <typename P> struct macho_nlist_content {};
- template <> struct macho_nlist_content<Pointer32<BigEndian> >    { struct nlist		fields; };
- template <> struct macho_nlist_content<Pointer64<BigEndian> >	 { struct nlist_64	fields; };
--template <> struct macho_nlist_content<Pointer32<LittleEndian> > { struct nlist		fields; };
--template <> struct macho_nlist_content<Pointer64<LittleEndian> > { struct nlist_64	fields; };
- 
- template <typename P>
- class macho_nlist {
---- old/src/ld/Architectures.hpp
-+++ new/src/ld/Architectures.hpp
-@@ -30,6 +30,7 @@
- 
- //
- // Architectures
-+// (note that it is the Mach-O file whose endianness is being declared, not the CPU)
- //
- struct ppc
- {
-@@ -43,17 +44,17 @@
- 
- struct x86
- {
--	typedef Pointer32<LittleEndian>		P;
-+	typedef Pointer32<BigEndian>		P;
- };
- 
- struct x86_64
- {
--	typedef Pointer64<LittleEndian>		P;
-+	typedef Pointer64<BigEndian>		P;
- };
- 
- struct arm
- {
--	typedef Pointer32<LittleEndian>		P;
-+	typedef Pointer32<BigEndian>		P;
- };
- 
- #endif // __ARCHITECTURES__
 --- old/src/ld/HeaderAndLoadCommands.hpp
 +++ new/src/ld/HeaderAndLoadCommands.hpp
-@@ -29,6 +29,9 @@
+# - Add a missing header-file inclusion.
+# - Correct an error-message typo.
+# - Note the (not necessarily available) symbolic constants corresponding to
+#   literals.
+# - Adjust calls to macho_thread_command->...() to match the new signatures.
+@@ -29,6 +29,7 @@
  #include <limits.h>
  #include <unistd.h>
  #include <mach-o/loader.h>
-+#include <mach/ppc/thread_status.h>
-+#include <mach/i386/thread_status.h>
-+#include <mach/arm/thread_status.h>
++#include <mach-o/i386/thread_status.h>  // {ppc,arm}/thread_status.h not always there, use literals
  
  #include <vector>
  
-@@ -459,7 +462,7 @@
+@@ -459,7 +460,7 @@
  		case Options::kKextBundle:
  			return MH_KEXT_BUNDLE;
  	}
@@ -440,52 +249,35 @@ __END__
  }
  
  template <typename A>
-@@ -1039,7 +1042,7 @@
- template <>
- uint32_t HeaderAndLoadCommandsAtom<ppc>::threadLoadCommandSize() const
- {
--	return this->alignedSize(16 + 40*4);	// base size + PPC_THREAD_STATE_COUNT * 4
-+	return this->alignedSize(16 + PPC_THREAD_STATE_COUNT*4);	// base size + wordcount * 4
- }
- 
- 
-@@ -1051,18 +1054,18 @@
+@@ -1051,11 +1052,11 @@
  	macho_thread_command<ppc::P>* cmd = (macho_thread_command<ppc::P>*)p;
  	cmd->set_cmd(LC_UNIXTHREAD);
  	cmd->set_cmdsize(threadLoadCommandSize());
 -	cmd->set_flavor(1);				// PPC_THREAD_STATE
 -	cmd->set_count(40);				// PPC_THREAD_STATE_COUNT;
 -	cmd->set_thread_register(0, start);
-+	cmd->set_flavor(0, PPC_THREAD_STATE);
-+	cmd->set_count(0, PPC_THREAD_STATE_COUNT);
++	cmd->set_flavor(0, 1);  // PPC_THREAD_STATE
++	cmd->set_count(0, 40);  // PPC_THREAD_STATE_COUNT
 +	cmd->set_thread_register(0, 0, start);	// pc
  	if ( _options.hasCustomStack() )
 -		cmd->set_thread_register(3, _options.customStackAddr());	// r1
-+		cmd->set_thread_register(0, 3, _options.customStackAddr());	// r1 == sp
++		cmd->set_thread_register(0, 3, _options.customStackAddr());  // r1 == sp
  	return p + threadLoadCommandSize();
  }
  
- template <>
- uint32_t HeaderAndLoadCommandsAtom<ppc64>::threadLoadCommandSize() const
- {
--	return this->alignedSize(16 + 76*4);	// base size + PPC_THREAD_STATE64_COUNT * 4
-+	return this->alignedSize(16 + PPC_THREAD_STATE64_COUNT*4);	// base size + wordcount * 4
- }
- 
- template <>
-@@ -1073,18 +1076,18 @@
+@@ -1073,18 +1074,18 @@
  	macho_thread_command<ppc::P>* cmd = (macho_thread_command<ppc::P>*)p;
  	cmd->set_cmd(LC_UNIXTHREAD);
  	cmd->set_cmdsize(threadLoadCommandSize());
 -	cmd->set_flavor(5);				// PPC_THREAD_STATE64
 -	cmd->set_count(76);				// PPC_THREAD_STATE64_COUNT;
 -	cmd->set_thread_register(0, start);
-+	cmd->set_flavor(0, PPC_THREAD_STATE64);
-+	cmd->set_count(0, PPC_THREAD_STATE64_COUNT);
++	cmd->set_flavor(0, 5);  // PPC_THREAD_STATE64
++	cmd->set_count(0, 76);  // PPC_THREAD_STATE64_COUNT
 +	cmd->set_thread_register(0, 0, start);	// pc
  	if ( _options.hasCustomStack() )
 -		cmd->set_thread_register(3, _options.customStackAddr());	// r1
-+		cmd->set_thread_register(0, 3, _options.customStackAddr());	// r1 == sp
++		cmd->set_thread_register(0, 3, _options.customStackAddr());  // r1 == sp
  	return p + threadLoadCommandSize();
  }
  
@@ -493,11 +285,11 @@ __END__
  uint32_t HeaderAndLoadCommandsAtom<x86>::threadLoadCommandSize() const
  {
 -	return this->alignedSize(16 + 16*4);	// base size + i386_THREAD_STATE_COUNT * 4
-+	return this->alignedSize(16 + x86_THREAD_STATE32_COUNT*4);	// base size + wordcount * 4
++	return this->alignedSize(16 + x86_THREAD_STATE32_COUNT*4);  // base size + number of words * 4
  }
  
  template <>
-@@ -1095,18 +1098,18 @@
+@@ -1095,11 +1096,11 @@
  	macho_thread_command<P>* cmd = (macho_thread_command<P>*)p;
  	cmd->set_cmd(LC_UNIXTHREAD);
  	cmd->set_cmdsize(threadLoadCommandSize());
@@ -509,19 +301,11 @@ __END__
 +	cmd->set_thread_register(0, 10, start);	// ip
  	if ( _options.hasCustomStack() )
 -		cmd->set_thread_register(7, _options.customStackAddr());	// r1
-+		cmd->set_thread_register(0, 7, _options.customStackAddr());	// sp
++		cmd->set_thread_register(0, 7, _options.customStackAddr());  // sp
  	return p + threadLoadCommandSize();
  }
  
- template <>
- uint32_t HeaderAndLoadCommandsAtom<x86_64>::threadLoadCommandSize() const
- {
--	return this->alignedSize(16 + x86_THREAD_STATE64_COUNT * 4); 
-+	return this->alignedSize(16 + x86_THREAD_STATE64_COUNT*4);	// base size + wordcount * 4
- }
- 
- template <>
-@@ -1117,11 +1120,11 @@
+@@ -1117,11 +1118,11 @@
  	macho_thread_command<P>* cmd = (macho_thread_command<P>*)p;
  	cmd->set_cmd(LC_UNIXTHREAD);
  	cmd->set_cmdsize(threadLoadCommandSize());
@@ -533,28 +317,29 @@ __END__
 +	cmd->set_thread_register(0, 16, start);	// ip
  	if ( _options.hasCustomStack() )
 -		cmd->set_thread_register(7, _options.customStackAddr());	// r1
-+		cmd->set_thread_register(0, 7, _options.customStackAddr());	// sp
++		cmd->set_thread_register(0, 7, _options.customStackAddr());  // sp
  	return p + threadLoadCommandSize();
  }
  
-@@ -1141,11 +1144,11 @@
+@@ -1141,11 +1142,11 @@
  	macho_thread_command<P>* cmd = (macho_thread_command<P>*)p;
  	cmd->set_cmd(LC_UNIXTHREAD);
  	cmd->set_cmdsize(threadLoadCommandSize());
 -	cmd->set_flavor(1);			
 -	cmd->set_count(17);	
 -	cmd->set_thread_register(15, start);		// pc
-+	cmd->set_flavor(0, 1);                   // ARM_THREAD_STATE
-+	cmd->set_count(0, 17);                   // ARM_THREAD_STATE_COUNT
-+	cmd->set_thread_register(0, 15, start);  // PC
++	cmd->set_flavor(0, 1);  // ARM_THREAD_STATE
++	cmd->set_count(0, 17);  // ARM_THREAD_STATE_COUNT
++	cmd->set_thread_register(0, 15, start);  // pc
  	if ( _options.hasCustomStack() )
 -		cmd->set_thread_register(13, _options.customStackAddr());	// sp
-+		cmd->set_thread_register(0, 13, _options.customStackAddr());  // SP
++		cmd->set_thread_register(0, 13, _options.customStackAddr());  // sp
  	return p + threadLoadCommandSize();
  }
  
 --- old/src/ld/InputFiles.cpp
 +++ new/src/ld/InputFiles.cpp
+# Remove dependencies on Clang/LLVM.
 @@ -58,7 +58,6 @@
  #include "macho_relocatable_file.h"
  #include "macho_dylib_file.h"
@@ -620,6 +405,8 @@ __END__
  	if ( ((fat_header*)p)->magic == OSSwapBigToHostInt32(FAT_MAGIC) ) {
 --- old/src/ld/ld.cpp
 +++ new/src/ld/ld.cpp
+# - Remove a duplicate header-file inclusion.
+# - Remove dependencies on Clang/LLVM.
 @@ -44,7 +44,6 @@
  #include <mach/mach_host.h>
  #include <dlfcn.h>
@@ -638,6 +425,7 @@ __END__
  
 --- old/src/ld/ld.hpp
 +++ new/src/ld/ld.hpp
+# Correct function-name typos (& remove some trailing whitespace).
 @@ -366,53 +366,53 @@
  	bool			weakImport : 1;
  	TargetBinding	binding : 3;
@@ -703,6 +491,7 @@ __END__
  	bool firstInCluster() const { 
 --- old/src/ld/LinkEdit.hpp
 +++ new/src/ld/LinkEdit.hpp
+# Skip zero-length atoms to prevent metadata spillover.  <rdar://problem/10422823>
 @@ -1332,6 +1332,10 @@
  			std::vector<const ld::Atom*>& atoms = sect->atoms;
  			for (std::vector<const ld::Atom*>::iterator ait = atoms.begin(); ait != atoms.end(); ++ait) {
@@ -716,6 +505,10 @@ __END__
  					nextAddr |= 1; 
 --- old/src/ld/LinkEditClassic.hpp
 +++ new/src/ld/LinkEditClassic.hpp
+# - Ensure that __mh_execute_header cannot apply to position-independent
+#   executables (support slideable static images).  <rdar://problem/10280094>
+# - Refine when to use scattered relocation on x86.
+# - Error message:  "Invalid", not "illegal".  No one is going to jail.
 @@ -356,8 +356,9 @@
  				entry.set_n_type(N_EXT | N_SECT | N_PEXT);
  		}
@@ -750,6 +543,18 @@ __END__
  		}
 --- old/src/ld/Options.cpp
 +++ new/src/ld/Options.cpp
+# - Improve version reporting.  Note that this requires postprocessing to
+#   insert the actual version number.
+# - Function name:  "Invalid", not "illegal".  No one is going to jail.
+# - Correct error-message typos.
+# - Tweak version-minimum adjustment to allow for iOS simulation on x86_64.
+# - Ensure ppc64 kexts have the correct Mach filetype.
+# - Adjust determination of when to not use compressed LINKEDIT.
+# - Don't emit minimum-version or function-start load commands prior to Mac
+#   OS 10.7 or iOS 4.2.  (These versions are totally guesstimated, and should
+#   be corrected; we only know for sure that Mac OS 10.5 doesn't know about
+#   them, which might not be a problem except none of its tools do either.)
+# - Don't use the classic linker unless explicitly requested.
 @@ -36,10 +40,7 @@
  #include "Architectures.hpp"
  #include "MachOFileAbstraction.hpp"
@@ -1068,6 +873,7 @@ __END__
  void Options::gotoClassicLinker(int argc, const char* argv[])
 --- old/src/ld/Options.h
 +++ new/src/ld/Options.h
+# Function name:  "Invalid", not "illegal".  No one is going to jail.
 @@ -329,7 +329,7 @@
  
  
@@ -1079,6 +885,16 @@ __END__
  	FileInfo					findLibrary(const char* rootName, bool dylibsOnly=false);
 --- old/src/ld/OutputFile.cpp
 +++ new/src/ld/OutputFile.cpp
+# - Improve error logging.
+# - Correctly alignment-pad zero-fill sections.  <rdar://problem/10445047>
+# - Include PPC32 in 4GiB out-of-range warning.  AKA <rdar://problem/9610466>
+#   for ppc (https://trac.macports.org/ticket/46801)
+# - Do not warn when -static either.
+# - Fix bungled limit calculations on PPC branch logic.
+# - Correct function-name typos.
+# - Fix incorrect NOP generation for ppc64.
+# - Error messages:  "Invalid", not "illegal".  No one is going to jail.
+# - Correctly handle global weak references.
 @@ -572,8 +572,8 @@
  			}
  		}
@@ -1325,6 +1141,7 @@ __END__
  				fixupWithTarget->contentAddendOnly = true;
 --- old/src/ld/parsers/archive_file.cpp
 +++ new/src/ld/parsers/archive_file.cpp
+# Remove dependencies on Clang/LLVM.
 @@ -39,7 +39,6 @@
  #include "Architectures.hpp"
  
@@ -1385,6 +1202,7 @@ __END__
  		throwf("in %s, %s", memberPath, msg);
 --- old/src/ld/parsers/libunwind/AddressSpace.hpp
 +++ new/src/ld/parsers/libunwind/AddressSpace.hpp
+# Remove an unused header-file inclusion.  (http://trac.macports.org/ticket/46535)
 @@ -37,7 +37,6 @@
  #include <mach-o/getsect.h>
  #include <mach-o/dyld_priv.h>
@@ -1395,6 +1213,8 @@ __END__
  #include "libunwind.h"
 --- old/src/ld/parsers/macho_dylib_file.cpp
 +++ new/src/ld/parsers/macho_dylib_file.cpp
+# - Add PowerPC platforms to those which special-case older libSystem dylibs,
+#   leaving Arm platforms as the only ones that don't.
 @@ -523,21 +523,15 @@
  
  
@@ -1422,6 +1242,12 @@ __END__
  template <typename A>
 --- old/src/ld/parsers/macho_relocatable_file.cpp
 +++ new/src/ld/parsers/macho_relocatable_file.cpp
+# - Correct function-name typos.
+# - Avert crashes/freezes by checking for mach-O files with specific
+#   malformations.  <rdar://problem/12501376>
+# - Ensure self-references are direct.
+# - Correct error-message typos.
+# - Tune up -mlongbranch handling.  (https://trac.macports.org/ticket/44607)
 @@ -174,7 +174,7 @@
  	static const char*				makeSegmentName(const macho_section<typename A::P>* s);
  	static bool						readable(const macho_section<typename A::P>* s);
@@ -1496,6 +1322,7 @@ __END__
  	}
 --- old/src/ld/passes/objc.cpp
 +++ new/src/ld/passes/objc.cpp
+# Loosen restrictions on size test to allow for padding.  <rdar://problem/10272666>
 @@ -813,7 +813,7 @@
  					continue;
  				}
@@ -1505,8 +1332,9 @@ __END__
  				// ignore categories also in __objc_nlcatlist
  				if ( nlcatListAtoms.count(categoryAtom) != 0 )
  					continue;
---- old/src/ld/passes/order_file.cpp
-+++ new/src/ld/passes/order_file.cpp
+--- old/src/ld/passes/order.cpp
++++ new/src/ld/passes/order.cpp
+# Add initializers to the list of things that may have ordering applied.
 @@ -239,6 +239,7 @@
  {
  	// atoms in only some sections can have order_file applied
@@ -1517,6 +1345,10 @@ __END__
  		case ld::Section::typeZeroFill:
 --- old/src/ld/passes/stubs/stubs.cpp
 +++ new/src/ld/passes/stubs/stubs.cpp
+# - Remove an unused (and misspelt) variable.
+# - Throw an error if resolver functions are attempted for targets prior to
+#   Mac OS 10.6.
+# - Add ppc64 to list of architectures not supporting dylib resolver stubs.
 @@ -72,7 +72,6 @@
  
  	const Options&				_options;
@@ -1576,6 +1408,7 @@ __END__
  						throwf("resolver functions (%s) can only be used when targeting iOS 4.2 or later", atom->name());
 --- old/src/ld/passes/tlvp.cpp
 +++ new/src/ld/passes/tlvp.cpp
+# Error message:  "Invalid", not "illegal".  No one is going to jail.
 @@ -199,7 +199,7 @@
  		if ( pos == variableToPointerMap.end() ) {
  			if (log) fprintf(stderr, "make TLV pointer for %s\n", it->first->name());
@@ -1587,6 +1420,8 @@ __END__
  		}
 --- old/src/ld/Resolver.cpp
 +++ new/src/ld/Resolver.cpp
+# - Remove dependencies on Clang/LLVM.
+# - Resolve dylib stub helper regardless of whether dylib info is compressed.
 @@ -58,7 +58,6 @@
  #include "InputFiles.h"
  #include "SymbolTable.h"
@@ -1776,11 +1611,12 @@ __END__
  
 --- old/src/other/dyldinfo.cpp
 +++ new/src/other/dyldinfo.cpp
+# ' Add omitted ppc64 architecture reporting.
 @@ -347,6 +347,9 @@
  			case CPU_TYPE_POWERPC:			
  				printf("for arch ppc:\n");
  				break;
-+			case CPU_TYPE_POWERPC64:	// don't omit this
++			case CPU_TYPE_POWERPC64:
 +				printf("for arch ppc64:\n");
 +				break;
  			case CPU_TYPE_ARM:
@@ -1788,11 +1624,15 @@ __END__
  					if ( (cpu_subtype_t)fHeader->cpusubtype() == t->subType) {
 --- old/src/other/machochecker.cpp
 +++ new/src/other/machochecker.cpp
+# - Fix the mess where it assumes the first member of a variable-length array
+#   of variable-length arrays is the one it's searching for (spoiler alert:
+#   it isn't always).
+# - Correct error-message and function-name typos.
 @@ -121,12 +121,16 @@
  	void										checkLoadCommands();
  	void										checkSection(const macho_segment_command<P>* segCmd, const macho_section<P>* sect);
  	uint8_t										loadCommandSizeMask();
-+	uint32_t									threadStateFlavour();
++	uint32_t									threadStateflavor();
 +	uint32_t									stackPointerReg();
 +	uint32_t									programCounterReg();
 +	pint_t										threadCommand_threadStateRegister(const macho_thread_command<P>* threadInfo, const uint32_t register_index);
@@ -1873,15 +1713,15 @@ __END__
 -arm::P::uint_t MachOChecker<arm>::getEntryPoint(const macho_thread_command<arm::P>* threadInfo)
 -{
 -	return threadInfo->thread_register(15);
-+template <> uint32_t MachOChecker<ppc>::threadStateFlavour()    { return 1; }  // PPC_THREAD_STATE
-+template <> uint32_t MachOChecker<ppc64>::threadStateFlavour()  { return 5; }  // PPC_THREAD_STATE64
-+template <> uint32_t MachOChecker<x86>::threadStateFlavour()    { return 1; }  // x86_THREAD_STATE32
-+template <> uint32_t MachOChecker<x86_64>::threadStateFlavour() { return 4; }  // x86_THREAD_STATE64
-+template <> uint32_t MachOChecker<arm>::threadStateFlavour()    { return 1; }  // ARM_THREAD_STATE
++template <> uint32_t MachOChecker<ppc>::threadStateflavor()    { return 1; }  // PPC_THREAD_STATE
++template <> uint32_t MachOChecker<ppc64>::threadStateflavor()  { return 5; }  // PPC_THREAD_STATE64
++template <> uint32_t MachOChecker<x86>::threadStateflavor()    { return 1; }  // x86_THREAD_STATE32
++template <> uint32_t MachOChecker<x86_64>::threadStateflavor() { return 4; }  // x86_THREAD_STATE64
++template <> uint32_t MachOChecker<arm>::threadStateflavor()    { return 1; }  // ARM_THREAD_STATE
 +
 +template <typename A>
 +typename A::P::uint_t MachOChecker<A>::threadCommand_threadStateRegister(const macho_thread_command<P>* threadInfo, const uint32_t register_index) {
-+  return threadInfo->thread_register(threadInfo->find_flavour_index(MachOChecker<A>::threadStateFlavour()), register_index);
++  return threadInfo->thread_register(threadInfo->find_flavor_index(MachOChecker<A>::threadStateflavor()), register_index);
 +}
 +
 +
@@ -2038,6 +1878,8 @@ __END__
  	// verify any section with S_ATTR_LOC_RELOC bits set actually has text relocs
 --- old/src/other/ObjectDump.cpp
 +++ new/src/other/ObjectDump.cpp
+# - Remove dependencies on Clang/LLVM.
+# - Remove over-processing of thin binaries.
 @@ -33,7 +33,6 @@
  
  #include "MachOFileAbstraction.hpp"
@@ -2074,6 +1916,7 @@ __END__
  	// for peformance testing
 --- old/src/other/rebase.cpp
 +++ new/src/other/rebase.cpp
+# Add a missing header-file inclusion.
 @@ -29,6 +29,7 @@
  #include <limits.h>
  #include <stdarg.h>
@@ -2084,6 +1927,7 @@ __END__
  #include <unistd.h>
 --- old/unit-tests/bin/make-recursive.pl
 +++ new/unit-tests/bin/make-recursive.pl
+# Fix a logic error.
 @@ -118,6 +118,6 @@
  	    &print_line("stderr", "$_");
  	}
@@ -2094,6 +1938,7 @@ __END__
  }
 --- old/unit-tests/bin/result-filter.pl
 +++ new/unit-tests/bin/result-filter.pl
+# Correct an error-message typo.
 @@ -134,7 +134,7 @@
      }
      if(!$seen_result)
@@ -2105,6 +1950,9 @@ __END__
  	#foreach $line1 (@{$$tbl{stdout}})
 --- old/unit-tests/include/common.makefile
 +++ new/unit-tests/include/common.makefile
+# - Use a better test for Arm architectures.
+# - Set variables to tailored, rather than predefined, SDK versions.
+# - Do not hard-code Clang.
 @@ -8,7 +8,19 @@
  # set default to be all
  VALID_ARCHS ?= "i386 x86_64 armv6"
@@ -2120,9 +1968,9 @@ __END__
 +        arm_sdks[$$i]="$$(echo "$${arm_sdks[$$i]}" | sed -E -e 's/^.*\/iPhoneOS//' -e 's/.sdk$$//')"; \
 +      done; \
 +      arm_sdks=( $$(echo "$${arm_sdks[*]}" | tr -s ' ' $$'\n' | sort | tr $$'\n' ' ') ); \
++      echo "$(arm_sdk_dir)/iPhoneOS$${arm_sdks[$${#arm_sdks[@]}-1]}.sdk"; \
 +    fi; \
-+    if [ $${#arm_sdks[@]} -gt '0' ]; then echo "$(arm_sdk_dir)/iPhoneOS$${arm_sdks[$${#arm_sdks[@]}-1]}.sdk"; fi; \
-+  fi )
++  fi; )
  
  MYDIR=$(shell cd ../../bin;pwd)
  LD			= ld
@@ -2172,6 +2020,7 @@ __END__
    LD_SYSROOT = -syslibroot $(IOS_SDK)
 --- old/unit-tests/run-all-unit-tests
 +++ new/unit-tests/run-all-unit-tests
+# Use a better test for Arm architectures.
 @@ -15,10 +15,21 @@
  all_archs="x86_64  i386"
  valid_archs="x86_64 i386"
@@ -2183,14 +2032,14 @@ __END__
  then
 -    all_archs="${all_archs}  armv7"
 -    valid_archs="${valid_archs} armv7"
-+  arm_sdks=(${arm_sdk_dir}/iPhoneOS*.sdk)
-+  if [ ${#arm_sdks[@]} -gt '1' ]; then
-+    for (( i=0; $i < ${#arm_sdks[@]}; i+=1 )); do
-+      arm_sdks[$i]="$(echo "${arm_sdks[$i]}" | sed -E -e 's/^.*\/iPhoneOS//' -e 's/.sdk$$//')"
-+    done
-+    arm_sdks=( $(echo "${arm_sdks[*]}" | tr -s ' ' $'\n' | sort | tr $'\n' ' ') )  # sort'll still work correctly in special cases
-+  fi
-+  arm_sdk="$(if [ ${#arm_sdks[@]} -gt '0' ]; then echo "${arm_sdk_dir}/iPhoneOS${arm_sdks[${#arm_sdks[*]}-1]}.sdk"; fi)"
++  arm_sdk="$(arm_sdks=(${arm_sdk_dir}/iPhoneOS*.sdk)
++             if [ ${#arm_sdks[@]} -gt '0' ]; then
++               for (( i=0; $i < ${#arm_sdks[@]}; i+=1 )); do
++                 arm_sdks[$i]="$(echo "${arm_sdks[$i]}" | sed -E -e 's/^.*\/iPhoneOS//' -e 's/.sdk$$//')"
++               done
++               arm_sdks=( $(echo "${arm_sdks[*]}" | tr -s ' ' $'\n' | sort | tr $'\n' ' ') )
++               echo "${arm_sdk_dir}/iPhoneOS${arm_sdks[${#arm_sdks[*]}-1]}.sdk"
++             fi)"  # "
 +  arm_archs="$(${arm_tool_root}/usr/bin/lipo -info "${arm_sdk}/usr/lib/libSystem.dylib" | cut -d':' -f 3 | sed -E -e 's/ppc[^ ]*|x86_64|i.86//')"
 +  all_archs="${all_archs} ${arm_archs[*]}"
 +  valid_archs="${valid_archs} ${arm_archs[*]}"
@@ -2199,7 +2048,8 @@ __END__
  
 --- old/unit-tests/test-cases/16-byte-alignment/Makefile
 +++ new/unit-tests/test-cases/16-byte-alignment/Makefile
-@@ -20,6 +20,8 @@
+# Accommodate ObjectDump output formatted differently than expected.
+@@ -33,7 +33,7 @@
  	${FAIL_IF_ERROR} ${CC} ${CCFLAGS} -arch ${ARCH} -c -O2 tl_test2.c -o tl_test2-${ARCH}.o
  
  	# verify that the alignment is correct in the .o
@@ -2210,6 +2060,7 @@ __END__
  	${FAIL_IF_ERROR} ${CC} ${CCFLAGS} -arch ${ARCH} -O2 tl_test2-${ARCH}.o -o tl_test2-${ARCH}
 --- old/unit-tests/test-cases/allow_heap_execute/Makefile
 +++ new/unit-tests/test-cases/allow_heap_execute/Makefile
+# Add the ppc64 case.
 @@ -20,6 +20,8 @@
  run-ppc:
  	${PASS_IFF} true
@@ -2221,6 +2072,7 @@ __END__
  	# Test with the flag
 --- old/unit-tests/test-cases/archive-basic/Makefile
 +++ new/unit-tests/test-cases/archive-basic/Makefile
+# Only report success AFTER the last test has run.
 @@ -38,9 +38,9 @@
  	libtool -static foo-${ARCH}.o  bar-${ARCH}.o -o libfoobar-${ARCH}.a
  	${CC} ${CCFLAGS} main.c -lfoobar-${ARCH} -L. -o main-${ARCH} 
@@ -2235,12 +2087,29 @@ __END__
  	rm -rf main-* *.o *.a
 --- old/unit-tests/test-cases/blank-stubs/Makefile
 +++ new/unit-tests/test-cases/blank-stubs/Makefile
-@@ -23,7 +23,7 @@
+# - Fix a misfeatured pattern substitution.
+# - Accommodate Arm builds on systems with no native Arm compiler outside the
+#   iOS SDK.
+@@ -23,7 +23,12 @@
  TESTROOT = ../..
  include ${TESTROOT}/include/common.makefile
  
 -ALL_ARCH_OPTIONS = $(patsubst %,-arch %,$(subst ppc,,$(VALID_ARCHS)) )
 +ALL_ARCH_OPTIONS = $(patsubst %,-arch %,$(VALID_ARCHS))
++ifneq "$(findstring arm, $(ALL_ARCH_OPTIONS))" ""
++	gcc=$(arm_tool_root)/usr/bin/gcc
++else
++	gcc=gcc
++endif
  
  #
  # Test that blank stubs are handled properly
+@@ -34,7 +39,7 @@
+ all:
+ # build example fully fat dylib
+ 
+-	gcc `echo ${ALL_ARCH_OPTIONS}` -dynamiclib foo.c -o libfoo.dylib -install_name libfoo.dylib 
++	$(gcc) `echo ${ALL_ARCH_OPTIONS}` -dynamiclib foo.c -o libfoo.dylib -install_name libfoo.dylib 
+ 	${FAIL_IF_BAD_MACHO} libfoo.dylib
+ 
+ 	# handle the case of a native ppc compile--this sets the subtype, which must be passed to lipo
