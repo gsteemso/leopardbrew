@@ -17,101 +17,6 @@ class AppleGcc42 < Formula
   # Fiddle the build script and associated files to allow for more possible
   # system configurations, much of it specifically for building arm compilers,
   # and also to greatly simplify installation.
-  # build_gcc:
-  #  - Make a way to detranslate GCC architecture names back to Apple ones.
-  #  - Improve the filtering of architecture names.
-  #  - Accommodate non-default native builds (such as ppc64).
-  #  - Since we aren’t using the feature that puts two prefixes on everything,
-  #    set the “inner” one to the null string.
-  #  - Set the working build directory by environment variable instead of by
-  #    cd’ing to it before running this script.
-  #  - Use the `lipo` from cctools – it’s newer and can handle ARM slices.
-  #  - Don’t look in weird places for the C++ standard library.
-  #  - Since older xcodebuild does not understand “Path” or “PlatformPath” (and
-  #    there is no clue as to what exactly $ARM_SDK ought to hold even if those
-  #    would be understood), bypass them via an environment variable.
-  #  - Reörder the arm configuration so it is consistent across all methods of
-  #    setting its initial values.
-  #  - Use the correct $*_CONFIGFLAGS for the build architecture.
-  #  - Use the part of the split prefix that we DIDN’T set to the null string.
-  #  - Put shared libraries in the correct location.
-  #  - Use the arch‐specific tools from cctools (except the nonexistent ld,
-  #    which we must configure separately).
-  #  - Enable our `as` interposer scripts to rewrite incorrect -arch flags, and
-  #    symlink the relevant one as just “as” for every added compiler we build.
-  #  - When building the cross‐hosted compilers, make sure the cctools are in
-  #    $COMPILER_PATH, and set $prefix instead of $DESTDIR.
-  #  - Build the HTML documentation straight into share/doc.
-  #  - Don’t symlink to nonexistent files.  Symlink to cctools’ `as` instead.
-  #  - Don’t forget to build libgcc_s.*.dylib.
-  #  - Don’t bother copying libgomp.a et al, they’re already in place because
-  #    we didn’t use the split‐prefix feature.
-  #  - Remove several instances of doubled directory separators.
-  #  - Don’t bother generating debugging data.  It gets discarded.
-  #  - Don’t try to strip libgcc.*.dylib, nor anything in cctools.
-  #  - Don’t chgrp.  It does nothing useful, and we aren’t in the destination
-  #    group (“wheel”) so it fails messily.
-  # config/mh-ppc-darwin:
-  #  - Make optimization level “-Os”, to match everywhere else we changed it.
-  # config/mh-x86-darwin:
-  #  - Make optimization level “-Os”, to match everywhere else we changed it.
-  #  - Fix a Make‐variable assignment to use $(shell ...) instead of `...`.
-  # configure:
-  #  - Fix omission of ppc64 from PowerPC Darwin configuration, and improve 32‐
-  #    bit/64‐bit Darwin support in general.
-  # driverdriver.c:
-  #  - Fix bug where multiple -m32/-m64 options do not override one another.
-  # gcc/c-incpath.c:
-  #  - Fix a signedness mismatch that only becomes apparent with uniformly 64‐
-  #    bit values.
-  # gcc/config/arm/arm.c:
-  #  - Initialize a variable declaration that otherwise causes a spurious
-  #    compiler warning under “warnings are fatal” mode.
-  # gcc/config/arm/lib1funcs.asm:
-  #  - Fix a critical typo in the armv7 #defines.
-  #  - Manually assemble two armv6 instructions that the assembler inexplicably
-  #    refuses to process.  Since Apple’s as doesn’t know “.4byte”, express
-  #    them each as four discrete .bytes in reverse order.
-  # gcc/config/i386/t-darwin:
-  # gcc/config/i386/t-darwin64:
-  # gcc/config/rs6000/t-darwin:
-  #  - Remove “-pipe” flags to let our `as` interposer script work properly.
-  # gcc/config/t-darwin:
-  #  - Set $T_CFLAGS to -m64 when building for x86_64 or ppc64 targets and to
-  #    -m32 when building for i386 or ppc targets.
-  #  - Remove “-pipe” flag to let our `as` interposer script work properly.
-  # gcc/config/x-darwin:
-  #  - Set $XCFLAGS to -m64 when building for x86_64 or ppc64 hosts and to -m32
-  #    when building for i386 or ppc hosts.  This is inserted after $T_CFLAGS
-  #    (overriding it) when compiling for the host, and not used when compiling
-  #    for the target.
-  # gcc/config.host:
-  #  - Set use_long_long_for_widest_fast_int to [a value to be determined at
-  #    brewing time].  This value must be 'yes' instead of 'no' if and only if
-  #    we are building 32‐bit on 64‐bit hardware.
-  # gcc/configure:
-  #  - Convert `as --version` to `as -v`, because Apple’s as doesn’t understand
-  #    long options and hangs waiting for program text.
-  #  - Chop out some other option‐flag arguments that Apple’s as doesn’t grok,
-  #    leading to false‐negative test results.
-  # gcc/local-alloc.c:
-  #  - Fix some variable‐size mismatches that only become apparent with 64‐bit
-  #    pointers.
-  # gcc/Makefile.in:
-  #  - Adjust for not using the split‐prefix feature (and correct an overlooked
-  #    bare `pwd`).
-  # gcc/tree-if-conv.c:
-  # libcpp/traditional.c:
-  #  - Initialize variable declarations that otherwise cause spurious compiler
-  #    warnings under “warnings are fatal” mode.
-  # libgomp/configure:
-  #  - Make libgomp build with appropriate -m32/-m64 flags, despite it totally
-  #    ignoring all the carefully balanced CFLAGS variants set up in ../gcc.
-  # libgomp/Makefile.in:
-  # libiberty/Makefile.in:
-  #  - Include GCC’s `fixinclude`d header directory when compiling; otherwise,
-  #    `#include-next` can’t find any next header to include.  (This only seems
-  #    to happen in multilib sub-builds.)
   patch :DATA
 
   if MacOS.version > :tiger and MacOS.version < :lion
@@ -129,7 +34,7 @@ class AppleGcc42 < Formula
     if installed? and not (candidates = Dir['/usr/bin/*-apple-darwin*-gcc-4.2.1.5[0-9][0-9][0-9]']).empty?
       return candidates.first[-4,4]
     end
-    if (gcc42 = Pathname.new(Dir['/usr/bin/*-apple-darwin*-gcc-4.2.1'].first)).chuzzle and not gcc42.symlink?
+    if (gcc42 = Pathname.new(Dir['/usr/bin/*-apple-darwin*-gcc-4.2.1'].first)).choke and not gcc42.symlink?
       return `#{gcc42} --version`[/build (5\d{3})/][1]
     end
   end
@@ -229,10 +134,7 @@ class AppleGcc42 < Formula
       }
     EOS
     system bin/'gcc-4.2', *CPU.runnable_archs.as_arch_flags.split(' '), '-o', 'hello-c', 'hello-c.c'
-    for_archs('./hello-c') do |a|
-      arch_cmd = (a.nil? ? [] : ['arch', '-arch', a.to_s])
-      assert_equal "Hello, world!\n", Utils.popen_read(*(arch_cmd << './hello-c'))
-    end
+    for_archs('./hello-c') { |_, cmd| assert_equal "Hello, world!\n", Utils.popen_read *cmd }
 
     (testpath/'hello-cc.cc').write <<-EOS.undent
       #include <iostream>
@@ -243,10 +145,7 @@ class AppleGcc42 < Formula
       }
     EOS
     system bin/'g++-4.2', *CPU.runnable_archs.as_arch_flags.split(' '), '-o', 'hello-cc', 'hello-cc.cc'
-    for_archs('./hello-cc') do |a|
-      arch_cmd = (a.nil? ? [] : ['arch', '-arch', a.to_s])
-      assert_equal "Hello, world!\n", Utils.popen_read(*(arch_cmd << './hello-cc'))
-    end
+    for_archs('./hello-cc') { |_, cmd| assert_equal "Hello, world!\n", Utils.popen_read *cmd }
   end # test
 
   def switch_to; <<-_.undent
@@ -257,7 +156,7 @@ class AppleGcc42 < Formula
 
     Bin_Pfx=/usr/bin/
     Man1_Pfx=/usr/share/man/man1/
-    Opt_Pfx="$(brew --prefix)/opt/apple-gcc42/"
+    Opt_Pfx="#{OPTDIR}/apple-gcc42/"
 
     Short_Names=(c++ cpp g++ gcc gcov)
     Targets=(${Opt_Pfx}{bin,share/man/man1}/{arm,i686,powerpc}-apple-darwin*-{cpp,g{++,cc}}-4.2.1{,.1})
@@ -270,21 +169,21 @@ class AppleGcc42 < Formula
       Link="${Bin_Pfx}${Name}"  # sanity check – ensures, e.g., that `gcc` doesn’t get you `gcc-4.0`
       if [ -L "$Link" ] && [ $(readlink -n "$Link") != "$Sh_V_Nm" ]; then sudo ln -fs "$Sh_V_Nm" "$Link"; fi
       Link="${Bin_Pfx}${Sh_V_Nm}"  # actual work
-      if [ -f "$Link" -a \\! -L "$Link" ]; then sudo mv "$Link" "${Link}.1.#{stock_apple_gcc42_build}"; fi
+      if [ -f "$Link" ] && ! [ -L "$Link" ]; then sudo mv "$Link" "${Link}.1.#{stock_apple_gcc42_build}"; fi
       sudo ln -fs "${Opt_Pfx}${Link#/usr/}" "$Link"
 
       Link="${Man1_Pfx}${Name}.1"  # for sanity checks – ensure, e.g., that `man gcc` ↛ `man gcc-4.0`
       if [ -e "${Link}.gz" ]; then gunzip "${Link}.gz"; fi  # compressed manpages mess this up
       if [ -L "$Link" ] && [ $(readlink -n "$Link") != "${Sh_V_Nm}.1" ]; then sudo ln -fs "${Sh_V_Nm}.1" "$Link"; fi
       Link="${Man1_Pfx}${Sh_V_Nm}.1"  # actual work
-      if [ -f "$Link" -a \\! -L "$Link" ]; then sudo mv "$Link" "${Link}.#{stock_apple_gcc42_build}.1"; fi
+      if [ -f "$Link" ] && ! [ -L "$Link" ]; then sudo mv "$Link" "${Link}.#{stock_apple_gcc42_build}.1"; fi
       sudo ln -fs "${Opt_Pfx}${Link#/usr/}" "$Link"
     done
 
     for Target in "${Targets[@]}"; do
       Link="/usr/${Target#${Opt_Pfx}}"
       Tail="${Link##*2.1}"; Nose="${Link%${Tail}}"
-      if [ -f "$Link" -a \\! -L "$Link" ]; then sudo mv "$Link" "${Nose}.#{stock_apple_gcc42_build}${Tail}"; fi
+      if [ -f "$Link" ] && ! [ -L "$Link" ]; then sudo mv "$Link" "${Nose}.#{stock_apple_gcc42_build}${Tail}"; fi
       if [ -e "$Target" ]; then sudo ln -fs "$Target" "$Link"; fi
     done
 
@@ -304,51 +203,50 @@ class AppleGcc42 < Formula
     #### For use with Leopardbrew on Mac OS 10.5 / 10.6 (no others shipped with GCC 4.2.1) ####
     shopt -s nullglob  # allows ignoring nonexistent combinations from patterns
 
-    Opt_Pfx="$(brew --prefix)/opt/apple-gcc42"
+    Opt_Pfx="#{OPTDIR}/apple-gcc42"
     Bin_Pfx=/usr/bin/
     Man1_Pfx=/usr/share/man/man1/
 
     Short_Names=(c++ cpp g++ gcc gcov)
     Long_Targets=({${Bin_Pfx},${Man1_Pfx}}{i686,powerpc}-apple-darwin*-g{++,cc}-4.2.1.#{stock_apple_gcc42_build}{,.1})
     Delete_Links=({${Bin_Pfx},${Man1_Pfx}}{arm-*,{i686,powerpc}-apple-darwin*-cpp}-4.2.1{,.1} /usr/share/doc/gcc-4.2.1)
-    Old_Dir_Targets=(${Opt_Pfx}/lib{,exec}/gcc/{arm-*,{i686,powerpc}-apple-darwin*/4.2.1})
-    Disembrew_Scripts=(/usr/bin/to-*-gcc42)
+    Old_Dir_Targets=(/usr/lib{,exec}/gcc/{arm-*,{i686,powerpc}-apple-darwin*/4.2.1})
+    Disembrew_Scripts=(#{HOMEBREW_PREFIX}/bin/to-*-gcc42)
 
     for Name in "${Short_Names[@]}"; do
       V_Nm="${Name}-4.2.1.#{stock_apple_gcc42_build}"
       Sh_V_Nm="${Name}-4.2"
 
-      Link="${Bin_Pfx}${Name}"  # sanity check – ensures, e.g., that `gcc` doesn’t get you `gcc-4.0`
-      if [ -L "$Link" -a "$(readlink -n "$Link")" != "$Sh_V_Nm" ] || [ \! -e "$Link" ]
-      then sudo ln -fs "$Sh_V_Nm" "$Link"; fi
+      Link="${Bin_Pfx}${Name}"  # sanity check – ensures, e.g., that `gcc` ↛ `gcc-4.0`
+      if [ -L "$Link" ] && [ "$(readlink -n "$Link")" != "$Sh_V_Nm" ] || ! [ -e "$Link" ]
+      then sudo ln -fs$v "$Sh_V_Nm" "$Link"; fi
       Link="${Bin_Pfx}${Sh_V_Nm}"  # actual work
-      if [ -L "$Link" -o \! -e "$Link" ]; then sudo ln -fs "$V_Nm" "$Link"; fi
+      if [ -L "$Link" ] || ! [ -e "$Link" ]; then sudo ln -fs$v "$V_Nm" "$Link"; fi
 
       Link="${Man1_Pfx}${Name}.1"  # sanity check – ensures, e.g., that `man gcc` ↛ `man gcc-4.0`
-      if [ -L "$Link" -a "$(readlink -n "$Link")" != "${Sh_V_Nm}.1" ] || [ \! -e "$Link" ]
-      then sudo ln -fs "${Sh_V_Nm}.1" "$Link"; fi
+      if [ -L "$Link" ] && [ "$(readlink -n "$Link")" != "${Sh_V_Nm}.1" ] || ! [ -e "$Link" ]
+      then sudo ln -fs$v "${Sh_V_Nm}.1" "$Link"; fi
       Link="${Man1_Pfx}${Sh_V_Nm}.1"  # actual work
-      if [ -L "$Link" -o \! -e "$Link" ]; then sudo ln -fs "${V_Nm}.1" "$Link"; fi
+      if [ -L "$Link" ] || ! [ -e "$Link" ]; then sudo ln -fs$v "${V_Nm}.1" "$Link"; fi
     done
 
     for Target in "${Long_Targets[@]}"; do
       Tail="${Target##*#{stock_apple_gcc42_build}}"; Nose="${Target%${Tail}}"; Link="${Nose%.#{stock_apple_gcc42_build}}${Tail}"
-      if [ -L "$Link" -o \! -e "$Link" ]; then sudo ln -fs "${Target##*/}" "$Link"; fi
+      if [ -L "$Link" ] || ! [ -e "$Link" ]; then sudo ln -fs$v "${Target##*/}" "$Link"; fi
     done
 
-    for Link in "${Delete_Links[@]}"; do if [ -L "$Link" ]; then sudo rm -f "$Link"; fi; done
+    for Link in "${Delete_Links[@]}"; do if [ -L "$Link" ]; then sudo rm -f$v "$Link"; fi; done
 
-    for Old_Target in "${Old_Dir_Targets[@]}"; do
-      Link="/usr${Old_Target#$Opt_Pfx}"
-      if [ -L "$Link" ]; then sudo rm -f "$Link"; fi
+    for Link in "${Old_Dir_Targets[@]}"; do
+      if [ -L "$Link" ]; then sudo rm -f$v "$Link"; fi
       # these have to remain separate or else the symlink gets put inside the symlinked directory!
-      if [ -e "${Link}.#{stock_apple_gcc42_build}" ] && [ \! -e "$Link" ]; then
-        sudo ln -fs "${Link##*/}.#{stock_apple_gcc42_build}" "$Link"
+      if [ -e "${Link}.#{stock_apple_gcc42_build}" ] && ! [ -e "$Link" ]; then
+        sudo ln -fs$v "${Link##*/}.#{stock_apple_gcc42_build}" "$Link"
       fi
     done
 
-    if [ \! -e "$(brew --cellar)/apple-gcc42" ]; then
-      for Script in "${Disembrew_Scripts[@]}"; do rm -f "$Script"; done
+    if ! [ -e "#{HOMEBREW_CELLAR}/apple-gcc42" ]; then
+      for Script in "${Disembrew_Scripts[@]}"; do rm -f$v "$Script"; done
     fi
   _
   end # switch_from
@@ -357,6 +255,39 @@ end # AppleGcc42
 __END__
 --- old/build_gcc
 +++ new/build_gcc
+# - Make a way to detranslate GCC architecture names back to Apple ones.
+# - Improve the filtering of architecture names.
+# - Accommodate non-default native builds (such as ppc64).
+# - Since we aren’t using the feature that puts two prefixes on everything, set
+#   the “inner” one to the null string.
+# - Set the working build directory by environment variable instead of by
+#   cd’ing to it before running this script.
+# - Use the `lipo` from cctools – it’s newer and can handle ARM slices.
+# - Don’t look in weird places for the C++ standard library.
+# - Since older xcodebuild does not understand “Path” or “PlatformPath” (and
+#   there is no clue as to what exactly $ARM_SDK ought to hold even if those
+#   would be understood), bypass them via an environment variable.
+# - Reörder the arm configuration so it is consistent across all methods of
+#   setting its initial values.
+# - Use the correct $*_CONFIGFLAGS for the build architecture.
+# - Use the part of the split prefix that we DIDN’T set to the null string.
+# - Put shared libraries in the correct location.
+# - Use the arch‐specific tools from cctools (except the nonexistent ld, which
+#   we must configure separately).
+# - Enable our `as` interposer scripts to rewrite incorrect -arch flags, and
+#   symlink the relevant one as just “as” for every added compiler we build.
+# - When building the cross‐hosted compilers, make sure the cctools are in
+#   $COMPILER_PATH, and set $prefix instead of $DESTDIR.
+# - Build the HTML documentation straight into share/doc.
+# - Don’t symlink to nonexistent files.  Symlink to cctools’ `as` instead.
+# - Don’t forget to build libgcc_s.*.dylib.
+# - Don’t bother copying libgomp.a et al, they’re already in place because we
+#   didn’t use the split‐prefix feature.
+# - Remove several instances of doubled directory separators.
+# - Don’t bother generating debugging data.  It gets discarded.
+# - Don’t try to strip libgcc.*.dylib, nor anything in cctools.
+# - Don’t chgrp.  It does nothing useful, and we aren’t in the destination
+#   group (“wheel”) so it fails messily.
 @@ -5,9 +5,11 @@
  
  # -arch arguments are different than configure arguments. We need to
@@ -852,6 +783,7 @@ __END__
  exit 0
 --- old/config/mh-ppc-darwin
 +++ new/config/mh-ppc-darwin
+# Make optimization level “-Os”, to match everywhere else we changed it.
 @@ -2,4 +2,4 @@
  # position-independent-code -- the usual default on Darwin. This fix speeds
  # compiles by 3-5%.
@@ -860,6 +792,8 @@ __END__
 +BOOT_CFLAGS = -g -Os -mdynamic-no-pic
 --- old/config/mh-x86-darwin
 +++ new/config/mh-x86-darwin
+#  - Make optimization level “-Os”, to match everywhere else we changed it.
+#  - Fix a Make‐variable assignment to use $(shell ...) instead of `...`.
 @@ -2,8 +2,7 @@
  # The -mdynamic-no-pic ensures that the compiler executable is built without
  # position-independent-code -- the usual default on Darwin.
@@ -873,6 +807,8 @@ __END__
 +LDFLAGS := $(shell case ${host} in (*-*-darwin[1][1-9]*) echo -Wl,-no_pie ;; esac)
 --- old/configure
 +++ new/configure
+# `Fix omission of ppc64 from PowerPC Darwin configuration, and improve 32‐bit/
+# 64‐bit Darwin support in general.
 @@ -1802,7 +1802,7 @@
      tentative_cc="/usr/cygnus/progressive/bin/gcc"
      host_makefile_frag="config/mh-lynxrs6k"
@@ -902,6 +838,7 @@ __END__
  
 --- old/driverdriver.c
 +++ new/driverdriver.c
+# Fix bug where multiple -m32/-m64 options do not override one another.
 @@ -1353,7 +1354,14 @@
    /* Before we get too far, rewrite the command line with any requested overrides */
    if ((override_option_str = getenv ("QA_OVERRIDE_GCC3_OPTIONS")) != NULL)
@@ -919,6 +856,8 @@ __END__
    initialize ();
 --- old/gcc/c-incpath.c
 +++ new/gcc/c-incpath.c
+# Fix a signedness mismatch that only becomes apparent with uniformly 64‐bit
+# values.
 @@ -236,7 +236,7 @@
  	  /* If it is a regular file and if it is large enough to be a header-
  	     map, see if it really is one. */
@@ -930,6 +869,8 @@ __END__
  
 --- old/gcc/config/arm/arm.c
 +++ new/gcc/config/arm/arm.c
+# Initialize a variable declaration that otherwise causes a spurious compiler
+# warning under “warnings are fatal” mode.
 @@ -7191,7 +7191,7 @@
  neon_output_logic_immediate (const char *mnem, rtx *op2, enum machine_mode mode,
  			     int inverse, int quad)
@@ -941,6 +882,10 @@ __END__
    is_valid = neon_immediate_valid_for_logic (*op2, mode, inverse, op2, &width);
 --- old/gcc/config/arm/lib1funcs.asm
 +++ new/gcc/config/arm/lib1funcs.asm
+# - Fix a critical typo in the armv7 #defines.
+# - Manually assemble two armv6 instructions that the assembler inexplicably
+#   refuses to process.  Since Apple’s as doesn’t know “.4byte”, express
+#   them each as four discrete .bytes in reverse order.
 @@ -187,7 +187,7 @@
  	ldr     lr, [sp], #8 ; \
  	bx      lr
@@ -969,6 +914,7 @@ __END__
  #endif
 --- old/gcc/config/i386/t-darwin
 +++ new/gcc/config/i386/t-darwin
+# Remove “-pipe” flags to let our `as` interposer script work properly.
 @@ -17,6 +17,6 @@
  # it to not properly process the first # directive, causing temporary
  # file names to appear in stabs, causing the bootstrap to fail.  Using -pipe
@@ -979,6 +925,7 @@ __END__
  # APPLE LOCAL end gcov 5573505
 --- old/gcc/config/i386/t-darwin64
 +++ new/gcc/config/i386/t-darwin64
+# Remove “-pipe” flags to let our `as` interposer script work properly.
 @@ -7,6 +7,6 @@
  # it to not properly process the first # directive, causing temporary
  # file names to appear in stabs, causing the bootstrap to fail.  Using -pipe
@@ -989,6 +936,7 @@ __END__
  # APPLE LOCAL end gcov 5573505
 --- old/gcc/config/rs6000/t-darwin
 +++ new/gcc/config/rs6000/t-darwin
+# Remove “-pipe” flags to let our `as` interposer script work properly.
 @@ -21,7 +21,7 @@
  # file names to appear in stabs, causing the bootstrap to fail.  Using -pipe
  # works around this by not having any temporary file names.
@@ -1000,6 +948,9 @@ __END__
  
 --- old/gcc/config/t-darwin
 +++ new/gcc/config/t-darwin
+# - Set $T_CFLAGS to -m64 when building for x86_64 or ppc64 targets and to -m32
+#   when building for i386 or ppc targets.
+# - Remove “-pipe” flag to let our `as` interposer script work properly.
 @@ -1,3 +1,5 @@
 +T_CFLAGS:=$(shell case ${target} in (*64-*-darwin*) echo '-m64';; (i[3456789]86-*-darwin*|powerpc-*-darwin*) echo '-m32';; esac)
 +
@@ -1014,6 +965,9 @@ __END__
 +TARGET_LIBGCC2_CFLAGS = -fPIC  # -pipe not needed with interposer script
 --- old/gcc/config/x-darwin
 +++ new/gcc/config/x-darwin
+# Set $XCFLAGS to -m64 when building for x86_64 or ppc64 hosts and to -m32 when
+# building for i386 or ppc hosts.  This is inserted after $T_CFLAGS (overriding
+# it) when compiling for the host, and not used when compiling for the target.
 @@ -1,3 +1,5 @@
 +XCFLAGS:=$(shell case ${host} in (*64-*-darwin*) echo '-m64';; (i[3456789]86-*-darwin*|powerpc-*-darwin*) echo '-m32';; esac)
 +
@@ -1022,6 +976,9 @@ __END__
  	$(CC) -c $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) $<
 --- old/gcc/config.host
 +++ new/gcc/config.host
+# Set use_long_long_for_widest_fast_int to [a value to be determined at brewing
+# time].  This value must be 'yes' instead of 'no' if and only if we are
+# building 32‐bit on 64‐bit hardware.
 @@ -95,6 +95,7 @@
      # Default size of memory to set aside for precompiled headers
      host_xm_defines='DARWIN_PCH_ADDR_SPACE_SIZE=1024*1024*1024'
@@ -1032,6 +989,10 @@ __END__
  
 --- old/gcc/configure
 +++ new/gcc/configure
+# - Convert `as --version` to `as -v`, because Apple’s as doesn’t understand
+#   long options and hangs waiting for program text.
+# - Chop out some other option‐flag arguments that Apple’s as doesn’t grok,
+#   leading to false‐negative test results.
 @@ -14220,7 +14220,7 @@
    # ??? There exists an elf-specific test that will crash
    # the assembler.  Perhaps it's better to figure out whether
@@ -1124,6 +1085,8 @@ __END__
    ac_status=$?
 --- old/gcc/local-alloc.c
 +++ new/gcc/local-alloc.c
+# Fix some variable‐size mismatches that only become apparent with 64‐bit
+# pointers.
 @@ -901,7 +901,7 @@
  	  /* APPLE LOCAL begin 5695218 */
  	  if (reg_inheritance_matrix)
@@ -1147,6 +1110,8 @@ __END__
      Ugly special case: When moving a DI/SI/mode constant into an FP
 --- old/gcc/Makefile.in
 +++ new/gcc/Makefile.in
+# Adjust for not using the split‐prefix feature (and correct an overlooked bare
+# `pwd`).
 @@ -3302,8 +3302,7 @@
  	-chmod a+rx include
  	if [ -d ../prev-gcc ]; then \
@@ -1159,6 +1124,8 @@ __END__
  	    SHELL='$(SHELL)'; MACRO_LIST=`${PWD_COMMAND}`/macro_list ; \
 --- old/gcc/tree-if-conv.c
 +++ new/gcc/tree-if-conv.c
+# `Initialize variable declarations that otherwise cause spurious compiler
+# warnings under “warnings are fatal” mode.
 @@ -857,7 +857,7 @@
    /* Replace phi nodes with cond. modify expr.  */
    for (i = 1; i < orig_loop_num_nodes; i++)
@@ -1170,6 +1137,8 @@ __END__
        bb = ifc_bbs[i];
 --- old/libcpp/traditional.c
 +++ new/libcpp/traditional.c
+# Initialize variable declarations that otherwise cause spurious compiler
+# warnings under “warnings are fatal” mode.
 @@ -346,7 +346,7 @@
    cpp_context *context;
    const uchar *cur;
@@ -1181,6 +1150,8 @@ __END__
    bool header_ok;
 --- old/libgomp/configure
 +++ new/libgomp/configure
+# Make libgomp build with appropriate -m32/-m64 flags, despite it totally
+# ignoring all the carefully balanced CFLAGS variants set up in ../gcc.
 @@ -694,6 +694,11 @@
      cross_compiling=yes
    fi
@@ -1195,6 +1166,9 @@ __END__
  test -n "$host_alias" && ac_tool_prefix=$host_alias-
 --- old/libgomp/Makefile.in
 +++ new/libgomp/Makefile.in
+# Include GCC’s `fixinclude`d header directory when compiling; otherwise,
+# `#include-next` can’t find any next header to include.  (This only seems
+# to happen in multilib sub-builds.)
 @@ -263,7 +263,7 @@
  ACLOCAL_AMFLAGS = -I ../config
  SUBDIRS = testsuite
@@ -1206,6 +1180,9 @@ __END__
  empty = 
 --- old/libiberty/Makefile.in
 +++ new/libiberty/Makefile.in
+# Include GCC’s `fixinclude`d header directory when compiling; otherwise,
+# `#include-next` can’t find any next header to include.  (This only seems
+# to happen in multilib sub-builds.)
 @@ -116,7 +116,7 @@
  
  INCDIR=$(srcdir)/$(MULTISRCTOP)../include
