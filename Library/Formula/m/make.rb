@@ -7,16 +7,16 @@ class Make < Formula
 
   option :universal
   option 'with-default-names', 'Do not prepend ‘g’ to the binary'
-  option 'with-tests',         'Run the unit tests while building (requires Perl)'
-  option 'without-gettext',    'Build without natural‐language support (internationalization)'
+  option 'with-tests',         'Run the build-time unit tests (requires Perl)'
+  option 'without-nls',        'Build without natural‐language support (internationalization)'
 
-  depends_on 'gettext' => :recommended
+  depends_on :nls => :recommended
   depends_on 'perl' if build.with? 'tests'
 
   enhanced_by ['guile', 'pkg-config']
 
   # For some reason the test suite deletes all but a few environment variables
-  # to run the first four tests, which nukes Superenv’s internal state.  This
+  # to run the first four tests, obliterating Superenv’s internal state.  This
   # patch adds the $HOMEBREW_* variables to the list of those that get kept.
   patch :DATA
 
@@ -32,7 +32,14 @@ class Make < Formula
     args << '--with-guile' if enhanced_by? 'guile'
     system './configure', *args
     system 'make'
-    bombproof_system 'make', 'check' if build.with? 'tests'
+    begin
+      safe_system 'make', 'check'
+    rescue ErrorDuringExecution
+      opoo 'Some of the unit tests did not complete successfully.',
+        'This is not unusual.  If you ran Leopardbrew in “verbose” mode, the fraction of',
+        'tests which failed will be visible in the text above; only you can say whether',
+        'the pass rate shown there counts as “good enough”.'
+    end if build.with? 'tests'
     system 'make', 'install'
   end # install
 
@@ -42,12 +49,9 @@ class Make < Formula
       \t@echo Homebrew
     EOS
 
-    cmd = build.with?('default-names') ? 'make' : 'gmake'
+    g_mk = build.with?('default-names') ? 'make' : 'gmake'
 
-    for_archs bin/cmd do |a|
-      arch_cmd = (a.nil? ? [] : ['arch', '-arch', a.to_s, ''])
-      assert_equal "Homebrew\n", shell_output("#{arch_cmd * ' '}#{bin}/#{cmd}")
-    end
+    for_archs(bin/g_mk) { |_, cmd| assert_equal "Homebrew\n", shell_output(cmd * ' ') }
   end # test
 end # Make
 
