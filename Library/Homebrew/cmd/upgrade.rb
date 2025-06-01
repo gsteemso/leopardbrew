@@ -67,8 +67,8 @@ module Homebrew
             raise "#{f.full_name} has no stable download, please choose --devel or --HEAD"
           end
         end
-      when :head then raise "No head is defined for #{f.full_name}" if f.head.nil?
-      when :devel then raise "No devel block is defined for #{f.full_name}" if f.devel.nil?
+      when :head then raise "No head repository is specified for #{f.full_name}" if f.head.nil?
+      when :devel then raise "No development version is specified for #{f.full_name}" if f.devel.nil?
     end
     f.set_active_spec s if s  # otherwise use the default
     previously_linked = nil
@@ -127,8 +127,8 @@ module Homebrew
       f.uninsinuate rescue nil     # silent so as to not emit conflicting messages.
     ensure
       $stdout.reopen(old_stdout)
-    end
-    f.insinuate
+    end if f.uninsinuate_defined?
+    f.insinuate if f.insinuate_defined?
   ensure # Restore the previous installation state if the build failed.
     unless f.installed?
       if f.prefix.exists?
