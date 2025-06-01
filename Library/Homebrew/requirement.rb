@@ -1,10 +1,10 @@
-require "dependable"
-require "dependency"
-require "dependencies"
-require "build_environment"
+require 'dependable'
+require 'dependency'
+require 'dependencies'
+require 'build_environment'
 
 # A base class for non-formula requirements needed by formulae.
-# A "fatal" requirement is one that will fail the build if it is not present.
+# A “fatal” requirement is one that will fail the build if it is not present.
 # By default, Requirements are non-fatal.
 class Requirement
   include Dependable
@@ -24,46 +24,37 @@ class Requirement
     @tags = tags
     @tags << :build if self.class.build
     @name ||= infer_name
-  end
+  end # Requirement#initialize
 
   # The message to show when the requirement is not met.
   def message
-    s = ""
-    if cask
-      s +=  <<-EOS.undent
+    s = ''
+    s +=  <<-EOS.undent if cask
 
-        You can install with Homebrew Cask:
+      You can install with Homebrew Cask:
           brew install Caskroom/cask/#{cask}
-      EOS
-    end
+    EOS
+    s += <<-EOS.undent if download
 
-    if download
-      s += <<-EOS.undent
-
-        You can download from:
+      You can download from:
           #{download}
-      EOS
-    end
+    EOS
     s
-  end
+  end # Requirement#message
 
   # Overriding #satisfied? is deprecated.
   # Pass a block or boolean to the satisfy DSL method instead.
   def satisfied?
-    result = self.class.satisfy.yielder { |p| instance_eval(&p) }
+    result = self.class.satisfy.yielder{ |p| instance_eval(&p) }
     @satisfied_result = result
     !!result
   end
 
   # Overriding #fatal? is deprecated.
   # Pass a boolean to the fatal DSL method instead.
-  def fatal?
-    self.class.fatal || false
-  end
+  def fatal?; self.class.fatal || false; end
 
-  def default_formula?
-    self.class.default_formula || false
-  end
+  def default_formula?; self.class.default_formula || false; end
 
   # Overriding #modify_build_environment is deprecated.
   # Pass a block to the the env DSL method instead.
@@ -74,39 +65,29 @@ class Requirement
 
     # XXX If the satisfy block returns a Pathname, then make sure that it
     # remains available on the PATH. This makes requirements like
-    #   satisfy { which("executable") }
-    # work, even under superenv where "executable" wouldn't normally be on the
+    #   satisfy { which('executable') }
+    # work, even under superenv where “executable” wouldn't normally be on the
     # PATH.
     # This is undocumented magic and it should be removed, but we need to add
     # a way to declare path-based requirements that work with superenv first.
     if Pathname === @satisfied_result
       parent = @satisfied_result.parent
-      unless ENV["PATH"].split(File::PATH_SEPARATOR).include?(parent.to_s)
-        ENV.append_path("PATH", parent)
+      unless ENV['PATH'].split(File::PATH_SEPARATOR).include?(parent.to_s)
+        ENV.append_path('PATH', parent)
       end
     end
-  end
+  end # Requirement#modify_build_environment
 
-  def env
-    self.class.env
-  end
+  def env; self.class.env; end
 
-  def env_proc
-    self.class.env_proc
-  end
+  def env_proc; self.class.env_proc; end
 
-  def ==(other)
-    instance_of?(other.class) && name == other.name && tags == other.tags
-  end
+  def ==(other); instance_of?(other.class) && name == other.name && tags == other.tags; end
   alias_method :eql?, :==
 
-  def hash
-    name.hash ^ tags.hash
-  end
+  def hash; name.hash ^ tags.hash; end
 
-  def inspect
-    "#<#{self.class.name}: #{name.inspect} #{tags.inspect}>"
-  end
+  def inspect; "#<#{self.class.name}: #{name.inspect} #{tags.inspect}>"; end
 
   def to_dependency
     f = self.class.default_formula
@@ -116,20 +97,43 @@ class Requirement
     else
       Dependency.new(f, tags, method(:modify_build_environment), name)
     end
-  end
+  end # Requirement#to_dependency
 
   private
 
   def infer_name
     klass = self.class.name || self.class.to_s
-    klass.sub!(/(Dependency|Requirement)$/, "")
-    klass.sub!(/^(\w+::)*/, "")
+    klass.sub!(/(Dependency|Requirement)$/, '')
+    klass.sub!(/^(\w+::)*/, '')
     klass.downcase
-  end
+  end # Requirement#infer_name
 
-  def which(cmd)
-    super(cmd, ORIGINAL_PATHS.join(File::PATH_SEPARATOR))
-  end
+  def which(cmd); super(cmd, ORIGINAL_PATHS.join(File::PATH_SEPARATOR)); end
+
+  class Satisfier
+    def initialize(options, &block)
+      case options
+        when Hash
+          @options = { :build_env => true }
+          @options.merge!(options)
+        else
+          @satisfied = options
+      end
+      @proc = block
+    end # Satisfier#initialize
+
+    def yielder
+      if instance_variable_defined?(:@satisfied)
+        @satisfied
+      elsif @options[:build_env]
+        require 'extend/ENV'
+        ENV.activate_extensions!
+        ENV.with_build_environment { yield @proc }
+      else
+        yield @proc
+      end
+    end # Satisfier#yielder
+  end # Satisfier
 
   class << self
     include BuildEnvironmentDSL
@@ -144,41 +148,8 @@ class Requirement
       @satisfied ||= Requirement::Satisfier.new(options, &block)
     end
 
-    def env(*settings, &block)
-      if block_given?
-        @env_proc = block
-      else
-        super
-      end
-    end
-  end
+    def env(*settings, &block); if block_given? then @env_proc = block; else super; end; end
 
-  class Satisfier
-    def initialize(options, &block)
-      case options
-      when Hash
-        @options = { :build_env => true }
-        @options.merge!(options)
-      else
-        @satisfied = options
-      end
-      @proc = block
-    end
-
-    def yielder
-      if instance_variable_defined?(:@satisfied)
-        @satisfied
-      elsif @options[:build_env]
-        require "extend/ENV"
-        ENV.activate_extensions!
-        ENV.with_build_environment { yield @proc }
-      else
-        yield @proc
-      end
-    end
-  end
-
-  class << self
     # Expand the requirements of dependent recursively, optionally yielding
     # [dependent, req] pairs to allow callers to apply arbitrary filters to
     # the list.
@@ -186,22 +157,14 @@ class Requirement
     # optionals and recommendeds based on what the dependent has asked for.
     def expand(dependent, &block)
       reqs = Requirements.new
-
       formulae = dependent.recursive_dependencies.map(&:to_formula)
       formulae.unshift(dependent)
-
       formulae.each do |f|
-        f.requirements.each do |req|
-          if prune?(f, req, &block)
-            next
-          else
-            reqs << req
-          end
-        end
+        f.requirements.each{ |req| if prune?(f, req, &block) then next; else reqs << req; end }
       end
 
       reqs
-    end
+    end # Requirement⸬expand
 
     def prune?(dependent, req, &_block)
       catch(:prune) do
@@ -211,11 +174,9 @@ class Requirement
           prune unless dependent.build.with?(req)
         end
       end
-    end
+    end # Requirement⸬prune?
 
     # Used to prune requirements when calling expand with a block.
-    def prune
-      throw(:prune, true)
-    end
-  end
-end
+    def prune; throw(:prune, true); end
+  end # Requirement << self
+end # Requirement
