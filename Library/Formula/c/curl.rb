@@ -1,6 +1,8 @@
 require 'merge'
 
 class Curl < Formula
+  include Merge
+
   desc 'Get a file from an HTTP, HTTPS or FTP server'
   homepage 'https://curl.se/'
   url 'https://curl.se/download/curl-8.13.0.tar.xz'
@@ -9,10 +11,11 @@ class Curl < Formula
   keg_only :provided_by_osx
 
   option :universal
-  option 'with-gnutls',   'Add GnuTLS security, independent of OpenSSL/LibreSSL'
-  option 'with-libressl', 'Use LibreSSL security instead of OpenSSL'
-  option 'with-rtmpdump', 'Add RTMP (streaming Flash) capability'
-  option 'with-tests',    'Run the build‐time test suite (slow)'
+  option 'with-gnutls',      'Add GnuTLS security, independent of OpenSSL/LibreSSL'
+  option 'with-libressl',    'Use LibreSSL security instead of OpenSSL'
+  option 'with-rtmpdump',    'Add RTMP (streaming Flash) capability'
+  option 'with-tests',       'Run the build‐time test suite (slow; requires Python3)'
+  option 'with-standalone',  'Omit every discretionary dependency except OpenSSL3'
   option 'without-gsasl',    'Omit SASL SCRAM authentication'
   option 'without-libssh2',  'Omit scp and sFTP access'
   option 'without-more-dns', 'Omit asynchronous, internationalized, public‐suffix‐aware DNS'
@@ -22,7 +25,10 @@ class Curl < Formula
   deprecated_option 'with-rtmp'   => 'with-rtmpdump'
   deprecated_option 'with-ssh'    => 'with-libssh2'
 
+  depends_on :ld64        => :build
+  depends_on 'make'       => :build  # pre‐version 4 `make` can be flaky when running parallel jobs
   depends_on 'pkg-config' => :build
+  depends_on 'python3'    => :build if build.with? 'tests'
 
   depends_on 'curl-ca-bundle'
   depends_on 'libnghttp2'
@@ -31,24 +37,28 @@ class Curl < Formula
   depends_on 'perl'
   depends_on 'zlib'
 
-  depends_on    'gsasl'   => :recommended
-  depends_on    'libssh2' => :recommended
-  depends_group ['more-dns', ['c-ares', 'libidn2', 'libpsl']
-                ]         => :recommended
-  depends_on    'zstd'    => :recommended
+  if build.without? 'standalone'
+    depends_on    'gsasl'   => :recommended
+    depends_on    'libssh2' => :recommended
+    depends_group ['more-dns', ['c-ares', 'libidn2', 'libpsl']
+                  ]         => :recommended
+    depends_on    'zstd'    => :recommended
 
-  depends_on 'gnutls'   => :optional
-  depends_on 'libressl' => :optional
-  depends_on 'rtmpdump' => :optional
+    depends_on 'gnutls'   => :optional
+    depends_on 'libressl' => :optional
+    depends_on 'rtmpdump' => :optional
 
-  enhanced_by 'brotli'
+    enhanced_by 'brotli'
+  end
+
+  # The script for fetching certificate data from Mozilla fails without following HTTP redirects.
+  patch :DATA
 
   def install
     raise UsageError, '“--with-libressl” and “--without-ssl” are mutually exclusive.  Pick one.' \
                              if build.with? 'libressl' and build.without? 'ssl'
     if build.universal?
       archs = CPU.local_archs
-      stashdir = buildpath/'arch-stashes'
       the_binaries = %w[
         bin/curl
         lib/libcurl.4.dylib
@@ -75,16 +85,16 @@ class Curl < Formula
     #   --with-libpsl, --with-librtmp, --without-libssh, --without-libssh2, --enable-libtool-lock,
     #   --with-libuv, --disable-maintainer-mode, --enable-manual, --enable-mime, --disable-mqtt,
     #   --with-msh3, --enable-negotiate-auth, --enable-netrc, --with-nghttp2, --with-nghttp3,
-    #   --with-ngtcp2, --enable-ntlm, --•?•able-openssl-autoload-config, --with-openssl-quic*,
+    #   --with-ngtcp2, --enable-ntlm, --disable-openssl-autoload-config, --with-openssl-quic*,
     #   --enable-optimize, --enable-option-checking, --enable-pop3, --enable-progress-meter,
     #   --enable-proxy, enable-pthreads, --with-quiche, --enable-rt, --enable-rtsp,
     #   --enable-sha512-256, --enable-shared, --enable-silent-rules(?), --enable-smb, --enable-smtp,
-    #   --enable-socketpair, --enable-sspi*, --enable-static, --enable-symbol-hiding*,
-    #   --enable-telnet, --disable-test-bundles, --enable-tftp, --enable-threaded-resolver,
-    #   --enable-tls-srp*, --disable-unity, --enable-unix-sockets, --enable-verbose,
-    #   --disable-versioned-symbols, --disable-warnings, --enable-websockets, --disable-werror,
-    #   --disable-windows-unicode, --with-winidn*, --with-zlib, --with-zsh-functions-dir,
-    #   --with-zstd
+    #   --enable-socketpair, --disable-ssls-export, --enable-sspi*, --enable-static,
+    #   --enable-symbol-hiding*, --enable-telnet, --disable-test-bundles, --enable-tftp,
+    #   --enable-threaded-resolver, --enable-tls-srp*, --disable-unity, --enable-unix-sockets,
+    #   --enable-verbose, --disable-versioned-symbols, --disable-warnings, --enable-websockets,
+    #   --disable-werror, --disable-windows-unicode, --with-winidn*, --with-zlib,
+    #   --with-zsh-functions-dir, --with-zstd
     # At least one must be selected:
     #     --with-amissl      | --with-bearssl[=…] | --with-gnutls[=…] | --with-mbedtls[=…]
     #   | --with-openssl[=…] | --with-rustls[=…]  | --with-schannel   | --with-secure-transport
@@ -100,7 +110,7 @@ class Curl < Formula
     #   --with-openssl-quic :  Requires a specific non‐OpenSSL build and is not well supported.
     #   --with-quiche :  QUICHE is only supported on little‐endian platforms.
     #   --with-secure-transport :  Not in Tiger; many versions from Leopard onward are obsolete; &
-    #                              cURL loses some features when using it instead of, e.g., OpenSSL
+    #                              cURL loses some features when using it instead of, e.g., OpenSSL.
     #   --enable-symbol-hiding :  Requires compiler support, which Apple’s GCC predates.
     #   --enable-tls-srp :  LibreSSL does not have the API, but it’s automatic on OpenSSL.
     # Inapplicable options:
@@ -113,7 +123,7 @@ class Curl < Formula
     #   --enable-unity :  Unity is a C# wrapper ecosystem.
     #   --enable-windows-unicode :  Only applicable to Windows.
     #   --with-winidn :  Windows IDN.
-    # Options not mentioned above because they need packages, which may or may not already exist:
+    # Options that need packages, which may or may not already exist:
     #   --with[out]-brotli[=…] :  A compression protocol.
     #   --with[out]-fish-functions-dir=… :  The FISh completions directory.
     #   --with-gssapi=… :  The GSS‐API directory root.
@@ -156,26 +166,24 @@ class Curl < Formula
       '--enable-httpsrr',
       '--enable-libgcc',
       '--enable-mqtt',
+      '--enable-ssls-export',
       "--with-fish-functions-dir=#{fish_completion}",
       "--with-zsh-functions-dir=#{zsh_completion}"
     ]
 
-    # cURL now wants to find a lot of things via pkg-config instead of using
-    # “--with-xxx=”:  “When possible, set the PKG_CONFIG_PATH environment
-    # variable instead of using this option.”  Multi-SSL choice breaks without
-    # doing this.  On the other hand, the prerequisites‐assembly process sets
-    # all of them for us already, so it doesn’t much matter.
+    # cURL now wants to find a lot of things via pkg-config instead of using “--with-xxx=”:  “When
+    # possible, set the PKG_CONFIG_PATH environment variable instead of using this option.”  Multi-
+    # SSL choice breaks without doing this.  On the other hand, the prerequisites‐assembly process
+    # sets all of them for us already, so it doesn’t much matter.
 
-    # The documentation is ambiguous as to whether this should be set via
-    # ./configure argument or via pkg-config.  Can’t test it until GNUTLS
-    # compiles successfully (which needs a newer compiler).
-    args << "--with-gnutls=#{Formula['gnutls'].opt_prefix}" if build.with? 'gnutls'
+    # The documentation is ambiguous as to whether with-gnutls= should be set via ./configure
+    # argument or via pkg-config.  Can’t test it until GNUTLS compiles successfully (which needs a
+    # newer compiler).
+    args << "--with-gnutls=#{Formula['gnutls'].opt_prefix}" << '--enable-ech' if build.with? 'gnutls'
 
-    if build.with? 'libressl'
+    if build.with? 'ssl'
       args << '--with-openssl'
-    elsif build.with? 'ssl'
-      args << '--with-openssl'
-      args << '--enable-openssl-auto-load-config'
+      args << '--enable-openssl-auto-load-config' if build.without? 'libressl'
     elsif build.without? 'gnutls'
       args << '--without-ssl'
     end
@@ -195,46 +203,67 @@ class Curl < Formula
       ENV.set_build_archs(arch) if build.universal?
 
       system './configure', *args
-      ENV.deparallelize do
-        system 'make'
-        system 'make', 'test' if build.with? 'tests'
-        system 'make', 'install'
-        # Install the shell‐completion scripts.
-        system 'make', 'install', '-C', 'scripts'
-      end # deparallelize
+      system 'make'
+      begin  # tests occasionally suffer a single transient failure that goes away when retried
+        tests_attempted = false
+        system 'make', 'check', "TFLAGS=-j#{ENV.make_jobs.to_s}"
+      rescue
+        unless tests_attempted
+          tests_attempted = true
+          retry
+        else
+          raise
+        end
+      end if build.with? 'tests'
+      system 'make', 'install'
+      # Install the shell‐completion scripts.
+      system 'make', 'install', '-C', 'scripts'
       libexec.install 'scripts/mk-ca-bundle.pl' if File.exists? 'scripts/mk-ca-bundle.pl'
 
       if build.universal?
-        system 'make', 'clean'
-        Merge.prep(prefix, stashdir/"bin-#{arch}", the_binaries)
-        Merge.prep(prefix, stashdir/"script-#{arch}", [script_to_fix])
+        ENV.deparallelize { system 'make', '-ik', 'maintainer-clean' }
+        merge_prep(:binary, arch, the_binaries)
       end # universal?
     end # each |arch|
 
     if build.universal?
       ENV.set_build_archs(archs)
-      Merge.binaries(prefix, stashdir, archs)
-      inreplace stashdir/"script-#{archs.first}/#{script_to_fix}",
-                                    "-arch #{archs.first}", archs.as_arch_flags
-      bin.install stashdir/"script-#{archs.first}/#{script_to_fix}"
+      merge_binaries(archs)
+      inreplace prefix/script_to_fix, %r{-arch \w+}, archs.as_arch_flags
     end # universal?
   end # install
 
   test do
     # Fetch the curl tarball and see that the checksum matches.
     # This requires a network connection, but so does Homebrew in general.
-    filename = (testpath/'test.tar.gz')
-    arch_system bin/'curl', '-L', stable.url, '-o', filename
-    filename.verify_checksum stable.checksum
+    for_archs bin/'curl' do |arch, cmd|
+      filename = testpath/"test-#{arch}.tar.gz"
+      system *cmd, '-L', stable.url, '-o', filename.to_s
+      filename.verify_checksum stable.checksum
+      filename.delete
+    end
 
     # Perl is a dependency of OpenSSL3, so it will /usually/ be present
     if Formula['perl'].installed?
       ENV.prepend_path 'PATH', Formula['perl'].opt_bin
       # so mk-ca-bundle can find it
       ENV.prepend_path 'PATH', Formula['curl'].opt_bin
-      system libexec/'mk-ca-bundle.pl', 'test.pem'
-      assert File.exist?('test.pem')
-      assert File.exist?('certdata.txt')
+      system "#{libexec}/mk-ca-bundle.pl", '-i', 'test.pem'
+      assert File.exists?('test.pem')
+      assert File.exists?('certdata.txt')
     end # Perl?
   end # test
 end # Curl
+
+__END__
+--- old/scripts/mk-ca-bundle.pl
++++ new/scripts/mk-ca-bundle.pl
+@@ -318,7 +318,7 @@
+         report "Get certdata with curl!";
+         my $proto = !$opt_k ? "--proto =https" : "";
+         my $quiet = $opt_q ? "-s" : "";
+-        my @out = `curl -w %{response_code} $proto $quiet -o "$txt" "$url"`;
++        my @out = `curl -L -w %{response_code} $proto $quiet -o "$txt" "$url"`;
+         if(!$? && @out && $out[0] == 200) {
+           $fetched = 1;
+           report "Downloaded $txt";
