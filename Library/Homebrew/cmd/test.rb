@@ -30,7 +30,7 @@ module Homebrew
         if f.keg_only?
           Keg.new(f.spec_prefix(named_spec)).optlink
         else
-          stashed_argv = ARGV
+          stashed_argv = ARGV.dup
           ARGV.clear
           ARGV.unshift(f.full_name, named_version)
           switch
@@ -50,14 +50,15 @@ module Homebrew
       env = ENV.to_hash
 
       begin
-        args = %W[
-          #{CONFIG_RUBY_PATH}
+        args = [CONFIG_RUBY_PATH]
+        args << '-d' if ENV['HOMEBREW_DEBUG_RUBY'].choke
+        args.concat(%W[
           -W0
           -I #{HOMEBREW_LOAD_PATH}
           --
           #{HOMEBREW_RUBY_LIBRARY}/test.rb
           #{f.path}
-        ].concat(ARGV.options_only)
+        ]).concat(ARGV.options_only)
 
         if Sandbox.available? && ARGV.sandbox?
           if Sandbox.auto_disable?
