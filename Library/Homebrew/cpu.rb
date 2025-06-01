@@ -225,12 +225,16 @@ class CPU
     def runnable_archs; all_archs.select{ |a| can_run?(a) }.extend ArchitectureListExtension; end;
 
     def select_32b_archs(archlist)
-      archlist.select{ |a| all_32b_archs.any?{ |a32| a == a32 }}.extend ArchitectureListExtension
+      archlist.select{ |a| is_32b_arch?(a) }.extend ArchitectureListExtension
     end
 
     def select_64b_archs(archlist)
-      archlist.select{ |a| all_64b_archs.any?{ |a64| a == a64 }}.extend ArchitectureListExtension
+      archlist.select{ |a| is_64b_arch?(a) }.extend ArchitectureListExtension
     end
+
+    def is_32b_arch?(a); all_32b_archs.any?{ |a32| a == a32 }; end
+
+    def is_64b_arch?(a); not is_32b_arch?(a); end
 
     def bottle_target_model
       case (barch = ARGV.bottle_arch || model)
