@@ -14,8 +14,7 @@ module Homebrew
         next
       end
       keg.lock do
-        f = Formula.from_installed_prefix(keg)
-        if f.uninsinuate_defined?
+        if (f = keg.formula) and f.uninsinuate_defined?
           if mode.dry_run
             puts "Would uninsinuate #{f.name}"
           else
