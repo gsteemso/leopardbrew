@@ -14,10 +14,9 @@ module Homebrew
         puts "To relink: brew unlink #{keg.name} && brew link #{keg.name}"
         next
       end
-      f = keg.formula
-      if f.keg_only? and not ARGV.force?
-        opoo "#{keg.name} is keg-only and must be linked with --force"
-        puts "Note that doing so can interfere with building software."
+      if (f = keg.formula) and f.keg_only? and not ARGV.force?
+        opoo "#{keg.name} is keg-only and must be linked with --force",
+             "Note that doing so can interfere with building software."
         next
       elsif mode.dry_run
         puts(mode.overwrite ? "Would replace:" : "Would link:") 
@@ -25,7 +24,7 @@ module Homebrew
         next
       end
       keg.lock do
-        if f.insinuate_defined?
+        if f and f.insinuate_defined?
           if mode.dry_run
             puts "Would insinuate #{f.name}"
           else
@@ -33,7 +32,7 @@ module Homebrew
             f.insinuate
           end
         end
-        print "Linking #{keg}... "
+        puts "Linking #{keg}..."
         begin
           n = keg.link(mode)
         rescue Keg::LinkError
