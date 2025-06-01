@@ -11,109 +11,109 @@ require 'utils/json'
 class Tab < OpenStruct
   FILENAME = 'INSTALL_RECEIPT.json'
 
-  def self.create(formula, compiler, stdlib, build_opts, archs)
-    attributes = {
-      'active_aids'        => formula.active_enhancements,
-      'built_archs'        => archs,
-      'built_as_bottle'    => build_opts.bottle?,
-      'compiler'           => compiler,
-      'git_head_SHA1'      => Homebrew.git_head,
-      'poured_from_bottle' => false,
-      'source'             => {
-        'path' => formula.path.to_s,
-        'spec' => formula.active_spec_sym.to_s,
-        'tap'  => formula.tap,
-      },
-      'stdlib'             => stdlib,
-      'tabfile'            => formula.prefix/FILENAME,
-      'time'               => Time.now.to_i,
-      'unused_options'     => build_opts.unused_options.as_flags,
-      'used_options'       => build_opts.used_options.as_flags,
-    }
+  class << self
+    def create(formula, compiler, stdlib, build_opts, archs)
+      attributes = {
+        'active_aids'        => formula.active_enhancements,
+        'built_archs'        => archs,
+        'built_as_bottle'    => build_opts.bottle?,
+        'compiler'           => compiler,
+        'git_head_SHA1'      => Homebrew.git_head,
+        'poured_from_bottle' => false,
+        'source'             => {
+          'path' => formula.path.to_s,
+          'spec' => formula.active_spec_sym.to_s,
+          'tap'  => formula.tap,
+        },
+        'stdlib'             => stdlib,
+        'tabfile'            => formula.prefix/FILENAME,
+        'time'               => Time.now.to_i,
+        'unused_options'     => build_opts.unused_options.as_flags,
+        'used_options'       => build_opts.used_options.as_flags,
+      }
+      new(attributes)
+    end # Tab::create
 
-    new(attributes)
-  end # Tab::create
+    def empty
+      attributes = {
+        'active_aids'        => [],
+        'built_archs'        => [],
+        'built_as_bottle'    => false,
+        'compiler'           => nil,
+        'git_head_SHA1'      => nil,
+        'poured_from_bottle' => false,
+        'source'             => {
+          'path' => nil,
+          'spec' => 'stable',
+          'tap'  => nil,
+        },
+        'stdlib'             => nil,
+        'tabfile'            => nil,
+        'time'               => nil,
+        'unused_options'     => [],
+        'used_options'       => [],
+      }
+      new(attributes)
+    end # Tab::empty
 
-  def self.empty
-    attributes = {
-      'active_aids'        => [],
-      'built_archs'        => [],
-      'built_as_bottle'    => false,
-      'compiler'           => nil,
-      'git_head_SHA1'      => nil,
-      'poured_from_bottle' => false,
-      'source'             => {
-        'path' => nil,
-        'spec' => 'stable',
-        'tap'  => nil,
-      },
-      'stdlib'             => nil,
-      'tabfile'            => nil,
-      'time'               => nil,
-      'unused_options'     => [],
-      'used_options'       => [],
-    }
-    new(attributes)
-  end # Tab::empty
-
-  def self.for_formula(f)
-    paths = []
-    if (p = f.prefix).directory? then paths << p; end
-    if (p = f.opt_prefix).symlink? and p.directory? then paths << p.resolved_path; end
-    if (p = f.linked_keg).symlink? and p.directory? then paths << p.resolved_path; end
-    if (p = f.rack).directory? and (d = p.subdirs).length == 1 then paths << d.first; end
-    if (p = paths.map{ |pn| pn/FILENAME }.find(&:file?))
-      tab = from_file(p)
-      used_options = remap_deprecated_options(f.deprecated_options, tab.used_options)
-      tab.used_options = used_options.as_flags
-    else
-      tab = empty
-      tab.unused_options = f.options.as_flags
-      tab.source = { 'path' => f.path.to_s, 'spec' => f.active_spec_sym.to_s, 'tap' => f.tap }
-    end
-    tab
-  end # Tab::for_formula
-
-  def self.for_keg(kegpath); (path = kegpath/FILENAME).file? ? from_file(path) : empty; end
-
-  def self.for_name(name); for_formula(Formulary.factory(name)); end
-
-  def self.remap_deprecated_options(deprecated_options, options)
-    deprecated_options.each do |deprecated_option|
-      option = options.find { |o| o.name == deprecated_option.old }
-      next unless option
-      options -= [option]
-      options << Option.new(deprecated_option.current, option.description)
-    end
-    options
-  end # Tab::remap_deprecated_options
-
-  def self.from_file(path); from_file_content(File.read(path), path); end
-
-  def self.from_file_content(content, path)
-    attrs = Utils::JSON.load(content)
-    attrs['active_aids'] ||= (attrs['active_aid_sets'] ? attrs['active_aid_sets'].flatten(1) : [])
-    attrs['active_aids'].map!{ |fa| Formulary.from_keg(HOMEBREW_CELLAR/fa[0]/fa[1]) }  # can be nil if missing
-    attrs['built_archs'] ||= []
-    attrs['source'] ||= {}
-    pn = Pathname.new(attrs['source']['path'])
-    if not pn.exists? and pn.dirname == HOMEBREW_LIBRARY/'Formula'
-      b = pn.basename.to_s
-      if (pn = pn.dirname/b[0]/b).exists?
-        attrs['source']['path'] = pn.to_s
+    def for_formula(f)
+      paths = []
+      if (p = f.prefix).directory? then paths << p; end
+      if (p = f.opt_prefix).symlink? and p.directory? then paths << p.resolved_path; end
+      if (p = f.linked_keg).symlink? and p.directory? then paths << p.resolved_path; end
+      if (p = f.rack).directory? and (d = p.subdirs).length == 1 then paths << d.first; end
+      if (p = paths.map{ |pn| pn/FILENAME }.find(&:file?))
+        tab = from_file(p)
+        used_options = remap_deprecated_options(f.deprecated_options, tab.used_options)
+        tab.used_options = used_options.as_flags
+      else
+        tab = empty
+        tab.unused_options = f.options.as_flags
+        tab.source = { 'path' => f.path.to_s, 'spec' => f.active_spec_sym.to_s, 'tap' => f.tap }
       end
-    end
-    if attrs['source']['spec'].nil?
-      version = PkgVersion.parse path.to_s.split('/')[-2]
-      attrs['source']['spec'] = version.head? ? 'head' : 'stable'  # usually correct, devel is rare
-    end
-    tp_fm = attrs['tapped_from']
-    attrs['source']['tap'] = attrs.delete('tapped_from') if tp_fm and tp_fm != 'path or URL'
-    attrs['source']['tap'] = 'Homebrew/homebrew' if attrs['source']['tap'] == 'mxcl/master'
-    attrs['tabfile'] = path
-    new(attrs)
-  end # Tab::from_file_content
+      tab
+    end # Tab::for_formula
 
+    def for_keg(kegpath); (path = kegpath/FILENAME).file? ? from_file(path) : empty; end
+
+    def for_name(name); for_formula(Formulary.factory(name)); end
+
+    def remap_deprecated_options(deprecated_options, options)
+      deprecated_options.each do |deprecated_option|
+        option = options.find { |o| o.name == deprecated_option.old }
+        next unless option
+        options -= [option]
+        options << Option.new(deprecated_option.current, option.description)
+      end
+      options
+    end # Tab::remap_deprecated_options
+
+    def from_file(path); from_file_content(File.read(path), path); end
+
+    def from_file_content(content, path)
+      attrs = Utils::JSON.load(content)
+      attrs['active_aids'] ||= (attrs['active_aid_sets'] ? attrs['active_aid_sets'].flatten(1) : [])
+      attrs['active_aids'].map!{ |fa| Formulary.from_keg(HOMEBREW_CELLAR/fa[0]/fa[1]) }  # can be nil if missing
+      attrs['built_archs'] ||= []
+      attrs['source'] ||= {}
+      pn = Pathname.new(attrs['source']['path'])
+      if not pn.exists? and pn.dirname == HOMEBREW_LIBRARY/'Formula'
+        b = pn.basename.to_s
+        if (pn = pn.dirname/b[0]/b).exists?
+          attrs['source']['path'] = pn.to_s
+        end
+      end
+      if attrs['source']['spec'].nil?
+        version = PkgVersion.parse path.to_s.split('/')[-2]
+        attrs['source']['spec'] = version.head? ? 'head' : 'stable'  # usually correct, devel is rare
+      end
+      tp_fm = attrs['tapped_from']
+      attrs['source']['tap'] = attrs.delete('tapped_from') if tp_fm and tp_fm != 'path or URL'
+      attrs['source']['tap'] = 'Homebrew/homebrew' if attrs['source']['tap'] == 'mxcl/master'
+      attrs['tabfile'] = path
+      new(attrs)
+    end # Tab::from_file_content
+  end # << self
 
   def with?(val)
     name = val.responds_to?(:name) ? val.name : val
