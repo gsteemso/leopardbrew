@@ -1,4 +1,3 @@
-#:
 #:  Usage:  brew list-archs [--thorough] /installed formula/ [...]
 #:
 #:List what hardware architectures each given /installed formula/ was brewed for.
@@ -11,7 +10,6 @@
 #:
 #:The results are shown after a short, but non‐trivial delay.  (Certain formulae
 #:do weird things which require every last file within each keg to be examined.)
-#:
 
 CPU_TYPES = {
   '00000001' => 'VAX',
@@ -159,10 +157,7 @@ module Homebrew
   def ohey(title, *msg); oho title; puts msg; end
 
   def list_archs
-    thorough_flag = ARGV.include? '--thorough'
-    requested = (thorough_flag ? ARGV.installed_kegs : ARGV.kegs)
-    raise KegUnspecifiedError if requested.empty?
-    no_archs_msg = false; got_generic_ppc = false
+    def thorough?; @thorough ||= ARGV.include? '--thorough'; end;
 
     def scour(loc)
       possibles = []
@@ -178,10 +173,8 @@ module Homebrew
 
     def cpu_valid(type, subtype)
       case CPU_TYPES[type]
-        when /^ARM/, 'i386', 'x86-64' then CPU_TYPES[type]
-        when 'PPC'
-          got_generic_ppc = (val = PPC_SUBTYPES[subtype] and val == 'ppc‐*')
-          val
+        when %r{^ARM}, 'i386', 'x86-64' then CPU_TYPES[type].downcase.gsub(%r{[-/]}, '_')
+        when 'PPC'   then PPC_SUBTYPES[subtype]
         when 'PPC64' then 'ppc64'
         else nil
       end
@@ -201,10 +194,13 @@ module Homebrew
       return [key, alien_report]
     end
 
+    no_archs_msg = false
+    requested = (thorough? ? ARGV.racks.map{ |r| r.subdirs }.flatten.map{ |sd| Keg.new(sd) } : ARGV.kegs)
+    raise KegUnspecifiedError if requested.empty?
     requested.each do |keg|
       max_arch_count = 0; arch_reports = {}; alien_reports = []
       scour(keg.to_s).each do |pn|
-        if offset = pn.ar_sigseek_from(0) # ‘ar’ archive:  Only look until the first Mach-O signature.
+        if offset = pn.ar_sigseek_from(0)  # ‘ar’ archive:  Only look until the first Mach-O signature.
           key, alien_report = report_1_arch_at(pn, offset)
           alien_reports << alien_report if alien_report
         elsif sig = pn.mach_o_signature_at?(0)
@@ -230,8 +226,8 @@ module Homebrew
               # Second, sort the list:
               native_parts.sort! do |a, b|
                 # the ꜱɢʀ sequences at beginning and end are 5 characters each
-                if a[5..7] == 'ppc' and b[5..7] == 'ppc' # sort ppc64 after all other ppc types
-                  if a[8..-6] == '64' then b[8..-6] == '64' ? 0 : 1
+                if a[5..7] == 'ppc' and b[5..7] == 'ppc'
+                  if a[8..-6] == '64' then b[8..-6] == '64' ? 0 : 1  # sort ppc64 after all other ppc types
                   elsif b[8..-6] == '64' then -1
                   else a <=> b; end  # sort other ppc types
                 else a <=> b; end  # sort all other types
@@ -263,20 +259,22 @@ module Homebrew
         no_archs_msg = true
       else # there are arch reports
         machO_count = arch_reports.values.sum
-        ohey("#{in_white(keg.name)} appears to contain some foreign code:", alien_reports * '') \
-                                                                             if alien_reports != []
-        unless thorough_flag
+        combo_count = arch_reports.length
+        ohey("#{in_white(keg.name)} appears to contain some foreign code:", alien_reports * '') if alien_reports != []
+        unless thorough?
           combo_incidence = arch_reports.values.max  # How often did the most common arch combos occur?
-          arch_reports.select!{ |k, v| v == combo_incidence }  # Only report those most‐common combos
+          arch_reports.select!{ |_, v| v == combo_incidence }  # Only report those most‐common combos
           if arch_reports.length > 1
             arch_count = arch_reports.keys.map{ |k| k.length }.max  # How many archs appear in the most complex combos?
-            arch_reports.select!{ |k, v| k.length == arch_count }  # only report those most‐complex combos
+            arch_reports.select!{ |k, _| k.length == arch_count }  # only report those most‐complex combos
           end # more than one arch report?
-          arch_reports.reject!{ |r| r.any?{ |rr| rr =~ /ppc‐\*/ } } if arch_reports.length > 1
+          if arch_reports.length > 1 and not arch_reports.all?{ |k, _| k.includes? 'ppc‐*' }
+            arch_reports.reject!{ |k, _| k.any?{ |a| a =~ /ppc‐\*/ } }
+          end # still more than one arch report?
         end # not thorough?
-        oho "#{in_white("#{keg.name} #{keg.path.basename}")} is built#{thorough_flag ? '' : ' primarily'} for ",
-          "#{in_br_white(arch_reports.length)} combination#{plural(arch_reports.length)} of architectures:  ",
-          arch_reports.keys.sort{ |a, b|        # descending by incidence, then by complexity
+        oho "#{in_white("#{keg.name} #{keg.path.basename}")} is built#{(thorough? or combo_count == 1) ? '' : ' primarily'}",
+          " for #{in_br_white(arch_reports.length)} combination#{plural(arch_reports.length)} of architectures:  ",
+          arch_reports.keys.sort{ |a, b|  # descending by incidence, then by complexity
               (c = arch_reports[b] <=> arch_reports[a]) == 0 ? (b.length <=> a.length) : c
             }.map{
               |k| "#{k * in_white('/')} (#{'×' + arch_reports[k].to_s})"
