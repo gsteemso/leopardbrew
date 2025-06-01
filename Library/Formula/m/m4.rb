@@ -5,10 +5,12 @@ class M4 < Formula
   mirror 'https://ftp.gnu.org/gnu/m4/m4-1.4.19.tar.xz'
   sha256 '63aede5c6d33b6d9b13511cd0be2cac046f2e70fd0a07aa9573a04a82783af96'
 
+  enhanced_by :nls
+
   keg_only :provided_by_osx
 
   def install
-    system './configure', '--disable-dependency-tracking', "--prefix=#{prefix}"
+    system './configure', "--prefix=#{prefix}", '--disable-dependency-tracking'
     system 'make'
     system 'make', 'install'
   end
