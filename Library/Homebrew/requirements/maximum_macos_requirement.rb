@@ -12,7 +12,7 @@ class MaximumMacOSRequirement < Requirement
 
   def message
     <<-EOS.undent
-      OS X #{@version.pretty_name} or older is required.
+      Mac OS #{@version.pretty_name} or older is required.
     EOS
   end
 end
