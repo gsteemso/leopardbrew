@@ -42,7 +42,11 @@ module MacOS
       new(str)
     end
 
-    def initialize(*args); super; @comparison_cache = {}; end
+    def initialize(*args);
+      args[0] = SYMBOLS.fetch(args[0], :dunno) if Symbol === args[0]
+      super
+      @comparison_cache = {}
+    end
 
     def <=>(other)
       @comparison_cache.fetch(other) do
