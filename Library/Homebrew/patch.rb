@@ -4,64 +4,59 @@ require "erb"
 module Patch
   def self.create(strip, src, &block)
     case strip
-    when :DATA
-      DATAPatch.new(:p1)
-    when String
-      StringPatch.new(:p1, strip)
-    when Symbol
-      case src
       when :DATA
-        DATAPatch.new(strip)
+        DATAPatch.new(:p1)
       when String
-        StringPatch.new(strip, src)
+        StringPatch.new(:p1, strip)
+      when Symbol
+        if strip.to_s.starts_with? 'p'
+          case src
+            when :DATA
+              DATAPatch.new(strip)
+            when String
+              StringPatch.new(strip, src)
+            else
+              ExternalPatch.new(strip, &block)
+          end # case src
+        end # if the symbol is in fact the right kind of symbol
       else
-        ExternalPatch.new(strip, &block)
-      end
-    else
-      raise ArgumentError, "unexpected value #{strip.inspect} for strip"
-    end
-  end
+        raise ArgumentError, "unexpected value #{strip.inspect} for strip"
+    end # case strip
+  end # Patch⸬create
 
   def self.normalize_legacy_patches(list)
     patches = []
-
     case list
-    when Hash
-      list
-    when Array, String, :DATA
-      { :p1 => list }
-    else
-      {}
+      when Hash
+        list
+      when Array, String, :DATA
+        { :p1 => list }
+      else
+        {}
     end.each_pair do |strip, urls|
-      Array(urls).each do |url|
-        case url
-        when :DATA
-          patch = DATAPatch.new(strip)
-        else
-          patch = LegacyPatch.new(strip, url)
-        end
-        patches << patch
-      end
-    end
-
+        Array(urls).each do |url|
+            case url
+              when :DATA
+                patch = DATAPatch.new(strip)
+              else
+                patch = LegacyPatch.new(strip, url)
+            end # case url
+            patches << patch
+          end # do each |url|
+      end # do each pair |strip, urls|
     patches
-  end
-end
+  end # Patch⸬normalize_legacy_patches
+end # Patch
 
 class EmbeddedPatch
   attr_writer :owner
   attr_reader :strip
 
-  def initialize(strip)
-    @strip = strip
-  end
+  def initialize(strip); @strip = strip; end
 
-  def external?
-    false
-  end
+  def external?; false; end
 
-  def contents
-  end
+  def contents; end
 
   def apply
     data = contents.gsub("HOMEBREW_PREFIX", HOMEBREW_PREFIX)
@@ -69,12 +64,10 @@ class EmbeddedPatch
     args = %W[-g 0 -f -#{strip}]
     IO.popen("#{cmd} #{args.join(" ")}", "w") { |p| p.write(data) }
     raise ErrorDuringExecution.new(cmd, args) unless $?.success?
-  end
+  end # EmbeddedPatch#apply
 
-  def inspect
-    "#<#{self.class.name}: #{strip.inspect}>"
-  end
-end
+  def inspect; "#<#{self.class.name}: #{strip.inspect}>"; end
+end # EmbeddedPatch
 
 class DATAPatch < EmbeddedPatch
   attr_accessor :path
@@ -91,10 +84,10 @@ class DATAPatch < EmbeddedPatch
         line = f.gets
       end until line.nil? || /^__END__$/ === line
       data << line while line = f.gets
-    end
+    end # do open path
     data
-  end
-end
+  end # DATAPatch#contents
+end # DATAPatch < EmbeddedPatch
 
 class StringPatch < EmbeddedPatch
   def initialize(strip, str)
@@ -102,10 +95,8 @@ class StringPatch < EmbeddedPatch
     @str = str
   end
 
-  def contents
-    @str
-  end
-end
+  def contents; @str; end
+end # StringPatch < EmbeddedPatch
 
 class ExternalPatch
   attr_reader :resource, :strip
@@ -115,9 +106,7 @@ class ExternalPatch
     @resource = Resource::Patch.new(&block)
   end
 
-  def external?
-    true
-  end
+  def external?; true; end
 
   def owner=(owner)
     resource.owner   = owner
@@ -138,45 +127,31 @@ class ExternalPatch
             the "apply" method was used one or more times in the patch-do block.
           EOS
         end
-      end
+      end # patch_files empty?
       dir.cd do
         patch_files.each do |patch_file|
           ohai "Applying #{patch_file}"
           patch_file = patch_dir/patch_file
           safe_system "/usr/bin/patch", "-g", "0", "-f", "-#{strip}", "-i", patch_file
-        end
-      end
-    end
-  end
+        end # do each |patch file|
+      end # do cd dir
+    end # do unpack resource
+  end # ExternalPatch#apply
 
-  def url
-    resource.url
-  end
+  def url; resource.url; end
 
-  def fetch
-    resource.fetch
-  end
+  def fetch; resource.fetch; end
 
-  def patch_files
-    resource.patch_files
-  end
+  def patch_files; resource.patch_files; end
 
-  def verify_download_integrity(fn)
-    resource.verify_download_integrity(fn)
-  end
+  def verify_download_integrity(fn); resource.verify_download_integrity(fn); end
 
-  def cached_download
-    resource.cached_download
-  end
+  def cached_download; resource.cached_download; end
 
-  def clear_cache
-    resource.clear_cache
-  end
+  def clear_cache; resource.clear_cache; end
 
-  def inspect
-    "#<#{self.class.name}: #{strip.inspect} #{url.inspect}>"
-  end
-end
+  def inspect; "#<#{self.class.name}: #{strip.inspect} #{url.inspect}>"; end
+end # ExternalPatch
 
 # Legacy patches have no checksum and are not cached
 class LegacyPatch < ExternalPatch
@@ -186,18 +161,13 @@ class LegacyPatch < ExternalPatch
     resource.download_strategy = CurlDownloadStrategy
   end
 
-  def fetch
-    clear_cache
-    super
-  end
+  def fetch; clear_cache; super; end
 
-  def verify_download_integrity(_fn)
-    # no-op
-  end
+  def verify_download_integrity(_fn); end  # no-op
 
   def apply
     super
   ensure
     clear_cache
   end
-end
+end # LegacyPatch < ExternalPatch
