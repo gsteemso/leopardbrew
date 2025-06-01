@@ -1,4 +1,6 @@
+# Ruby library:
 require 'forwardable'
+# Homebrew libraries:
 require 'resource'
 require 'checksum'
 require 'version'
@@ -43,7 +45,7 @@ class SoftwareSpec
     @resources = {}
 
     @build = BuildOptions.new(Options.create(@flags), options)
-  end # SoftwareSpec.initialize
+  end # SoftwareSpec#initialize
 
   def owner=(owner)
     @name = owner.name
@@ -56,7 +58,7 @@ class SoftwareSpec
       r.version ||= version
     end
     patches.each { |p| p.owner = self }
-  end # owner=
+  end # SoftwareSpec#owner=
 
   def url(val = nil, specs = {})
     return @resource.url if val.nil?
@@ -79,7 +81,7 @@ class SoftwareSpec
     if disable_type
       @bottle_disable_reason = BottleDisableReason.new(disable_type, disable_reason)
     else bottle_specification.instance_eval(&block); end
-  end # bottle
+  end
 
   def resource_defined?(name); resources.key?(name); end
 
@@ -90,7 +92,7 @@ class SoftwareSpec
       resources[name] = res
       dependency_collector.add(res)
     else resources.fetch(name) { raise ResourceMissingError.new(owner, name) }; end
-  end # resource
+  end # SoftwareSpec#resource
 
   def go_resource(name, &block); resource name, Resource::Go, &block; end
 
@@ -109,7 +111,7 @@ class SoftwareSpec
         Option.new(name, description)
       end
     options << opt
-  end # option
+  end # SoftwareSpec#option
 
   def deprecated_option(hash)
     raise ArgumentError, 'deprecated_option hash must not be empty' if hash.empty?
@@ -127,16 +129,20 @@ class SoftwareSpec
         @build.fix_deprecation(d_o)  # does nothing unless the old flag is actually present
       end # each |old optstring|
     end # each |{old, new} optstrings|
-  end # deprecated_option
+  end # SoftwareSpec#deprecated_option
 
   def depends_on(d_spec)
     dep = dependency_collector.add(d_spec)
     add_dep_option(dep) if dep
   end
 
-#  def depends_any(set)
-#    s_dep = dependency_collector.add_set(set)
-#  end
+#  def depends_1_of(group)
+#    group = Hash.new(group => []) unless Hash === group
+#    group_name, group_members = *(group.keys.first)
+#    group_tags = Array(group.values.first)
+#    d_set = dependency_collector.add_set(group)
+#    add_set_options(d_set) if d_set
+#  end # SoftwareSpec#depends_1_of
 
   def depends_group(group)
     group_name, group_members = *(group.keys.first)
@@ -146,13 +152,16 @@ class SoftwareSpec
     _deps = []
     group_members.each{ |name| _deps << dependency_collector.add(Dependency.new(name, group_tags, nil, group_name)) }
     add_group_option( group_name, group_tags.detect{ |tag| [:optional, :recommended].include? tag }) unless _deps.empty?
-  end # depends_group
+  end # SoftwareSpec#depends_group
 
   def enhanced_by(aid)
+    # Enhancements may be specified individually or as a mutually necessary group.
     aids = Array(aid).map{ |name| if name == :nls then name = 'gettext'; end; Formulary.factory(name) rescue nil }
+    # For that reason, the named enhancements are an array of arrays of formulæ.
     @named_enhancements << aids
+    # The active enhancements are a flat array of formulæ.
     @active_enhancements.concat(aids).uniq! if aids.all?{ |f| f and f.installed? }
-  end # enhanced_by
+  end
 
   def enhanced_by?(aid); active_enhancements.any?{ |a| aid == a.name or aid == a.full_name }; end
 
@@ -183,7 +192,7 @@ class SoftwareSpec
         options << Option.new("without-#{name}", "Build without #{name} support")
       end
     end
-  end # add_dep_option
+  end # SoftwareSpec#add_dep_option
 
   def add_group_option(group_name, priority)
     if priority == :optional and not option_defined?("with-#{group_name}")
@@ -191,7 +200,7 @@ class SoftwareSpec
     elsif priority == :recommended and not option_defined?("without-#{group_name}")
       options << Option.new("without-#{group_name}", "Build without #{group_name} support")
     end
-  end # add_group_option
+  end # SoftwareSpec#add_group_option
 end # SoftwareSpec
 
 class HeadSoftwareSpec < SoftwareSpec
@@ -215,7 +224,7 @@ class Bottle
     def prefix; "#{name}-#{version}.#{tag}"; end
 
     def suffix; s = revision > 0 ? ".#{revision}" : ''; ".bottle#{s}.tar.gz"; end
-  end # Bottle::Filename
+  end # Bottle⸬Filename
 
   extend Forwardable
 
@@ -238,7 +247,7 @@ class Bottle
     @prefix = spec.prefix
     @cellar = spec.cellar
     @revision = spec.revision
-  end # Bottle.initialize
+  end # Bottle#initialize
 
   def compatible_cellar?; @spec.compatible_cellar?; end
 
@@ -268,7 +277,7 @@ class BottleSpecification
     @prefix = DEFAULT_PREFIX
     @cellar = DEFAULT_CELLAR
     @collector = BottleCollector.new
-  end # BottleSpecification.initialize
+  end # BottleSpecification#initialize
 
   def root_url(var = nil); if var.nil? then @root_url ||= DEFAULT_DOMAIN else @root_url = var; end; end
 
@@ -287,7 +296,7 @@ class BottleSpecification
     define_method(cksum) do |val|
       digest, tag = val.shift
       collector[tag] = Checksum.new(cksum, digest)
-    end # BottleSpecification.#{cksum}
+    end # BottleSpecification#⟨cksum⟩
   end # each Checksum::TYPES |cksum|
 
   def checksum_for(tag); collector.fetch_checksum_for(tag); end
@@ -303,5 +312,5 @@ class BottleSpecification
       checksums[checksum.hash_type] << { checksum => osx }
     end
     checksums
-  end # checksums
+  end # BottleSpecification#checksums
 end # BottleSpecification
