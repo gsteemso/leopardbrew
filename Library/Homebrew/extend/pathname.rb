@@ -37,8 +37,8 @@ class Pathname
   end # install
 
   def install_p(src, new_basename)
-    raise Errno::ENOENT, src.to_s unless File.symlink?(src) or File.exists?(src)
-    src = Pathname(src)
+    src = Pathname.new(src) unless Pathname === src
+    raise Errno::ENOENT, src.to_s unless src.symlink? or src.exists?
     dst = join(new_basename)
     dst = yield(src, dst) if block_given?
     mkpath
@@ -62,11 +62,11 @@ class Pathname
     end # each source |src|
   end # install_symlink
 
-  def install_symlink_p(src, new_basename)
-    src = Pathname(src).expand_path(self)
-    dst = join(new_basename)
+  def install_symlink_p(tgt, new_basename)
+    tgt = Pathname(tgt).expand_path(self)
+    lnk = join(new_basename)
     mkpath
-    ln_sf(src.relative_path_from(dst.parent), dst)
+    ln_sf(tgt.relative_path_from(lnk.parent), lnk)
   end # install_symlink_p
   private :install_symlink_p
 
@@ -118,7 +118,7 @@ class Pathname
   alias_method :truncate_old, :truncate
   def truncate(where); dirname.mkpath; open(O_CREAT | O_WRONLY) { |f| f.seek(where); f.write('') }; end
 
-  def lstat; File.lstat(self); rescue Errno::ENOENT; return nil; end
+  def lstat; File.lstat(self) if exists?; end
 
   def default_stat
     sentinel = parent.join(".brew.#{Process.pid}.#{rand(Time.now.to_i)}")
@@ -133,7 +133,7 @@ class Pathname
 
   # @private
   def cp_path_sub(pattern, replacement)
-    raise "#{self} does not exist" unless self.exist?
+    raise "#{self} does not exist" unless self.exists?
     dst = sub(pattern, replacement)
     raise "#{self} is the same file as #{dst}" if self == dst
     if directory? then dst.mkpath
@@ -165,7 +165,7 @@ class Pathname
   def rmdir_if_possible
     rmdir; true
   rescue Errno::ENOTEMPTY
-    if (ds_store = self+".DS_Store").exists? then ds_store.unlink; retry
+    if (ds_store = self/'.DS_Store').exists? then ds_store.unlink; retry
     else false; end
   rescue Errno::EACCES, Errno::ENOENT, Errno::ENOTDIR; false
   end # rmdir_if_possible
@@ -256,9 +256,9 @@ class Pathname
   end # resolved_path_exists?
 
   # @private
-  def make_relative_symlink(src)
+  def make_relative_symlink(tgt)
     dirname.mkpath
-    File.symlink(src.relative_path_from(dirname), self)
+    File.symlink(tgt.relative_path_from(dirname), self)
   end
   alias_method :make_relative_symlink_to, :make_relative_symlink
 
@@ -441,9 +441,9 @@ module ObserverPathnameExtension
 
   def rmdir; super; puts "rmdir #{self}" if VERBOSE; ObserverPathnameExtension.d += 1; end
 
-  def make_relative_symlink(src)
+  def make_relative_symlink(tgt)
     super
-    puts "ln -s #{src.relative_path_from(dirname)} #{basename}" if VERBOSE
+    puts "ln -s #{tgt.relative_path_from(dirname)} #{basename}" if VERBOSE
     ObserverPathnameExtension.n += 1
   end
   alias_method :make_relative_symlink_to, :make_relative_symlink
