@@ -506,14 +506,15 @@ class FormulaInstaller
     # I'm guessing this is not a good way to do this, but I'm no UNIX guru
     ENV['HOMEBREW_ERROR_PIPE'] = write.to_i.to_s
 
-    args = %W[
-      #{CONFIG_RUBY_PATH}
+    args = [CONFIG_RUBY_PATH]
+    args << '-d' if ENV['HOMEBREW_DEBUG_RUBY'].choke
+    args.concat(%W[
       -W0
       -I #{HOMEBREW_LOAD_PATH}
       --
       #{HOMEBREW_RUBY_LIBRARY}/build.rb
       #{formula.path}
-    ].concat(build_argv)
+    ]).concat(build_argv)
     args.unshift('nice', BREW_NICE_LEVEL) if BREW_NICE_LEVEL
 
     # Ruby 2.0+ sets close-on-exec on all file descriptors except for
@@ -524,7 +525,7 @@ class FormulaInstaller
     pid = fork do
       begin
         read.close
-        if Sandbox.available? && ARGV.sandbox?
+        if Sandbox.available? and ARGV.sandbox?
           sandbox = Sandbox.new(formula)
           sandbox.exec(*args)
         else
@@ -744,7 +745,10 @@ class FormulaInstaller
 
   def unlock
     if hold_locks?
-      @@locked.each(&:unlock)
+      @@locked.each do |lock|
+        lock.unlock
+        lock.clean_up_lock
+      end
       @@locked.clear
       @hold_locks = false
     end
