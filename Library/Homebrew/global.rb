@@ -9,17 +9,20 @@ require 'extend/misc'
 require 'extend/pathname'                            # also pulls in extend/fileutils, mach, metafiles, & resource
 require 'osay'
 
+# ENV['HOMEBREW_DEBUG_RUBY'] is set if we’re debugging [our interaction with] the ruby interpreter
+# that we’re running on.  This is not imported as a variable, because why would we?
+
 if ENV['HOMEBREW_BREW_FILE']
   # Path to main executable ($HOMEBREW_PREFIX/bin/brew):
   HOMEBREW_BREW_FILE = Pathname.new(ENV['HOMEBREW_BREW_FILE'])
 else
-  odie '$HOMEBREW_BREW_FILE was not exported! Please call bin/brew directly!'
+  odie '$HOMEBREW_BREW_FILE was not exported!  Please call bin/brew directly!'
 end
 
 RbConfig = Config if RUBY_VERSION < '1.8.6'  # different module name on Tiger
 
 # Predefined pathnames:
-CONFIG_RUBY_PATH        = RbConfig.respond_to?(:ruby) \
+CONFIG_RUBY_PATH        = RbConfig.responds_to?(:ruby) \
                           ? Pathname.new(RbConfig.ruby) \
                           : Pathname.new(RbConfig::CONFIG['bindir'])/(RbConfig::CONFIG['ruby_install_name'] \
                                                                       + RbConfig::CONFIG['EXEEXT'])
@@ -29,7 +32,7 @@ CURL_PATH               = Pathname.new(ENV['HOMEBREW_CURL_PATH'])   # our intern
 HOMEBREW_CACHE          = Pathname.new(ENV['HOMEBREW_CACHE'])
                           # Where downloads (bottles, source tarballs, etc.) are cached (/Library/Caches/Homebrew)
   HOMEBREW_FORMULA_CACHE =  HOMEBREW_CACHE/'Formula'
-                            # Where formulæ specified by URL are cached
+                            # Where formulæ specified by URL, and all formula locks, are cached
 HOMEBREW_CELLAR         = Pathname.new(ENV['HOMEBREW_CELLAR']).realpath
 HOMEBREW_LIBRARY        = Pathname.new(ENV['HOMEBREW_LIBRARY'])     # In HOMEBREW_REPOSITORY
   HOMEBREW_CONTRIB      =   HOMEBREW_LIBRARY/'Contributions'
@@ -130,27 +133,34 @@ require 'extend/ENV'; ENV.activate_extensions!       # also pulls in cpu, compil
 require 'compat' unless ENV['HOMEBREW_NO_COMPAT'] or ARGV.include?('--no-compat')
 
 # Customizeable environment variables:
-# $HOMEBREW_BUILD_BOTTLE       # Always build a bottle instead of a normal installation (see `extend/ARGV.rb`)
-# $HOMEBREW_BUILD_FROM_SOURCE  # Force building from source even when there is a bottle (see `extend/ARGV.rb`)
-# $HOMEBREW_BUILD_UNIVERSAL    # If there’s a :universal option, always use it (see `extend/ARGV.rb`)
-# $HOMEBREW_CROSS_COMPILE      # If there’s a :cross option, always use it (see `extend/ARGV.rb`)
-# $HOMEBREW_CURL_VERBOSE       # Checked by ::curl() in `utils.rb`; deleted by CurlApacheMirrorDownloadStrategy
-# $HOMEBREW_FAIL_LOG_LINES     # How many lines of system output to log on failure (see `formula.rb`)
-# $HOMEBREW_NO_GITHUB_API      # Used by GitHub.open & GitHub.print_pull_requests_matching in `utils.rb`
-# $HOMEBREW_PREFER_64_BIT      # Build 64‐bit by default (req’d for Leopard :universal; see `macos.rb`)
-# $HOMEBREW_SANDBOX            # hells if I know (see `extend/ARGV.rb`)
-# $HOMEBREW_VERBOSE_USING_DOTS # Print heartbeat dots during long system calls (see `formula.rb`)
+# $HOMEBREW_BUILD_BOTTLE         # Always build a bottle instead of a normal installation (see `extend/ARGV.rb`)
+# $HOMEBREW_BUILD_FROM_SOURCE    # Force building from source even when there is a bottle (see `extend/ARGV.rb`)
+# $HOMEBREW_BUILD_UNIVERSAL      # If there’s a :universal option, always use it (see `extend/ARGV.rb`)
+# $HOMEBREW_CROSS_COMPILE        # If there’s a :cross option, always use it (see `extend/ARGV.rb`)
+# $HOMEBREW_CURL_VERBOSE         # Checked by ::curl() in `utils.rb`; deleted by CurlApacheMirrorDownloadStrategy
+# $HOMEBREW_FAIL_LOG_LINES       # How many lines of system output to log on failure (see `formula.rb`)
+# $HOMEBREW_MAKE_JOBS            # Used in $MAKEFLAGS, prefixed by “-j”
+# $HOMEBREW_NO_GITHUB_API        # Used by GitHub.open & GitHub.print_pull_requests_matching in `utils.rb`
+# $HOMEBREW_NO_INSECURE_REDIRECT # Tested in CurlDownloadStrategy#fetch if an https → http redirect is encountered.
+# $HOMEBREW_PREFER_64_BIT        # Build 64‐bit by default (req’d for Leopard :universal; see `macos.rb`)
+# $HOMEBREW_SANDBOX              # hells if I know (see `extend/ARGV.rb`)
+# $HOMEBREW_VERBOSE_USING_DOTS   # Print heartbeat dots during long system calls (see `formula.rb`)
 
 # Superenv environment variables:
 # (also see HOMEBREW_CC below)
+# $HOMEBREW_ARCHFLAGS          # Like $HOMEBREW_BUILD_ARCHS but as archflags
+# $HOMEBREW_CCCFG              # A set of flags governing things like argument refurbishment
 # $HOMEBREW_DISABLE__W         # Enable warnings by not inserting “-w”
 # $HOMEBREW_FORCE_FLAGS        # Always inserted during argument refurbishment
 # $HOMEBREW_INCLUDE_PATHS      # These are how -I flags reach ENV/*/cc
 # $HOMEBREW_ISYSTEM_PATHS      # These are how -isystem flags reach ENV/*/cc
 # $HOMEBREW_LIBRARY_PATHS      # These are how -L flags reach ENV/*/cc
-# $HOMEBREW_OPTIMIZATION_LEVEL # This is how an -O? flag reaches ENV/*/cc
+# $HOMEBREW_OPTFLAGS           # Set to the compiler optimization flags suiting HOMEBREW_BUILD_ARCHS
+# $HOMEBREW_OPTIMIZATION_LEVEL # This is how an -O flag reaches ENV/*/cc
+# $HOMEBREW_SDKROOT            # Set to MacOS.sdk_path iff we have Xcode without command‐line tools
 
 # Other environment variables used in brewing:
+# $CC/$CXX/$FC/$OBJC/$OBJCXX # These combine $HOMEBREW_CC et al with ENV.build_archs.as_archflags
 # $HOMEBREW_BUILD_ARCHS    # Tracks the architectures being built for
 # $HOMEBREW_CC             # Tracks the selected compiler (see `extend/ENV/*.rb`)
 # $HOMEBREW_CC_LOG_PATH    # This is set by `formula.rb` whenever it executes a Superenv build tool
