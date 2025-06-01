@@ -3,7 +3,6 @@ class Libuv < Formula
   homepage "https://github.com/libuv/libuv"
   url "https://github.com/libuv/libuv/archive/v1.7.4.tar.gz"
   sha256 "5f9625845f509029e44974a67c7e599d11ff9333f8c48a301a098e740cf9ba6c"
-  head "https://github.com/libuv/libuv.git", :branch => "v1.x"
 
   bottle do
     cellar :any
@@ -20,11 +19,11 @@ class Libuv < Formula
   depends_on "automake"   => :build
   depends_on "autoconf"   => :build
   depends_on "libtool"    => :build
-  # The build script passes --gnu to M4, which is only understood by GNU M4 1.4.12
-  # or later.  Apple stock M4 on all releases is forked from GNU version 1.4.6.
+  # During the build process, --gnu is passed to M4, which is only understood by GNU M4 1.4.12 or
+  # later.  Apple stock M4 on all releases is forked from GNU version 1.4.6.
   depends_on 'm4'         => :build
   depends_on "pkg-config" => :build
-  depends_on :python      => :build if MacOS.version <= :snow_leopard and build.with?("docs")
+  depends_on :python      => :build if (build.with? 'docs' and MacOS.version <= :snow_leopard)
 
   resource "alabaster" do
     url "https://pypi.python.org/packages/source/a/alabaster/alabaster-0.7.4.tar.gz"
@@ -86,29 +85,13 @@ class Libuv < Formula
   # parochial duplicate definitions and archaïc vector syntax
   patch :DATA if MacOS.version <= :leopard  # adjust this when we learn where the cutoff is
 
-  patch <<_ if MacOS.version < :leopard
---- old/src/unix/fs.c
-+++ new/src/unix/fs.c
-@@ -120,6 +120,12 @@
-   while (0)
- 
- 
-+int sendfile(int fd, int sd, off_t offset, off_t *len, struct sf_hdtr *hdtr, int flags) {
-+  errno = EOPNOTSUPP;
-+  return -1;
-+}
-+
-+
- static ssize_t uv__fs_fdatasync(uv_fs_t* req) {
- #if defined(__linux__) || defined(__sun) || defined(__NetBSD__)
-   return fdatasync(req->file);
-_
+  patch <<END_OF_PATCH if MacOS.version < :leopard
+END_OF_PATCH
 
   def install
     ENV.universal_binary if build.universal?
 
-    ENV.append 'HOMEBREW_FORCE_FLAGS', '-mpim-altivec' if Hardware::CPU.ppc? and
-                                                          MacOS.version < :leopard
+    ENV.append 'HOMEBREW_FORCE_FLAGS', '-mpim-altivec' if CPU.powerpc? and MacOS.version < :leopard
 
     if build.with? "docs"
       ENV.prepend_create_path "PYTHONPATH", buildpath/"sphinx/lib/python2.7/site-packages"
@@ -168,34 +151,31 @@ _
 end
 
 __END__
---- old/test/test-fs.c      2024-05-29 22:40:00 -0700
-+++ new/test/test-fs.c      2024-05-29 22:40:00 -0700
-@@ -1093,8 +1093,6 @@
-   ASSERT(s->st_mtim.tv_nsec == t.st_mtimespec.tv_nsec);
-   ASSERT(s->st_ctim.tv_sec == t.st_ctimespec.tv_sec);
-   ASSERT(s->st_ctim.tv_nsec == t.st_ctimespec.tv_nsec);
--  ASSERT(s->st_birthtim.tv_sec == t.st_birthtimespec.tv_sec);
--  ASSERT(s->st_birthtim.tv_nsec == t.st_birthtimespec.tv_nsec);
-   ASSERT(s->st_flags == t.st_flags);
-   ASSERT(s->st_gen == t.st_gen);
- #elif defined(_AIX)
-@@ -1119,8 +1117,6 @@
-       defined(__FreeBSD__)    || \
-       defined(__OpenBSD__)    || \
-       defined(__NetBSD__)
--  ASSERT(s->st_birthtim.tv_sec == t.st_birthtim.tv_sec);
--  ASSERT(s->st_birthtim.tv_nsec == t.st_birthtim.tv_nsec);
-   ASSERT(s->st_flags == t.st_flags);
-   ASSERT(s->st_gen == t.st_gen);
- # endif
 --- old/src/unix/fs.c
 +++ new/src/unix/fs.c
-@@ -708,8 +708,6 @@
+@@ -120,6 +120,14 @@
+   while (0)
+ 
+ 
++#if !defined(__APPLE__) || !defined(MAC_OS_X_VERSION_10_5)
++int sendfile(int fd, int sd, off_t offset, off_t *len, struct sf_hdtr *hdtr, int flags) {
++  errno = EOPNOTSUPP;
++  return -1;
++}
++#endif
++
++
+ static ssize_t uv__fs_fdatasync(uv_fs_t* req) {
+ #if defined(__linux__) || defined(__sun) || defined(__NetBSD__)
+   return fdatasync(req->file);
+@@ -708,8 +716,10 @@
    dst->st_mtim.tv_nsec = src->st_mtimespec.tv_nsec;
    dst->st_ctim.tv_sec = src->st_ctimespec.tv_sec;
    dst->st_ctim.tv_nsec = src->st_ctimespec.tv_nsec;
--  dst->st_birthtim.tv_sec = src->st_birthtimespec.tv_sec;
--  dst->st_birthtim.tv_nsec = src->st_birthtimespec.tv_nsec;
++#if !defined(__APPLE__) || __DARWIN_64_BIT_INO_T
+   dst->st_birthtim.tv_sec = src->st_birthtimespec.tv_sec;
+   dst->st_birthtim.tv_nsec = src->st_birthtimespec.tv_nsec;
++#endif
    dst->st_flags = src->st_flags;
    dst->st_gen = src->st_gen;
  #elif defined(__ANDROID__)
@@ -222,3 +202,27 @@ __END__
  
  #define ACCESS_ONCE(type, var)                                                \
    (*(volatile type*) &(var))
+--- old/test/test-fs.c      2024-05-29 22:40:00 -0700
++++ new/test/test-fs.c      2024-05-29 22:40:00 -0700
+@@ -1093,8 +1093,10 @@
+   ASSERT(s->st_mtim.tv_nsec == t.st_mtimespec.tv_nsec);
+   ASSERT(s->st_ctim.tv_sec == t.st_ctimespec.tv_sec);
+   ASSERT(s->st_ctim.tv_nsec == t.st_ctimespec.tv_nsec);
++#if !defined(__APPLE__) || __DARWIN_64_BIT_INO_T
+   ASSERT(s->st_birthtim.tv_sec == t.st_birthtimespec.tv_sec);
+   ASSERT(s->st_birthtim.tv_nsec == t.st_birthtimespec.tv_nsec);
++#endif
+   ASSERT(s->st_flags == t.st_flags);
+   ASSERT(s->st_gen == t.st_gen);
+ #elif defined(_AIX)
+@@ -1119,8 +1121,10 @@
+       defined(__FreeBSD__)    || \
+       defined(__OpenBSD__)    || \
+       defined(__NetBSD__)
++#if !defined(__APPLE__) || __DARWIN_64_BIT_INO_T
+   ASSERT(s->st_birthtim.tv_sec == t.st_birthtim.tv_sec);
+   ASSERT(s->st_birthtim.tv_nsec == t.st_birthtim.tv_nsec);
++#endif
+   ASSERT(s->st_flags == t.st_flags);
+   ASSERT(s->st_gen == t.st_gen);
+ # endif
