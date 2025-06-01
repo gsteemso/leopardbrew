@@ -5,7 +5,7 @@ class Tenfourfox < Formula
   urlbase = 'https://downloads.sourceforge.net/tenfourfox/'
   version '32.5.0-fpr'
 
-  # depends_on :arch => :ppc
+  depends_on :arch => :powerpc
 
   urls = {
     :g3  => ['G3', '528641f72195017e957690d3c12afcd0f3483993369ab015340fd07fa3c79dec'],
@@ -15,7 +15,7 @@ class Tenfourfox < Formula
   }
 
   # Formula needs a URL and sha1 even if it can't be installed
-  prefix, sh2 = urls[Hardware::CPU.model] || urls[:g3]
+  prefix, sh2 = urls[CPU.model] || urls[:g3]
 
   url urlbase+'fpr32.5'+'/TenFourFox'+prefix+'-FPR32.5.app.zip'
   sha256 sh2
