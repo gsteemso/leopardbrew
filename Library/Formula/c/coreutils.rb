@@ -17,16 +17,16 @@ class Coreutils < Formula
   end
 
   option 'without-gmp',   'Build with default (inferior) math handling'
-  option 'without-nls',   'Build without internationalization support'
-  option 'without-tests', 'Build without running the unit tests'
+  option 'without-nls',   'Build without natural‐language support (internationalization)'
+  option 'without-tests', 'Skip the build‐time unit tests'
 
-  depends_on "gettext" if build.with? 'nls'
-  depends_on "gmp"     => :recommended
+  depends_on "gmp" => :recommended
+  depends_on :nls  => :recommended
 
   conflicts_with "aardvark_shell_utils", :because => "both install `realpath` binaries"
-  conflicts_with "idutils", :because => "both install `gid` and `gid.1`"
-  conflicts_with "ganglia", :because => "both install `gstat` binaries"
-  conflicts_with "gegl", :because => "both install `gcut` binaries"
+  conflicts_with "idutils",              :because => "both install `gid` and `gid.1`"
+  conflicts_with "ganglia",              :because => "both install `gstat` binaries"
+  conflicts_with "gegl",                 :because => "both install `gcut` binaries"
 
   patch :DATA
 
@@ -56,7 +56,14 @@ class Coreutils < Formula
     args << "--without-gmp" if build.without? "gmp"
     system "./configure", *args
     system "make"
-    bombproof_system "make", "check" if build.with? 'tests'
+    begin
+      safe_system 'make', 'check'
+    rescue ErrorDuringExecution
+      opoo 'Some of the unit tests did not complete successfully.',
+        'This is not unusual.  If you ran Leopardbrew in “verbose” mode, the fraction of',
+        'tests which failed will be visible in the text above; only you can say whether',
+        'the pass rate shown there counts as “good enough”.'
+    end if build.with? 'tests'
     system "make", "install"
 
     # Symlink all commands into libexec/gnubin without the 'g' prefix

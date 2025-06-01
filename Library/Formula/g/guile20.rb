@@ -6,7 +6,8 @@ class Guile20 < Formula
   sha256 'e8442566256e1be14e51fc18839cd799b966bc5b16c6a1d7a7c35155a8619d82'
 
   option :universal
-  option 'without-nls', 'Build without natural‐language support (internationalization)'
+  option 'without-nls',   'Build without natural‐language support (internationalization)'
+  option 'without-tests', 'Skip the build-time unit tests'
 
   depends_on 'pkg-config' => :build
   depends_on 'bdw-gc'
@@ -14,13 +15,13 @@ class Guile20 < Formula
   depends_on 'libffi'
   depends_on 'libunistring'
   depends_on 'readline'
-  depends_on 'gettext' if build.with? 'nls'
+  depends_on :nls => :recommended
 
   # does it still do either of these?  hells if I know
   fails_with :llvm do; build 2336; cause 'Segfaults during compilation'; end
   fails_with :clang do; build 211; cause 'Segfaults during compilation'; end
 
-  conflicts_with "guile", :because => "they install matching binaries"
+  conflicts_with "guile", :because => "they install the same binaries"
 
   def install
     ENV.universal_binary if build.universal?
@@ -33,7 +34,16 @@ class Guile20 < Formula
     args << '--disable-nls' if build.without? 'nls'
     system './configure', *args
     system 'make'
-    ENV.deparallelize { bombproof_system 'make', '-ik', 'check' }
+    ENV.deparallelize do
+      begin
+        safe_system 'make', '-ik', 'check'
+      rescue ErrorDuringExecution
+        opoo 'Some of the unit tests did not complete successfully.',
+          'This is not unusual.  If you ran Leopardbrew in “verbose” mode, the fraction of',
+          'tests which failed will be visible in the text above; only you can say whether',
+          'the pass rate shown there counts as “good enough”.'
+      end
+    end if build.with? 'tests'
     system 'make', 'install'
     # A really messed up workaround required on OS X --mkhl
     Pathname.glob("#{lib}/*.dylib") do |dylib|
