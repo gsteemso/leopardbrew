@@ -119,7 +119,7 @@ module Homebrew
       kegs.each do |keg|
         puts "#{keg} (#{keg.abv})#{keg.linked? ? ' *' : (keg.optlinked? ? ' (*)' : '')}"
         tab = Tab.for_keg(keg).to_s
-        puts "  #{tab}" unless tab.empty?
+        puts tab.indent(3) unless tab.empty?
       end
     else
       puts "Not installed"
