@@ -117,12 +117,7 @@ class Cctools < Formula
     # Fixes build with gcc-4.2: https://trac.macports.org/ticket/43745
     args << 'SDK=-std=gnu99'
 
-    if Hardware::CPU.intel?
-      archs = 'i386 x86_64'
-    else
-      archs = 'ppc ppc64 i386 x86_64'
-    end
-    args << "RC_ARCHS=#{archs}"
+    args << "RC_ARCHS=#{CPU.cross_archs.as_build_archs}"
 
     system 'make', 'install_tools', *args
 
@@ -153,11 +148,11 @@ class Cctools < Formula
       (libexec/'gcc/darwin').install Dir["#{prefix}/usr/libexec/gcc/darwin/*"]
       share.install Dir["#{prefix}/usr/share/gprof.*"]
     end
-  end
+  end # install
 
   def caveats; 'cctools’ version of ld is not built.'; end
 
   test do
     assert_match '/usr/lib/libSystem.B.dylib', shell_output("#{bin}/otool -L #{bin}/install_name_tool")
   end
-end
+end # Cctools
