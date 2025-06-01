@@ -6,10 +6,10 @@ module Homebrew
     # Use of exec means we don't explicitly exit
     list_unbrewed if ARGV.flag? "--unbrewed"
 
-    # Unbrewed uses the PREFIX, which will exist
-    # Things below use the CELLAR, which doesn't until the first formula is installed.
+    # Unbrewed uses the PREFIX, which will exist.
+    # Things below use the CELLAR, which might not until the first formula is installed.
     unless HOMEBREW_CELLAR.exist?
-      raise NoSuchKegError, ARGV.named.first if ARGV.named.any?
+      raise NoSuchRackError, ARGV.named.first if ARGV.named.any?
       return
     end
 

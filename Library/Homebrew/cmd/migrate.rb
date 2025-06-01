@@ -8,7 +8,7 @@ module Homebrew
     ARGV.resolved_formulae.each do |f|
       if f.oldname
         unless (rack = HOMEBREW_CELLAR/f.oldname).exist? && !rack.subdirs.empty?
-          raise NoSuchKegError, f.oldname
+          raise NoSuchRackError, f.oldname
         end
         raise "#{rack} is a symlink" if rack.symlink?
       end
