@@ -191,5 +191,10 @@ if [ -n "$HOMEBREW_BASH_COMMAND" ]; then
 else
   # Unshift command back into argument list (unless argument list was empty).
   [ "$HOMEBREW_ARG_COUNT" -gt 0 ] && set -- "$HOMEBREW_COMMAND" "$@"
-  exec "$HOMEBREW_RUBY_PATH" -W0 "$HOMEBREW_LIBRARY/brew.rb" "$@"
+  if [ -n "$HOMEBREW_DEBUG_RUBY" ]; then
+    export HOMEBREW_DEBUG_RUBY
+    exec "$HOMEBREW_RUBY_PATH" -d -W0 "$HOMEBREW_LIBRARY/brew.rb" "$@"
+  else
+    exec "$HOMEBREW_RUBY_PATH" -W0 "$HOMEBREW_LIBRARY/brew.rb" "$@"
+  fi
 fi
