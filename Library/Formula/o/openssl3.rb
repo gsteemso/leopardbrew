@@ -1,6 +1,8 @@
 require 'merge'
 
 class Openssl3 < Formula
+  include Merge
+
   desc 'Cryptography and SSL/TLS Toolkit'
   homepage 'https://openssl.org/'
   url 'https://github.com/openssl/openssl/releases/download/openssl-3.3.2/openssl-3.3.2.tar.gz'
@@ -8,9 +10,7 @@ class Openssl3 < Formula
   license 'Apache-2.0'
 
   option :universal
-  option 'without-tests', 'Skip the build‐time unit tests (not recommended on first install)'
-
-  keg_only :provided_by_osx
+  option 'without-tests', 'Skip the build‐time unit tests (not recommended)'
 
   depends_on 'curl-ca-bundle'
   depends_on 'perl'
@@ -18,6 +18,8 @@ class Openssl3 < Formula
   enhanced_by 'brotli'
   enhanced_by 'zlib'
   enhanced_by 'zstd'
+
+  keg_only :provided_by_osx
 
   def arg_format(arch)
     case arch
@@ -32,8 +34,6 @@ class Openssl3 < Formula
   def install
     # Build breaks passing -w.
     ENV.enable_warnings if ENV.compiler == :gcc_4_0
-    # Leopard and newer have the crypto framework.
-    ENV.append_to_cflags '-DOPENSSL_NO_APPLE_CRYPTO_RANDOM' if MacOS.version == :tiger
     # This could interfere with how we expect OpenSSL to build.
     ENV.delete('OPENSSL_LOCAL_CONFIG_DIR')
     # This ensures where Homebrew's Perl is needed the Cellar path isn't
@@ -43,7 +43,6 @@ class Openssl3 < Formula
 
     if build.universal?
       archs = CPU.local_archs
-      stashdir = buildpath/'arch-stashes'
       the_binaries = %w[
         bin/openssl
         lib/engines-3/capi.dylib
@@ -55,7 +54,7 @@ class Openssl3 < Formula
         lib/libssl.a
       ]
       the_headers = %w[
-        openssl/configuration.h
+        include/openssl/configuration.h
       ]
     else
       archs = [MacOS.preferred_arch]
@@ -69,14 +68,16 @@ class Openssl3 < Formula
       'no-legacy',  # for whatever reason, the build tests fail to locate the legacy provider
       'no-makedepend',
       'enable-trace',
+      'zlib-dynamic'
     ]
-    args << 'sctp' if MacOS.version > :leopard  # pre‐Snow Leopard lacks these system headers
-    args << 'enable-tfo' if MacOS.version >= :mojave  # pre-Mojave doesn’t support TCP Fast Open
+    if MacOS.version < '10.5'
+      args << 'no-async'                          # No {get,make,set}context support pre‐Leopard.
+      args << '-DOPENSSL_NO_APPLE_CRYPTO_RANDOM'  # Leopard and newer have the crypto framework.
+    end
     args << 'enable-brotli-dynamic' if enhanced_by? 'brotli'
-    args << 'zlib-dynamic' if enhanced_by? 'zlib'
+    args << 'sctp' if MacOS.version > '10.5'  # Pre‐Snow Leopard lacks these system headers.
+    args << 'enable-tfo' if MacOS.version >= '10.14'  # Pre-Mojave doesn’t support TCP Fast Open.
     args << 'enable-zstd-dynamic' if enhanced_by? 'zstd'
-    # No {get,make,set}context support before Leopard
-    args << 'no-async' if MacOS.version < :leopard
 
     archs.each do |arch|
       ENV.set_build_archs(arch) if build.universal?
@@ -84,30 +85,28 @@ class Openssl3 < Formula
       arch_args = [
         arg_format(arch),
       ]
-      arch_args << '-D__ILP32__' if Hardware::CPU.all_32b_archs.any? { |a| a == arch }
+      arch_args << '-D__ILP32__' if CPU.is_32b_arch?(arch)  # Apple never needed to define this.
 
-      # The assembly routines may still not work right on Tiger (needs to be
-      # checked).  Out of the box, they are horked on 32‐bit G5s because Apple
-      # never needed to define “__ILP32__” (see above).
-      # → “no-asm” isn’t intended for production use.  Needs work.
-      arch_args << 'no-asm' if MacOS.version < :leopard
+      # The assembly routines may still not work right on Tiger (needs checking).
+      # → “no-asm” isn’t intended for production use.  This needs work either way.
+      arch_args << 'no-asm' if MacOS.version < '10.5'
 
       system 'perl', './Configure', *args, *arch_args
       system 'make'
       system 'make', 'test' if build.with? 'tests'
-      system 'make', 'install', 'MANSUFFIX=ssl'
+      system 'make', 'install'
 
       if build.universal?
         system 'make', 'clean'
-        Merge.prep(prefix, stashdir/"bin-#{arch}", the_binaries)
-        Merge.prep(include, stashdir/"h-#{arch}", the_headers)
+        merge_prep(:binary, arch, the_binaries)
+        merge_prep(:header, arch, the_headers)
       end # universal?
     end # each |arch|
 
     if build.universal?
       ENV.set_build_archs(archs)
-      Merge.binaries(prefix, stashdir, archs)
-      Merge.c_headers(include, stashdir, archs)
+      merge_binaries(archs)
+      merge_c_headers(archs)
     end # universal?
   end # install
 
@@ -138,13 +137,12 @@ class Openssl3 < Formula
     # Check OpenSSL itself functions as expected.
     (testpath/'testfile.txt').write('This is a test file')
     expected_checksum = 'e2d0fe1585a63ec6009c8016ff8dda8b17719a637405a4e23c0ff81339148249'
-    for_archs bin/'openssl' do |a|
-      arch_cmd = (a.nil? ? [] : ['arch', '-arch', a.to_s])
-      system *arch_cmd, bin/'openssl', 'dgst', '-sha256', '-out', 'checksum.txt', 'testfile.txt'
+    for_archs bin/'openssl' do |_, cmd|
+      system *cmd, 'dgst', '-sha256', '-out', 'checksum.txt', 'testfile.txt'
       open('checksum.txt') do |f|
         checksum = f.read(100).split('=').last.strip
         assert_equal checksum, expected_checksum
       end
-    end
+    end # for_archs |openssl|
   end # test
 end # Openssl3
