@@ -1,4 +1,3 @@
-#:
 #:  Usage:  brew reinstall [/formula options/] /installed formula/ [...]
 #:
 #:Reïnstall each listed /installed formula/, using the same options each used
@@ -13,7 +12,6 @@
 #:--with-A may be reïnstalled --without-A to cancel it, and one --without-B may
 #:be reïnstalled --with-B.  (“--cross” and “--universal”, having no obvious
 #:opposites, may be cancelled by specifying “--single-arch”.)
-#:
 
 require 'formula/installer'
 
@@ -36,7 +34,7 @@ module Homebrew
         action = f.any_version_installed? ? 'upgrade' : 'install'
         opoo <<-_.undent
           The formula #{f.name} could not be reinstalled because no current version of it
-          is installed in the first place.  Use “brew #{action} #{f.name}” instead.
+          is installed in the first place.  Use “brew #{action} #{f.full_name}” instead.
         _
       end
     end
@@ -169,8 +167,8 @@ module Homebrew
           when '--HEAD'
             use_opts << o
             anti_opts << Option.new('devel')
-          when /^--un-([^=]+=?)(.+)?$/
-            anti_opts << Option.new($1)
+          when /^--un-([^=]+=?)(.+)?$/, /^--no-([^=]+=?)(.+)?$/
+            anti_opts << Option.new($1) if formula.option_defined?($1) or use_opts.include? $1
             ENV.delete 'HOMEBREW_BUILD_UNIVERSAL' if $1 == 'universal'
             ENV.delete 'HOMEBREW_CROSS_COMPILE'   if $1 == 'cross'
           else
