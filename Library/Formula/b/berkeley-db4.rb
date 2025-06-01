@@ -1,6 +1,8 @@
 require 'merge'
 
 class BerkeleyDb4 < Formula
+  include Merge
+
   desc "High performance key/value database"
   homepage "https://www.oracle.com/technology/products/berkeley-db/index.html"
   url "http://download.oracle.com/berkeley-db/db-4.8.30.tar.gz"
@@ -24,7 +26,6 @@ class BerkeleyDb4 < Formula
 
     if build.universal?
       archs = CPU.local_archs
-      stashdir = buildpath/'arch-stashes'
       the_binaries = %w[
         bin/db_archive
         bin/db_checkpoint
@@ -68,14 +69,14 @@ class BerkeleyDb4 < Formula
 
         if build.universal?
           system 'make', 'clean'
-          Merge.prep(prefix, stashdir/"bin-#{arch}", the_binaries)
+          merge_prep(:binary, arch, the_binaries)
         end # universal?
       end # cd build_unix
     end # each |arch|
 
     if build.universal?
       ENV.set_build_archs(archs)
-      Merge.binaries(prefix, stashdir, archs)
+      merge_binaries(archs)
     end # universal?
   end # install
 
