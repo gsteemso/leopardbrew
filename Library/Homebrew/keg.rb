@@ -14,10 +14,10 @@ class Keg
   end # AlreadyLinkedError
 
   class LinkError < RuntimeError
-    attr_reader :keg, :src, :dst
-    def initialize(keg, src, dst, cause)
-      @src = src
-      @dst = dst
+    attr_reader :keg, :tgt, :lnk
+    def initialize(keg, tgt, lnk, cause)
+      @tgt = tgt
+      @lnk = lnk
       @keg = keg
       @cause = cause
       super(cause.message)
@@ -27,9 +27,9 @@ class Keg
 
   class ConflictError < LinkError
     def suggestion
-      conflict = Keg.for(dst)
+      conflict = Keg.for(lnk)
     rescue NotAKegError, Errno::ENOENT
-      "already exists.  You may want to remove it:\n    rm '#{dst}'\n"
+      "already exists.  You may want to remove it:\n    rm '#{lnk}'\n"
     else <<-EOS.undent
         is a symlink belonging to #{conflict.name}.  You can unlink it:
             brew unlink #{conflict.name}
@@ -39,8 +39,8 @@ class Keg
 
     def to_s
       s = []
-      s << "Could not symlink #{src}"
-      s << "Target #{dst}" << suggestion
+      s << "Could not symlink #{tgt}"
+      s << "Target #{lnk}" << suggestion
       s << <<-EOS.undent
           To force the link and overwrite all conflicting files:
               brew link --overwrite #{keg.name}
@@ -54,8 +54,8 @@ class Keg
 
   class DirectoryNotWritableError < LinkError
     def to_s; <<-EOS.undent
-      Could not symlink #{src}
-      #{dst.dirname} is not writable.
+      Could not symlink #{tgt}
+      #{lnk.dirname} is not writable.
       EOS
     end
   end # DirectoryNotWritableError
@@ -74,8 +74,8 @@ class Keg
     applications gnome gnome/help
     icons mime-info pixmaps sounds
   ]
-  MAN_RX = %r{^man(/(cat|man)\d?[^/]{0,3})?$}
-  MANPAGE_RX = %r{^man(/(cat|man)\d?[^/]{0,3})?}
+  MAN_RX = %r{^man(/(cat|man)\d?[^/]{0,5})?$}
+  MANPAGE_RX = %r{^man(/(cat|man)\d?[^/]{0,5})?}
 
   # During reïnstallations, the old keg must remain in service or reïnstalling anything used during
   # brewing becomes impossible.  We achieve this by temporarily renaming it (which is much easier &
@@ -116,8 +116,12 @@ class Keg
   def versioned_name; "#{name}=#{version_s}"; end
 
   def formula
-    (path/Tab::FILENAME).file? ? Formulary.from_keg(path) : Formulary.from_rack(rack)
+    if (f = Formulary.from_rack(rack)).installed? then f
+    elsif (path/Tab::FILENAME).file? and (f = Formulary.from_keg(path)) then f
+    end
   end
+
+  def formula!; formula or raise FormulaVersionUnavailableError.new(name, version_s); end
 
   def spec
     (path/Tab::FILENAME).file? ? Tab.for_keg(path).spec \
@@ -184,19 +188,19 @@ class Keg
     dirs = []
     TOP_LEVEL_DIRECTORIES.map { |d| path/d }.each do |dir|
       next unless dir.exists?
-      dir.find do |src|
-        dst = HOMEBREW_PREFIX/src.relative_path_from(path)
-        dst.extend(ObserverPathnameExtension)
-        next unless dst.exists?
-        if dst.symlink? and src == dst.resolved_path  # only unlink a file from the current keg
-          if mode.dry_run then puts dst
+      dir.find do |tgt|
+        lnk = HOMEBREW_PREFIX/tgt.relative_path_from(path)
+        lnk.extend(ObserverPathnameExtension)
+        next unless lnk.exists?
+        if lnk.symlink? and tgt == lnk.resolved_path  # only unlink a file from the current keg
+          if mode.dry_run then puts lnk
           else
-            dst.uninstall_info if dst.to_s =~ INFOFILE_RX
-            dst.unlink
+            lnk.uninstall_info if lnk.to_s =~ INFOFILE_RX
+            lnk.unlink
           end
         end
-        if src.directory? then if src.symlink? then Find.prune; else dirs << dst; end; end
-      end # find |src|
+        if tgt.directory? then if tgt.symlink? then Find.prune; else dirs << lnk; end; end
+      end # find |tgt|
     end # each top‐level directory |dir|
     remove_linked_keg_record if linked? and not mode.dry_run
     dirs.reverse_each do |d|
@@ -254,7 +258,7 @@ class Keg
     # you have to force anything you need in the main tree into these dirs
     # REMEMBER that *NOT* everything needs to be in the main tree
 
-    link_dir('Frameworks',            mode) do |relative_path|
+    link_dir('Frameworks', mode) do |relative_path|
         # Frameworks contain symlinks pointing into a subdir, so we have to use :link.  However, for
         # Foo.framework and Foo.framework/Versions we have to use :mkpath so that multiple formula
         # versions can link into it and still have `brew [un]link` work.
@@ -262,34 +266,32 @@ class Keg
                                             ? :mkdir \
                                             : :link
       end # link_dir Frameworks
-    link_dir('bin',     mode) {               :skip_dirs }
-    link_dir('etc',     mode) {               :link_tree }
-    link_dir('include', mode) {               :link      }
-    link_dir('lib',     mode) do |relative_path|
+    link_dir('bin',        mode) {            :skip_dirs }
+    link_dir('etc',        mode) {            :link_tree }
+    link_dir('include',    mode) {            :link      }
+    link_dir('lib',        mode) do |relative_path|
         case relative_path.to_s
           when 'charset.alias'           then :skip_this
           # cmake & pkg-config databases, plus lib/<language> folders, get explicitly created
           when 'cmake', 'dtrace', 'ghc', 'lua', 'php', 'pkgconfig',
                %r{^(R|gdk-pixbuf|gio|mecab|node|ocaml|perl5|python[23]\.\d+|ruby)[^/]*$}
                                          then :mkdir
-          when %r{^(cmake|dtrace|ghc|lua|php|pkgconfig|((R|gdk-pixbuf|gio|mecab|node|ocaml|perl5|python[23]\.\d+|ruby)[^/]*))/}
-                                         then :link
                                          else :link   # Everything else is symlinked to the cellar
         end
       end # link_dir lib
-    link_dir('sbin',    mode) {               :skip_dirs }
-    link_dir('share',   mode) do |relative_path|
+    link_dir('sbin',       mode) {            :skip_dirs }
+    link_dir('share',      mode) do |relative_path|
         case relative_path.to_s
           when %r{^icons/.*/icon-theme\.cache$},
                'locale/locale.alias'     then :skip_this
           when INFOFILE_RX               then :info
-          when 'fish', 'ri', *SHARE_PATHS,
-               'zsh', MAN_RX             then :mkdir
-          when %r{^(fish/vendor_completions.d|icons|zsh/site_functions)/}, LOCALEDIR_RX
+          when 'fish',
+               'fish/vendor_completions.d',
+               'icons', 'ri', *SHARE_PATHS,
+               'zsh', 'zsh/site-functions',
+               MAN_RX                    then :mkdir
+          when %r{^(fish/vendor_completions.d|icons|zsh/site-functions)/}, LOCALEDIR_RX
                                          then :link_tree
-          when %r{^(ri|#{SHARE_PATHS * '|'})/},
-               MANPAGE_RX                then :link
-          when %r{^(fish|zsh)/}          then :link
                                          else :link
         end
       end # link_dir share
@@ -321,53 +323,54 @@ class Keg
 
   private
 
-  def resolve_any_conflicts(dst, linkage_type, mode)
-    return false unless dst.symlink?
-    src = dst.resolved_path
+  def resolve_any_conflicts(lnk, linkage_type, mode)
+    return false unless lnk.symlink?
+    tgt = lnk.resolved_path
     # Check lstat to ensure we have a directory, and not a symlink pointing at one (which would
     # need to be treated as a file).  In other words, only resolve one symlink.
     begin
-      stat = src.lstat
-    rescue Errno::ENOENT  # dst is a broken symlink, so remove it.
-      dst.unlink unless mode.dry_run
+      stat = tgt.lstat
+    rescue Errno::ENOENT  # lnk is a broken symlink, so remove it.
+      lnk.unlink unless mode.dry_run
       return false
     end
     if stat.directory?
       begin
-        keg = Keg.for(src)
+        keg = Keg.for(tgt)
       rescue NotAKegError
-        puts "Won’t resolve conflicts for symlink #{dst} as it doesn’t resolve into the Cellar" if VERBOSE
+        puts "Won’t resolve conflicts for symlink #{lnk} as it doesn’t resolve into the Cellar" if VERBOSE
         return false
       end
-      dst.unlink unless mode.dry_run
-      keg.link_dir(src, mode) { linkage_type }
+      lnk.unlink unless mode.dry_run
+      keg.link_dir(tgt, mode) { linkage_type }
       return true
     end
   end # resolve_any_conflicts
 
-  def make_relative_symlink(dst, src, mode)
-    _src = mode.dry_run ? HOMEBREW_CELLAR/name/version_s/src.relative_path_from(path) : src
-    if dst.symlink? and dst.resolved_path == _src
-      puts "Skipping; link already exists:  #{dst}" if VERBOSE; return; end
-    stats = dst.lstat
+  def make_relative_symlink(lnk, tgt, mode)
+    _targ = mode.dry_run ? HOMEBREW_CELLAR/name/version_s/tgt.relative_path_from(path) : tgt
+    if lnk.symlink? and lnk.resolved_path == _targ
+      puts "Skipping; link already exists:  #{lnk}" if VERBOSE; return; end
+    stats = lnk.lstat
     if mode.dry_run  # cf. git-clean -n: list files to delete, don't really link or delete
       if stats
-        if mode.overwrite then puts "Would delete #{dst}"
-        else puts "Conflict!  #{dst} already exists and is a #{(stats.ftype == 'link') ? "link to #{dst.resolved_path}" \
-                                                                                       : stats.ftype}"; end
+        if mode.overwrite then puts "Would delete #{lnk}"
+        else puts "Conflict!  #{lnk} already exists and is a #{(stats.ftype == 'link') \
+                                                               ? "link to #{lnk.resolved_path}" \
+                                                               : stats.ftype}"; end
       end
-      puts "#{dst} -> #{_src}"
+      puts "#{lnk} -> #{_src}"
       return
     end
-    dst.rmtree if stats and mode.overwrite
-    dst.make_relative_symlink_to(src)
+    lnk.rmtree if stats and mode.overwrite
+    lnk.make_relative_symlink_to(tgt)
   rescue Errno::EEXIST => e
-    if dst.exists? then raise ConflictError.new(self, src.relative_path_from(path), dst, e)
-    elsif dst.symlink? then dst.unlink; retry; end
+    if lnk.exists? then raise ConflictError.new(self, tgt.relative_path_from(path), lnk, e)
+    elsif lnk.symlink? then lnk.unlink; retry; end
   rescue Errno::EACCES => e
-    raise DirectoryNotWritableError.new(self, src.relative_path_from(path), dst, e)
+    raise DirectoryNotWritableError.new(self, tgt.relative_path_from(path), lnk, e)
   rescue SystemCallError => e
-    raise LinkError.new(self, src.relative_path_from(path), dst, e)
+    raise LinkError.new(self, tgt.relative_path_from(path), lnk, e)
   end # make_relative_symlink
 
   protected
@@ -378,56 +381,51 @@ class Keg
   def link_dir(relative_dir, mode)
     root = path/relative_dir
     return unless root.exists?
-    root.find do |src|
-      next if src == root
-      dst = HOMEBREW_PREFIX/src.relative_path_from(path)
-      dst.extend ObserverPathnameExtension
-      yielded = yield (relpath = src.relative_path_from(root))
-      if src.symlink? or src.file?
-        next if src.basename == '.DS_Store' or
-                src.realpath == dst         or
+    root.find do |tgt|
+      next if tgt == root
+      (lnk = HOMEBREW_PREFIX/tgt.relative_path_from(path)).extend ObserverPathnameExtension
+      yielded = yield (relpath = tgt.relative_path_from(root))
+      unknown_linkage_msg = "Unknown linkage type “:#{yielded.to_s}” specified for #{relative_dir}/#{relpath}"
+      if tgt.symlink? or tgt.file?
+        next if tgt.basename == '.DS_Store' or
+                tgt.realpath == lnk         or
                 # Don't link pyc files because Python overwrites these cached object
                 # files and next time brew wants to link, the pyc file is in the way.
-               (src.extname == '.pyc' and src.to_s =~ %r{site-packages})
+               (tgt.extname == '.pyc' and tgt.to_s =~ %r{site-packages})
         case yielded
           when :info
-            next if src.basename == 'dir'  # skip historical local 'dir' files
-            make_relative_symlink(dst, src, mode)
+            next if tgt.basename == 'dir'  # skip historical local 'dir' files
+            make_relative_symlink(lnk, tgt, mode)
             if mode.dry_run then puts " -> info #{relative_dir}/#{relpath}"
-            else dst.install_info; end
-          when :link, :link_tree, :skip_dirs
-            make_relative_symlink(dst, src, mode)
-          when :mkdir, :skip_this, nil
-            next
-          else
-            raise RuntimeError, "Unknown linkage type “#{yielded.inspect}” specified, at #{relative_dir}/#{relpath}"
+            else lnk.install_info; end
+          when :link, :link_tree, :skip_dirs then make_relative_symlink(lnk, tgt, mode)
+          when :mkdir, :skip_this, nil       then next
+          else raise LinkError.new(self, tgt, lnk, unknown_linkage_msg)
         end
       else # directory
         # no need to put .app bundles in the path, the user can just use
         # spotlight, or the open command and actual mac apps use an equivalent
-        Find.prune if src.extname == '.app'
+        Find.prune if tgt.extname == '.app'
         case yielded
           when :info
-            raise RuntimeError, ":info linkage specified for a directory, at #{relative_dir}/#{relpath}"
+            raise LinkError.new(self, tgt, lnk, ":info linkage specified for a directory:  #{relative_dir}/#{relpath}")
           when :link
-            unless resolve_any_conflicts(dst, :link, mode)
-              make_relative_symlink(dst, src, mode)
+            unless resolve_any_conflicts(lnk, :link, mode)
+              make_relative_symlink(lnk, tgt, mode)
               Find.prune
             end
           when :link_tree
-            unless dst.directory? and not dst.symlink?
-              resolve_any_conflicts(dst, :link_tree, mode) or make_path(dst, mode)
+            unless lnk.directory? and not lnk.symlink?
+              resolve_any_conflicts(lnk, :link_tree, mode) or make_path(lnk, mode)
             end
           when :mkdir
-            unless dst.directory? and not dst.symlink?
-              resolve_any_conflicts(dst, :link, mode) or make_path(dst, mode)
+            unless lnk.directory? and not lnk.symlink?
+              resolve_any_conflicts(lnk, :link, mode) or make_path(lnk, mode)
             end
-          when :skip_dirs, :skip_this, nil
-            Find.prune
-          else
-            raise RuntimeError, "Unknown linkage type “#{yielded.inspect}” specified, at #{relative_dir}/#{relpath}"
+          when :skip_dirs, :skip_this, nil then Find.prune
+          else raise LinkError.new(self, tgt, lnk, unknown_linkage_msg)
         end
-      end # src.type?
+      end # tgt.type?
     end # do find
   end # link_dir
 end # Keg
