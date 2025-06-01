@@ -70,10 +70,10 @@ class Git < Formula
     ENV['PERL_PATH'] = perl_pathname    # path to the binary
     (ENV['PYTHON_PATH'] =               # path to the binary, if any
         ((pf = Formula['python3']).any_version_installed? ? pf.opt_bin/'python3' :
-            (chuzzle(pp = `which python3`) or
-                ((pf = Formula['python']).installed? ? pf.opt_bin/'python2.7' :
-                    chuzzle(pp = `which python2.7`)
-    )   )   )   ) or ENV['NO_PYTHON'] = '1' # system Python < 2.7, e.g. on Tiger/Leopard, won’t work
+          ((pp = `which python3`).choke or
+            ((pf = Formula['python']).installed? ? pf.opt_bin/'python2.7' :
+              (pp = `which python2.7`).choke
+      ) ) ) ) or ENV['NO_PYTHON'] = '1' # system Python < 2.7, e.g. on Tiger/Leopard, won’t work
     if build.with? 'tcl-tk'
       ENV['TCL_PATH'] = Formula['tcl-tk'].opt_bin/'tclsh'
       ENV['TCLTK_PATH'] = Formula['tcl-tk'].opt_bin/'wish'
