@@ -282,25 +282,25 @@ class CurlDownloadStrategy < AbstractFileDownloadStrategy
   def fetch
     ohai "Downloading #{@url}"
 
-    unless cached_location.exist?
+    unless cached_location.exists?
       urls = actual_urls
       unless urls.empty?
         ohai "Downloading from #{urls.last}"
-        if !ENV["HOMEBREW_NO_INSECURE_REDIRECT"].nil? && @url.start_with?("https://") &&
-           urls.any? { |u| !u.start_with? "https://" }
+        if not ENV["HOMEBREW_NO_INSECURE_REDIRECT"].nil? and @url.starts_with?("https://") and
+            urls.any? { |u| !u.start_with? "https://" }
           puts "HTTPS to HTTP redirect detected & HOMEBREW_NO_INSECURE_REDIRECT is set."
           raise CurlDownloadStrategyError, @url
         end
         @url = urls.last
       end
 
-      had_incomplete_download = temporary_path.exist?
+      had_incomplete_download = temporary_path.exists?
       begin
         _fetch
       rescue ErrorDuringExecution
         # 33 == range not supported
         # try wiping the incomplete download and retrying once
-        if $?.exitstatus == 33 && had_incomplete_download
+        if $?.exitstatus == 33 and had_incomplete_download
           ohai "Trying a full download"
           temporary_path.unlink
           had_incomplete_download = false
@@ -857,28 +857,30 @@ class DownloadStrategyDetector
 
   def self.detect_from_url(url)
     case url
-    when %r{^https?://.+\.git$}, %r{^git://}
-      GitDownloadStrategy
-    when %r{^https?://www\.apache\.org/dyn/closer\.cgi}, %r{^https?://www\.apache\.org/dyn/closer\.lua}
-      CurlApacheMirrorDownloadStrategy
-    when %r{^https?://(.+?\.)?googlecode\.com/svn}, %r{^https?://svn\.}, %r{^svn://}, %r{^https?://(.+?\.)?sourceforge\.net/svnroot/}
-      SubversionDownloadStrategy
-    when %r{^cvs://}
-      CVSDownloadStrategy
-    when %r{^https?://(.+?\.)?googlecode\.com/hg}
-      MercurialDownloadStrategy
-    when %r{^hg://}
-      MercurialDownloadStrategy
-    when %r{^bzr://}
-      BazaarDownloadStrategy
-    when %r{^fossil://}
-      FossilDownloadStrategy
-    when %r{^http://svn\.apache\.org/repos/}, %r{^svn\+http://}
-      SubversionDownloadStrategy
-    when %r{^https?://(.+?\.)?sourceforge\.net/hgweb/}
-      MercurialDownloadStrategy
-    else
-      CurlDownloadStrategy
+      when %r{^https?://.+\.git$}, %r{^git://}
+        GitDownloadStrategy
+      when %r{^https?://www\.apache\.org/dyn/closer\.cgi}, %r{^https?://www\.apache\.org/dyn/closer\.lua}
+        CurlApacheMirrorDownloadStrategy
+      when %r{^https?://(.+?\.)?googlecode\.com/svn}, %r{^https?://svn\.}, %r{^svn://}, %r{^https?://(.+?\.)?sourceforge\.net/svnroot/}
+        SubversionDownloadStrategy
+      when %r{^cvs://}
+        CVSDownloadStrategy
+      when %r{^https?://(.+?\.)?googlecode\.com/hg}
+        MercurialDownloadStrategy
+      when %r{^hg://}
+        MercurialDownloadStrategy
+      when %r{^bzr://}
+        BazaarDownloadStrategy
+      when %r{^fossil://}
+        FossilDownloadStrategy
+      when %r{^http://svn\.apache\.org/repos/}, %r{^svn\+http://}
+        SubversionDownloadStrategy
+      when %r{^https?://(.+?\.)?sourceforge\.net/hgweb/}
+        MercurialDownloadStrategy
+      when nil
+        AbstractDownloadStrategy
+      else
+        CurlDownloadStrategy
     end
   end
 
