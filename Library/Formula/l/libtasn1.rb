@@ -1,6 +1,8 @@
 require 'merge'
 
 class Libtasn1 < Formula
+  include Merge
+
   desc "ASN.1 structure parser library"
   homepage "https://www.gnu.org/software/libtasn1/"
   url "http://ftpmirror.gnu.org/libtasn1/libtasn1-4.19.0.tar.gz"
@@ -16,7 +18,6 @@ class Libtasn1 < Formula
   def install
     if build.universal?
       archs = CPU.local_archs
-      stashdir = buildpath/'arch-stashes'
       the_binaries = %w[
         bin/asn1Coding
         bin/asn1Decoding
@@ -39,13 +40,13 @@ class Libtasn1 < Formula
       system "make", "install"
       if build.universal?
         system 'make', 'distclean'
-        Merge.prep(prefix, stashdir/"bin-#{arch}", the_binaries)
+        merge_prep(:binary, arch, the_binaries)
       end # universal?
     end # each |arch|
 
     if build.universal?
       ENV.set_build_archs(archs)
-      Merge.binaries(prefix, stashdir, archs)
+      merge_binaries(archs)
     end # universal?
   end # install
 
@@ -65,18 +66,12 @@ class Libtasn1 < Formula
       r 42
       s 47
     EOS
-    for_archs bin/'asn1Coding' do |a|
-      if a.nil?
-        arch_cmd_a = []
-        arch_cmd_s = ''
-      else
-        arch_cmd_a = ['arch', '-arch', a.to_s]
-        arch_cmd_s = "arch -arch #{a.to_s} "
-      end
-      system *arch_cmd_a, "#{bin}/asn1Coding", 'pkix.asn', 'assign.asn1'
-      assert_match /Decoding: SUCCESS/,
-                   shell_output("#{arch_cmd_s}#{bin}/asn1Decoding pkix.asn assign.out PKIX1.Dss-Sig-Value 2>&1")
+    for_archs bin/'asn1Coding' do |_, cmd|
+      system *cmd, 'pkix.asn', 'assign.asn1'
+      result = assert_match /Decoding: SUCCESS/,
+        shell_output("#{cmd[0..-2] * ' '} asn1Decoding pkix.asn assign.out PKIX1.Dss-Sig-Value 2>&1")
       rm 'assign.out'
-    end
+      result
+    end # for_archs |cmd|
   end # test
 end # Libtasn1
