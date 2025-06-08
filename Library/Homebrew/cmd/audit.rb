@@ -153,24 +153,24 @@ class FormulaAuditor
     return unless @strict
 
     component_list = [
-      [/^[\t ]+desc ["'][\S\ ]+["']/,          'desc'       ],
-      [/^[\t ]+homepage ["'][\S\ ]+["']/,      'homepage'   ],
-      [/^[\t ]+url ["'][\S\ ]+["']/,           'url'        ],
-      [/^[\t ]+mirror ["'][\S\ ]+["']/,        'mirror'     ],
-      [/^[\t ]+version ["'][\S\ ]+["']/,       'version'    ],
-      [/^[\t ]+(sha1|sha256) ["'][\S\ ]+["']/, 'checksum'   ],
-      [/^[\t ]+head ["'][\S\ ]+["']/,          'head line'  ],
-      [/^[\t ]+keg_only/,                      'keg_only'   ],
-      [/^[\t ]+stable do/,                     'stable'     ],
-      [/^[\t ]+bottle do/,                     'bottle'     ],
-      [/^[\t ]+devel do/,                      'devel'      ],
-      [/^[\t ]+head do/,                       'head block' ],
-      [/^[\t ]+option/,                        'option'     ],
-      [/^[\t ]+depends_/,                      'depends_*'  ],
-      [/^[\t ]+enhanced_by/,                   'enhanced_by'],
-      [/^[\t ]+def install/,                   'install'    ],
-      [/^[\t ]+def caveats/,                   'caveats'    ],
-      [/^[\t ]+test do/,                       'test'       ]
+      [/^  desc ["'][\S\ ]+["']/,          'desc'       ],
+      [/^  homepage ["'][\S\ ]+["']/,      'homepage'   ],
+      [/^  url ["'][\S\ ]+["']/,           'url'        ],
+      [/^  mirror ["'][\S\ ]+["']/,        'mirror'     ],
+      [/^  version ["'][\S\ ]+["']/,       'version'    ],
+      [/^  (sha1|sha256) ["'][\S\ ]+["']/, 'checksum'   ],
+      [/^  head ["'][\S\ ]+["']/,          'head line'  ],
+      [/^  keg_only/,                      'keg_only'   ],
+      [/^  stable do/,                     'stable'     ],
+      [/^  bottle do/,                     'bottle'     ],
+      [/^  devel do/,                      'devel'      ],
+      [/^  head do/,                       'head block' ],
+      [/^  option/,                        'option'     ],
+      [/^  depends_/,                      'depends_*'  ],
+      [/^  enhanced_by/,                   'enhanced_by'],
+      [/^  def install/,                   'install'    ],
+      [/^  def caveats/,                   'caveats'    ],
+      [/^  test do/,                       'test'       ]
     ]
 
     component_list.map do |regex, name|
