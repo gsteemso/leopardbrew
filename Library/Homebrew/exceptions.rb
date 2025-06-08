@@ -5,6 +5,7 @@ class DebugError < RuntimeError; end
 class FormulaSpecificationError < StandardError; end
 # Raised when a single patch file is not found and apply hasn’t been specified:
 class MissingApplyError < RuntimeError ; end
+class MissingParameterError < RuntimeError ; end
 class UsageError < RuntimeError; end
   class FormulaUnspecifiedError < UsageError; end
   class KegUnspecifiedError < UsageError; end

@@ -112,6 +112,8 @@ rescue KegUnspecifiedError
 rescue UsageError
   onoe 'Invalid usage.'
   abort ARGV.usage
+rescue MissingParameterError => e
+  abort e.message
 rescue SystemExit => e
   puts "Kernel.exit(#{e.status})" if e.status != 0 and ARGV.verbose?
   raise
