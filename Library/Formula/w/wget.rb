@@ -4,9 +4,9 @@
 class Wget < Formula
   desc 'Internet file retriever'
   homepage 'https://www.gnu.org/software/wget/'
-  url 'http://ftpmirror.gnu.org/wget/wget-1.24.5.tar.gz'
-  mirror 'https://ftp.gnu.org/gnu/wget/wget-1.24.5.tar.gz'
-  sha256 'fa2dc35bab5184ecbc46a9ef83def2aaaa3f4c9f3c97d4bd19dcb07d4da637de'
+  url 'http://ftpmirror.gnu.org/wget/wget-1.25.0.tar.lz'
+  mirror 'https://ftp.gnu.org/gnu/wget/wget-1.25.0.tar.lz'
+  sha256 '19225cc756b0a088fc81148dc6a40a0c8f329af7fd8483f1c7b2fe50f4e08a1f'
 
   head do
     url 'https://git.savannah.gnu.org/wget.git'
@@ -18,42 +18,41 @@ class Wget < Formula
   deprecated_option 'with-iri' => nil
   deprecated_option 'enable-debug' => 'with-debug'
 
-  option :universal
   option 'with-debug', 'Build with debug support'
-  option 'with-libressl', 'Build with LibreSSL security (replaces gnutls)'
-  option 'with-openssl3', 'Build with OpenSSL security (replaces gnutls)'
+  option 'with-ssl=',  'Choose gnutls, libressl, or openssl security (required)'
 
-  depends_on 'libpsl'   => :recommended
-  depends_on 'pcre2'    => :recommended
-  depends_on 'c-ares'       => :optional
-  depends_on 'gpgme'        => :optional
-  depends_on 'libmetalink'  => :optional
-  depends_on 'libressl'     => :optional
-  depends_on 'openssl3'     => :optional
-  depends_on 'gnutls' if build.without? 'libressl' and build.without? 'openssl3'
+  depends_on 'pkg-config' => :build
   depends_on 'gettext'
   depends_on 'libidn2'
   depends_on 'libunistring'
-  depends_on 'pkg-config'
   depends_on 'zlib'
+  @ssl_lib = ''
+  case (ARGV.value('with-ssl') || @ssl_lib).downcase
+    when /^gnu/   then depends_on (@ssl_lib = 'gnutls')
+    when /^libre/ then depends_on (@ssl_lib = 'libressl')
+    else depends_on (@ssl_lib = 'openssl3')
+#    else raise MissingParameterError, 'You must specify a transport security library using “--with-ssl=”.'
+  end
+  depends_on 'libpsl'   => :recommended
+  depends_on 'pcre2'    => :recommended
+  depends_on 'c-ares'      => :optional
+  depends_on 'gpgme'       => :optional
+  depends_on 'libmetalink' => :optional
 
   def install
-    ENV.universal_binary if build.universal?
-    raise 'Only one SSL backend can be used.  OpenSSL and LibreSSL have both been specified.' \
-                                                if build.with? 'libressl' and build.with? 'openssl3'
     args = %W[
       --prefix=#{prefix}
       --disable-dependency-tracking
       --disable-silent-rules
     ]
     args << '--disable-debug' if build.without? 'debug'
-    if build.with? 'libressl' or build.with? 'openssl3'
+    if @ssl_lib != 'gnutls'
       args << '--with-ssl=openssl'
-      args << "--with-libssl-prefix=#{Formula[build.with?('libressl') \
-                                               ? 'libressl' \
-                                               : 'openssl3' \
+      args << "--with-libssl-prefix=#{Formula[(@ssl_lib == 'libressl') \
+                                               ? 'libressl'            \
+                                               : 'openssl3'            \
                                              ].opt_prefix}"
-    end # with libressl or openssl3
+    end # without gnutls (→ with libressl or openssl3)
     args << '--with-cares' if build.with? 'c-ares'
     # gpgme gets picked up unaided if specified
     args << '--with-metalink' if build.with? 'libmetalink'
@@ -64,9 +63,5 @@ class Wget < Formula
     system 'make', 'install'
   end # install
 
-  test do
-    system bin/'wget', '-O', '-', 'https://github.com'
-  end
-end
-
-__END__
+  test { system "#{bin}/wget", '-O', "github-dot-com.html", 'https://github.com' }
+end # Wget
