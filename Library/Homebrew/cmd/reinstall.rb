@@ -134,8 +134,9 @@ module Homebrew
       end
     end
     ARGV.effective_formula_flags.each do |flag|
-      flag =~ /^--([^=]+=?)(.+)?$/
+      flag =~ OPTION_RX
       o = Option.new($1)
+      o.value = $2
       unrecognized = false
       if formula.option_defined?(o)
         use_opts << o
