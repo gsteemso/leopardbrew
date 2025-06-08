@@ -80,7 +80,7 @@ class CompilerFailure
     :cxx11 => [
       create([:gcc_4_0, :gcc, :llvm]),
       create(:clang => 425,
-             :gcc => ['4.3', '4.4', '4.5', '4.6', '4.7'])
+             :gcc => ['4.3', '4.4', '4.5', '4.6', '4.7']),
       # the very last features of C++11 were not stable until GCC 4.8.1
       create(:gcc => '4.8') do version = '4.8.0'; end
     ],
