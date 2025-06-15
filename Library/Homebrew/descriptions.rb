@@ -5,7 +5,6 @@ class Descriptions
   CACHE_FILE = HOMEBREW_CACHE + 'desc_cache.json'
 
   class << self
-
     def cache; @cache || load_cache; end
 
     # If the cache file exists, load it into, and return, a hash; otherwise, return nil.
@@ -24,7 +23,7 @@ class Descriptions
       save_cache
     end
 
-    # Return true if the cache exists, and neither Homebrew nor any of the Taps
+    # Return true if the cache exists, and neither Leopardbrew nor any of the Taps
     # repos were updated more recently than it was.
     def cache_fresh?
       return false unless CACHE_FILE.exists?
