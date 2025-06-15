@@ -9,6 +9,9 @@
 !/bin
 /bin/*
 !/bin/brew
+!/go
+/go/*
+!/go/install
 !/share/doc/homebrew
 !/share/man/man1/brew.1
 .DS_Store
