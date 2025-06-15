@@ -14,7 +14,7 @@ FORMULA_RENAMES = {
 }
 
 FORMULA_SUBSUMPTIONS = {
-  'dirmngr'             => 'gnupg',
-  'gnupg2'              => 'gnupg',
-  'gpg-agent'           => 'gnupg',
+  'gnupg' => ['dirmngr',
+              'gnupg2',
+              'gpg-agent'],
 }
