@@ -1,7 +1,4 @@
-#:
 #:Search names and/or descriptions of formulæ, or simply show descriptions.
-#:
-#:Usage:
 #:
 #:    brew desc /flag/ /search term/
 #:
@@ -13,7 +10,6 @@
 #:
 #:In the second form, the description for each formula named on the command line
 #:is printed out.
-#:
 
 require 'descriptions'
 require 'cmd/search'
@@ -29,18 +25,13 @@ module Homebrew
       raise FormulaUnspecifiedError if ARGV.named.empty?
       desc = {}
       ARGV.formulae.each { |f| desc[f.full_name] = f.desc }
-      results = Descriptions.new(desc)
-      results.print
+      Descriptions.new(desc).print
     elsif search_type.size > 1
       odie 'Pick one, and only one, of -s/--search, -n/--name, or -d/--description.'
+    elsif arg = ARGV.named.first
+      Descriptions.search(Homebrew::query_regexp(arg), search_type.first).print
     else
-      if arg = ARGV.named.first
-        regex = Homebrew::query_regexp(arg)
-        results = Descriptions.search(regex, search_type.first)
-        results.print
-      else
-        odie 'You must provide a search term.'
-      end
+      odie 'You must provide a search term.'
     end
-  end
-end
+  end # desc
+end # Homebrew
