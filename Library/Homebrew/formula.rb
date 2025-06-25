@@ -294,8 +294,9 @@ class Formula
   # @private
   def deprecated_args; active_spec.deprecated_actuals; end
 
-  # If a named option is defined for the currently active {SoftwareSpec}.
-  def option_defined?(name); active_spec.option_defined?(name); end
+  # Whether a named option is defined for the currently active {SoftwareSpec}.  Can be given as a
+  # bare name, a command‐line flag, or a full‐blown Option object.
+  def option_defined?(o); active_spec.option_defined?(o); end
 
   # All the {⸬fails_with} for the currently active {SoftwareSpec}.
   # @private
@@ -732,6 +733,7 @@ class Formula
       -DCMAKE_INSTALL_PREFIX=#{prefix}
       -DCMAKE_BUILD_TYPE=Release
       -DCMAKE_FIND_FRAMEWORK=LAST
+      -DCMAKE_OSX_ARCHITECTURES=#{ENV.build_archs.as_cmake_arch_flags}
       -DCMAKE_VERBOSE_MAKEFILE=ON
       -Wno-dev
     ]

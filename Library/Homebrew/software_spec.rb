@@ -96,18 +96,18 @@ class SoftwareSpec
 
   def go_resource(name, &block); resource name, Resource::Go, &block; end
 
-  def option_defined?(name); options.include?(name); end
+  def option_defined?(opt); options.include?(opt); end
 
   def option(name, description = '')
     opt = PREDEFINED_OPTIONS.fetch(name) do
         if Symbol === name
-          opoo "Passing arbitrary symbols to `option` is deprecated: #{name.inspect}"
+          opoo "Passing arbitrary symbols to `option` is deprecated:  #{name.inspect}"
           puts 'Symbols are reserved for future use, please pass a string instead'
           name = name.to_s
         end
         raise ArgumentError, 'option name is required' if name.empty?
         raise ArgumentError, 'option name must be longer than one character' unless name.length > 1
-        raise ArgumentError, 'option name must not start with dashes' if name.start_with?('-')
+        raise ArgumentError, 'option name must not start with dashes' if name.starts_with?('-')
         Option.new(name, description)
       end
     options << opt
