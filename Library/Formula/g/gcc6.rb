@@ -7,16 +7,16 @@ class Gcc6 < Formula
   revision 1  # For the late‐added C++ compatibility patch.
 
   option 'with-arm32', 'Also build for 32‐bit ARM targets (requires iOS SDK or similar)'
-  option 'with-java', 'Build the gcj compiler (depends on ecj, python, & x11)'
+  option 'with-java', 'Build the gcj compiler (depends on {ecj} and {python})'
   option 'with-jit', 'Build the just-in-time compiler (slows down the completed GCC)'
-  option 'with-tests', 'Run extra build‐time unit tests (depends on autogen & deja-gnu; very slow)'
-  option 'without-cross-compiler', 'Don’t build counterpart compilers for building fat binaries'
+  option 'with-tests', 'Run extra build‐time unit tests (depends on {autogen} & {deja-gnu}; very slow)'
+  option 'without-cross-compilers', 'Don’t build counterpart compilers for building fat binaries'
   # Enabling multilib on a host that can’t run 64‐bit causes build failures.
   option 'without-multilib', 'Build without multilib support' if CPU._64b?
   option 'without-nls', 'Build without native‐language support (localization)'
 
   # Tiger’s stock as can’t handle the PowerPC assembly found in libitm.
-  depends_on :cctools => :build if MacOS.version < :leopard
+  depends_on :cctools => :build if MacOS.version < :leopard or build.with? 'arm32'
   depends_group ['tests', ['autogen', 'deja-gnu']] => [:build, :optional]
 
   depends_on :ld64 if MacOS.version < :snow_leopard
@@ -41,16 +41,9 @@ class Gcc6 < Formula
     sha256 'cce0a9a87002b64cf88e595f1520ccfaff7a4c39ee1905d82d203a1ecdfbda29'
   end
 
-  # configure:
-  # - Fix oversights in the configure script that prevent Java from being built
-  #   under ppc64 Darwin.  No specific reference available.
-  # gcc/jit/Make-lang.in:
-  # - Fix for libgccjit.so linkage on Darwin.
-  #   See:  https://gcc.gnu.org/bugzilla/show_bug.cgi?id=64089
   patch :DATA
 
-  # Fix an Intel-only build failure on 10.4.
-  # See:  https://gcc.gnu.org/bugzilla/show_bug.cgi?id=64184
+  # Fix an Intel-only build failure on 10.4.  See:  https://gcc.gnu.org/bugzilla/show_bug.cgi?id=64184
   patch do
     url 'https://gist.githubusercontent.com/mistydemeo/9c5b8dadd892ba3197a9cb431295cc83/raw/582d1ba135511272f7262f51a3f83c9099cd891d/sysdep-unix-tiger-intel.patch'
     sha256 '17afaf7daec1dd207cb8d06a7e026332637b11e83c3ad552b4cd32827f16c1d8'
@@ -111,7 +104,8 @@ class Gcc6 < Formula
          [:gcc, :gcc_4_0, :llvm].include? ENV.compiler
 
     # See the note at the conditional cctools dependency above.
-    ENV['AS'] = ENV['AS_FOR_TARGET'] = Formula['cctools'].bin/'as' if MacOS.version < :leopard
+    ENV['AS'] = ENV['AS_FOR_TARGET'] = Formula['cctools'].bin/'as' \
+                                                  if MacOS.version < :leopard or build.with? 'arm32'
 
     # GCC will suffer build errors if forced to use a particular linker.
     ENV.delete 'LD'
@@ -158,12 +152,11 @@ class Gcc6 < Formula
         ).choke or raise__no_iphoneos_sdk_found
       arm32_sysroot = "#{arm32_SDKs}/iPhoneOS#{candidate_version}.sdk"
       arm32_configargs = "#{configargs} --with-build-sysroot=#{arm32_sysroot}"
-      arm32_archs = Utils.popen_read("#{arm_toolroot}/usr/bin/lipo", '-info',
-                                     "#{arm_sysroot}/usr/lib/libSystem.dylib", '|', 'cut',
+      arm32_archs = Utils.popen_read("#{arm32_toolroot}/usr/bin/lipo", '-info',
+                                     "#{arm32_sysroot}/usr/lib/libSystem.dylib", '|', 'cut',
                                      "-d':'", '-f', '3').split(' ').select{ |e| e =~ %r{^arm} }
       raise CannotInstallFormulaError,
-             'Can’t build compilers for 32‐bit ARM (no library slices found).' \
-        if arm32_archs == []
+             'Can’t build compilers for 32‐bit ARM (no library slices found).' if arm32_archs == []
     end # build.with? 'arm32'
     src_dir = buildpath/'build/src'
     mkdir_p src_dir
@@ -208,7 +201,7 @@ class Gcc6 < Formula
     # See:  http://gcc.gnu.org/bugzilla/show_bug.cgi?id=45248
     # Note that “-gdwarf-2” is removed by superenv, but that doesn’t affect
     #   later bootstrap stages.
-    args << '--with-dwarf2' if MacOS.version < '10.9'
+    args << '--with-dwarf2' if MacOS.version < :mavericks
 
     args << (CPU._64b? && build.with?('multilib') ? '--enable-multilib' : '--disable-multilib')
 
@@ -216,7 +209,7 @@ class Gcc6 < Formula
 
     # “Building GCC with plugin support requires a host that supports -fPIC,
     # -shared, -ldl and -rdynamic.”
-    args << '--enable-plugin' if MacOS.version > '10.5'
+    args << '--enable-plugin' if MacOS.version > :leopard
 
     if build.with?('java')
       args << "--with-ecj-jar=#{Formula['ecj'].opt_share}/java/ecj.jar"
@@ -250,7 +243,7 @@ class Gcc6 < Formula
 #      bin.install_symlink bin/"gfortran-#{version_suffix}" => 'gfortran'
     end # regular compiler
 
-    if build.with? 'cross-compiler'
+    if build.with? 'cross-compilers'
       # Might as well take advantage of what we just built.
       ENV.cc = bin/"gcc-#{version_suffix}"
       arch_args = [
@@ -267,7 +260,7 @@ class Gcc6 < Formula
         system buildpath/'configure', *args, *arch_args
         system 'make'
         system 'make', 'install'
-      end if build.with? 'cross-compiler'
+      end if build.with? 'cross-compilers'
     end
 
     # Handle conflicts between GCC formulae.
@@ -304,7 +297,7 @@ class Gcc6 < Formula
       }
     EOS
     system bin/"gcc-#{version_suffix}", '-o', 'hello-c', 'hello-c.c'
-    for_archs './hello-c' { |_, cmd| assert_equal("Hello, world!\n", Utils.popen_read(*cmd)) }
+    for_archs './hello-c' { |_, cmd| assert_equal("Hello, world!\n", `#{cmd * ' '}`) }
 
     (testpath/'hello-cc.cc').write <<-EOS.undent
       #include <iostream>
@@ -315,7 +308,7 @@ class Gcc6 < Formula
       }
     EOS
     system bin/"g++-#{version_suffix}", '-o', 'hello-cc', 'hello-cc.cc'
-    for_archs './hello-cc' { |_, cmd| assert_equal("Hello, world!\n", Utils.popen_read(*cmd)) }
+    for_archs './hello-cc' { |_, cmd| assert_equal("Hello, world!\n", `#{cmd * ' '}`) }
 
     (testpath/'test.f90').write <<-EOS.undent
       integer,parameter::m=10000
@@ -329,13 +322,14 @@ class Gcc6 < Formula
       end
     EOS
     system bin/"gfortran-#{version_suffix}", '-o', 'test', 'test.f90'
-    for_archs './test' { |_, cmd| assert_equal("Done\n", Utils.popen_read(*cmd)) }
+    for_archs './test' { |_, cmd| assert_equal("Done\n", `#{cmd * ' '}`) }
   end # test
 end # Gcc6
 
 __END__
 --- old/configure	2024-06-18 20:51:40.000000000 -0700
 +++ new/configure	2024-06-18 21:16:30.000000000 -0700
+# Fix `configure` oversights that block building Java under ppc64 Darwin.  No specific reference.
 @@ -3432,7 +3432,7 @@
      ;;
    powerpc*-*-linux*)
@@ -356,6 +350,7 @@ __END__
      ;;
 --- old/gcc/jit/Make-lang.in
 +++ new/gcc/jit/Make-lang.in
+# Fix for libgccjit.so linkage on Darwin.  See:  https://gcc.gnu.org/bugzilla/show_bug.cgi?id=64089
 @@ -85,8 +85,7 @@
  	     $(jit_OBJS) libbackend.a libcommon-target.a libcommon.a \
  	     $(CPPLIB) $(LIBDECNUMBER) $(LIBS) $(BACKENDLIBS) \
