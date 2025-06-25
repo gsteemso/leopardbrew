@@ -13,7 +13,7 @@ class Option
     @value = ''
   end
 
-  def to_s; flag + value; end
+  def to_s; value && value != '' ? "#{flag}=#{value}" : flag; end
 
   def <=>(o); return unless Option === o; (name == o.name) ? value <=> o.value : name <=> o.name; end
 
@@ -72,7 +72,15 @@ class Options
 
   def as_flags; map(&:to_s); end
 
-  def include?(other); any?{ |o| [o, o.name, o.flag, o.to_s].any?{ |opt| opt == other } }; end
+  def include?(other)
+    other_name = case other.class.to_s
+        when 'String'   then (other.starts_with?('--') ? (other =~ OPTION_RX)[1] : other[/^[^=]+/])
+        when 'Option'   then other.name
+        when 'NilClass' then ''
+        else raise RuntimeError, "Options object queried re inclusion of alien class “#{other.class}”"
+      end
+    any?{ |o| o.name == other_name }
+  end # include?
 
   alias_method :to_ary, :to_a
 
