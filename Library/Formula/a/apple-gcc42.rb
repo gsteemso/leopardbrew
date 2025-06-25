@@ -5,7 +5,7 @@ class AppleGcc42 < Formula
   version '4.2.1-5666.3'
   sha256 '2e9889ce0136f5a33298cf7cce5247d31a5fb1856e6f301423bde4a81a5e7ea6'
 
-  option 'with-arm', 'Build with 32‐bit ARM support for iOS etc (requires iPhone SDK)' if MacOS.version >= '10.5'
+  option 'with-arm', 'Build with 32‐bit ARM support for iOS etc (requires iPhone SDK)' if MacOS.version >= :leopard
 
   depends_on 'cctools'  # make sure we have a suitable `as` for every target (and don’t do
                         # “:cctools”, that doesn’t necessarily pull in the actual formula)
@@ -28,14 +28,14 @@ class AppleGcc42 < Formula
       FRO.binwrite switch_from unless FRO.exists?
       chmod 0755, [TO, FRO]
     end
-  end
 
-  def stock_apple_gcc42_build
-    if installed? and not (candidates = Dir['/usr/bin/*-apple-darwin*-gcc-4.2.1.5[0-9][0-9][0-9]']).empty?
-      return candidates.first[-4,4]
-    end
-    if (gcc42 = Pathname.new(Dir['/usr/bin/*-apple-darwin*-gcc-4.2.1'].first)).choke and not gcc42.symlink?
-      return `#{gcc42} --version`[/build (5\d{3})/][1]
+    def stock_apple_gcc42_build
+      if installed? and not (candidates = Dir['/usr/bin/*-apple-darwin*-gcc-4.2.1.5[0-9][0-9][0-9]']).empty?
+        return candidates.first[-4,4]
+      end
+      if (gcc42 = Pathname.new(Dir['/usr/bin/*-apple-darwin*-gcc-4.2.1'].first)).choke and not gcc42.symlink?
+        return `#{gcc42} --version`[/build (5\d{3})/][1]
+      end
     end
   end
 
@@ -64,7 +64,7 @@ class AppleGcc42 < Formula
     ENV['LOCAL_MAKEFLAGS'] = ENV['MAKEFLAGS']
     ENV['Build_Root']      = "#{buildpath}/build"
 
-    ENV['PPC_SYSROOT']     = MacOS.sdk_path.to_s if MacOS.version < '10.5'
+    ENV['PPC_SYSROOT']     = MacOS.sdk_path.to_s if MacOS.version < :leopard
 
     arg1_host_archs      = MacOS.preferred_arch.to_s
     arg2_target_archs    = (build.with?('arm') ? 'ppc i386 arm' : 'ppc i386')
@@ -134,7 +134,7 @@ class AppleGcc42 < Formula
       }
     EOS
     system bin/'gcc-4.2', *CPU.runnable_archs.as_arch_flags.split(' '), '-o', 'hello-c', 'hello-c.c'
-    for_archs('./hello-c') { |_, cmd| assert_equal "Hello, world!\n", Utils.popen_read *cmd }
+    for_archs('./hello-c') { |_, cmd| assert_equal "Hello, world!\n", `#{cmd * ' '}` }
 
     (testpath/'hello-cc.cc').write <<-EOS.undent
       #include <iostream>
@@ -145,7 +145,7 @@ class AppleGcc42 < Formula
       }
     EOS
     system bin/'g++-4.2', *CPU.runnable_archs.as_arch_flags.split(' '), '-o', 'hello-cc', 'hello-cc.cc'
-    for_archs('./hello-cc') { |_, cmd| assert_equal "Hello, world!\n", Utils.popen_read *cmd }
+    for_archs('./hello-cc') { |_, cmd| assert_equal("Hello, world!\n", `#{cmd * ' '}`) }
   end # test
 
   def switch_to; <<-_.undent
@@ -258,36 +258,28 @@ __END__
 # - Make a way to detranslate GCC architecture names back to Apple ones.
 # - Improve the filtering of architecture names.
 # - Accommodate non-default native builds (such as ppc64).
-# - Since we aren’t using the feature that puts two prefixes on everything, set
-#   the “inner” one to the null string.
-# - Set the working build directory by environment variable instead of by
-#   cd’ing to it before running this script.
+# - Since we aren’t using the feature that puts two prefixes on everything, set the “inner” one to the null string.
+# - Set the working build directory by environment variable instead of by cd’ing to it before running this script.
 # - Use the `lipo` from cctools – it’s newer and can handle ARM slices.
 # - Don’t look in weird places for the C++ standard library.
-# - Since older xcodebuild does not understand “Path” or “PlatformPath” (and
-#   there is no clue as to what exactly $ARM_SDK ought to hold even if those
-#   would be understood), bypass them via an environment variable.
-# - Reörder the arm configuration so it is consistent across all methods of
-#   setting its initial values.
+# - Since older xcodebuild does not understand “Path” or “PlatformPath” (and there is no clue as to what exactly $ARM_SDK ought to
+#   hold even if those would be understood), bypass them via an environment variable.
+# - Reörder the arm configuration so it is consistent across all methods of setting its initial values.
 # - Use the correct $*_CONFIGFLAGS for the build architecture.
 # - Use the part of the split prefix that we DIDN’T set to the null string.
 # - Put shared libraries in the correct location.
-# - Use the arch‐specific tools from cctools (except the nonexistent ld, which
-#   we must configure separately).
-# - Enable our `as` interposer scripts to rewrite incorrect -arch flags, and
-#   symlink the relevant one as just “as” for every added compiler we build.
-# - When building the cross‐hosted compilers, make sure the cctools are in
-#   $COMPILER_PATH, and set $prefix instead of $DESTDIR.
+# - Use the arch‐specific tools from cctools (except the nonexistent ld, which we must configure separately).
+# - Enable our `as` interposer scripts to rewrite incorrect -arch flags, and symlink the relevant one as just “as” for every added
+#   compiler we build.
+# - When building the cross‐hosted compilers, make sure the cctools are in $COMPILER_PATH, and set $prefix instead of $DESTDIR.
 # - Build the HTML documentation straight into share/doc.
 # - Don’t symlink to nonexistent files.  Symlink to cctools’ `as` instead.
 # - Don’t forget to build libgcc_s.*.dylib.
-# - Don’t bother copying libgomp.a et al, they’re already in place because we
-#   didn’t use the split‐prefix feature.
+# - Don’t bother copying libgomp.a et al, they’re already in place because we didn’t use the split‐prefix feature.
 # - Remove several instances of doubled directory separators.
 # - Don’t bother generating debugging data.  It gets discarded.
 # - Don’t try to strip libgcc.*.dylib, nor anything in cctools.
-# - Don’t chgrp.  It does nothing useful, and we aren’t in the destination
-#   group (“wheel”) so it fails messily.
+# - Don’t chgrp.  It does nothing useful, and we aren’t in the destination group (“wheel”) so it fails messily.
 @@ -5,9 +5,11 @@
  
  # -arch arguments are different than configure arguments. We need to
@@ -364,7 +356,7 @@ __END__
  # This is the libstdc++ version to use.
  LIBSTDCXX_VERSION=4.2.1
 -if [ ! -d "$DEST_ROOT/include/c++/$LIBSTDCXX_VERSION" ]; then
-+if [ ! -d "/usr/include/c++/$LIBSTDCXX_VERSION" ]; then
++if ! [ -d "/usr/include/c++/$LIBSTDCXX_VERSION" ]; then
    LIBSTDCXX_VERSION=4.0.0
  fi
 -NON_ARM_CONFIGFLAGS="--with-gxx-include-dir=\${prefix}/include/c++/$LIBSTDCXX_VERSION"
@@ -390,7 +382,7 @@ __END__
  fi
 +
 +ARM_LIBSTDCXX_VERSION='4.2.1'   # this`s more wishful thinking than anything real
-+if [ \! -d "$ARM_SYSROOT/usr/include/c++/$ARM_LIBSTDCXX_VERSION" ]; then
++if ! [ -d "$ARM_SYSROOT/usr/include/c++/$ARM_LIBSTDCXX_VERSION" ]; then
 +  ARM_LIBSTDCXX_VERSION='4.0.0'
 +fi
 +ARM_CONFIGFLAGS="--with-gxx-include-dir=$ARM_SYSROOT/usr/include/c++/$ARM_LIBSTDCXX_VERSION"
@@ -794,7 +786,7 @@ __END__
 +++ new/config/mh-x86-darwin
 #  - Make optimization level “-Os”, to match everywhere else we changed it.
 #  - Fix a Make‐variable assignment to use $(shell ...) instead of `...`.
-@@ -2,8 +2,7 @@
+@@ -2,8 +2,8 @@
  # The -mdynamic-no-pic ensures that the compiler executable is built without
  # position-independent-code -- the usual default on Darwin.
  
@@ -803,8 +795,8 @@ __END__
  
  # For hosts after darwin10 we want to pass in -no-pie
 -BOOT_LDFLAGS=`case ${host} in *-*-darwin[1][1-9]*) echo -Wl,-no_pie ;; esac;`
--LDFLAGS=$(BOOT_LDFLAGS)
-+LDFLAGS := $(shell case ${host} in (*-*-darwin[1][1-9]*) echo -Wl,-no_pie ;; esac)
++BOOT_LDFLAGS := $(shell case ${host} in (*-*-darwin[1][1-9]*) echo -Wl,-no_pie ;; esac)
+ LDFLAGS=$(BOOT_LDFLAGS)
 --- old/configure
 +++ new/configure
 # `Fix omission of ppc64 from PowerPC Darwin configuration, and improve 32‐bit/
