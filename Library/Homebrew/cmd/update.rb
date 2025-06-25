@@ -6,6 +6,8 @@ require "formulary"
 require "descriptions"
 
 module Homebrew
+  HOME_REPO = 'https://github.com/gsteemso/leopardbrew.git'
+
   def update
     unless ARGV.named.empty?
       abort <<-EOS.undent
@@ -123,16 +125,23 @@ module Homebrew
     if Dir[".git/*"].empty?
       safe_system "git", "init"
       safe_system "git", "config", "core.autocrlf", "false"
-      safe_system "git", "config", "remote.origin.url", "https://github.com/gsteemso/leopardbrew.git"
+      safe_system "git", "config", "remote.origin.url", HOME_REPO
       safe_system "git", "config", "remote.origin.fetch", "+refs/heads/*:refs/remotes/origin/*"
       safe_system "git", "fetch", "origin"
       safe_system "git", "reset", "--hard", "origin/master"
     end
 
-    if `git remote show origin -n` =~ /Fetch URL: \S+mxcl\/homebrew/
-      safe_system "git", "remote", "set-url", "origin", "https://github.com/Homebrew/homebrew.git"
-      safe_system "git", "remote", "set-url", "--delete", "origin", ".*mxcl\/homebrew.*"
-    end
+    case `git remote show -n origin | fgrep 'Fetch URL:'`
+      when %r{mxcl/homebrew}
+        safe_system "git", "remote", "set-url", "origin", HOME_REPO
+        safe_system "git", "remote", "set-url", "--delete", "origin", ".*mxcl\/homebrew.*"
+      when %r{Homebrew/homebrew}
+        safe_system "git", "remote", "set-url", "origin", HOME_REPO
+        safe_system "git", "remote", "set-url", "--delete", "origin", ".*Homebrew\/homebrew.*"
+      when %r{mistydemeo/tigerbrew}
+        safe_system "git", "remote", "set-url", "origin", HOME_REPO
+        safe_system "git", "remote", "set-url", "--delete", "origin", ".*Homebrew\/homebrew.*"
+    end # case git origin fetch URL
   rescue Exception
     FileUtils.rm_rf ".git"
     raise
@@ -156,7 +165,7 @@ module Homebrew
             end
           else
             opoo "Leopardbrew’s predecessor, Tigerbrew, changed the structure of Taps to <someuser>/<sometap>.  "\
-              "#{tapd} is incorrect name format.  You may need to rename it as <someuser>/<sometap> manually."
+              "#{tapd} is incorrect name format.  You may need to manually rename it as <someuser>/<sometap>."
           end
         end
       rescue => ex
