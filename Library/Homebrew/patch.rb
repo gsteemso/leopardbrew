@@ -18,9 +18,11 @@ module Patch
             else
               ExternalPatch.new(strip, &block)
           end # case src
+        else
+          raise ArgumentError, "unexpected value #{strip.inspect} for strip"
         end # if the symbol is in fact the right kind of symbol
       else
-        raise ArgumentError, "unexpected value #{strip.inspect} for strip"
+        raise ArgumentError, "unexpected class #{strip.inspect} for strip"
     end # case strip
   end # Patch⸬create
 
