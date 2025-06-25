@@ -71,6 +71,7 @@ HOMEBREW_TAP_DIR_REGEX            = %r{#{Regexp.escape(HOMEBREW_LIBRARY.to_s)}/T
                                       # Match taps’ formula paths, e.g. HOMEBREW_LIBRARY/Taps/someuser/sometap/someformula
 HOMEBREW_TAP_FORMULA_REGEX        = %r{^([\w-]+)/([\w-]+)/([\w+-.@]+)$}
                                     # Match taps’ formulæ, e.g. someuser/sometap/someformula
+# OPTION_RX                         # see `options.rb`
 # Pathname::BOTTLE_EXTNAME_RX       # see `extend/pathname.rb`
 VERSIONED_NAME_REGEX              = %r{^([^=]+)=([^=]+)$}
                                     # matches a formula‐name‐including‐version specification
