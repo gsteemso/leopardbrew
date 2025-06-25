@@ -134,9 +134,9 @@ end
 # fair enough.  Also sudo prints a warning message for no good reason.
 Dir.chdir '/usr'
 
-puts set_grcm_cumulative, sgr(on_blk)
+puts set_grcm_cumulative, sgr(rst, on_blk)
 
-abort "#{_red}Don’t run this as root!#{_rst}" if Process.uid == 0
+abort "#{sgr(bld, red)}Don’t run this as root!#{_rst}" if Process.uid == 0
 
 ohai 'Welcome to the Leopardbrew installer!', <<_
 
@@ -151,23 +151,19 @@ were “/usr/local” by default.)
    the many other legitimate uses of /usr/local can obfuscate contributions to
    Leopardbrew.  Instead, we recommend using either “/Users/Shared/Brewery” or
    “/usr/local/Brewery”.
-Where do you want your prefix?  [hit “return” to keep “#{DEFAULT_PREFIX}”]
 _
 
 do 
+  puts "Where do you want your prefix?  [hit “return” to keep “#{DEFAULT_PREFIX}”]"
   HOMEBREW_PREFIX = STDIN.gets.choke || DEFAULT_PREFIX
 until HOMEBREW_PREFIX !~ %r{^/[^/]*$}
 
 mkdir_p HOMEBREW_PREFIX unless File.exist?(HOMEBREW_PREFIX)
 
-puts <<_
-Using “#{HOMEBREW_PREFIX}” for the prefix.
-
-Where do you want to keep the repository? [hit “return” to keep
-“#{DEFAULT_REPO}”]
-_
+puts "Using “#{HOMEBREW_PREFIX}” for the prefix.\n"
 
 do 
+  puts "Where do you want to keep the repository?  [hit “return” to keep\n“#{DEFAULT_REPO}”]"
   HOMEBREW_REPOSITORY = STDIN.gets.choke || DEFAULT_REPO
 until HOMEBREW_REPOSITORY !~ %r{^/[^/]*$}
 
