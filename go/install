@@ -1,12 +1,23 @@
 #!/usr/bin/ruby
 
-CURL_VERSION    = '7.58.0-1'
-CURL_PPC_URL    = "https://archive.org/download/tigerbrew/portable-curl-#{CURL_VERSION}.tiger_g3.bottle.tar.gz"
-CURL_PPC_SHA1   = '4ffee9895f2172ff05ba085ce929add46dddc15b'
-CURL_INTEL_URL  = "https://archive.org/download/tigerbrew/portable-curl-#{CURL_VERSION}.tiger_i386.bottle.tar.gz"
-CURL_INTEL_SHA1 = '6e6e7989adb20856c0473aedecd623f443a6ac55'
-DEFAULT_PREFIX  = ENV['HOMEBREW_PREFIX'] || '/usr/local'
-DEFAULT_REPO    = ENV['HOMEBREW_REPOSITORY'] || '/Users/Shared/Brewery'
+require 'pathname'
+
+CURL_VERSION     = '7.58.0-1'
+CURL_STASH_URL   = "https://archive.org/download/tigerbrew/"
+FILE_PPC_NAME    = "portable-curl-#{CURL_VERSION}.tiger_g3.bottle.tar.gz"
+FILE_PPC_SHA1    = '4ffee9895f2172ff05ba085ce929add46dddc15b'
+FILE_INTEL_NAME  = "portable-curl-#{CURL_VERSION}.tiger_i386.bottle.tar.gz"
+FILE_INTEL_SHA1  = '6e6e7989adb20856c0473aedecd623f443a6ac55'
+DEFAULT_PREFIX   = ENV['HOMEBREW_PREFIX'] || '/usr/local'
+DEFAULT_REPO     = ENV['HOMEBREW_REPOSITORY'] || '/Users/Shared/Brewery'
+DOWNLOADS_DIR    = "#{ENV['HOME']}/Downloads/"
+UNPACKED_CURL    = "/tmp/#{CURL_VERSION}/bin/curl"
+GITHUB_REPO      = 'https://github.com/gsteemso/leopardbrew'
+GITHUB_BRANCH    = 'combined'
+GIT_FETCH_ORIGIN = "#{GITHUB_BRANCH}:refs/remotes/origin/#{GITHUB_BRANCH}"
+LBREW_GITHUB_URL = "#{GITHUB_REPO}/archive/refs/heads/#{GITHUB_BRANCH}.zip"
+GIT_ARCHIVE_DIR  = "leopardbrew-#{GITHUB_BRANCH}"
+GIT_ARCHIVE_NAME = "#{GIT_ARCHIVE_DIR}.zip"
 
 class Array
   def shell_s; cp = dup; first = cp.shift; cp.map{ |arg| arg.gsub ' ', "\\ " }.unshift(first) * ' ' end
@@ -14,6 +25,10 @@ end
 
 class String
   def choke; s = chomp; s unless s.empty?; end
+end
+
+class Pathname
+  def /(arg); Pathname.new("#{self}/#{arg}"); end
 end
 
 module Trm extend self  #“Terminal”:  ANSI control sequences
@@ -33,9 +48,9 @@ module Trm extend self  #“Terminal”:  ANSI control sequences
   def wht; '37'; end # white  }
   def dft; '39'; end # default}
   def on_blk; '40'; end # black background colour.
-  def _rst; sgr(rst, on_blk); end # reset
-  def _bld; sgr(bld); end
-  def _uln; sgr(uln); end
+  def _rst(clr = grn); sgr(rst, clr, on_blk); end # reset
+  def _bld(clr = nil); clr ? sgr(bld, clr) : sgr(bld); end
+  def _uln(clr = nil); clr ? sgr(uln, clr) : sgr(uln); end
   def _blk; sgr(blk); end
   def _red; sgr(red); end
   def _grn; sgr(grn); end
@@ -51,55 +66,70 @@ include Trm
 
 def curl
   return @curl if defined? @curl
-  fetch_vendor_curl! unless File.readable? '/tmp/curl.tar.gz'
-  @curl = "/tmp/#{CURL_VERSION}/bin/curl"
+  fetch_vendor_curl!
+  @curl = UNPACKED_CURL
 end
 
 def fetch_vendor_curl!
   if `uname -m`.chomp == "Power Macintosh"
-    url = CURL_PPC_URL;   sha = CURL_PPC_SHA1
+    fname = FILE_PPC_NAME;   sha = FILE_PPC_SHA1
   else
-    url = CURL_INTEL_URL; sha = CURL_INTEL_SHA1
+    fname = FILE_INTEL_NAME; sha = FILE_INTEL_SHA1
   end
-  # We must use TenFourFox or some such, because a stock system is now too outdated to
-  # download anything.  We’ll then move the downloaded tarball to “/tmp/curl.tar.gz”.
-  puts <<-_
+  downloaded_curl = "#{DOWNLOADS_DIR}#{fname}"
+  begin
+    # We must use TenFourFox or some such, because a stock system is now too outdated to
+    # download anything.  We’ll then move the downloaded tarball to “/tmp/curl.tar.gz”.
+    puts <<-_
 
 Your system will be asked to open a URL to a gzip’d tar archive.  It will
 probably try to do so using your web browser.  When the tarball finishes
 downloading, you will need to make sure it is in your Downloads folder with
 the correct name before installation can proceed.
-  _
-  wait_for_user
-  system 'open', url
-  puts <<-_
+    _
+    wait_for_user
+    system %W[open #{CURL_STASH_URL}#{fname}], true
+    puts <<-_
 
 As described above, use the Finder to make certain that the file has ended up
-in your home folder’s Downloads folder, and has this exact name:
-    curl.tar.gz
+in your home folder’s Downloads folder, and has this exact name (don’t worry,
+it will usually have the correct name by default):
+    #{_wht}#{fname}#{_rst}
 – installation cannot proceed until that file is in that location under that
 name.  DO NOT ATTEMPT TO PROCEED UNTIL IT IS IN PLACE.
-  _
-  wait_for_user
-  system 'mv', '~/Downloads/curl.tar.gz', '/tmp/curl.tar.gz'
+    _
+    wait_for_user
+  end unless File.file?(downloaded_curl)
+  system %W[cp -fp #{downloaded_curl} /tmp/curl.tar.gz]
   our_hash = `openssl sha1 /tmp/curl.tar.gz`.chomp.split(' ').last
-  abort <<-_ if our_hash != sha
+  if our_hash != sha
+    abort <<-_
 Unable to verify the integrity of the downloaded curl utility.
 The downloaded file’s SHA1 is “#{our_hash}”
 but the expected hash is “#{sha}”.
-  _
-  Dir.chdir '/tmp' { system 'tar', '-xzf', 'curl.tar.gz', '--strip', '1' }
+    _
+  end
+  Dir.chdir('/tmp') do
+    system %w[/usr/bin/tar -xzf curl.tar.gz --strip 1] unless File.file?(UNPACKED_CURL)
+    system %w[rm curl.tar.gz]
+    s = IO.read(UNPACKED_CURL).sub('#!/bin/sh', '#!/bin/bash')
+    system %W[/bin/chmod +w #{UNPACKED_CURL}]
+    f = File.open(UNPACKED_CURL, 'wb')
+    f.write(s)
+    f.close
+    system %W[/bin/chmod -w #{UNPACKED_CURL}]
+  end
 end # fetch_vendor_curl
 
 def getc
-  system '/bin/stty raw -echo'
+  system %w[/bin/stty raw -echo]
   RUBY_VERSION >= '1.8.7' ? STDIN.getbyte : STDIN.getc
 ensure
-  system '/bin/stty -raw echo'
+  system %w[/bin/stty -raw echo]
 end # getc
 
 def git
-  @git ||= (g = ENV['GIT'] and File.executable? g ? g : ((g = which 'git') ? g : nil))
+  @git ||= ((g = ENV['GIT'] and File.executable?(g)) ? g : ((g = which 'git') ? g : nil))
   return unless @git
   # Github needs git ≥ 1.7.10 for HTTPS fetches:  https://help.github.com/articles/https-cloning-errors
   `#{@git} --version` =~ /git version (\d\.\d+\.\d+)/
@@ -111,13 +141,13 @@ def macos_version
   @macos_version ||= /(\d\d\.\d+)(\.\d+)?/.match(`/usr/bin/sw_vers -productVersion`).captures.first.to_f
 end
 
-def ohai(arg, *args); puts "#{sgr(cyn, bld)}==>  #{_wht}#{arg}#{_rst}", *args; end
+def ohai(arg, *args); oho(arg); puts *args; end
 
-def oho (*args); puts "#{sgr(cyn, bld)}==>  #{_wht}#{args * ' '}#{_rst}"; end
+def oho(*args); puts "#{_bld(cyn)}==>  #{_wht}#{args * ' '}#{_rst}"; end
 
-def sudo *args; args.unshift '/usr/bin/sudo'; oho *args; system *args; end
+def sudo(*args); args.unshift '/usr/bin/sudo'; system args, true; end
 
-def system *args; abort "Failed during:  #{args * ' '}" unless Kernel.system *args; end
+def system(args, loud = false); oho *args if loud; abort "Failed during:  #{args * ' '}" unless Kernel.system *args; end
 
 def wait_for_user
   puts "\nPress the space bar to continue, or any other key to abort."; abort unless getc == 32
@@ -128,15 +158,41 @@ def which cmd
   File.join(dir, cmd) unless dir.nil?
 end
 
+def recursive_mv(src_pn, src_root, dst_root)
+  relative = src_pn.to_s.sub(%r{^#{src_root}/}, '')
+  dst_pn = dst_root/relative
+  if dst_pn.exist? and not dst_pn.symlink?
+    if src_pn.directory? and not src_pn.symlink?
+      if dst_pn.directory? and not dst_pn.symlink?  # they’re both real directories; process the children
+        src_pn.children.each{ |ch| recursive_mv(ch, src_root, dst_root) }
+      else # destination has replaced directory with a file
+        # do nothing, assume the new version is correct
+      end
+    else # source is not a directory, or at least not a real directory
+      if dst_pn.directory? and not dst_pn.symlink?  # destination has been turned into a directory
+        # do nothing, assume the new version is correct
+      else # neither source nor destination are directories, or at least not real ones
+        if src_pn.lstat.mtime > dst_pn.lstat.mtime
+          system ['mv', '-f', src_pn.to_s, dst_pn.to_s]
+        else
+          # the local version is newer, assume it is correct and do nothing
+        end
+      end
+    end
+  else
+    system ['mv', '-f', src_pn, dst_pn]
+  end
+end
+
 ####################################################################### script
 
 # Dir.chdir{&block} fails later if Dir.CWD doesn’t exist, which I guess is
 # fair enough.  Also sudo prints a warning message for no good reason.
 Dir.chdir '/usr'
 
-puts set_grcm_cumulative, sgr(rst, on_blk)
+puts set_grcm_cumulative, _rst
 
-abort "#{sgr(bld, red)}Don’t run this as root!#{_rst}" if Process.uid == 0
+abort "#{_bld(red)}Don’t run this as root!#{_rst}" if Process.uid == 0
 
 ohai 'Welcome to the Leopardbrew installer!', <<_
 
@@ -151,148 +207,169 @@ were “/usr/local” by default.)
    the many other legitimate uses of /usr/local can obfuscate contributions to
    Leopardbrew.  Instead, we recommend using either “/Users/Shared/Brewery” or
    “/usr/local/Brewery”.
+
 _
 
-do 
+begin
   puts "Where do you want your prefix?  [hit “return” to keep “#{DEFAULT_PREFIX}”]"
-  HOMEBREW_PREFIX = STDIN.gets.choke || DEFAULT_PREFIX
-until HOMEBREW_PREFIX !~ %r{^/[^/]*$}
+  pfx = STDIN.gets.choke || DEFAULT_PREFIX
+end while pfx =~ %r{^/[^/]*$}
 
-mkdir_p HOMEBREW_PREFIX unless File.exist?(HOMEBREW_PREFIX)
+pfx = Pathname.new(pfx)
 
-puts "Using “#{HOMEBREW_PREFIX}” for the prefix.\n"
+unless pfx.directory?
+  sudo '/bin/mkdir', '-p', pfx.to_s
+  sudo '/bin/chmod', 'g+rwx', pfx.to_s
+  sudo '/usr/bin/chgrp', 'admin', pfx.to_s  # /usr/local defaults to group “wheel” for some reason
+end
 
-do 
+puts "Using “#{pfx}” for the prefix.\n\n"
+
+begin
   puts "Where do you want to keep the repository?  [hit “return” to keep\n“#{DEFAULT_REPO}”]"
-  HOMEBREW_REPOSITORY = STDIN.gets.choke || DEFAULT_REPO
-until HOMEBREW_REPOSITORY !~ %r{^/[^/]*$}
+  repo = STDIN.gets.choke || DEFAULT_REPO
+end while repo =~ %r{^/[^/]*$}
 
-mkdir_p HOMEBREW_REPOSITORY unless File.exist?(HOMEBREW_REPOSITORY)
+repo = Pathname.new(repo)
 
-puts "Using “#{HOMEBREW_REPOSITORY}” for the repository."
+unless repo.directory?
+  sudo '/bin/mkdir', '-p', repo.to_s
+  sudo '/bin/chmod', 'g+rwx', repo.to_s
+  sudo '/usr/bin/chgrp', 'admin', repo.to_s  # the group may have an odd default
+end
+
+puts "Using “#{repo}” for the repository.\n\n"
 
 abort <<EOABORT unless `groups`.split.include? 'admin'
 This script may require the user #{ENV['USER']} to be an Administrator.  If
-this doesn’t work for you then you can install Homebrew in your home directory
-or however you please, but you’ll have to do it by hand.  If you still want to
-use this script, set your user to be an Administrator in System Preferences or
-`su` to a non-root user with Administrator privileges.
+this doesn’t work for you then you can install Leopardbrew in your home
+directory or however else you please, but you’ll have to do it by hand.  If
+you still want to use this script, set your user to be an Administrator in
+System Preferences or `su` to a non-root user with Administrator privileges.
 EOABORT
 
-abort <<-EOABORT unless Dir["#{HOMEBREW_REPOSITORY}/.git/*"].empty?
+abort <<-EOABORT unless Dir["#{repo}/.git/*"].empty?
 It appears some variety of ’brew is already installed.  If your intent is to
 reinstall, you should do the following before running this installer again:
-    rm -rf #{HOMEBREW_REPOSITORY}/Cellar #{HOMEBREW_REPOSITORY}/.git && brew cleanup
+    #{_wht}rm -rf #{repo}/Cellar #{repo}/.git && brew cleanup#{_rst}
+Even more importantly, before that, make sure you are not running in a brewed
+shell!
 EOABORT
 
 # Tests will fail if the prefix exists, but we don't have execution
 # permissions.  Abort in this case.
-abort <<EOABORT if File.directory? HOMEBREW_PREFIX and not File.executable? HOMEBREW_PREFIX
-The Homeprew prefix, #{HOMEBREW_PREFIX}, exists but is not searchable.  If this
+abort <<EOABORT if pfx.directory? and not pfx.executable?
+The Leopardbrew prefix, #{pfx}, exists but is not searchable.  If this
 is not intentional, please restore its permissions as follows and try running
 the installer again:
-    #{_wht}sudo chmod 755 #{HOMEBREW_PREFIX}#{_rst}
+    #{_wht}sudo chmod 755 #{pfx}#{_rst}
+If this is intentional, you will have to install Leopardbrew by hand.
 EOABORT
 
 # Tests will fail if the repository exists, but we don't have execution
 # permissions. Abort in this case.
-abort <<EOABORT if File.directory? HOMEBREW_REPOSITORY and not File.executable? HOMEBREW_REPOSITORY
-The Homeprew repository, #{HOMEBREW_REPOSITORY}, exists but is not searchable.
+abort <<EOABORT if repo.directory? and not repo.executable?
+The Leopardbrew repository, #{repo}, exists but is not searchable.
 If this is not intentional, please restore its permissions as follows and try
 running the installer again:
-    #{_wht}sudo chmod 755 #{HOMEBREW_REPOSITORY}#{_rst}
+    #{_wht}sudo chmod 755 #{repo}#{_rst}
+If this is intentional, you will have to install Leopardbrew by hand.
 EOABORT
 
 ohai 'This script will install:', <<_
 
- • #{HOMEBREW_REPOSITORY}/...
- • #{HOMEBREW_REPOSITORY}/Library/...
- • #{HOMEBREW_PREFIX}/bin/brew
- • #{HOMEBREW_PREFIX}/share/doc/homebrew
- • #{HOMEBREW_PREFIX}/share/man/man1/brew.1
+ • #{repo}/...
+ • #{repo}/Library/...
+ • #{pfx}/bin/brew
+ • #{pfx}/share/doc/homebrew
+ • #{pfx}/share/man/man1/brew.1
 (The latter three items will actually be symlinked from
-“#{HOMEBREW_REPOSITORY}”.)
+“#{repo}”.)
 _
 
-pchmods = %w(
-  . bin etc include lib lib/pkgconfig sbin share var var/log share/locale share/man share/man/man1
-  share/man/man2 share/man/man3 share/man/man4 share/man/man5 share/man/man6 share/man/man7
-  share/man/man8 share/info share/doc share/aclocal
-  ).map{ |d| "#{HOMEBREW_PREFIX}/#{d}" }.select{ |d|
-    File.directory? d and (not File.readable? d or not File.writable? d or not File.executable? d)
-  }
-pchgrps = pchmods.reject{ |d| File.stat(d).grpowned? }
+pdirs = %w[
+    . bin etc include lib lib/pkgconfig sbin share share/aclocal share/doc share/info
+    share/locale share/man share/man/man1 share/man/man2 share/man/man3 share/man/man4
+    share/man/man5 share/man/man6 share/man/man7 share/man/man8 var var/log
+  ].map{ |subdir| pfx/subdir }
 
-rchmods = %w( . bin Library share ).map{ |d| "#{HOMEBREW_REPOSITORY}/#{d}" }.select{ |d|
-    File.directory? d and (not File.readable? d or not File.writable? d or not File.executable? d)
-  }
-rchgrps = rchmods.reject{ |d| File.stat(d).grpowned? }
+pdirs.each{ |d| d.mkdir unless d.exist? }
 
-ohai 'The following directories will be made group writable:',
-  *pchmods, *rchmods unless pchmods.empty? and rchmods.empty?
+pchmods = pdirs.select{ |d| d.directory? and not (d.readable? and d.writable? and d.executable?) }
+pchgrps = pchmods.reject{ |d| d.stat.grpowned? }
 
-ohai "The following directories will have their group set to #{sgr(uln, cyn)}admin#{_rst}#{_wht}:",
-  *pchgrps, *rchgrps unless pchgrps.empty? and rchgrps.empty?
+rdirs = %w[. bin Library share].map{ |subdir| repo/subdir }
+
+rdirs.each{ |d| d.mkdir unless d.exist? }
+
+rchmods = rdirs.select{ |d| d.directory? and not (d.readable? and d.writable? and d.executable?) }
+rchgrps = rchmods.reject{ |d| d.stat.grpowned? }
+
+chmods = pchmods.concat(rchmods)
+chgrps = pchgrps.concat(rchgrps)
+
+ohai 'The following directories will be made group-writable:', *chmods unless chmods.empty?
+
+ohai "The following directories will have their group set to #{_uln(cyn)}admin#{_rst}#{_bld(wht)}:",
+  *chgrps unless chgrps.empty?
 
 wait_for_user
-
-unless File.directory? HOMEBREW_PREFIX
-  sudo "/bin/mkdir #{HOMEBREW_PREFIX}"
-  sudo "/bin/chmod g+rwx #{HOMEBREW_PREFIX}"
-  # the group is set to wheel by default for some reason
-  sudo "/usr/bin/chgrp admin #{HOMEBREW_PREFIX}"
-end
 
 sudo '/bin/chmod', 'g+rwx', *chmods unless chmods.empty?
 sudo '/usr/bin/chgrp', 'admin', *chgrps unless chgrps.empty?
 
-unless File.directory? HOMEBREW_REPOSITORY
-  sudo "/bin/mkdir #{HOMEBREW_REPOSITORY}"
-  sudo "/bin/chmod g+rwx #{HOMEBREW_REPOSITORY}"
-  # the group may be set incorrectly by default
-  sudo "/usr/bin/chgrp admin #{HOMEBREW_REPOSITORY}"
-end
-
-sudo '/bin/chmod', 'g+rwx', *rchmods unless rchmods.empty?
-sudo '/usr/bin/chgrp', 'admin', *rchgrps unless rchgrps.empty?
-
-ohai 'Downloading and Installing Homebrew...'
-Dir.chdir HOMEBREW_REPOSITORY do
+oho 'Downloading and Installing Homebrew...'
+Dir.chdir repo do
   if git
     # we do it in four steps to avoid merge errors when reinstalling
-    system git, 'init', '-q'
-    system git, 'remote', 'add', 'origin', 'https://github.com/gsteemso/leopardbrew'
+    system %W[#{git} init -q]
+    system %W[#{git} remote add origin #{GITHUB_REPO}]
 
-    args = git, 'fetch', 'origin', 'combined:refs/remotes/origin/combined', '-n'
+    args = %W[#{git} fetch origin #{GIT_FETCH_ORIGIN} -n]
     args << '--depth=1' if ARGV.include? '--fast'
-    system *args
+    system args
 
-    system git, 'reset', '--hard', 'origin/combined'
+    system %W[#{git} reset --hard origin/#{GITHUB_BRANCH}]
   else
-    curl_flags = 'fsSL'
-    # -m to stop tar erroring out if it can't modify the mtime for root owned directories
-    system "/bin/bash -c '#{curl} -#{curl_flags} https://github.com/gsteemso/leopardbrew/archive/refs/heads/combined.zip | /usr/bin/tar -xmz --strip 1'"
+    # curl -f:  Fail silently on server errors.
+    #      -s:  Silent mode (no progress reports).
+    #      -S:  ...but Show any error messages not suppressed by -f.
+    #      -L:  follow Location redirects.
+    system [curl, '-fsSL', LBREW_GITHUB_URL, '-o', GIT_ARCHIVE_NAME]
+    # unzip -K:  Keep suid/sgid/sticky mode bits.
+    #       -b:  treat all files as Binary (no text conversions).
+    #       -q:  work Quietly (don’t list files as they are unzipped).
+    system %W[/usr/bin/unzip -Kbq #{GIT_ARCHIVE_NAME}]
+    archive_dir = Pathname.new(GIT_ARCHIVE_DIR)
+    archive_dir.children.each{ |ch| recursive_mv(ch, archive_dir, repo) }
+    # rm -f:  Force removals.
+    #    -r:  remove directory hierarchies Recursively.
+    system ['rm', '-fr', GIT_ARCHIVE_NAME, GIT_ARCHIVE_DIR]
   end
-end
 
-if HOMEBREW_REPOSITORY != HOMEBREW_PREFIX
-  # need to symlink bin/*, share/doc/*, and share/man/man1/* into HOMEBREW_PREFIX
-  %w( bin share/doc share/man/man1 ).each{|p| system 'ln -s', "#{HOMEBREW_REPOSITORY}/#{p}/*", "#{HOMEBREW_PREFIX}/#{p}/"}  
-end
+  if repo != pfx
+    # need to symlink bin/*, share/doc/*, and share/man/man1/* into pfx
+    %w[bin share/doc share/man/man1].each do |d|
+      (repo/d).children.each do |ch|
+        pp = pfx/d/(ch.basename)
+        pp.unlink if pp.exist?
+        pp.make_symlink(ch.to_s)
+      end
+    end
+  end # repo ≠ pfx
+end # chdir repo
 
-warn "#{HOMEBREW_PREFIX}/bin is not in your PATH." unless ENV['PATH'].split(':').include? "#{HOMEBREW_PREFIX}/bin"
+warn "#{pfx}/bin is not in your PATH." unless ENV['PATH'].split(':').include? "#{pfx}/bin"
 
 if macos_version < 10.7
   warn 'Now install Xcode: https://developer.apple.com/xcode/' unless File.exist? '/usr/bin/cc'
 else
   `/usr/bin/cc --version 2> /dev/null` =~ %r[clang-(\d{2,})]
   version = $1.to_i
-  warn %{Install the “Command Line Tools for Xcode”:  http://connect.apple.com} if version < 425
+  warn %{Install the “Command Line Tools for Xcode”:  http://connect.apple.com} if version and version < 425
 end
 
 ohai 'Installation successful!', <<_
 You should run “brew doctor” #{_bld}before#{_rst} you install anything.
-Now type:  #{_wht}brew help#{_rst}
+Now type:    #{_wht}brew help#{_rst}
 _
-
-end
