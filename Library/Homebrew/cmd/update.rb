@@ -131,17 +131,10 @@ module Homebrew
       safe_system "git", "reset", "--hard", "origin/master"
     end
 
-    case `git remote show -n origin | fgrep 'Fetch URL:'`
-      when %r{mxcl/homebrew}
-        safe_system "git", "remote", "set-url", "origin", HOME_REPO
-        safe_system "git", "remote", "set-url", "--delete", "origin", ".*mxcl\/homebrew.*"
-      when %r{Homebrew/homebrew}
-        safe_system "git", "remote", "set-url", "origin", HOME_REPO
-        safe_system "git", "remote", "set-url", "--delete", "origin", ".*Homebrew\/homebrew.*"
-      when %r{mistydemeo/tigerbrew}
-        safe_system "git", "remote", "set-url", "origin", HOME_REPO
-        safe_system "git", "remote", "set-url", "--delete", "origin", ".*Homebrew\/homebrew.*"
-    end # case git origin fetch URL
+    if `git remote show -n origin | fgrep 'Fetch URL:'` !~ %r{leopardbrew}
+      safe_system "git", "remote", "set-url", "origin", HOME_REPO
+      safe_system "git", "remote", "set-url", "--delete", "origin", '^.*leopardbrew.*'
+    end
   rescue Exception
     FileUtils.rm_rf ".git"
     raise
