@@ -122,22 +122,22 @@ module Homebrew
   private
 
   def git_init_if_necessary
-    if Dir[".git/*"].empty?
+    begin
       safe_system "git", "init"
       safe_system "git", "config", "core.autocrlf", "false"
       safe_system "git", "config", "remote.origin.url", HOME_REPO
       safe_system "git", "config", "remote.origin.fetch", "+refs/heads/*:refs/remotes/origin/*"
       safe_system "git", "fetch", "origin"
       safe_system "git", "reset", "--hard", "origin/master"
-    end
+    rescue Exception
+      FileUtils.rm_rf ".git"
+      raise
+    end if Dir[".git/*"].empty?
 
     if `git remote show -n origin | fgrep 'Fetch URL:'` !~ %r{leopardbrew}
       safe_system "git", "remote", "set-url", "origin", HOME_REPO
       safe_system "git", "remote", "set-url", "--delete", "origin", '^.*leopardbrew.*'
     end
-  rescue Exception
-    FileUtils.rm_rf ".git"
-    raise
   end # git_init_if_necessary
 
   def rename_taps_dir_if_necessary
