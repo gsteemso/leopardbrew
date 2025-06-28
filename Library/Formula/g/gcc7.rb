@@ -11,7 +11,7 @@ class Gcc7 < Formula
   option 'without-cross-compiler', 'Don’t build the complementary compiler for building fat binaries'
   # Enabling multilib on a host that can’t run 64‐bit causes build failures.
   option 'without-multilib', 'Build without multilib support' if MacOS.prefer_64_bit?
-  option 'without-nls', 'Build without native‐language support (localization)'
+  option 'without-nls', 'Build without Natural‐Language Support (localization)'
 
   # Tiger’s stock as can’t handle the PowerPC assembly found in libitm.
   depends_on :cctools => :build if MacOS.version < '10.5'
@@ -230,7 +230,7 @@ class Gcc7 < Formula
       }
     EOS
     system bin/"gcc-#{version_suffix}", '-o', 'hello-c', 'hello-c.c'
-    for_archs './hello-c' { |_, cmd| assert_equal("Hello, world!\n", Utils.popen_read(*cmd)) }
+    for_archs('./hello-c') { |_, cmd| assert_equal("Hello, world!\n", Utils.popen_read(*cmd)) }
 
     (testpath/'hello-cc.cc').write <<-EOS.undent
       #include <iostream>
@@ -241,7 +241,7 @@ class Gcc7 < Formula
       }
     EOS
     system bin/"g++-#{version_suffix}", '-o', 'hello-cc', 'hello-cc.cc'
-    for_archs './hello-cc' { |_, cmd| assert_equal("Hello, world!\n", Utils.popen_read(*cmd)) }
+    for_archs('./hello-cc') { |_, cmd| assert_equal("Hello, world!\n", Utils.popen_read(*cmd)) }
 
     (testpath/'test.f90').write <<-EOS.undent
       integer,parameter::m=10000
@@ -255,7 +255,7 @@ class Gcc7 < Formula
       end
     EOS
     system bin/"gfortran-#{version_suffix}", '-o', 'test', 'test.f90'
-    for_archs './test' { |_, cmd| assert_equal("Done\n", Utils.popen_read(*cmd)) }
+    for_archs('./test') { |_, cmd| assert_equal("Done\n", Utils.popen_read(*cmd)) }
   end # test
 end # Gcc7
 
