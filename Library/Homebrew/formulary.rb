@@ -202,7 +202,7 @@ class Formulary
       f_path = tab.source['path']
       f_spec = tab.spec
       f = factory(f_path, f_spec) if f_path and Pathname.new(f_path).file?
-      f if f and f.version == keg.version
+      f if f and f.pkg_version.to_s == keg.version.to_s
     end
   end # Formulary::from_keg
 
