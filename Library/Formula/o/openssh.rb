@@ -144,7 +144,7 @@ class Openssh < Formula
     # case, look for where we moved it to.  (If multiple, assume the earliest version is stock.)
     if [ -L '/usr/bin/ssh' ]; then   # SOMETHING’s been done, it’s been moved.  Assume we did it, & get
                                      # the earliest version of any present that’s renamed as we would.
-      stock_version="$(ls /usr/bin/ssh-* | egrep -o '[0-9.]+p[0-9]+' | sed -E -e \
+      stock_version="$(ls /usr/bin/ssh-* | egrep -o '[0-9.]+p[0-9]+' | sed -E -e \\
                                                 's/^([0-9][.p])/0\\1/g' | sort -u | cut -d$'\\n' -f 1)"
       if [ "x$stock_version" = 'x' ]; then   # We didn’t get any hits.
         echo 'Leopardbrew cannot find your stock OpenSSH, and dares not do any reconfiguration of your'
@@ -214,7 +214,7 @@ class Openssh < Formula
     # (If multiple are present, assume we want the earliest.)
     if [ -L '/usr/bin/ssh' ]; then   # SOMETHING’s been done, it’s been moved.  Assume we did it, & get
                                      # the earliest version of any present that’s renamed as we would.
-      stock_version="$(ls /usr/bin/ssh-* | egrep -o '[0-9.]+p[0-9]+' | sed -E -e \
+      stock_version="$(ls /usr/bin/ssh-* | egrep -o '[0-9.]+p[0-9]+' | sed -E -e \\
                                                 's/^([0-9][.p])/0\\1/g' | sort -u | cut -d$'\\n' -f 1)"
       if [ "x$stock_version" = 'x' ]; then   # We didn’t get any hits.
         echo 'Leopardbrew cannot find your stock OpenSSH, and thus cannot restore your system'
@@ -227,82 +227,82 @@ class Openssh < Formula
     fi
     # At this point we know the stock version.
 
-	brewed_etc_prefix="$(brew --prefix)/etc/"
+    brewed_etc_prefix="$(brew --prefix)/etc/"
 
-	brewed_prefix="$(brew --prefix)/opt/openssh/"
+    brewed_prefix="$(brew --prefix)/opt/openssh/"
 
-	prefix_2=([0]='bin/' \\
-			  [1]='libexec/' \\
-			  [2]='sbin/' \\
-			  [3]='share/man/man1/' \\
-			  [4]='share/man/man5/' \\
-			  [5]='share/man/man8/')
-	stock_file_infix=([0]='scp sftp ssh ssh-add ssh-agent ssh-keygen ssh-keyscan' \\
-					  [1]='sftp-server ssh-keysign sshd-keygen-wrapper' \\
-					  [2]='sshd' \\
-					  [3]='scp sftp ssh ssh-add ssh-agent ssh-keygen ssh-keyscan' \\
-					  [4]='ssh_config sshd_config' \\
-					  [5]='sftp-server ssh-keysign sshd sshd-keygen-wrapper')
-	brewed_file_infix=([0]='scp sftp ssh ssh-add ssh-agent ssh-keygen ssh-keyscan' \\
-					   [1]='sftp-server ssh-keysign ssh-pkcs11-helper ssh-sk-helper sshd-session' \\
-					   [2]='sshd' \\
-					   [3]='scp sftp ssh ssh-add ssh-agent ssh-keygen ssh-keyscan' \\
-					   [4]='moduli ssh_config sshd_config' \\
-					   [5]='sftp-server ssh-keysign ssh-pkcs11-helper ssh-sk-helper sshd')
-	suffix=([3]='.1' \\
-			[4]='.5' \\
-			[5]='.8')
+    prefix_2=([0]='bin/' \\
+              [1]='libexec/' \\
+              [2]='sbin/' \\
+              [3]='share/man/man1/' \\
+              [4]='share/man/man5/' \\
+              [5]='share/man/man8/')
+    stock_file_infix=([0]='scp sftp ssh ssh-add ssh-agent ssh-keygen ssh-keyscan' \\
+                      [1]='sftp-server ssh-keysign sshd-keygen-wrapper' \\
+                      [2]='sshd' \\
+                      [3]='scp sftp ssh ssh-add ssh-agent ssh-keygen ssh-keyscan' \\
+                      [4]='ssh_config sshd_config' \\
+                      [5]='sftp-server ssh-keysign sshd sshd-keygen-wrapper')
+    brewed_file_infix=([0]='scp sftp ssh ssh-add ssh-agent ssh-keygen ssh-keyscan' \\
+                       [1]='sftp-server ssh-keysign ssh-pkcs11-helper ssh-sk-helper sshd-session' \\
+                       [2]='sshd' \\
+                       [3]='scp sftp ssh ssh-add ssh-agent ssh-keygen ssh-keyscan' \\
+                       [4]='moduli ssh_config sshd_config' \\
+                       [5]='sftp-server ssh-keysign ssh-pkcs11-helper ssh-sk-helper sshd')
+    suffix=([3]='.1' \\
+            [4]='.5' \\
+            [5]='.8')
 
     # There are two families of files.  Host keys and the like live in /etc/ssh*, while executables and
     # manpages live in /usr/*.  More than the directory trees differ – in newer OpenSSHes, the previous
     # miscellany mixed into /etc is corralled into /etc/ssh/.  Both possibilities must be accommodated.
 
-	# Step 1:  Delete symlinks to the brewed versions.
-	# Step 2:  Make new symlinks to the previously‐renamed stock versions.
+    # Step 1:  Delete symlinks to the brewed versions.
+    # Step 2:  Make new symlinks to the previously‐renamed stock versions.
 
-	for ssh_file in /etc/ssh*; do if [ -L "$ssh_file" ]; then sudo rm -f "$ssh_file"; fi; done
-	for ssh_file in /etc/ssh*; do
-	  # The previous step deleted all the symlinks we added when switching to the brewed version.
-	  # Now we need to find everything we renamed and symlink it to the original names.
-	  deversioned_file="${ssh_file%-${stock_version}}"
-	  # If they differ, $ssh_file is something we renamed from $deversioned_file.
-	  if [ "$deversioned_file" != "$ssh_file" ]; then
-		sudo ln -fs "${ssh_file##*/}" "$deversioned_file"
-	  fi
-	done
+    for ssh_file in /etc/ssh*; do if [ -L "$ssh_file" ]; then sudo rm -f "$ssh_file"; fi; done
+    for ssh_file in /etc/ssh*; do
+      # The previous step deleted all the symlinks we added when switching to the brewed version.
+      # Now we need to find everything we renamed and symlink it to the original names.
+      deversioned_file="${ssh_file%-${stock_version}}"
+      # If they differ, $ssh_file is something we renamed from $deversioned_file.
+      if [ "$deversioned_file" != "$ssh_file" ]; then
+        sudo ln -fs "${ssh_file##*/}" "$deversioned_file"
+      fi
+    done
 
-	declare -i i=0
-	while [ $i -le $((5)) ]; do
-	  for infix in ${brewed_file_infix[$i]}; do
-		brewed_file="$brewed_prefix${prefix_2[$i]}$infix${suffix[$i]}"
-		link_file="/usr/${prefix_2[$i]}$infix${suffix[$i]}"
-		if [ -L "$link_file" ] && [ "$(readlink "$link_file")" = "$brewed_file" ]; then
-		  sudo rm -f "$link_file"
-		fi
-	  done
-	  for infix in ${stock_file_infix[$i]}; do
-		link_file="/usr/${prefix_2[$i]}$infix${suffix[$i]}"
-		moved_file="/usr/${prefix_2[$i]}${infix}-${stock_version}${suffix[$i]}"
-		if [ "x${suffix[$i]}" != 'x' ] && [ -e "${moved_file}.gz" ]; then   # Compressed manpages?
-		  link_file="${link_file}.gz"
-		  moved_file="${moved_file}.gz"
-		fi
-		if [ -e "$moved_file" ] && ! [ -L "$link_file" ]; then   # Verify not already replaced.
-		  sudo ln -fs "${moved_file##*/}" "$link_file"
-		fi
-	  done
-	  let i=$(($i + 1))
-	done
-	sudo ln -fs "ssh-${stock_version}" '/usr/bin/slogin'
-	if [ -e '/usr/share/man/man1/ssh.1.gz' ]; then
-	  if [ -L '/usr/share/man/man1/slogin.1' ]; then sudo rm -f '/usr/share/man/man1/slogin.1'; fi
-	  sudo ln -fs "ssh-${stock_version}.1.gz" '/usr/share/man/man1/slogin.1.gz'
-	else
-	  sudo ln -fs "ssh-${stock_version}.1" '/usr/share/man/man1/slogin.1'
-	fi
+    declare -i i=0
+    while [ $i -le $((5)) ]; do
+      for infix in ${brewed_file_infix[$i]}; do
+        brewed_file="$brewed_prefix${prefix_2[$i]}$infix${suffix[$i]}"
+        link_file="/usr/${prefix_2[$i]}$infix${suffix[$i]}"
+        if [ -L "$link_file" ] && [ "$(readlink "$link_file")" = "$brewed_file" ]; then
+          sudo rm -f "$link_file"
+        fi
+      done
+      for infix in ${stock_file_infix[$i]}; do
+        link_file="/usr/${prefix_2[$i]}$infix${suffix[$i]}"
+        moved_file="/usr/${prefix_2[$i]}${infix}-${stock_version}${suffix[$i]}"
+        if [ "x${suffix[$i]}" != 'x' ] && [ -e "${moved_file}.gz" ]; then   # Compressed manpages?
+          link_file="${link_file}.gz"
+          moved_file="${moved_file}.gz"
+        fi
+        if [ -e "$moved_file" ] && ! [ -L "$link_file" ]; then   # Verify not already replaced.
+          sudo ln -fs "${moved_file##*/}" "$link_file"
+        fi
+      done
+      let i=$(($i + 1))
+    done
+    sudo ln -fs "ssh-${stock_version}" '/usr/bin/slogin'
+    if [ -e '/usr/share/man/man1/ssh.1.gz' ]; then
+      if [ -L '/usr/share/man/man1/slogin.1' ]; then sudo rm -f '/usr/share/man/man1/slogin.1'; fi
+      sudo ln -fs "ssh-${stock_version}.1.gz" '/usr/share/man/man1/slogin.1.gz'
+    else
+      sudo ln -fs "ssh-${stock_version}.1" '/usr/share/man/man1/slogin.1'
+    fi
 
-	echo 'Invocations of SSH, and/or its various ancillary tools, shall henceforth use the'
-	echo 'stock versions.'
+    echo 'Invocations of SSH, and/or its various ancillary tools, shall henceforth use the'
+    echo 'stock versions.'
 
     if ! [ -d "$(brew --cellar)/openssh" ]; then sudo rm -f $(brew --prefix)/bin/to-*-openssh; fi
   _

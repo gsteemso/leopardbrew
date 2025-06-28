@@ -15,12 +15,12 @@ class Bash < Formula
   FRO = HOMEBREW_PREFIX/'bin/to-stock-bash'
 
   option :universal
-  option 'without-nls', 'Brew without internationalization support'
+  option 'without-nls', 'Brew without Natural Language Support (internationalization)'
 
   depends_on SelfUnbrewedRequirement.new(SYSTEM_BASH, MOVED_BASH, 'to-stock-bash')
   depends_on 'bison' => :build
   depends_on 'readline'
-  depends_on 'gettext' if build.with? 'nls'
+  depends_on :nls => :recommended
 
   # the circumstances that led to this patch were not recorded
   patch :DATA

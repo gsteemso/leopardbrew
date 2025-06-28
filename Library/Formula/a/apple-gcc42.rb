@@ -194,6 +194,8 @@ class AppleGcc42 < Formula
       fi
       if [ -e "$Target" ]; then sudo ln -fs "$Target" "$Link"; fi
     done
+
+	echo 'Invocations of Apple GCC 4.2 and its ancillary parts shall henceforth use the brewed versions.'
     _
   end # switch_to
 
@@ -244,6 +246,8 @@ class AppleGcc42 < Formula
         sudo ln -fs$v "${Link##*/}.#{stock_apple_gcc42_build}" "$Link"
       fi
     done
+
+	echo 'Invocations of Apple GCC 4.2 and its ancillary parts shall henceforth use the stock versions.'
 
     if ! [ -e "#{HOMEBREW_CELLAR}/apple-gcc42" ]; then
       for Script in "${Disembrew_Scripts[@]}"; do rm -f$v "$Script"; done
