@@ -85,7 +85,7 @@ class Ld64128ppc < Formula
     system 'make'
     if build.with? 'tests'
       ENV['as_nl'] = 'fake' if superenv?  # disable argument refurbishment even for Make
-      without_archflags { system 'make', '-j1', 'check' }
+      ENV.without_archflags { system 'make', '-j1', 'check' }
       ENV.delete('as_nl')
     end
     raise;

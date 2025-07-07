@@ -36,7 +36,7 @@ class GasPreprocessor < Formula
            'does not appear to be installed.'
       return false
     end
-    without_archflags do
+    ENV.without_archflags do
       system "#{bin}/gas-preprocessor.pl", '-as-type', 'gas', '--', armcc, '-arch', 'arm', '-c',
                                                                   "#{prefix}/test.S", '-o', 'test.o'
       system objdump, '-d', 'test.o', '>', 'disasm'
