@@ -139,8 +139,9 @@ class Cmd
       '-fno-for-scope', '-fno-tree-pre', '-fno-tree-dominator-opts', '-fuse-linker-plugin'
       # clang doesn't support these flags
       refurb_arg_parts << arg unless tool =~ /^clang/
-    when '-Wno-deprecated-register', /^-Wno-error=.+/, '-Wno-format-truncation',
-      '-Wno-implicit-fallthrough', '-Wno-shift-negative-value', '-Wno-unused-result', '-Wvla'
+    when '-Wno-array-bounds', '-Wno-deprecated-register', /^-Wno-error=.+/, '-Wno-format-truncation',
+      '-Wno-implicit-fallthrough', '-Wno-invalid-source-encoding', '-Wno-shift-negative-value',
+      '-Wno-unused-result', '-Wvla'
       # older gccs don't support these flags
       refurb_arg_parts << arg unless tool =~ /^g..-4.[02]/
     when /^-W[alp],/, /^-Wno-/
