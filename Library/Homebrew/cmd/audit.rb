@@ -516,16 +516,6 @@ class FormulaAuditor
         problem "stable and devel versions are identical"
       end
     end
-
-    stable = formula.stable
-    case stable && stable.url
-    when %r{download\.gnome\.org/sources}, %r{ftp\.gnome\.org/pub/GNOME/sources}i
-      minor_version = Version.parse(stable.url).to_s.split('.', 3)[1].to_i
-
-      if minor_version.odd?
-        problem "#{stable.version} is a development release"
-      end
-    end
   end # FormulaAuditor#audit_specs
 
   def audit_legacy_patches
