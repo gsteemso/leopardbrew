@@ -11,6 +11,8 @@ class CPU
       :arm     => [:arm64, :arm64e],
     }.freeze
 
+    KNOWN_TYPES = [:powerpc, :intel, :arm].freeze
+
     # TODO:  Properly account for optflags under Clang
     MODEL_FLAGS = { # bits  type      arch    btl. mdl.  GCC?    GCC optflags
       :g3          => [32, :powerpc, :ppc,     :g3,      4.0,   '-mcpu=750'],
@@ -38,6 +40,8 @@ class CPU
     }.freeze
 
     def known_archs; KNOWN_ARCHS.values.flatten; end
+
+    KNOWN_TYPES.each { |t| define_method("#{t}?") { type == t } }
 
     def known_models; MODEL_FLAGS.keys; end
 
@@ -95,6 +99,8 @@ class CPU
       end
     end # CPU⸬oldest
 
+    def is_native_arch?(a); _64b? ? (type == type_of(a)) : (_32b_arch == a); end
+
   # Many of the following use things spewed out by sysctl.  See <sys/sysctl.h>
   # for sysctl keys along with some related constants, and <mach/machine.h> for
   # constants associated with Mach‐O CPU encoding.
@@ -107,10 +113,6 @@ class CPU
                   else :dunno
                 end
     end # CPU⸬type
-
-    KNOWN_TYPES = [:powerpc, :intel, :arm].freeze
-
-    KNOWN_TYPES.each { |t| define_method("#{t}?") { type == t } }
 
     def model
       case type
@@ -197,11 +199,10 @@ class CPU
       end
     end # CPU⸬_64b_arch
 
-    # These return arrays extended with ArchitectureListExtension, which gives
-    # helpers like #as_arch_flags and #as_cmake_arch_flags.  Note that building
-    # 64-bit is barely possible and of questionable utility (and sanity) on
-    # Tiger, and unevenly supported on Leopard.  Don't even try unless 64‐bit
-    # builds are enabled, which they generally aren’t prior to Leopard.
+    # These return arrays extended with ArchitectureListExtension, which gives helpers like
+    # #as_arch_flags and #as_cmake_arch_flags.  Note that building 64-bit is barely possible and of
+    # questionable utility (and sanity) on Tiger, and unevenly supported on Leopard.  Don’t even
+    # try unless 64‐bit builds are enabled, which they generally aren’t prior to Leopard.
     def all_32b_archs; [:i386, :ppc].extend ArchitectureListExtension; end
     def _64b_archs_1; [:ppc64, :x86_64].extend ArchitectureListExtension; end
     def _64b_archs_2; [:arm64e, :x86_64h].extend ArchitectureListExtension; end
@@ -209,9 +210,8 @@ class CPU
     def quad_fat_archs; (all_32b_archs + _64b_archs_1).extend ArchitectureListExtension; end
     def all_archs; (all_32b_archs + all_64b_archs).extend ArchitectureListExtension; end
     def local_archs
-      ( if MacOS.version <= '10.5' and not MacOS.prefer_64_bit? then [_32b_arch]
-        elsif MacOS.version >= '10.7' then [_64b_arch]
-        else [_32b_arch, _64b_arch]; end
+      ((MacOS.version <= '10.5' and not MacOS.prefer_64_bit?) ? [_32b_arch] \
+        : (MacOS.version >= '10.7' ? [_64b_arch] : [_32b_arch, _64b_arch])
       ).extend ArchitectureListExtension
     end # CPU⸬local_archs
     def cross_archs
