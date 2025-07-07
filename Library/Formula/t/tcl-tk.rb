@@ -15,8 +15,10 @@ class TclTk < Formula
   option "without-tcllib", "Don't build tcllib (utility modules)"
   option "without-tk", "Don't build the Tk (window toolkit)"
 
-  depends_on :x11 if MacOS.version < :snow_leopard
-  depends_on "pkg-config" => :build if build.with? "x11"
+  if MacOS.version < :snow_leopard
+    depends_on "pkg-config" => :build
+    depends_on :x11
+  end
   depends_on "sqlite"
   depends_on "zlib"
 
