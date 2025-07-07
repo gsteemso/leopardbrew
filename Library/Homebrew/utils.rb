@@ -115,17 +115,6 @@ ensure
   ENV["HOMEBREW_DEVELOPER"] = old
 end # run_as_not_developer
 
-def without_archflags
-  ENV.clear_compiler_archflags
-  arch_flags = ENV.delete 'HOMEBREW_ARCHFLAGS' if superenv?
-  begin
-    yield
-  ensure
-    ENV.set_compiler_archflags
-    ENV['HOMEBREW_ARCHFLAGS'] = arch_flags if superenv?
-  end if block_given?
-end # without_archflags
-
 # Kernel.system but with exceptions
 def safe_system(cmd, *args)
   Homebrew.system(cmd, *args) or raise(ErrorDuringExecution.new(cmd, args))

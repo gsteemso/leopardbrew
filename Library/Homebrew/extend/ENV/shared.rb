@@ -179,7 +179,7 @@ module SharedEnvExtension
 
   def supports_cxx14?; cc =~ GNU_CXX14_REGEXP or cc =~ /clang/; end
 
-  def building_pure_64_bit?; build_archs.all?{ |a| a.to_s =~ %r{64} }; end
+  def building_pure_64_bit?; build_archs.all?{ |a| a.to_s =~ /64/ }; end
 
   # Snow Leopard defines an NCURSES value the opposite of most distros.
   # See: https://bugs.python.org/issue6848
@@ -196,7 +196,7 @@ module SharedEnvExtension
   # conditions.  When passed a block, $MAKEFLAGS is altered only within the block, being restored
   # on its completion.
   def deparallelize
-    old = self['MAKEFLAGS']; j_rex = /(-\w*j)\d+/
+    old = self['MAKEFLAGS']; j_rex = %r{(-\w*j)\d+}
     if old =~ j_rex then self['MAKEFLAGS'] = old.sub(j_rex, '\11')
     else append 'MAKEFLAGS', '-j1'; end
     begin; yield; ensure; self['MAKEFLAGS'] = old; end if block_given?
@@ -257,7 +257,7 @@ module SharedEnvExtension
   # @private
   def ld64
     ld64 = Formulary.factory('ld64')
-    self['LD'] = ld64.bin/'ld'
+    self['LD'] = "#{ld64.bin}/ld"
     append 'LDFLAGS', "-B#{ld64.bin}/"
   end
 
@@ -298,9 +298,23 @@ module SharedEnvExtension
     clear_compiler_archflags
     @build_archs = archset
     self['HOMEBREW_BUILD_ARCHS'] = archset.as_build_archs
+    self['CMAKE_OSX_ARCHITECTURES'] = archset.as_cmake_arch_flags
     set_compiler_archflags archset.as_arch_flags
     archset
   end # set_build_archs
+
+  def without_archflags
+    clear_compiler_archflags
+    arch_flags = delete 'HOMEBREW_ARCHFLAGS' if superenv?
+    cmake_archs = delete 'CMAKE_OSX_ARCHITECTURES'
+    begin
+      yield
+    ensure
+      set_compiler_archflags
+      self['HOMEBREW_ARCHFLAGS'] = arch_flags if superenv?
+      self['CMAKE_OSX_ARCHITECTURES'] = cmake_archs
+    end if block_given?
+  end # without_archflags
 
   def clear_compiler_archflags
     CPU.all_archs.each{ |arch| remove COMPILER_VARS, "-arch #{arch}" }
@@ -315,13 +329,12 @@ module SharedEnvExtension
     set_build_archs CPU.select_32b_archs(@build_arch_stash)
   end
 
-  def un_m32; set_build_archs @build_arch_stash; @build_arch_stash = nil; end
-
   def m64
     @build_arch_stash ||= build_archs
     set_build_archs CPU.select_64b_archs(@build_arch_stash)
   end
 
+  def un_m32; set_build_archs @build_arch_stash; @build_arch_stash = nil; end
   def un_m64; set_build_archs @build_arch_stash; @build_arch_stash = nil; end
 
   private

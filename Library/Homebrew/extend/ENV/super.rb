@@ -223,21 +223,22 @@ module Superenv
   def set_build_archs(archset)
     archset = super
     self['HOMEBREW_ARCHFLAGS'] = archset.as_arch_flags
-    self['CMAKE_OSX_ARCHITECTURES'] = archset.as_cmake_arch_flags
-    # GCC doesn’t accept “-march” for a 32-bit CPU with “-arch x86_64”
-    self['HOMEBREW_OPTFLAGS'] = self['HOMEBREW_OPTFLAGS'].sub(/-march=\S*/,
-                                                              '-Xarch_i386 \0') \
-                            if compiler != :clang and archset.includes? :x86_64
+    self['HOMEBREW_OPTFLAGS'] = ''
+    archset.each do |a|
+      mdl = (CPU.is_native_arch?(a) ? CPU.model : CPU.oldest(a))
+      CPU.optimization_flags(mdl, compiler_version).split(' ').each do |fl|
+        append 'HOMEBREW_OPTFLAGS', "-Xarch_#{a} #{fl}"
+      end
+    end
   end # set_build_archs
 
-  # This filters the build archs to the 32‐bit ones via set_build_archs
+  # Super filters the build archs to the 32‐bit ones via set_build_archs.
   def m32; super; append 'HOMEBREW_ARCHFLAGS', '-m32'; end
 
-  def un_m32; super; remove 'HOMEBREW_ARCHFLAGS', '-m32'; end
-
-  # This filters the build archs to the 64‐bit ones via set_build_archs
+  # Super filters the build archs to the 64‐bit ones via set_build_archs.
   def m64; super; append 'HOMEBREW_ARCHFLAGS', '-m64'; end
 
+  def un_m32; super; remove 'HOMEBREW_ARCHFLAGS', '-m32'; end
   def un_m64; super; remove 'HOMEBREW_ARCHFLAGS', '-m64'; end
 
   def cxx11

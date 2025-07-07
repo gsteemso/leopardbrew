@@ -209,26 +209,6 @@ module Stdenv
   # we've seen some packages fail to build when warnings are disabled!
   def enable_warnings; remove_from_cflags "-w"; end
 
-  def m32
-    super  # This filters the build archs to the 32‐bit ones
-    append_to_cflags "-m32"
-  end
-
-  def un_m32
-    super  # this restores all the build archs
-    remove_from_cflags '-m32'
-  end
-
-  def m64
-    super  # This filters the build archs to the 64‐bit ones
-    append_to_cflags "-m64"
-  end
-
-  def un_m64
-    super  # this restores all the build archs
-    remove_from_cflags '-m64'
-  end
-
   def set_build_archs(archset)
     archset = super
     CPU.all_archs.each { |arch| remove_from_cflags "-arch #{arch}" }
@@ -236,9 +216,18 @@ module Stdenv
     append "LDFLAGS", archset.as_arch_flags
     self['CMAKE_OSX_ARCHITECTURES'] = archset.as_cmake_arch_flags
     # GCC won’t mix “-march” for a 32-bit CPU with “-arch x86_64”
-    replace_in_cflags(/-march=\S*/, '-Xarch_i386 \0') \
-                            if compiler != :clang and archset.includes? :x86_64
+    replace_in_cflags(/-march=\S*/, '-Xarch_i386 \0') if compiler != :clang and archset.includes? :x86_64
   end # set_build_archs
+
+  # Super filters the build archs to the 32‐bit ones via set_build_archs.
+  def m32; super; append_to_cflags "-m32"; end
+
+  # Super filters the build archs to the 64‐bit ones via set_build_archs.
+  def m64; super; append_to_cflags "-m64"; end
+
+  # Super restores the filtered‐out build archs via set_build_archs.
+  def un_m32; super; remove_from_cflags '-m32'; end
+  def un_m64; super; remove_from_cflags '-m64'; end
 
   def cxx11
     if compiler == :clang
