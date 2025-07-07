@@ -1,6 +1,14 @@
 # Interesting Taps & Branches
-A Tap is homebrew-speak for a git repository containing extra formulae.
-Tigerbrew has the capability to add (and remove) multiple taps to your local installation with the `brew tap` and `brew untap` command. Type `man brew` in your Terminal. The main repository https://github.com/mistydemeo/tigerbrew often called "mistydemeo/tigerbrew" is always built-in.
+
+A Tap is Homebrew-speak for a git repository containing extra formulae.
+
+Leopardbrew has the capability to add (and remove) multiple taps to your local installation with
+the `brew tap` and `brew untap` commands.  Type `man brew` in your Terminal.  The main repository
+https://github.com/gsteemso/leopardbrew (“gsteemso/leopardbrew” for short) is always built-in.
+
+Note that the vast majority of these will yield few or no useable formulæ, because hardly anyone
+supports PowerPC Macs any more.  It’s fair enough, they *have* been discontinued for 20 years as of
+this writing.
 
 ## Main Taps
 
@@ -8,16 +16,17 @@ Tigerbrew has the capability to add (and remove) multiple taps to your local ins
     - A collection of scientific libraries and tools.
 
 *   [homebrew/dupes](https://github.com/Homebrew/homebrew-dupes)
-    - Need GDB or a newer Tk? System duplicates go here.
+    - Need GDB or a newer Tk?  System duplicates go here.
 
 *   [homebrew/versions](https://github.com/Homebrew/homebrew-versions)
-    - Need e.g. older or newer versions of Postgresql? Older versions of GCC?
+    - Need e.g. older or newer versions of Postgresql?  Older versions of GCC?
 
 *   [homebrew/games](https://github.com/Homebrew/homebrew-games)
     - Game or gaming-emulation related formulae.
 
 *   [homebrew/apache](https://github.com/Homebrew/homebrew-apache)
-    - A tap for Apache modules, extending OS X's built-in Apache. These brews may require unconventional additional setup, as explained in the caveats.
+    - A tap for Apache modules, extending Mac OS’ built-in Apache.  These brews may require
+    unconventional additional setup, as explained in the caveats.
 
 *   [homebrew/head-only](https://github.com/Homebrew/homebrew-head-only)
     - A tap for brews that only have unstable, unreleased versions.
@@ -49,22 +58,24 @@ Tigerbrew has the capability to add (and remove) multiple taps to your local ins
 *   [homebrew/brewdler](https://github.com/Homebrew/homebrew-brewdler)
     - A Bundler-equivalent for installing project dependencies from Homebrew.
 
-
-`brew search` looks in these main taps and as well in [mistydemeo/tigerbrew](https://github.com/mistydemeo/tigerbrew). So don't worry about missing stuff. We will add other taps to the search as they become well maintained and popular.
-
-You can be added as a maintainer for one of the Homebrew organization taps and aid the project! If you are interested write to our list: homebrew@librelist.com. We want your help!
+`brew search` does not look in any of these taps, only in
+[gsteemso/leopardbrew](https://github.com/gsteemso/leopardbrew), so you can be at least somewhat
+confident that what you download will build successfully.  We may add taps back into the search if
+any with working formulæ come to our attention.
 
 
 ## Other Interesting Taps
 
 *   [osx-cross/avr](https://github.com/osx-cross/homebrew-avr)
-    - GNU AVR toolchain (Libc, compilers and other tools for Atmel MCUs, useful for Arduino hackers and AVR programmers).
+    - GNU AVR toolchain (Libc, compilers and other tools for Atmel MCUs, useful for Arduino hackers
+    and AVR programmers).
 
 *   [titanous/gnuradio](https://github.com/titanous/homebrew-gnuradio)
-    -  GNU Radio and friends running on OS X.
+    -  GNU Radio and friends running on Mac OS.
 
 *   [besport/ocaml](https://github.com/besport/homebrew-ocaml)
-    - A tap for Ocaml libraries, though with caveats, it requires you install its customized ocaml formula. Perhaps a template for more work.
+    - A tap for Ocaml libraries, though with caveats, it requires you install its customized ocaml
+    formula.  Perhaps a template for more work.
 
 *   [petere/postgresql](https://github.com/petere/homebrew-postgresql)
     - Allows installing multiple PostgreSQL versions in parallel.
@@ -76,21 +87,22 @@ You can be added as a maintainer for one of the Homebrew organization taps and a
     - A tap for Emacs packages.
 
 *   [InstantClientTap/instantclient](https://github.com/InstantClientTap/homebrew-instantclient)
-    - A tap for Oracle Instant Client. The packages need to be downloaded manually.
+    - A tap for Oracle Instant Client.  The packages need to be downloaded manually.
 
 ## Interesting Branches (aka forks)
 
 *   [mistydemeo/tigerbrew](https://github.com/mistydemeo/tigerbrew)
-    - Experimental Tiger PowerPC version
+    - Experimental Tiger PowerPC version.  The ancestor of Leopardbrew, this version does not focus
+    on 64-bit builds to anywhere near the same extent.
 
 *   [homebrew/linuxbrew](https://github.com/Homebrew/linuxbrew)
     - Experimental Linux version
 
 *   [wilmoore/homebrew-home](https://github.com/wilmoore/homebrew-home)
-    - Tigerbrew install for those that like to Tigerbrew @ $HOME (i.e. ~/.homebrew).
+    - Homebrew install for those that like to Homebrew @ $HOME (i.e. ~/.homebrew).
 
 *   [nddrylliog/homebrew-mingw](https://github.com/nddrylliog/homebrew-mingw)
-    - An experimental port of Tigerbrew for Windows (with an MSYS/MinGW environment).
+    - An experimental port of Homebrew for Windows (with an MSYS/MinGW environment).
 
 
 ## Technical Details

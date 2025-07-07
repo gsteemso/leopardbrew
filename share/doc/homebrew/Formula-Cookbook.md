@@ -1,36 +1,38 @@
 # Formula Cookbook
-Making a formula is easy. Just `brew create URL` and then `brew install $FORMULA` (perhaps with `--debug --verbose`). Basically, a formula is a Ruby file. You can place it anywhere you want (local or remote) and install it by pointing to the file or URL.
+Making a formula is easy.  Just `brew create URL` and then `brew install $FORMULA` (perhaps with
+`--debug --verbose`).  Basically, a formula is a Ruby file.  You can place it anywhere you want
+(local or remote) and install it by pointing to the file or URL.
 
 We want your formula to be awesome, and the cookbook will tell you how.
 
-## Terminology - Tigerbrew speak
+## Terminology - Leopardbrew speak
 
 <table>
   <tbody>
     <tr>
       <th>Formula</th>
       <td>The package definition</td>
-      <td><code>/usr/local/Library/Formula/foo.rb</code></td>
+      <td><code>$(brew --repository)/Library/Formula/foo.rb</code></td>
     </tr>
     <tr>
       <th>Keg</th>
       <td>The installation prefix of a Formula</td>
-      <td><code>/usr/local/Cellar/foo/0.1</code></td>
+      <td><code>$(brew --cellar)/foo/0.1</code></td>
     </tr>
     <tr>
       <th>opt prefix</th>
       <td>A symlink to the active version of a keg</td>
-      <td><code>/usr/local/opt/foo</code></td>
+      <td><code>$(brew --prefix)/opt/foo</code></td>
     </tr>
     <tr>
       <th>Cellar</th>
       <td>All kegs are installed here</td>
-      <td><code>/usr/local/Cellar</code></td>
+      <td><code>$(brew --cellar)</code></td>
     </tr>
     <tr>
       <th>Tap</th>
-      <td>An optional repository (git) of Formulae</td>
-      <td><code>/usr/local/Library/Taps</code></td>
+      <td>An optional repository (git) of Formulæ</td>
+      <td><code>$(brew --repository)/Library/Taps</code></td>
     </tr>
     <tr>
       <th>Bottle</th>
@@ -40,48 +42,61 @@ We want your formula to be awesome, and the cookbook will tell you how.
   </tbody>
 </table>
 
-_More general: `brew --prefix` and `brew --repository` instead of `/usr/local` but lets KISS._
-
+$(brew --prefix) will almost always be `/usr/local`, but $(brew repository) is more flexible, and
+the Cellar may be found in either one of them.  This way you know what is actually being looked at.
 
 ## An Introduction
 
-Did you see `/usr/local/.git`? Tigerbrew is built on Git. This means you can just do your work in `/usr/local` and merge in upstream changes as you go.
+Did you see `$(brew --repository)/.git`?  Leopardbrew is built on Git.  This means you can just do
+your work in `/usr/local` and merge in upstream changes as you go.
 
-Tigerbrew installs to the `Cellar`, it then symlinks some of the installation into `/usr/local` so that other programs can see what's going on. We suggest you `brew ls` a few of the kegs in your Cellar to see how it is all arranged.
+Leopardbrew installs to the `Cellar`, it then symlinks some of the installation into `/usr/local`
+so that other programs can see what's going on.  We suggest you `brew ls` a few of the kegs in your
+Cellar to see how it is all arranged.
 
-Packages are installed according to their formulae, which live in `$(brew --repository)/Library/Formula`. Check some out. You can view any formula at anytime; e.g. `brew edit wget`.
-
-
+Packages are installed according to their formulæ, which live in
+`$(brew --repository)/Library/Formula`.  Check some out.  You can view any formula at anytime; e.g.
+`brew edit wget`.
 
 # Basic Instructions
 
-Make sure you run `brew update` before you start. This turns your Tigerbrew installation into a Git repository.
+Make sure you run `brew update` before you start.  This turns your Leopardbrew installation into a
+Git repository.
 
 Before contributing, make sure your package:
 
-*   meets all our [Acceptable Formulae](Acceptable-Formulae.md) requirements
-*   isn't already in Tigerbrew (check `brew search $FORMULA`)
-*   isn't in another [Homebrew tap](https://github.com/Homebrew)
-*   isn't already waiting to be merged (check the [issue tracker](https://github.com/mistydemeo/tigerbrew/issues))
-*   is still supported by upstream
-*   has a stable, tagged version (i.e. not just a GitHub repository with no versions). See [Interesting-Taps-&-Branches](Interesting-Taps-&-Branches.md) for where pre-release and head-only versions belong.
+* Meets all our [Acceptable Formulæ](Acceptable-Formulae.md) requirements.
+* Isn’t already in Leopardbrew (check `brew search $FORMULA`).
+* Isn’t in another [Homebrew tap](https://github.com/Homebrew).
+* Isn’t already waiting to be merged (check the
+  [issue tracker](https://github.com/gsteemso/leopardbrew/issues))
+* Is still supported by upstream.
+* Has a stable, tagged version (i.e. not just a GitHub repository with no versions).  See
+  [Interesting-Taps-&-Branches](Interesting-Taps-&-Branches.md) for where pre-release and head-only
+  versions belong.
 
-Make sure you search thoroughly (all aliases!). We don’t want you to waste your time.
+Make sure you search thoroughly (all aliases!).  We don’t want you to waste your time.
 
-Be sure to look over the [contributing guidelines](https://github.com/mistydemeo/tigerbrew/blob/master/CONTRIBUTING.md) as well.
-
+Be sure to look over the
+[contributing guidelines](https://github.com/gsteemso/leopardbrew/blob/master/CONTRIBUTING.md) as
+well.
 
 ## Will we merge your formula?
 
-Probably. But we have rules to keep the quality and goals of Tigerbrew intact: Please read [Acceptable Formulae](Acceptable-Formulae.md).
+Probably.  But we have rules to keep the quality and goals of Leopardbrew intact:  Please read
+[Acceptable Formulæ](Acceptable-Formulae.md).
 
 ## Some Quick Examples Before You Get Started
 
-Formulae aren’t that complicated. [etl](https://github.com/mistydemeo/tigerbrew/blob/master/Library/Formula/etl.rb) is as simple as it gets.
+Formulæ aren’t that complicated.
+[etl](https://github.com/gsteemso/leopardbrew/blob/master/Library/Formula/e/etl.rb) is as simple as
+it gets.
 
-And then [Git](http://github.com/mistydemeo/tigerbrew/tree/master/Library/Formula/git.rb) and [flac](http://github.com/mistydemeo/tigerbrew/tree/master/Library/Formula/flac.rb) show more advanced functionality.
+And then [Git](http://github.com/gsteemso/leopardbrew/tree/master/Library/Formula/g/git.rb) and
+[flac](http://github.com/gsteemso/leopardbrew/tree/master/Library/Formula/f/flac.rb) show more
+advanced functionality.
 
-Refer to the [Formula class API documentation](http://www.rubydoc.info/github/Homebrew/homebrew/master/frames) which shows all the stuff you can use in a Formula.
+Refer to the Formula class API documentation which shows all the stuff you can use in a Formula.
 
 ## Grab the URL
 
@@ -91,9 +106,9 @@ All you need to make a formula is a URL to the tarball.
 
 This creates:
 
-`$HOMEBREW_REPOSITORY/Library/Formula/foo.rb`
+`$HOMEBREW_REPOSITORY/Library/Formula/f/foo.rb`
 
-And opens it in your `$EDITOR`. It'll look like:
+And opens it in your `$EDITOR`. It’ll look like:
 
 ```ruby
 class Foo < Formula
@@ -111,17 +126,20 @@ class Foo < Formula
 end
 ```
 
-**Note:**  If `brew` said `Warning: Version cannot be determined from URL` when doing the `create` step, you’ll need to explicitly add the correct version to the formula with `version "foo"` **and then save the formula**. `brew install` should then proceed without any trouble.
+**Note:**  If `brew` said `Warning: Version cannot be determined from URL` when doing the `create`
+step, you’ll need to explicitly add the correct version to the formula with `version "foo"` **and
+then save the formula**.  `brew install` should then proceed without any trouble.
 
-**Note:** If `brew` said `No formula found for "php54-timezonedb". Searching open pull requests...` and you are writing a Tap, you should run `brew tap --repair`.
+**Note:** If `brew` said `No formula found for "php54-timezonedb".  Searching open pull requests...`
+and you are writing a Tap, you should run `brew tap --repair`.
 
 ## Fill in the Homepage
 
-**We don’t accept formulae without homepages!**
+**We don’t accept formulæ without homepages!**
 
-SSL/TLS (https) homepage is preferred, if one is available.
+An SSL/TLS (https) homepage is preferred, if one is available.
 
-Tigerbrew now has a description field (`desc`). Try and summarize this from the homepage.
+Leopardbrew has a description field (`desc`).  Try and summarize this from the homepage.
 
 ## Check the build system
 
@@ -129,12 +147,15 @@ Tigerbrew now has a description field (`desc`). Try and summarize this from the 
 
 You’re now at new prompt with the tarball extracted to a temporary sandbox.
 
-Check the package’s `README`. Does the package install with `autotools`, `cmake`, or something else? Delete the commented out cmake lines if the package uses autotools (i.e. if it has a `configure` script).
-
+Check the package’s `README`.  Does the package install with `autotools`, `cmake`, or something
+else?  Delete the commented out cmake lines if the package uses autotools (i.e. if it has a
+`configure` script).
 
 ## Check for dependencies
 
-The `README` probably tells you about dependencies. Tigerbrew or OS X probably already has them. You can check for Tigerbrew deps with `brew search`. These are the common deps that OS X comes with:
+The `README` probably tells you about dependencies.  Leopardbrew or Mac OS probably already has
+them.  You can check for Leopardbrew deps with `brew search`.  These are the common deps that Mac
+OS comes with:
 
 * `libexpat`
 * `libGL`
@@ -144,20 +165,36 @@ The `README` probably tells you about dependencies. Tigerbrew or OS X probably a
 * `Python`
 * `Ruby`
 
-There are plenty of others. Check `/usr/lib` to see.
+There are plenty of others.  Check `/usr/lib` to see.
 
-We try to not duplicate libraries and complicated tools in core Tigerbrew. We dupe some common tools though. But generally, we avoid dupes because it’s one of Tigerbrew’s foundations. (And it causes build and usage problems!)
+We try to not duplicate libraries and complicated tools in core Leopardbrew.  We dupe some common
+tools though.  But generally, we avoid dupes because it’s one of Leopardbrew’s foundations.  (And
+it causes build and usage problems!)  This principle has had to be bent a bit as time advances, due
+to Mac OS 10.4 and 10.5 becoming ever further antiquated, but in general, if your formula *can* get
+by using stock libraries, then it should do so.
 
-The one special exception is OpenSSL. Anything that uses OpenSSL *should* be built using Tigerbrew’s shipped OpenSSL and our test bot's post-install audit will warn of this when it is detected. (*Of course, there are exceptions to the exception. Not everything can be forced onto our OpenSSL)*.
+The one special exception is OpenSSL.  Anything that uses OpenSSL *should* be built using
+Leopardbrew’s shipped OpenSSL and our test bot’s post-install audit will warn of this when it is
+detected.  (*Of course, there are exceptions to the exception.  Not everything can be forced onto
+our OpenSSL)*.
 
-Because Tigerbrew’s OpenSSL is `keg_only` to avoid conflicting with the system, sometimes formulae need to have environmental variables set or special configuration flags passed to locate our preferred OpenSSL; you can see this mechanism in the [clamav](https://github.com/Homebrew/homebrew/blob/master/Library/Formula/clamav.rb#L28) formula. Usually this is unnecessary because when OpenSSL is specified as a dependency Tigerbrew temporarily prepends the $PATH with that prefix.
+Because Leopardbrew’s OpenSSL is `keg_only` to avoid conflicting with the system, sometimes formulæ
+need to have environmental variables set or special configuration flags passed to locate our
+preferred OpenSSL; you can see this mechanism in the
+[clamav](https://github.com/Homebrew/homebrew/blob/master/Library/Formula/c/clamav.rb) formula.
+Usually this is unnecessary because when OpenSSL is specified as a dependency Leopardbrew
+temporarily prepends the $PATH with that prefix.
 
-Homebrew maintains a special [tap that provides other useful dupes](https://github.com/Homebrew/homebrews-dupes).
+Upstream Homebrew maintains a special
+[tap that provides other useful dupes](https://github.com/Homebrew/homebrews-dupes).  This is of
+sharply limited utility in Leopardbrew as none of the formulæ there support Power Macs, and even
+more so because the tap mechanism itself is not currently functional.
 
-*Important:* Since the introduction of `superenv`, `brew --prefix`/bin is NOT on the `$PATH` during formula installation. If you have dependencies at build time, you must specify them and brew will add them to the `$PATH`. You can test around this with `--env=std`.
+*Important:*  Since the introduction of `superenv`, `brew --prefix`/bin is NOT on the `$PATH`
+during formula installation.  If you have dependencies at build time, you must specify them and
+brew will add them to the `$PATH`.  You can test around this with `--env=std`.
 
-
-## Specifying other formulae as dependencies
+## Specifying other formulæ as dependencies
 
 ```ruby
 class Foo < Formula
@@ -173,67 +210,131 @@ A String specifies a formula dependency.
 
 A Symbol specifies a special conditional dependency, such as X11.
 
-A Hash specifies a formula dependency with some additional information. Given a single string key, the value can take several forms:
-*   a Symbol (currently one of `:build`, `:optional`, `:recommended`).
-    -   `:build` tags that dependency as a build-time only dependency, meaning it can be safely ignored
-        when installing from a bottle and when listing missing dependencies using `brew missing`.
-    -   `:optional` generates an implicit `with-foo` option for the formula. This means that, given
-        `depends_on "foo" => :optional`, the user must pass `--with-foo` in order to enable the dependency.
-    -   `:recommended` generates an implicit `without-foo` option, meaning that the dependency is enabled
-        by default and the user must pass `--without-foo` to disable this dependency. The default
-        description can be overridden using the normal option syntax (in this case, the option declaration must precede the dependency):
+A Hash specifies a formula dependency with some additional information. Given a single string key,
+the value can take several forms:
+* a Symbol (currently one of `:build`, `:optional`, `:recommended`).
+  - `:build` tags that dependency as a build-time only dependency, meaning it can be safely ignored
+    when installing from a bottle and when listing missing dependencies using `brew missing`.
+  - `:optional` generates an implicit `with-foo` option for the formula.  This means that, given
+    `depends_on "foo" => :optional`, the user must pass `--with-foo` in order to enable the
+    dependency.
+  - `:recommended` generates an implicit `without-foo` option, meaning that the dependency is
+    enabled by default and the user must pass `--without-foo` to disable this dependency.  The
+    default description can be overridden using the normal option syntax (in this case, the option
+    declaration must precede the dependency):
 
     ```ruby
-    option "with-foo", "Compile with foo bindings" # This overrides the generated description if you want to
-    depends_on "foo" => :optional # Generated description is "Build with foo support"
+    option "with-foo", "Compile with foo bindings"  # This overrides the generated description if
+                                                    # you want to
+    depends_on "foo" => :optional  # Generated description is "Build with foo support"
     ```
 
-*   a String or an Array
-    String values are interpreted as options to be passed to the dependency. You can also pass
-    an array of strings, or an array of symbols and strings, in which case the symbols are
-    interpreted as described above, and the strings are passed to the dependency as options.
+* a String or an Array
+  String values are interpreted as options to be passed to the dependency.  You can also pass an
+  array of strings, or an array of symbols and strings, in which case the symbols are interpreted
+  as described above, and the strings are passed to the dependency as options.
 
-    ```ruby
-    depends_on "foo" => "with-bar"
-    depends_on "foo" => %w{with-bar with-baz}
-    depends_on "foo" => [:optional, "with-bar"]
-    ```
+  ```ruby
+  depends_on "foo" => "with-bar"
+  depends_on "foo" => %w{with-bar with-baz}
+  depends_on "foo" => [:optional, "with-bar"]
+  ```
 
+For :optional or :recommended dependencies, you can also specify a group of formulæ as a unit.  In
+cases where there are a great many possible enhancements and doing without a whole group of them is
+unlikely to be more troublesome than doing without a single member of that group, you can render
+all of them selectable with a single option, greatly easing configuration:
 
-## Specifying other formulae as conflicts
+```ruby
+class Foo < Formula
+  option 'without-dns-extras', 'build without extra DNS features'
+  depends_group ['more-dns', ['c-ares', 'libidn2', 'libpsl'] => :recommended]
+end
+```
 
-Sometimes there’s hard conflict between formulae, and it can’t be avoided or circumvented with `keg_only`.
+In this example, the Foo formula probably doesn’t strictly *need* any of the listed enhancements,
+it’s just nice to have the ability to use them in case the need arises.  You could either accept
+the default configuration and have a full-featured Foo with all the bells and whistles, or build it
+--without-dns-extras for a leaner build that doesn’t sacrifice much functionality except in rare
+cases.  This example is actually taken directly from the formula for Curl 8.13.0.
 
-PolarSSL is a good [example](https://github.com/Homebrew/homebrew/blob/master/Library/Formula/polarssl.rb) formula for minor conflict.
+## Avoiding circular dependencies
 
-PolarSSL ship and compile a "Hello World" executable. This is obviously non-essential to PolarSSL’s functionality, and conflict with the popular GNU `hello` formula would be overkill, so we just remove it.
+Sometimes you will have a dependency that you simply cannot use, because in some indirect manner
+that dependency already depends back on your formula.  Sometimes this is explicit and intentional –
+see GNU GetText and LibIConv, which are mutually dependent and should always be installed and
+updated as a pair – and sometimes it is bizarre and seemingly nonsensical, such as anything that
+gets between Brotli and CMake.  Because Brotli has a build dependency on CMake, anything that
+depends on Brotli will ultimately also depend on CMake; this can be incredibly inconvenient.
 
-[pdftohtml](https://github.com/Homebrew/homebrew/blob/master/Library/Formula/pdftohtml.rb) provides an example of a serious
-conflict, where both formula ship a identically-named binary that is essential to functionality, so a `conflicts_with` is preferable.
+Leopardbrew allows you to describe a weak dependency that can be automatically ignored if it would
+cause a problem:
 
-As a general rule, `conflicts_with` should be a last-resort option. It’s a fairly blunt instrument.
+```ruby
+class Foo < Formula
+  enhanced_by 'bar'
+end
+```
+
+If 'bar' is already installed when you go to install 'foo', the system will link it in; if it isn’t,
+it won’t.  In the cases mentioned above, this is used to allow Gettext to be installed without
+LibIConv (though for correct functionality you should immediately install LibIConv and then
+reïnstall GetText); and if Brotli is already installed it will be used, but you can get by without
+it when you are still building towards an install of CMake.
+
+## Specifying other formulæ as conflicts
+
+Sometimes there’s hard conflict between formulæ, and it can’t be avoided or circumvented with
+`keg_only`.
+
+PolarSSL is a good
+[example](https://github.com/Homebrew/homebrew/blob/master/Library/Formula/polarssl.rb) formula for
+minor conflict.
+
+PolarSSL ships and compiles a “Hello World” executable.  This is obviously non-essential to
+PolarSSL’s functionality, and conflict with the popular GNU `hello` formula would be overkill, so
+we just remove it.
+
+[pdftohtml](https://github.com/Homebrew/homebrew/blob/master/Library/Formula/pdftohtml.rb) provides
+an example of a serious conflict, where both formula ship a identically-named binary that is
+essential to functionality, so a `conflicts_with` is preferable.
+
+As a general rule, `conflicts_with` should be a last-resort option.  It’s a fairly blunt instrument.
 
 The syntax for conflict that can’t be worked around is
 
 ```ruby
-conflicts_with "blueduck", :because => "yellowduck also ships a duck binary"
+class Yellowduck < Formula
+  conflicts_with "blueduck", :because => "both formulæ ship a duck binary"
+end
 ```
 
-## Formulae Revisions
+## Formula Revisions
 
-In Tigerbrew we sometimes accept formulae updates that don’t include a version bump. These include homepage changes, resource updates, new patches or fixing a security issue with a formula.
+In Leopardbrew we sometimes accept formula updates that don’t include a version bump.  These
+include homepage changes, resource updates, new patches or fixing a security issue with a formula.
 
-Occasionally, these updates require a forced-recompile of the formula itself or its dependents to either ensure formulae continue to function as expected or to close a security issue. This forced-recompile is known as a `revision` and inserted underneath the homepage/url/sha block.
+Occasionally, these updates require a forced-recompile of the formula itself or its dependents to
+either ensure formulæ continue to function as expected or to close a security issue.  This forced-
+recompile is known as a `revision` and inserted underneath the homepage/url/sha block.
 
-Where a dependent of a formula fails against a new version of that dependency it must receive a `revision`. An example of such failure can be seen [here](https://github.com/Homebrew/homebrew/issues/31195) and the fix [here](https://github.com/Homebrew/homebrew/pull/31207).
+Where a dependent of a formula fails against a new version of that dependency it must receive a
+`revision`.  An example of such failure can be seen
+[here](https://github.com/Homebrew/homebrew/issues/31195), and the fix
+[here](https://github.com/Homebrew/homebrew/pull/31207).
 
-`Revisions` are also used for formulae that move from the system OpenSSL to the Homebrew-shipped OpenSSL without any other changes to that formula. This ensures users aren’t left exposed to the potential security issues of the outdated OpenSSL. An example of this can be seen in [this commit](https://github.com/Homebrew/homebrew/commit/6b9d60d474d72b1848304297d91adc6120ea6f96).
+`Revisions` are also used for formulæ that move from the system OpenSSL to the brewed OpenSSL
+without any other changes to that formula.  This ensures users aren’t left exposed to the potential
+security issues of the outdated OpenSSL.  An example of this can be seen in
+[this commit](https://github.com/Homebrew/homebrew/commit/6b9d60d474d72b1848304297d91adc6120ea6f96).
 
 ## Double-check for dependencies
 
-When you already have a lot of brews installed, it's easy to miss a common dependency like `glib` or `gettext`.
+When you already have a lot of brews installed, it’s easy to miss a common dependency like `glib`
+or `gettext`.
 
-You can double-check which libraries a binary links to with the `otool` command (perhaps you need to use `xcrun otool`):
+You can double-check which libraries a binary links to with the `otool` command (perhaps you need
+to use `xcrun otool`):
 
     $ otool -L /usr/local/bin/ldapvi
     /usr/local/bin/ldapvi:
@@ -251,9 +352,11 @@ You can double-check which libraries a binary links to with the `otool` command 
 
 ## Specifying gems, Python modules, Go projects, etc. as dependencies
 
-Tigerbrew doesn’t package already packaged language-specific libraries. These should be installed directly from `gem`/`cpan`/`pip` etc.
+Leopardbrew doesn’t package already packaged language-specific libraries.  These should be
+installed directly from `gem`/`cpan`/`pip` etc.
 
-If you're installing an application then please locally vendor all the language-specific dependencies:
+If you’re installing an application then please locally vendor all the language-specific
+dependencies:
 
 ```ruby
 class Foo < Formula
@@ -268,13 +371,18 @@ class Foo < Formula
 end
 ```
 
-[jrnl](https://github.com/mistydemeo/tigerbrew/blob/master/Library/Formula/jrnl.rb) is an example of a formula that does this well. The end result means the user doesn't have to faff with `pip` or Python and can just run `jrnl`.
+[jrnl](https://github.com/gsteemso/leopardbrew/blob/master/Library/Formula/j/jrnl.rb) is an example
+of a formula that does this well.  The end result means the user doesn’t have to faff with `pip` or
+Python and can just run `jrnl`.
 
-[homebrew-pypi-poet](https://github.com/tdsmith/homebrew-pypi-poet) can help you generate resource stanzas for the dependencies of your Python application.
+[homebrew-pypi-poet](https://github.com/tdsmith/homebrew-pypi-poet) can help you generate resource
+stanzas for the dependencies of your Python application.
 
-Similarly, [homebrew-go-resources](https://github.com/samertm/homebrew-go-resources) can help you generate go\_resource stanzas for the dependencies of your go application.
+Similarly, [homebrew-go-resources](https://github.com/samertm/homebrew-go-resources) can help you
+generate go\_resource stanzas for the dependencies of your go application.
 
-If your formula needs a gem or python module and it can't be made into a resource you’ll need to check for these external dependencies:
+If your formula needs a gem or python module and it can’t be made into a resource you’ll need to
+check for these external dependencies:
 
 ```ruby
 class Foo < Formula
@@ -284,7 +392,8 @@ class Foo < Formula
 end
 ```
 
-Note that we probably won't accept the formulae in this case; it's a far worse user experience than vendoring libraries with resources.
+Note that we probably won’t accept the formulæ in this case; it’s a far worse user experience than
+vendoring libraries with resources.
 
 ## Test the formula
 
@@ -292,70 +401,96 @@ Exit out of the interactive shell.
 
     brew install --verbose --debug foo
 
-Debug will ask you to open an interactive shell when the build fails so you can try to figure out what went wrong.
+Debug will ask you to open an interactive shell when the build fails so you can try to figure out
+what went wrong.
 
-Check the top of the `./configure` output (if applicable)! Some configure scripts do not recognize `--disable-debug`. If you see a warning about it, remove the option from the formula.
+Check the top of the `./configure` output (if applicable)!  Some configure scripts do not recognize
+`--disable-debug`.  If you see a warning about it, remove the option from the formula.
 
 ## Add a test to the formula
 
-Please add a `test do` block to the formula. This will be run by `brew test foo` and the [Brew Test Bot](Brew-Test-Bot.md).
+Please add a `test do` block to the formula.  This will be run by `brew test foo` and the
+[Brew Test Bot](Brew-Test-Bot.md).
 
-The `test do` block automatically creates and changes to a temporary directory which is deleted after run. You can access this Pathname with the `testpath` function.
+The `test do` block automatically creates and changes to a temporary directory which is deleted
+after the test block is run.  You can access this Pathname with the `testpath` function.
 
-We want tests that don't require any user input and test the basic functionality of the application. For example `foo build-foo input.foo` is a good test and (despite their widespread use) `foo --version` and `foo --help` are bad tests. However, a bad test is better than no test at all.
+We want tests that don’t require any user input and test the basic functionality of the application.
+For example `foo build-foo input.foo` is a good test and (despite their widespread use)
+`foo --version` and `foo --help` are bad tests.  However, a bad test is better than no test at all.
 
-See [cmake](https://github.com/mistydemeo/tigerbrew/blob/master/Library/Formula/cmake.rb) for an example of a formula with a good test. A basic `CMakeLists.txt` file is written CMake uses it to generate Makefiles. This test checks that CMake doesn't e.g. segfault during basic operation.
+See [cmake](https://github.com/gsteemso/leopardbrew/blob/master/Library/Formula/c/cmake.rb) for an
+example of a formula with a good test.  A basic `CMakeLists.txt` file is written; CMake uses it to
+generate Makefiles.  This test checks that CMake doesn’t e.g. segfault during basic operation.
 
 ## Manuals
 
-Tigerbrew expects to find man pages in `[prefix]/share/man/...`, and not in `[prefix]/man/...`.
+Leopardbrew expects to find man pages in `[prefix]/share/man/...`, and not in `[prefix]/man/...`.
 
-Some software installs to man instead of `share/man`, so check the output and add a `"--mandir=#{man}"` to the `./configure` line if needed.
-
+Some software installs to man instead of `share/man`, so check the output and add a
+`"--mandir=#{man}"` to the `./configure` line if needed.
 
 ## A Quick Word on Naming
 
 **THE NAME IS VERY IMPORTANT!**
 
-Name the formula like the project markets the product. So it’s `pkg-config`, not `pkgconfig`; `sdl_mixer`, not `sdl-mixer` or `sdlmixer`.
+Name the formula like the project markets the product.  So it’s `pkg-config`, not `pkgconfig`;
+`sdl_mixer`, not `sdl-mixer` or `sdlmixer`.
 
-The only exception is stuff like “Apache Ant”. Apache sticks “Apache” in front of everything, but we use the formula name `ant`. We only include the prefix in cases like *GNUplot* (because it’s part of the name) and *GNU Go* (because everyone calls it “GNU go”—nobody just calls it “Go”). The word “Go” is too common and there are too many implementations of it.
+The only exception is stuff like “Apache Ant”.  Apache sticks “Apache” in front of everything, but
+we use the formula name `ant`.  We only include the prefix in cases like *GNUplot* (because it’s
+part of the name) and *GNU Go* (because everyone calls it “GNU go”—nobody just calls it “Go”).  The
+word “Go” is too common and there are too many implementations of it.
 
 If you’re not sure about the name check the homepage, and check the Wikipedia page.
 
 [ALSO CHECK WHAT DEBIAN CALLS IT!](https://www.debian.org/distrib/packages)
 
-Where Tigerbrew already has a formula called `foo` we typically do not accept requests to replace that formula with something else also named `foo`. This is to avoid both confusing and surprising users’ expectation.
+Where Leopardbrew already has a formula called `foo` we typically do not accept requests to replace
+that formula with something else also named `foo`.  This is to avoid both confusing and surprising
+users’ expectation.
 
-When two formulae share an upstream name, e.g. [`AESCrypt`](https://github.com/mistydemeo/tigerbrew/blob/master/Library/Formula/aescrypt.rb) and [`AESCrypt`](https://github.com/mistydemeo/tigerbrew/blob/master/Library/Formula/aescrypt-packetizer.rb) the newer formula must typically adapt the name to avoid conflict with the current formula.
+When two formulæ share an upstream name, e.g.
+[`AESCrypt`](https://github.com/gsteemso/leopardbrew/blob/master/Library/Formula/aescrypt.rb) and
+[`AESCrypt`](https://github.com/gsteemso/leopardbrew/blob/master/Library/Formula/aescrypt-packetizer.rb)
+the newer formula must typically adapt its name to avoid conflict with the current formula.
 
-If you’re *still* not sure, just commit. We’ll apply some arbitrary rule and make a decision ;)
+If you’re *still* not sure, just commit.  We’ll apply some arbitrary rule and make a decision.
 
-When importing classes, Tigerbrew will require the formula and then create an instance of the class. It does this by assuming the formula name can be directly converted to the class name using a `regexp`. The rules are simple:
+When importing classes, Leopardbrew will require the formula and then create an instance of the
+class.  It does this by assuming the formula name can be directly converted to the class name using
+a `regexp`.  The rules are simple:
 
 *   `foo-bar.rb` => `FooBar`
 *   `foobar.rb` => `Foobar`
 
-Thus, if you change the name of the class, you must also rename the file. Filenames should be all lowercase.
+Thus, if you change the name of the class, you must also rename the file.  Filenames should be all
+lowercase.
 
 Add aliases by creating symlinks in `Library/Aliases`.
 
-
 ## Audit the formula
 
-You can run `brew audit` to test formulae for adherence to Tigerbrew house style. The audit command includes warnings for trailing whitespace, preferred URLs for certain source hosts, and a lot of other style issues. Fixing these warnings before committing will make the process a lot smoother for us.
+You can run `brew audit` to test formulæ for adherence to Leopardbrew house style.  The audit
+command includes warnings for trailing whitespace, preferred URLs for certain source hosts, and a
+lot of other style issues.  Fixing these warnings before committing will make the process a lot
+smoother for us.
 
-New formulae being submitted to Tigerbrew should run `brew audit <formula name> --strict --online`. This command is performed by the Brew Test Bot on new submissions as part of the automated build and test process, and highlights more potential issues than the standard audit.
+New formulæ being submitted to Leopardbrew should run `brew audit <formula name> --strict --online`.
+(This command is performed by the Homebrew project’s Brew Test Bot on new submissions as part of
+their automated build and test process.)  It highlights more potential issues than the standard
+audit.
 
-Use `brew info` and check if the version guessed by Tigerbrew from the URL is
-correct. Add an explicit `version` if not.
+Use `brew info` and check if the version guessed by Leopardbrew from the URL is correct.  Add an
+explicit `version` if not.
 
 ## Commit
 
 Everything is built on Git, so contribution is easy:
 
-    brew install git # if you already have git installed, skip this command
-    brew update # required in more ways than you think (initializes the brew git repository if you don't already have it)
+    brew install git  # if you already have git installed, skip this command
+    brew update  # required in more ways than you think (initializes the brew git repository if you
+                 # don’t already have it)
     cd `brew --repository`
     # Create a new git branch for your formula so your pull request is easy to
     # modify if any changes come up during review.
@@ -369,47 +504,58 @@ The established standard for Git commit messages is:
 * two (2) newlines, then
 * explain the commit throughly
 
-At Tigerbrew, we like to put the name of the formula up front like so: "foobar 7.3 (new formula)".
-This may seem crazy short, but you’ll find that forcing yourself to summarise the commit encourages you to be atomic and concise. If you can’t summarise it in 50-80 characters, you’re probably trying to commit two commits as one. For a more thorough explanation, please read Tim Pope’s excellent blog post, [A Note About Git Commit Messages](http://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html).
+At Leopardbrew, we like to put the name of the formula up front like so:  "foobar 7.3 (new formula)".
+This may seem crazy short, but you’ll find that forcing yourself to summarise the commit encourages
+you to be atomic and concise.  If you can’t summarise it in 50-80 characters, you’re probably
+trying to commit two commits as one.  For a more thorough explanation, please read Tim Pope’s
+excellent blog post,
+[A Note About Git Commit Messages](http://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html).
 
 The preferred commit message format for simple version updates is "foobar 7.3".
 
-Ensure you reference any relevant GitHub issue `#12345` in the commit message. Tigerbrew’s history is the first thing future contributors will look to when trying to understand the current state of formulae they’re interested in.
-
+Ensure you reference any relevant GitHub issue `#12345` in the commit message.  Leopardbrew’s
+history is the first thing future contributors will look to when trying to understand the current
+state of formulæ they’re interested in.
 
 ## Push
 
 Now you just need to push back to GitHub.
 
-If you haven’t forked Tigerbrew yet, [go to the repo and hit the fork button](http://github.com/mistydemeo/tigerbrew).
+If you haven’t forked Leopardbrew yet,
+[go to the repo and hit the fork button](http://github.com/gsteemso/leopardbrew).
 
-If you have already forked Tigerbrew on GitHub, then you can manually push (just make sure you have been pulling from the mistydemeo/tigerbrew master):
+If you have already forked Leopardbrew on GitHub, then you can manually push (just make sure you
+have been pulling from the gsteemso/leopardbrew master):
 
-    git push git@github.com:myname/tigerbrew.git <what-you-called-your-branch>
+    git push git@github.com:myname/leopardbrew.git <what-you-called-your-branch>
 
 Now, please open a Pull Request (on your GitHub repo page) for new and updated brews.
 
 *   One formula per commit; one commit per formula
 *   Keep merge commits out of the request
-*   If you have any merge or mixup commits, please [squash](http://gitready.com/advanced/2009/02/10/squashing-commits-with-rebase.html) them.
+*   If you have any merge or mixup commits, please
+    [squash](http://gitready.com/advanced/2009/02/10/squashing-commits-with-rebase.html) them.
 
-If a commit touches multiple files, or isn’t one logical bug fix, or a file is touched in multiple commits, we’ll probably ask you to `rebase` and `squash` your commits. For this reason, you should avoid pushing to your `master` branch. Note, after rebase and/or squash, you'll need to push with `--force` to your remote.
-
+If a commit touches multiple files, or isn’t one logical bug fix, or a file is touched in multiple
+commits, we’ll probably ask you to `rebase` and `squash` your commits.  For this reason, you should
+avoid pushing to your `master` branch.  Note, after rebase and/or squash, you’ll need to push with
+`--force` to your remote.
 
 # Overview of the Formula Install Process
-<!-- TODO rewrite this. It is outdated, there are more layers now, and the implementation details discussed here are not relevant or useful to most users anyway. -->
+<!-- TODO rewrite this.  It is outdated, there are more layers now, and the implementation details
+     discussed here are not relevant or useful to most users anyway. -->
 
-*   The result of `Formula.download_strategy` is instantiated.
-*   `DownloadStrategy.fetch` is called (downloads tarball, checks out git repository, etc.)
-*   A temporary sandbox is created in `/tmp/$formulaname`
-*   `DownloadStrategy.stage` is called (extracts tarball to above sandbox, exports git repository to sandbox, etc.)
-*   Patches are applied
-*   Current directory is changed to the stage root (so when you `system make`, it works)
-*   `Formula.install` is called
-*   Anything installed to the keg is cleaned (see later)
-*   The keg is symlinked into Tigerbrew’s prefix
-*   Caveats are displayed
-
+* The result of `Formula.download_strategy` is instantiated.
+* `DownloadStrategy.fetch` is called (downloads tarball, checks out git repository, etc.)
+* A temporary sandbox is created in `/tmp/$formulaname`
+* `DownloadStrategy.stage` is called (extracts tarball to above sandbox, exports git repository to
+  sandbox, etc.)
+* Patches are applied
+* Current directory is changed to the stage root (so when you `system make`, it works)
+* `Formula.install` is called
+* Anything installed to the keg is cleaned (see later)
+* The keg is symlinked into Leopardbrew’s prefix
+* Caveats are displayed
 
 # Convenience Tools
 
@@ -421,7 +567,8 @@ Three commands are provided for displaying informational messages to the user:
 *   `opoo` for warning messages
 *   `onoe` for error messages
 
-In particular, when a test needs to be performed before installation use `onoe` to bail out gracefully. For example:
+In particular, when a test needs to be performed before installation use `onoe` to bail out
+gracefully. For example:
 
 ```ruby
 if some_test?
@@ -431,14 +578,14 @@ else
 end
 ```
 
-
 ## bin.install "foo"
 
-You’ll see stuff like that in other formulae. This installs the file foo into the Formula’s `bin` directory (`/usr/local/Cellar/pkg/0.1/bin`) and makes it executable (`chmod 0555 foo`).
+You’ll see stuff like that in other formulæ.  This installs the file foo into the Formula’s `bin`
+directory (`($brew --cellar)/pkg/0.1/bin`) and makes it executable (`chmod 0555 foo`).
 
 ## inreplace
 
-A convenience function that can edit files in-place. For example:
+A convenience function that can edit files in-place.  For example:
 
 `inreplace "path", before, after`
 
@@ -452,9 +599,12 @@ end
 
 Make sure you modify `s`! This block ignores the returned value.
 
-`inreplace` should be used instead of patches when it is patching something that will never be accepted upstream e.g. make the software’s build system respect Tigerbrew’s installation hierarchy. If it's Tigerbrew and MacPorts or OS X specific it should be turned into a patch instead.
+`inreplace` should be used instead of patches when it is patching something that will never be
+accepted upstream, e.g. make the software’s build system respect Leopardbrew’s installation
+hierarchy.  If it’s Leopardbrew and MacPorts or Mac OS specific it should be turned into a patch
+instead.
 
-If you need modify variables in a Makefile, rather than using `inreplace`, pass them as arguments to make:
+To modify variables in a Makefile, rather than using `inreplace`, pass them as arguments to make:
 
 ```rb
 system "make", "target", "VAR2=value1", "VAR2=value2", "VAR3=values can have spaces"
@@ -475,9 +625,15 @@ Note that values *can* contain unescaped spaces if you use the multiple-argument
 
 While patches should generally be avoided, sometimes they are necessary.
 
-When patching (i.e. fixing header file inclusion, fixing compiler warnings, etc.) the first thing to do is check whether or not the upstream project is aware of the issue. If not, file a bug report and/or submit your patch for inclusion. We may sometimes still accept your patch before it was submitted upstream but by getting the ball rolling on fixing the upstream issue you reduce the length of time we have to carry the patch around.
+When patching (i.e. fixing header file inclusion, fixing compiler warnings, etc.) the first thing
+to do is check whether or not the upstream project is aware of the issue.  If not, file a bug
+report and/or submit your patch for inclusion.  We may sometimes still accept your patch before it
+was submitted upstream but by getting the ball rolling on fixing the upstream issue you reduce the
+length of time we have to carry the patch around.
 
-*Always, always, always justify a patch with a code comment!* Otherwise, nobody will know when it is safe to remove the patch, or safe to leave it in when updating the formula. The comment should include a link to the relevant upstream issue(s).
+*Always, always, always justify a patch with a code comment!*  Otherwise, nobody will know when it
+is safe to remove the patch, or safe to leave it in when updating the formula.  The comment should
+include a link to the relevant upstream issue(s).
 
 External patches can be declared using resource-style blocks:
 
@@ -497,7 +653,8 @@ patch :p0 do
 end
 ```
 
-Patches can be declared in stable, devel, and head blocks. NOTE: always use a block instead of a conditional, i.e. `stable do ... end` instead of `if build.stable? then ... end`.
+Patches can be declared in stable, devel, and head blocks.  NOTE: always use a block instead of a
+conditional, i.e. `stable do ... end` instead of `if build.stable? then ... end`.
 
 ```rb
 stable do
@@ -529,13 +686,14 @@ index 643c60b..543379c 100644
 …
 ```
 
-Patches can also be embedded by passing a string. This makes it possible to provide multiple embedded patches while making only some of them conditional.
+Patches can also be embedded by passing a string.  This makes it possible to provide multiple
+embedded patches while making only some of them conditional.
 ```rb
 patch :p0, "..."
 ```
 
-In embedded patches, the string `HOMEBREW_PREFIX` is replaced with the value of the constant `HOMEBREW_PREFIX` before the patch is applied.
-
+In embedded patches, the string `HOMEBREW_PREFIX` is replaced with the value of the constant
+`HOMEBREW_PREFIX` before the patch is applied.
 
 ## Creating the diff
 
@@ -547,22 +705,23 @@ In embedded patches, the string `HOMEBREW_PREFIX` is replaced with the value of 
     brew edit foo
 
 Now just paste into the formula after `__END__`.
-Instead of `git diff | pbcopy`, for some editors `git diff >> path/to/your/formula/foo.rb` might help you that the diff is not touched (e.g. white space removal, indentation, etc.)
-
-
+Instead of `git diff | pbcopy`, for some editors `git diff >> path/to/your/formula/foo.rb` might
+help you ensure that the diff is not touched (e.g. white space removal, indentation, etc.)
 
 # Advanced Formula Tricks
 
-If anything isn’t clear, you can usually figure it out with some `grep` and the `Library/Formula` directory. Please amend this document if you think it will help!
-
+If anything isn’t clear, you can usually figure it out with some `grep` and the `Library/Formula`
+directory.  Please amend this document if you think it will help!
 
 ## Unstable versions (`HEAD`, `devel`)
 
-Formulae can specify alternate downloads for the upstream project’s `devel` release (unstable but not `trunk`) or `HEAD` (`master/trunk`).
+Formulæ can specify alternate downloads for the upstream project’s `devel` release (unstable but
+not `trunk`) or `HEAD` (`master/trunk`).
 
 ### HEAD
 
-HEAD URLs (activated by passing `--HEAD`) build the development cutting edge. Specifying it is easy:
+HEAD URLs (activated by passing `--HEAD`) build the development cutting edge.  Specifying it is
+easy:
 
 ```ruby
 class Foo < Formula
@@ -570,9 +729,11 @@ class Foo < Formula
 end
 ```
 
-Tigerbrew understands `git`, `svn`, and `hg` URLs, and has a way to specify `cvs` repositories as a URL as well. You can test whether the `HEAD` is being built with `build.head?`.
+Leopardbrew understands `git`, `svn`, and `hg` URLs, and has a way to specify `cvs` repositories as
+a URL as well.  You can test whether the `HEAD` is being built with `build.head?`.
 
-To use a specific commit, tag, or branch from a repository, specify head with the `:tag` and `:revision`, `:revision`, or `:branch` option, like so:
+To use a specific commit, tag, or branch from a repository, specify head with the `:tag` and
+`:revision`, `:revision`, or `:branch` option, like so:
 
 ```ruby
 class Foo < Formula
@@ -583,11 +744,15 @@ class Foo < Formula
 end
 ```
 
-Formulae that only have `head` versions should be submitted to [homebrew/headonly](https://github.com/Homebrew/homebrew-headonly) instead of mistydemeo/tigerbrew.
+Formulæ that only have `head` versions would originally have been submitted to
+[homebrew/headonly](https://github.com/Homebrew/homebrew-headonly) instead of Homebrew/homebrew,
+but Leopardbrew doesn’t have one of those, so we will (reluctantly, while holding our noses) accept
+some head-only brews in core.
 
 ### devel
 
-The "devel" spec (activated by passing `--devel`) is used for a project’s unstable releases. It is specified in a block:
+The "devel" spec (activated by passing `--devel`) is used for a project’s unstable releases.  It is
+specified in a block:
 
 ```ruby
 devel do
@@ -600,28 +765,35 @@ You can test if the "devel" spec is in use with `build.devel?`.
 
 ## Compiler selection
 
-Sometimes a package fails to build when using a certain compiler. Since recent Xcode no longer includes a GCC compiler, we cannot simply force the use of GCC. Instead, the correct way to declare this is the `fails_with` DSL method. A properly constructed `fails_with` block documents the latest compiler build version known to cause compilation to fail, and the cause of the failure. For example:
+Sometimes a package fails to build when using a certain compiler.  Since Xcode no longer includes a
+GCC compiler, we cannot simply force the use of GCC.  Instead, the correct way to declare this is
+the `fails_with` DSL (“Domain‐Specific Language”) method.  A properly constructed `fails_with`
+block documents the latest compiler build version known to cause compilation to fail, and the cause
+of the failure.  For example:
 
 ```ruby
 fails_with :llvm do
   build 2335
   cause <<-EOS.undent
-    The "cause" field should include a short summary of the error. Include
-    the URLs of any relevant information, such as upstream bug reports. Wrap
+    The "cause" field should include a short summary of the error.  Include
+    the URLs of any relevant information, such as upstream bug reports.  Wrap
     the text at a sensible boundary (~72-80 characters), but do not break
     URLs over multiple lines.
     EOS
 end
 ```
 
-`build` takes a Fixnum (you can find this number in your `brew --config` output). `cause` takes a string, and the use of heredocs is encouraged to improve readability and allow for more comprehensive documentation.
+`build` takes a Fixnum (you can find this number in your `brew --config` output).  `cause` takes a
+string, and the use of heredocs is encouraged to improve readability and allow for more
+comprehensive documentation.
 
-`fails_with` declarations can be used with any of `:gcc`, `:llvm`, and `:clang`. Tigerbrew will use this information to select a working compiler (if one is available).
-
+`fails_with` declarations can be used with any of `:gcc`, `:llvm`, and `:clang`.  Leopardbrew will
+use this information to select a working compiler (if one is available).
 
 ## Specifying the Download Strategy explicitly
 
-To use one of Tigerbrew’s built-in download strategies, specify the `:using =>` flag on a `url` or `head`.  For example:
+To use one of Leopardbrew’s built-in download strategies, specify the `:using =>` flag on a `url`
+or `head`.  For example:
 
 ```ruby
 class Python3 < Formula
@@ -631,7 +803,7 @@ class Python3 < Formula
   head "https://hg.python.org/cpython", :using => :hg
 ```
 
-The downloaders offered by Tigerbrew are:
+The downloaders offered by Leopardbrew are:
 
 <table>
   <thead>
@@ -654,6 +826,10 @@ The downloaders offered by Tigerbrew are:
       <td><code>CVSDownloadStrategy</code></td>
     </tr>
     <tr>
+      <td><code>:fossil</code></td>
+      <td><code>FossilDownloadStrategy</code></td>
+    </tr>
+    <tr>
       <td><code>:git</code></td>
       <td><code>GitDownloadStrategy</code></td>
     </tr>
@@ -670,15 +846,18 @@ The downloaders offered by Tigerbrew are:
       <td><code>CurlPostDownloadStrategy</code></td>
     </tr>
     <tr>
+      <td><code>:ssl3</code></td>
+      <td><code>CurlSSL3DownloadStrategy</code></td>
+    </tr>
+    <tr>
       <td><code>:svn</code></td>
       <td><code>SubversionDownloadStrategy</code></td>
     </tr>
   </tbody>
 </table>
 
-
-If you need more control over the way files are downloaded and staged, you can create a custom download strategy and specify it using the `url` method's `:using` option:
-
+If you need more control over the way files are downloaded and staged, you can create a custom
+download strategy and specify it using the `url` method’s `:using` option:
 
 ```ruby
 class MyDownloadStrategy < SomeHomebrewDownloadStrategy
@@ -690,7 +869,8 @@ class Foo < Formula
 end
 ```
 
-Specifying download strategies can be useful when used with a local repo, where a plain URL would not let you specify how to access it. For example:
+Specifying download strategies can be useful when used with a local repo, where a plain URL would
+not let you specify how to access it.  For example:
 
 ```ruby
 class Bar < Formula
@@ -698,10 +878,10 @@ class Bar < Formula
 end
 ```
 
-
 ## Just copying some files
 
-When your code in the install function is run, the current working directory is set to the extracted tarball.
+When your code in the install function is run, the current working directory is set to the
+extracted tarball.
 
 So it is easy to just copy some files:
 
@@ -715,7 +895,8 @@ Or everything:
 prefix.install Dir["output/*"]
 ```
 
-Generally we'd rather you were specific about what files or directories need to be installed rather than installing everything.
+Generally we’d rather you were specific about what files or directories need to be installed rather
+than installing everything.
 
 ### Variables for directory locations
 
@@ -735,8 +916,8 @@ Generally we'd rather you were specific about what files or directories need to 
     </tr>
     <tr>
       <th><code>prefix</code></th>
-      <td><code>#{HOMEBREW_PREFIX}/Cellar/#{name}/#{version}</code></td>
-      <td><code>/usr/local/Cellar/foo/0.1</code></td>
+      <td><code>#{HOMEBREW_CELLAR}/#{name}/#{version}</code></td>
+      <td><code>$(brew --cellar)/foo/0.1</code></td>
     </tr>
     <tr>
       <th><code>opt_prefix</code></th>
@@ -746,57 +927,57 @@ Generally we'd rather you were specific about what files or directories need to 
     <tr>
       <th><code>bin</code></th>
       <td><code>#{prefix}/bin</code></td>
-      <td><code>/usr/local/Cellar/foo/0.1/bin</code></td>
+      <td><code>$(brew --cellar)/foo/0.1/bin</code></td>
     </tr>
     <tr>
       <th><code>doc</code></th>
       <td><code>#{prefix}/share/doc/foo</code></td>
-      <td><code>/usr/local/Cellar/foo/0.1/share/doc/foo</code></td>
+      <td><code>$(brew --cellar)/foo/0.1/share/doc/foo</code></td>
     </tr>
     <tr>
       <th><code>include</code></th>
       <td><code>#{prefix}/include</code></td>
-      <td><code>/usr/local/Cellar/foo/0.1/include</code></td>
+      <td><code>$(brew --cellar)/foo/0.1/include</code></td>
     </tr>
     <tr>
       <th><code>info</code></th>
       <td><code>#{prefix}/share/info</code></td>
-      <td><code>/usr/local/Cellar/foo/0.1/share/info</code></td>
+      <td><code>$(brew --cellar)/foo/0.1/share/info</code></td>
     </tr>
     <tr>
       <th><code>lib</code></th>
       <td><code>#{prefix}/lib</code></td>
-      <td><code>/usr/local/Cellar/foo/0.1/lib</code></td>
+      <td><code>$(brew --cellar)/foo/0.1/lib</code></td>
     </tr>
     <tr>
       <th><code>libexec</code></th>
       <td><code>#{prefix}/libexec</code></td>
-      <td><code>/usr/local/Cellar/foo/0.1/libexec</code></td>
+      <td><code>$(brew --cellar)/foo/0.1/libexec</code></td>
     </tr>
     <tr>
       <th><code>man</code></th>
       <td><code>#{prefix}/share/man</code></td>
-      <td><code>/usr/local/Cellar/foo/0.1/share/man</code></td>
+      <td><code>$(brew --cellar)/foo/0.1/share/man</code></td>
     </tr>
     <tr>
       <th><code>man[1-8]</code></th>
       <td><code>#{prefix}/share/man/man[1-8]</code></td>
-      <td><code>/usr/local/Cellar/foo/0.1/share/man/man[1-8]</code></td>
+      <td><code>$(brew --cellar)/foo/0.1/share/man/man[1-8]</code></td>
     </tr>
     <tr>
       <th><code>sbin</code></th>
       <td><code>#{prefix}/sbin</code></td>
-      <td><code>/usr/local/Cellar/foo/0.1/sbin</code></td>
+      <td><code>$(brew --cellar)/foo/0.1/sbin</code></td>
     </tr>
     <tr>
       <th><code>share</code></th>
       <td><code>#{prefix}/share</code></td>
-      <td><code>/usr/local/Cellar/foo/0.1/share</code></td>
+      <td><code>$(brew --cellar)/foo/0.1/share</code></td>
     </tr>
     <tr>
       <th><code>pkgshare</code></th>
       <td><code>#{prefix}/share/foo</code></td>
-      <td><code>/usr/local/Cellar/foo/0.1/share/foo</code></td>
+      <td><code>$(brew --cellar)/foo/0.1/share/foo</code></td>
     </tr>
     <tr>
       <th><code>etc</code></th>
@@ -830,20 +1011,22 @@ man.mkpath
 
 to create the directory structure to the man location.
 
-To install man pages into specific locations, use `man1.install "foo.1", "bar.1"`, `man2.install "foo.2"`, etc.
+To install man pages into specific locations, use `man1.install "foo.1", "bar.1"`, `man2.install
+"foo.2"`, etc.
 
-Note that in the context of Tigerbrew, `libexec` is reserved for private use by the formula and therefore is not symlinked into `HOMEBREW_PREFIX`.
+Note that in the context of Leopardbrew, `libexec` is reserved for private use by the formula and
+therefore is not symlinked into `HOMEBREW_PREFIX`.
 
 ### Installation without linking into `/usr/local` (keg-only)
 
-If you only need a program for a dependency and it does not need to be linked for public use in `/usr/local`, specify
+If you only need a program for a dependency and it does not need to be linked for public use in
+`/usr/local`, specify
 
 ```ruby
 keg_only "This is my rationale."
 ```
 
 in the Formula class.
-
 
 ## Adding optional steps
 
@@ -867,23 +1050,30 @@ if build.with? "ham"
 end
 
 if build.without? "ham"
-  # works as you'd expect. True if `--without-ham` was given.
+  # works as you’d expect. True if `--with-ham` was not given.
 end
 ```
 
-Option names should be prefixed with the words `with` or `without`. For example, an option to run a test suite should be named `--with-test` or `--with-check` rather than `--test`, and an option to enable a shared library `--with-shared` rather than `--shared` or `--enable-shared`.
+Option names should be prefixed with the words `with` or `without`.  For example, an option to run
+a test suite should be named `--with-test` or `--with-check` rather than `--test`, and an option to
+enable a shared library `--with-shared` rather than `--shared` or `--enable-shared`.
 
-Note that options that aren’t ` build.with? ` or ` build.without? ` should be actively deprecated where possible. See [wget](https://github.com/mistydemeo/tigerbrew/blob/master/Library/Formula/wget.rb#L27-L31) for an example.
-
+Note that options that aren’t `build.with?` or `build.without?` should be actively deprecated where
+possible.  See [wget](https://github.com/gsteemso/leopardbrew/blob/master/Library/Formula/w/wget.rb)
+for an example.
 
 ## File level operations
 
-You can use the file utilities provided by Ruby (`FileUtils`). These are included in the `Formula` class, so you do not need the `FileUtils.` prefix to use them. They are documented [here](http://www.ruby-doc.org/stdlib/libdoc/fileutils/rdoc/index.html).
+You can use the file utilities provided by Ruby (`FileUtils`).  These are included in the `Formula`
+class, so you do not need the `FileUtils.` prefix to use them.  They are documented
+[here](https://https://docs.ruby-lang.org/en/2.0.0/FileUtils.html).
 
-When creating symlinks, take special care to ensure they are *relative* symlinks. This makes it easier to create a relocatable bottle. For example, to create a symlink in `bin` to an executable in `libexec`, use
+When creating symlinks, take special care to ensure they are *relative* symlinks.  This makes it
+easier to create a relocatable bottle.  For example, to create a symlink in `bin` to an executable
+in `libexec`, use
 
 ```rb
-bin.install_symlink libexec/"name"
+bin.install_symlink_to libexec/"name"
 ```
 
 *not*
@@ -892,36 +1082,47 @@ bin.install_symlink libexec/"name"
 ln_s libexec/"name", bin
 ```
 
-The symlinks created by `install_symlink` are guaranteed to be relative. `ln_s` will only produce a relative symlink when given a relative path.
+The symlinks created by `install_symlink_to` are guaranteed to be relative.  `ln_s` will only
+produce a relative symlink when given a relative path.
 
 ## Handling files that should persist over formula upgrades
 
-For example, Ruby 1.9’s gems should be installed to `var/lib/ruby/` so that gems don’t need to be reinstalled when upgrading Ruby. You can usually do this with symlink trickery, or *better* a configure option.
+For example, Ruby 1.9’s gems should be installed to `var/lib/ruby/` so that gems don’t need to be
+reinstalled when upgrading Ruby.  You can usually do this with symlink trickery, or *better* a
+configure option.
 
 ### launchd plist files
 
-Tigerbrew provides two Formula methods for launchd plist files. `plist_name` will return `homebrew.mxcl.<formula>`, and `plist_path` will return, for example, `/usr/local/Cellar/foo/0.1/homebrew.mxcl.foo.plist`.
+Leopardbrew provides two Formula methods for launchd plist files.  `plist_name` will return
+`leopardbrew.gsteemso.<formula>`, and `plist_path` will return, for example,
+`/usr/local/Cellar/foo/0.1/leopardbrew.gsteemso.foo.plist`.
 
-## Updating formulae
+## Updating formulæ
 
-Eventually a new version of the software will be released. In this case you should update the `url` and `sha256`. Please leave the `bottle do ... end`  block as-is; our CI system will update it when we pull your change.
+Eventually a new version of the software will be released.  In this case you should update the `url`
+and `sha256`.  Please leave the `bottle do ... end`  block as-is; our CI system will update it when
+we pull your change.
 
-Check if the formula you are updating is a dependency for any other formulae by running `brew uses UPDATED_FORMULA`. If it is a dependency please `brew reinstall` all the dependencies after it is installed and verify they work correctly.
+Check if the formula you are updating is a dependency for any other formulæ by running `brew uses
+UPDATED_FORMULA`.  If it is a dependency please `brew reinstall` all its dependents after it is
+installed and verify they work correctly.
 
 # Style guide
 
-Tigerbrew wants to maintain a consistent Ruby style across all formulae based on [Ruby Style Guide](https://github.com/styleguide/ruby). Other formulae may not have been updated to match this guide yet but all new ones should. Also:
+Leopardbrew wants to maintain a consistent Ruby style across all formulæ based on
+[Ruby Style Guide](https://github.com/styleguide/ruby).  Other formulæ may not have been updated to
+match this guide yet but all new ones should. Also:
 
-* The order of methods in a formula should be consistent with other formulae (e.g.: `def patches` goes before `def install`)
+* The order of methods in a formula should be consistent with other formulæ (e.g.: `depends_on`
+goes before `def install`)
 * An empty line is required before the `__END__` line
 
-
-
-# Troubleshooting for people writing new formulae
+# Troubleshooting for people writing new formulæ
 
 ### Version detection fails
 
-Tigerbrew tries to automatically determine the version from the URL in order to save on duplication. If the tarball has a funny name though, you may have to assign the version number:
+Leopardbrew tries to automatically determine the version from the URL in order to save on
+duplication.  If the tarball has a funny name though, you may have to assign the version number:
 
 ```ruby
 class Foobar
@@ -931,25 +1132,26 @@ end
 
 ## Bad Makefiles
 
-Not all projects have makefiles that will run in parallel so try to deparallelize:
+Not all projects have makefiles that will run in parallel, so you can try to deparallelize:
 
     brew edit foo
 
-Add all this to the formula (so there will already be a class line, don’t add another or change that, and there’s already an install function, don't add another one, add the lines in the install function below to the top of the problem formula’s install function).
+Add the lines indicated below to the formula, at the beginning of the install method as shown:
 
 ```ruby
-class Foo < Formula
-  skip_clean :all
-  def install
+class Foo < Formula  # this is already present, don’t duplicate it
+  skip_clean :all    # if this is already present, don’t duplicate it
+  def install        # this is already present, don’t duplicate it
     ENV.deparallelize
     ENV.no_optimization
-    system "make"  # separate make and make install steps
+    system "make"    # separate make and make install steps
     system "make", "install"
-  end
-end
+  end                # this is already present, don’t duplicate it
+end                  # this is already present, don’t duplicate it
 ```
 
-If that fixes it, please open an [issue](http://github.com/mistydemeo/tigerbrew/issues) so that we can fix it for everyone.
+If that fixes it, please open an [issue](http://github.com/gsteemso/leopardbrew/issues) so that we
+can fix it for everyone.
 
 ## Still won’t work?
 
@@ -959,33 +1161,44 @@ Check out what MacPorts and Fink do:
 
 `brew -S --fink foo`
 
-
-
 # Superenv Notes
 
-`superenv` is a "super" environment that tries to improve reliability for the general case. But it does make making formula harder.
+`superenv` is a "super" environment that tries to improve reliability for the general case.  But it
+does make making formula harder.
 
 To not use `superenv`, install with `--env=std`.
 
-Superenv isolates builds by removing `/usr/local/bin` and all user-PATHs that are not determined to be essential to the build. It does this because other PATHs are full of stuff that breaks builds. (We have 15,000 tickets as testament!)
+Superenv isolates builds by removing `/usr/local/bin` and all user-PATHs that are not determined to
+be essential to the build.  It does this because other PATHs are full of stuff that breaks builds.
+(We have 15,000 tickets as testament!)
 
-`superenv` tries to remove bad-flags from the commands passed to `clang`/`gcc` and injects others (for example all `keg_only` dependencies are added to the `-I` and `-L` flags. If superenv troubles you, try to `brew install --env=std` and report to us if that fixes it.
+`superenv` tries to remove bad-flags from the commands passed to `clang`/`gcc` and injects others
+(for example all `keg_only` dependencies are added to the `-I` and `-L` flags.  If superenv
+troubles you, try to `brew install --env=std` and report to us if that fixes it.
 
 # Fortran
 
-Some software requires a Fortran compiler. This can be declared by adding `depends_on :fortran` to a formula. `:fortran` is a special dependency that does several things.
+Some software requires a Fortran compiler.  This can be declared by adding `depends_on :fortran` to
+a formula. `:fortran` is a special dependency that does several things.
 
-First, it looks to see if you have set the `FC` environment variable. If it is set, Tigerbrew will use this value during compilation. If it is not set, it will check to see if `gfortran` is found in `PATH`. If it is, Tigerbrew will use its location as the value of `FC`. Otherwise, the `gcc` formula will be treated as a dependency and installed prior to compilation.
+First, it looks to see if you have set the `FC` environment variable.  If it is set, Leopardbrew
+will use this value during compilation.  If it is not set, it will check to see if `gfortran` is
+found in `PATH`.  If it is, Leopardbrew will use its location as the value of `FC`.  Otherwise, the
+`gcc` formula (which is an alias to the most current gcc supplied by Leopardbrew – as of this
+writing, GCC 8 – which includes a Fortran compiler) will be treated as a dependency and installed
+prior to compilation.
 
-If you have set `FC` to a custom Fortran compiler, you may additionally set `FCFLAGS` and `FFLAGS`. Alternatively, you can pass `--default-fortran-flags` to `brew install` to use Tigerbrew's standard `CFLAGS`.
+If you have set `FC` to a custom Fortran compiler, you may additionally set `FCFLAGS` and `FFLAGS`.
+Alternatively, you can pass `--default-fortran-flags` to `brew install` to use Leopardbrew’s
+standard `CFLAGS`.
 
-When using Tigerbrew's own gfortran compiler, the standard `CFLAGS` are used and user-supplied values of `FCFLAGS` and `FFLAGS` are ignored for consistency and reproducibility reasons.
-
+When using Leopardbrew’s own gfortran compiler, the standard `CFLAGS` are used and user-supplied
+values of `FCFLAGS` and `FFLAGS` are ignored for consistency and reproducibility reasons.
 
 # How to start over (reset to `master`)?
 
 Have you created a real mess in git which paralyzes you to create the commit you just want to push?
-Then you might consider start from scratch.
+Then you might consider restarting from scratch.
 Your changes will be discarded in favour of the `master` branch:
 
 `git checkout master`

@@ -1,9 +1,12 @@
 # Querying Brew
-_In this document we will be using [jq](https://stedolan.github.io/jq/) to parse JSON, available from Homebrew using `brew install jq`._
+
+_In this document we will be using [jq](https://stedolan.github.io/jq/) to parse JSON, available
+from Leopardbrew using `brew install jq`._
 
 ## Overview
 
-`brew` provides commands for getting common types of information out of the system. `brew list` showed installed formulae. `brew deps foo` shows the dependencies that `foo` needs.
+`brew` provides commands for getting common types of information out of the system.  `brew list`
+shows installed formulæ.  `brew deps foo` shows the dependencies that `foo` needs.
 
 Additional commands, including external commands, can of course be written to provide more detailed information. There are a couple of disadvantages here. First, it means writing Ruby against a possibly changing Homebrew codebase. There will be more code to touch during refactors, and Homebrew can't guarantee that external commands will continue to work. Second, it means designing the commands themselves, specifying input parameters and output formats.
 
