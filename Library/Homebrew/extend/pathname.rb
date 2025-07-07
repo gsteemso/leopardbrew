@@ -51,16 +51,17 @@ class Pathname
   end # install_p
   private :install_p
 
-  # Creates symlinks to sources in this folder.
-  def install_symlink(*sources)
-    sources.each do |src|
-      case src
-        when Array then src.each { |s| install_symlink_p(s, File.basename(s)) }
-        when Hash then src.each { |s, new_basename| install_symlink_p(s, new_basename) }
-        else install_symlink_p(src, File.basename(src))
+  # Creates symlinks to the provided targets, in this folder.
+  def install_symlink(*targets)
+    targets.each do |tgt|
+      case tgt
+        when Array then tgt.each { |t| install_symlink_p(t, File.basename(t)) }
+        when Hash then tgt.each { |t, new_basename| install_symlink_p(t, new_basename) }
+        else install_symlink_p(tgt, File.basename(tgt))
       end
-    end # each source |src|
+    end # each target |tgt|
   end # install_symlink
+  alias_method :install_symlink_to, :install_symlink
 
   def install_symlink_p(tgt, new_basename)
     tgt = Pathname(tgt).expand_path(self)
@@ -82,6 +83,7 @@ class Pathname
   # this function does not exist in Leopard stock Ruby 1.8.6
   def binwrite(datum, offset = 0)
     dirname.mkpath
+    # Use read/write mode so seeking always works.
     open(O_BINARY|O_CREAT|O_RDWR) { |f| f.pos = offset; f.write(datum) }
   end unless method_defined?(:binwrite)
 
