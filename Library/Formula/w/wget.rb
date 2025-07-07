@@ -1,4 +1,4 @@
-# NOTE: Configure will fail if using awk 20110810 from dupes.
+# NOTE:  Configure will fail if using awk 20110810 from dupes.
 # Upstream issue: https://savannah.gnu.org/bugs/index.php?37063
 
 class Wget < Formula
@@ -31,7 +31,6 @@ class Wget < Formula
     when /^gnu/   then depends_on (@ssl_lib = 'gnutls')
     when /^libre/ then depends_on (@ssl_lib = 'libressl')
     else depends_on (@ssl_lib = 'openssl3')
-#    else raise MissingParameterError, 'You must specify a transport security library using “--with-ssl=”.'
   end
   depends_on 'libpsl'   => :recommended
   depends_on 'pcre2'    => :recommended
