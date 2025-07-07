@@ -3,7 +3,7 @@ class Python < Formula
   homepage 'https://www.python.org'
   url 'https://www.python.org/ftp/python/2.7.18/Python-2.7.18.tar.xz'
   sha256 'b62c0e7937551d0cc02b8fd5cb0f544f9405bafc9a54d3808ed4594812edef43'
-  # as Python 2.7 development halted years ago, the :HEAD version is no longer available
+  # As Python 2 reached EOL in 2020, the :HEAD version is no longer available.
   revision 1
 
   bottle do
@@ -24,17 +24,19 @@ class Python < Formula
   depends_on 'pkg-config' => :build
   depends_on 'openssl'
   depends_on 'tcl-tk'
-  depends_on :x11 if Tab.for_name('tcl-tk').with?('x11')
   depends_on 'gdbm' => :recommended
   depends_on 'readline' => :recommended
   depends_on 'sqlite' => :recommended
   depends_on 'berkeley-db4' => :optional
 
+  enhanced_by 'python3'
+
   skip_clean 'bin/pip', 'bin/pip-2.7'
   skip_clean 'bin/easy_install', 'bin/easy_install-2.7'
 
   # Patch to disable the search for Tk.framework, since Homebrew’s Tk is
-  # a plain unix build. Remove `-lX11` too, because our Tk is “AquaTk”.
+  # a plain unix build.  Remove `-lX11` too, because our Tk is “AquaTk”.
+  # Note that’s inaccurate on Tiger and Leopard as AquaTk requires Snow Leopard features.
   patch do
     url 'https://raw.githubusercontent.com/Homebrew/patches/42fcf22/python/brewed-tk-patch.diff'
     sha256 '15c153bdfe51a98efe48f8e8379f5d9b5c6c4015e53d3f9364d23c8689857f09'
@@ -43,7 +45,7 @@ class Python < Formula
   patch :DATA  # enable PPC‐only universal builds
 
   # setuptools remembers the build flags python is built with and uses them to
-  # build packages later. Xcode-only systems need different flags.
+  # build packages later.  Xcode-only systems need different flags.
   def pour_bottle
     reason <<-EOS.undent
       The bottle needs the Apple Command Line Tools to be installed.
@@ -54,12 +56,12 @@ class Python < Formula
   end # pour_bottle
 
   def install
-    # Unset these so that installing pip and setuptools puts them where we want
-    # and not into some other Python the user has installed.
-    ENV['PYTHONHOME'] = nil
-    ENV['PYTHONPATH'] = nil
+    ENV.universal_binary if build.universal?
+    ENV.without_archflags  # The makefile takes care of them for us.
 
-    # Avoid linking to libgcc (see https://code.activestate.com/lists/python-dev/112195/)
+    ENV['PYTHONHOME'] = nil  # Unset these so that installing pip and setuptools puts them where we
+    ENV['PYTHONPATH'] = nil  # want and not into some other Python the user has installed.
+
     args = %W[
       --prefix=#{prefix}
       --enable-ipv6
@@ -69,7 +71,47 @@ class Python < Formula
       --without-ensurepip
       MACOSX_DEPLOYMENT_TARGET=#{MacOS.version}
     ]
+    # Avoid linking to libgcc (see https://code.activestate.com/lists/python-dev/112195/)
     args << '--without-gcc' if ENV.compiler == :clang
+
+    # There is no simple way to extract a “ppc” slice from a universal file.  We have to
+    # specify the exact sub‐architecture we actually put in there in the first place.
+    if CPU.powerpc?
+      our_ppc_flavour = CPU.optimization_flags(CPU.model)[/^-mcpu=(\d+)/, 1]
+      inreplace 'configure' do |s| s.gsub! '-extract ppc7400', "-extract ppc#{our_ppc_flavour}" end
+    end
+
+    # We want our readline and openssl! This is just to outsmart the detection code,
+    # superenv handles that cc finds includes/libs!
+    inreplace 'setup.py' do |s|
+      s.gsub! "do_readline = self.compiler.find_library_file(lib_dirs, 'readline')",
+              "do_readline = '#{Formula['readline'].opt_lib}/libhistory.dylib'" if build.with? 'readline'
+      s.gsub! '/usr/local/ssl', Formula['openssl'].opt_prefix
+      s.gsub! '/usr/include/db4', Formula['berkeley-db4'].opt_include if build.with? 'berkeley-db4'
+    end
+
+    args << '--enable-universalsdk=/'
+    # ARM builds are not supported; just build for Intel and hope it keeps working
+    args << "--with-universal-archs=#{CPU.type}#{build.universal? ? '' : "-#{CPU.bits}"}"
+
+    if build.with? 'sqlite'
+      inreplace 'setup.py' do |s|
+        s.gsub! 'sqlite_setup_debug = False', 'sqlite_setup_debug = True'
+        s.gsub! 'for d_ in inc_dirs + sqlite_inc_paths:',
+                "for d_ in ['#{Formula['sqlite'].opt_include}']:"
+        # Allow sqlite3 module to load extensions:
+        # https://docs.python.org/library/sqlite3.html#f1
+        s.gsub! 'sqlite_defines.append(("SQLITE_OMIT_LOAD_EXTENSION", "1"))', ''
+      end
+    end
+
+    # Allow python modules to use ctypes.find_library to find Leopardbrew’s stuff even if the
+    # brewed package is not a /usr/local/lib.  Try this with:
+    # `brew install enchant && pip install pyenchant`
+    inreplace './Lib/ctypes/macholib/dyld.py' do |s|
+      s.gsub! 'DEFAULT_LIBRARY_FALLBACK = [', "DEFAULT_LIBRARY_FALLBACK = [ '#{HOMEBREW_PREFIX}/lib',"
+      s.gsub! 'DEFAULT_FRAMEWORK_FALLBACK = [', "DEFAULT_FRAMEWORK_FALLBACK = [ '#{HOMEBREW_PREFIX}/Frameworks',"
+    end
 
     cflags   = []
     ldflags  = []
@@ -83,49 +125,8 @@ class Python < Formula
       cppflags << "-I#{MacOS.sdk_path}/usr/include" # find zlib
     end
 
-    # We want our readline and openssl! This is just to outsmart the detection code,
-    # superenv handles that cc finds includes/libs!
-    inreplace 'setup.py' do |s|
-      s.gsub! "do_readline = self.compiler.find_library_file(lib_dirs, 'readline')",
-              "do_readline = '#{Formula['readline'].opt_lib}/libhistory.dylib'"
-      s.gsub! '/usr/local/ssl', Formula['openssl'].opt_prefix
-      s.gsub! '/usr/include/db4', Formula['berkeley-db4'].opt_include
-    end
-
-    args << '--enable-universalsdk=/'
-    if build.universal? then
-      bitness = ''
-      if superenv?
-        # one of the modules adds “-arch i386” on PPC to work around a linker bug, so no PPC CPUs
-        ENV['HOMEBREW_OPTFLAGS'] = '' if Hardware::CPU.ppc?
-      end
-    elsif Hardware::CPU.is_32_bit? then bitness = '-32'
-    else bitness = '-64'; end
-    # ARM builds are not supported; just build for Intel and hope it keeps working
-    args << "--with-universal-archs=#{Hardware::CPU.ppc? ? 'ppc' : 'intel'}#{bitness}"
-
-    if build.with? 'sqlite'
-      inreplace 'setup.py' do |s|
-        s.gsub! 'sqlite_setup_debug = False', 'sqlite_setup_debug = True'
-        s.gsub! 'for d_ in inc_dirs + sqlite_inc_paths:',
-                "for d_ in ['#{Formula['sqlite'].opt_include}']:"
-        # Allow sqlite3 module to load extensions:
-        # https://docs.python.org/library/sqlite3.html#f1
-        s.gsub! 'sqlite_defines.append(("SQLITE_OMIT_LOAD_EXTENSION", "1"))', ''
-      end
-    end
-
-    # Allow python modules to use ctypes.find_library to find homebrew's stuff
-    # even if homebrew is not a /usr/local/lib. Try this with:
-    # `brew install enchant && pip install pyenchant`
-    inreplace './Lib/ctypes/macholib/dyld.py' do |f|
-      f.gsub! 'DEFAULT_LIBRARY_FALLBACK = [', "DEFAULT_LIBRARY_FALLBACK = [ '#{HOMEBREW_PREFIX}/lib',"
-      f.gsub! 'DEFAULT_FRAMEWORK_FALLBACK = [', "DEFAULT_FRAMEWORK_FALLBACK = [ '#{HOMEBREW_PREFIX}/Frameworks',"
-    end
-
-    tcl_tk = Formula['tcl-tk'].opt_prefix
-    cppflags << "-I#{tcl_tk}/include"
-    ldflags  << "-L#{tcl_tk}/lib"
+    cppflags << "-I#{Formula['tcl-tk'].opt_include}"
+    ldflags  << "-L#{Formula['tcl-tk'].opt_lib}"
 
     args << "CFLAGS=#{cflags.join(' ')}" unless cflags.empty?
     args << "LDFLAGS=#{ldflags.join(' ')}" unless ldflags.empty?
@@ -133,6 +134,7 @@ class Python < Formula
 
     system './configure', *args
     system 'make'
+    system 'make', 'test'
     ENV.deparallelize do
       # Tell Python not to install into /Applications
       system 'make', 'install', "PYTHONAPPSDIR=#{prefix}"
@@ -156,7 +158,7 @@ class Python < Formula
     # A fix, because python and python3 both want to install Python.framework
     # and therefore we can't link both into HOMEBREW_PREFIX/Frameworks
     # https://github.com/Homebrew/homebrew/issues/15943
-    # In 2024, Python 3 is the norm; thus, remove these from Python rather than from Python3
+    # After 2020, Python 3 is the norm; thus, remove these from Python rather than from Python3
     ['Headers', 'Python', 'Resources'].each { |f| rm frameworks/"Python.framework/#{f}" }
     rm frameworks/'Python.framework/Versions/Current'
 
@@ -190,7 +192,7 @@ class Python < Formula
 
     # Symlink the prefix site-packages into the cellar.
     cellar_site_packages.unlink if cellar_site_packages.exist?
-    cellar_site_packages.parent.install_symlink site_packages
+    cellar_site_packages.parent.install_symlink_to site_packages
 
     # Create a site-packages in HOMEBREW_PREFIX/lib/python2.7/site-packages
     site_packages.mkpath
@@ -217,7 +219,7 @@ class Python < Formula
     # When building from source, these symlinks will not exist, since
     # post_install happens after linking.
     %w[pip pip2 pip2.7 easy_install easy_install-2.7 wheel].each do |e|
-      (HOMEBREW_PREFIX/'bin').install_symlink bin/e
+      (HOMEBREW_PREFIX/'bin').install_symlink_to bin/e
     end
 
     # Help distutils find brewed stuff when building extensions
@@ -311,9 +313,9 @@ class Python < Formula
   test do
     # Check if sqlite is ok, because we build with --enable-loadable-sqlite-extensions
     # and it can occur that building sqlite silently fails if OSX's sqlite is used.
-    arch_system cellar_framework/'bin/python2.7', '-c', 'import sqlite3'
+    arch_system cellar_framework/'bin/python2.7', '-c', "'import sqlite3'"
     # Check if some other modules import. Then the linked libs are working.
-    arch_system cellar_framework/'bin/python2.7', '-c', 'import Tkinter; root = Tkinter.Tk()'
+    arch_system cellar_framework/'bin/python2.7', '-c', "'import Tkinter; root = Tkinter.Tk()'"
     system cellar_framework/'bin/pip', 'list', '--format=columns'  # pip is not a binary
   end # test
 end # Python
@@ -325,17 +327,17 @@ __END__
                 LIPO_32BIT_FLAGS=""
                 ARCH_RUN_32BIT=""
                 ;;
-+            ppc)
++            powerpc)
 +               UNIVERSAL_ARCH_FLAGS="-arch ppc -arch ppc64"
 +               LIPO_32BIT_FLAGS="-extract ppc7400"
 +               ARCH_RUN_32BIT="/usr/bin/arch -ppc"
 +               ;;
-+            ppc-32)
++            powerpc-32)
 +               UNIVERSAL_ARCH_FLAGS="-arch ppc"
 +               LIPO_32BIT_FLAGS=""
 +               ARCH_RUN_32BIT=""
 +               ;;
-+            ppc-64)
++            powerpc-64)
 +               UNIVERSAL_ARCH_FLAGS="-arch ppc64"
 +               LIPO_32BIT_FLAGS=""
 +               ARCH_RUN_32BIT=""
@@ -350,7 +352,7 @@ __END__
              elif archs == ('i386', 'ppc'):
                  machine = 'fat'
 +            elif archs == ('ppc', 'ppc64'):
-+                machine = 'fatppc'
++                machine = 'powerpc'
              elif archs == ('i386', 'x86_64'):
                  machine = 'intel'
              elif archs == ('i386', 'ppc', 'x86_64'):
