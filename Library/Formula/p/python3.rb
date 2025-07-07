@@ -1,50 +1,39 @@
 class Python3 < Formula
   desc 'Interpreted, interactive, object-oriented programming language'
   homepage 'https://www.python.org/'
-  url 'https://www.python.org/ftp/python/3.10.15/Python-3.10.15.tar.xz'
-  sha256 'aab0950817735172601879872d937c1e4928a57c409ae02369ec3d91dccebe79'
+  url 'https://www.python.org/ftp/python/3.10.18/Python-3.10.18.tar.xz'
+  sha256 'ae665bc678abd9ab6a6e1573d2481625a53719bc517e9a634ed2b9fefae3817f'
 
   XY = '3.10'.freeze
 
   option :universal
 
   depends_on 'pkg-config' => :build
-  depends_on 'gdbm' => :recommended
-  depends_on 'readline' => :recommended
-  depends_on 'xz' => :recommended # for the lzma module added in 3.3
   depends_on 'bzip2'
   depends_on 'openssl3'
   depends_on 'sqlite'
   depends_on 'tcl-tk'
-  depends_on :x11 if Tab.for_name('tcl-tk').with?('x11')
+  depends_on 'gdbm' => :recommended
+  depends_on 'readline' => :recommended
+  depends_on 'xz' => :recommended # for the lzma module added in 3.3
 
   skip_clean 'bin/pip3', 'bin/pip-3.4', 'bin/pip-3.5', 'bin/pip-3.6', 'bin/pip-3.7', 'bin/pip-3.10'
 
-  # - Enable PPC‐only universal builds.
-  # - Homebrew's tcl-tk is built in standard unix fashion (due to link errors)
-  #   so we have to stop python from searching for frameworks and linking
-  #   against X11.
-  # - Add Support for OS X before 10.6
-  #   from macports/lang/python310/files/patch-threadid-older-systems.diff
-  #   and macports/lang/python310/files/patch-no-copyfile-on-Tiger.diff
-  patch :p0, :DATA
+  patch :DATA  # The purposes of each patch fragment are documented in comments preceding them.
 
   # setuptools remembers the build flags python is built with and uses them to
-  # build packages later. Xcode-only systems need different flags.
+  # build packages later.  Xcode-only systems need different flags.
   def pour_bottle?
     MacOS::CLT.installed?
   end
 
   def install
-    # the installation manages these itself.
-    without_archflags;
+    ENV.universal_binary if build.universal?
+    ENV.without_archflags;  # the installation manages these itself.
 
-    # Unset these so that installing pip puts it where we want
-    # and not into some other Python the user has installed.
-    ENV['PYTHONHOME'] = nil
-    ENV['PYTHONPATH'] = nil
+    ENV['PYTHONHOME'] = nil  # Unset these so that installing pip puts it where we want
+    ENV['PYTHONPATH'] = nil  # and not into some other Python the user has installed.
 
-    # Avoid linking to libgcc http://code.activestate.com/lists/python-dev/112195/
     args = %W[
       --prefix=#{prefix}
       --enable-ipv6
@@ -55,21 +44,12 @@ class Python3 < Formula
       --with-openssl=#{Formula['openssl3'].opt_prefix}
       MACOSX_DEPLOYMENT_TARGET=#{MacOS.version}
     ]
+    # Avoid linking to libgcc.
+    # see http://code.activestate.com/lists/python-dev/112195/
     args << '--without-gcc' if ENV.compiler == :clang
 
     args << '--enable-universalsdk=/'
-    args << "--with-universal-archs=#{Hardware::CPU.type}#{build.universal? ? '' : "-#{Hardware::CPU.bits}"}"
-
-    cflags   = []
-    ldflags  = []
-    cppflags = []
-    unless MacOS::CLT.installed?
-      # Help Python's build system (setuptools/pip) to build things on Xcode-only systems
-      # The setup.py looks at “-isysroot” to get the sysroot (and not at --sysroot)
-      cflags   << "-isysroot #{MacOS.sdk_path}"
-      ldflags  << "-isysroot #{MacOS.sdk_path}"
-      cppflags << "-I#{MacOS.sdk_path}/usr/include" # find zlib
-    end
+    args << "--with-universal-archs=#{CPU.type}#{build.universal? ? '' : "-#{CPU.bits}"}"
 
     # There is no simple way to extract a “ppc” slice from a universal file.  We have to
     # specify the exact sub‐architecture we actually put in there in the first place.
@@ -82,7 +62,7 @@ class Python3 < Formula
       # We want our readline! This is just to outsmart the detection code,
       # superenv makes cc always find includes/libs!
       s.gsub! %r{do_readline = self\.compiler\.find_library_file\(self\.lib_dirs,[ \t\n]+readline_lib\)},
-              "do_readline = '#{Formula['readline'].opt_lib}/libhistory.dylib'"
+              "do_readline = '#{Formula['readline'].opt_lib}/libhistory.dylib'" if build.with? 'readline'
 
       s.gsub! 'sqlite_setup_debug = False',
               'sqlite_setup_debug = True'
@@ -90,8 +70,8 @@ class Python3 < Formula
               "for d_ in ['#{Formula['sqlite'].opt_include}']:"
     end
 
-    # Allow python modules to use ctypes.find_library to find homebrew's stuff
-    # even if homebrew is not a /usr/local/lib. Try this with:
+    # Allow python modules to use ctypes.find_library to find Leopardbrew’s stuff even if the
+    # brewed package is not a /usr/local/lib.  Try this with:
     # `brew install enchant && pip install pyenchant`
     inreplace './Lib/ctypes/macholib/dyld.py' do |s|
       s.gsub! 'DEFAULT_LIBRARY_FALLBACK = [',
@@ -100,9 +80,20 @@ class Python3 < Formula
               "DEFAULT_FRAMEWORK_FALLBACK = [ '#{HOMEBREW_PREFIX}/Frameworks',"
     end
 
-    tcl_tk = Formula['tcl-tk'].opt_prefix
-    ENV.append 'CPPFLAGS', "-I#{tcl_tk}/include"
-    ENV.append 'LDFLAGS', "-L#{tcl_tk}/lib"
+    cflags   = []
+    ldflags  = []
+    cppflags = []
+
+    unless MacOS::CLT.installed?
+      # Help Python's build system (setuptools/pip) to build things on Xcode-only systems
+      # The setup.py looks at “-isysroot” to get the sysroot (and not at --sysroot)
+      cflags   << "-isysroot #{MacOS.sdk_path}"
+      ldflags  << "-isysroot #{MacOS.sdk_path}"
+      cppflags << "-I#{MacOS.sdk_path}/usr/include" # find zlib
+    end
+
+    cppflags << "-I#{Formula['tcl-tk'].opt_include}"
+    ldflags  << "-L#{Formula['tcl-tk'].opt_lib}"
 
     args << "CFLAGS=#{cflags.join(' ')}" unless cflags.empty?
     args << "LDFLAGS=#{ldflags.join(' ')}" unless ldflags.empty?
@@ -110,18 +101,17 @@ class Python3 < Formula
 
     system './configure', *args
     system 'make'
-
     ENV.deparallelize # Installs must be serialized
     # Tell Python not to install into /Applications (default for framework builds)
     system 'make', 'install', "PYTHONAPPSDIR=#{prefix}"
     # Demos and Tools
     system 'make', 'frameworkinstallextras', "PYTHONAPPSDIR=#{share}/python3"
 
-    # Any .app get a “ 3” attached, so it does not conflict with python 2.x.
+    # Any .app get a “ 3” inserted, so it does not conflict with python 2.x.
     Dir.glob(prefix/'*.app') { |app| mv app, app.sub('.app', ' 3.app') }
 
     # Symlink the pkgconfig files into HOMEBREW_PREFIX so they're accessible.
-    (lib/'pkgconfig').install_symlink Dir[cellar_framework/'lib/pkgconfig/*']
+    (lib/'pkgconfig').install_symlink_to Dir[cellar_framework/'lib/pkgconfig/*']
 
     # No need to remove 2to3 – while python2 includes it, the python 2 formula already deletes it
     # rm bin/'2to3'
@@ -147,19 +137,11 @@ class Python3 < Formula
     site_packages.mkpath
     # Symlink it into the cellar
     cellar_site_packages.rmtree if cellar_site_packages.exists?
-    cellar_site_packages.parent.install_symlink site_packages
+    cellar_site_packages.parent.install_symlink_to site_packages
 
-    # redo the Pip3 install, which gets smurfed up by the site-packages shenanigans above
-    system bin/'python3', '-m', 'ensurepip', '--upgrade', '--no-warn-script-location'
-
-    # upgrade pip and the stuff it dragged in
-    system bin/'python3', '-m', 'pip', 'install', '--upgrade', 'pip', '--no-warn-script-location'
-    ['setuptools', 'wheel'].each do |pkg|
-      system bin/'pip3', 'install', '--force-reinstall', '--upgrade', '--no-warn-script-location', pkg
-    end
     rm_rf cellar_framework/'bin/pip'
     mv cellar_framework/'bin/wheel', cellar_framework/'bin/wheel3'
-    bin.install_symlink cellar_framework/'bin/wheel3'
+    bin.install_symlink_to cellar_framework/'bin/wheel3'
 
     # Write our sitecustomize.py
     rm_rf Dir[site_packages/'sitecustomize.py[co]']
@@ -179,7 +161,7 @@ class Python3 < Formula
 
     # post_install happens after link
     %W[pip3 pip#{xy} wheel3].each do |e|
-      (HOMEBREW_PREFIX/'bin').install_symlink bin/e
+      (HOMEBREW_PREFIX/'bin').install_symlink_to bin/e
     end
 
     # Help distutils find brewed stuff when building extensions
@@ -291,8 +273,9 @@ class Python3 < Formula
 end # Python3
 
 __END__
---- configure	2024-09-06 17:20:06 -0700
-+++ configure	2024-09-28 18:29:02 -0700
+# - Enable PPC‐only universal builds.
+--- old/configure	2024-09-06 17:20:06 -0700
++++ new/configure	2024-09-28 18:29:02 -0700
 @@ -7578,6 +7578,21 @@
                 LIPO_INTEL64_FLAGS="-extract x86_64"
                 ARCH_RUN_32BIT="true"
@@ -324,19 +307,21 @@ __END__
                 ;;
              esac
  
---- Lib/_osx_support.py	2024-09-06 17:20:06 -0700
-+++ Lib/_osx_support.py	2024-09-27 21:27:57 -0700
+--- old/Lib/_osx_support.py	2024-09-06 17:20:06 -0700
++++ new/Lib/_osx_support.py	2024-09-27 21:27:57 -0700
 @@ -544,6 +544,8 @@
                  machine = 'universal2'
              elif archs == ('i386', 'ppc'):
                  machine = 'fat'
 +            elif archs == ('ppc', 'ppc64'):
-+                machine = 'fatppc'
++                machine = 'powerpc'
              elif archs == ('i386', 'x86_64'):
                  machine = 'intel'
              elif archs == ('i386', 'ppc', 'x86_64'):
---- setup.py
-+++ setup.py
+# - Homebrew's tcl-tk is built in standard unix fashion (due to link errors), so we have to stop
+#   python from searching for frameworks and linking against X11.
+--- old/setup.py
++++ new/setup.py
 @@ -2111,12 +2111,6 @@
          if self.detect_tkinter_fromenv():
              return True
@@ -384,8 +369,11 @@ __END__
          # XXX handle these, but how to detect?
          # *** Uncomment and edit for PIL (TkImaging) extension only:
          #       -DWITH_PIL -I../Extensions/Imaging/libImaging  tkImaging.c \
---- Modules/posixmodule.c
-+++ Modules/posixmodule.c
+# - Add Support for OS X before 10.6
+#   from macports/lang/python310/files/patch-threadid-older-systems.diff
+#   and macports/lang/python310/files/patch-no-copyfile-on-Tiger.diff
+--- old/Modules/posixmodule.c
++++ new/Modules/posixmodule.c
 @@ -72,6 +72,8 @@
   */
  #if defined(__APPLE__)
@@ -400,7 +388,7 @@ __END__
  #endif
  
 -#if defined(__APPLE__)
-+#if defined(__APPLE__) && MAC_OS_X_VERSION_MAX_ALLOWED >= 1050
++#if defined(__APPLE__) && MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
  #  include <copyfile.h>
  #endif
  
@@ -422,8 +410,8 @@ __END__
      if (PyModule_AddIntConstant(m, "_COPYFILE_DATA", COPYFILE_DATA)) return -1;
  #endif
  
---- Modules/clinic/posixmodule.c.h
-+++ Modules/clinic/posixmodule.c.h
+--- old/Modules/clinic/posixmodule.c.h
++++ new/Modules/clinic/posixmodule.c.h
 @@ -5270,7 +5270,7 @@ exit:
  
  #endif /* defined(HAVE_SENDFILE) && !defined(__APPLE__) && !(defined(__FreeBSD__) || defined(__DragonFly__)) */
@@ -433,8 +421,8 @@ __END__
  
  PyDoc_STRVAR(os__fcopyfile__doc__,
  "_fcopyfile($module, in_fd, out_fd, flags, /)\n"
---- Modules/pyexpat.c
-+++ Modules/pyexpat.c
+--- old/Modules/pyexpat.c
++++ new/Modules/pyexpat.c
 @@ -1233,7 +1233,8 @@ newxmlparseobject(pyexpat_state *state, 
  static int
  xmlparse_traverse(xmlparseobject *op, visitproc visit, void *arg)
@@ -461,8 +449,8 @@ __END__
          PyObject *item = Py_BuildValue("si", features[i].name,
                                         features[i].value);
          if (item == NULL) {
---- Python/thread_pthread.h
-+++ Python/thread_pthread.h
+--- old/Python/thread_pthread.h
++++ new/Python/thread_pthread.h
 @@ -343,7 +346,17 @@ PyThread_get_thread_native_id(void)
          PyThread_init_thread();
  #ifdef __APPLE__
@@ -481,8 +469,8 @@ __END__
  #elif defined(__linux__)
      pid_t native_id;
      native_id = syscall(SYS_gettid);
---- Lib/test/test_shutil.py
-+++ Lib/test/test_shutil.py
+--- old/Lib/test/test_shutil.py
++++ new/Lib/test/test_shutil.py
 @@ -2601,7 +2601,7 @@ class TestZeroCopySendfile(_ZeroCopyFileTest, unittest.TestCase):
              shutil._USE_CP_SENDFILE = True
  
