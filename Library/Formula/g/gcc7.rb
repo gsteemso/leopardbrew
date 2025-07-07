@@ -15,7 +15,7 @@ class Gcc7 < Formula
 
   # Tiger’s stock as can’t handle the PowerPC assembly found in libitm.
   depends_on :cctools => :build if MacOS.version < '10.5'
-  depends_group ['tests', ['autogen', 'deja-gnu']] => [:build, :optional]
+  depends_group ['tests', ['autogen', 'deja-gnu'] => [:build, :optional]]
 
   depends_on :ld64 if MacOS.version < '10.6'
   depends_on 'gmp'

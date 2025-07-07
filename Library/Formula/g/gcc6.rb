@@ -17,7 +17,7 @@ class Gcc6 < Formula
 
   # Tiger’s stock as can’t handle the PowerPC assembly found in libitm.
   depends_on :cctools => :build if MacOS.version < :leopard or build.with? 'arm32'
-  depends_group ['tests', ['autogen', 'deja-gnu']] => [:build, :optional]
+  depends_group ['tests', ['autogen', 'deja-gnu'] => [:build, :optional]]
 
   depends_on :ld64 if MacOS.version < :snow_leopard
   depends_on 'gmp'
@@ -25,7 +25,7 @@ class Gcc6 < Formula
   depends_on 'mpfr'
   depends_on 'isl016'
   depends_on :nls => :recommended
-  depends_group ['java', ['ecj', :python, :x11]] => :optional
+  depends_group ['java', ['ecj', :python, :x11] => :optional]
 
   # The bottles are built on systems with the CLT installed, and do not work
   # out of the box on Xcode-only systems due to an incorrect sysroot.

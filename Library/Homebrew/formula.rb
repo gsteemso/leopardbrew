@@ -1425,9 +1425,10 @@ class Formula
     # automatic installation.
 #    def depends_1_of(group); specs.each { |spec| spec.depends_1_of(group) }; end
 
-    # Define a group of dependencies selectable by a single option.  These groups are always either
-    # :optional or :recommended, because nothing else autogenerates the options this makes easier.
-    #     depends_group ['more-dns', ['c-ares', 'ibidn2, 'libpsl']] => :recommended
+    # Define a group of dependencies selectable by a single option.  All such groups must always be
+    # either :optional or :recommended, because only those autogenerate the build options that this
+    # makes more convenient.
+    #     depends_group ['more-dns', ['c-ares', 'ibidn2, 'libpsl'] => :recommended]
     # autogenerates a “--without-more-dns” option.
     def depends_group(group); specs.each { |spec| spec.depends_group(group) }; end
 

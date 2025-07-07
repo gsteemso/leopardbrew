@@ -42,7 +42,7 @@ class Ffmpeg < Formula
   depends_on 'x264' => :recommended
   depends_on 'lame' => :recommended
 
-  depends_group ['drawtext', ['fontconfig', 'freetype', 'fribidi', 'harfbuzz']] => :optional
+  depends_group ['drawtext', ['fontconfig', 'freetype', 'fribidi', 'harfbuzz'] => :optional]
   depends_on 'libssh'   => :optional
   depends_on 'rtmpdump' => :optional
   depends_on 'webp'     => :optional

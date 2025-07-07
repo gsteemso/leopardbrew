@@ -29,8 +29,7 @@ class Gnutls < Formula
   depends_on 'zlib'
   depends_on 'guile'   => :optional
   depends_on 'unbound' => :optional
-  depends_group ['more-compressors', ['brotli', 'zstd']
-                ]      => :optional
+  depends_group ['more-compressors', ['brotli', 'zstd'] => :optional]
 
   # Availability.h appeared in Leopard
   patch :DATA

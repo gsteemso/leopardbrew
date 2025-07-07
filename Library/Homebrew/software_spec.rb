@@ -144,13 +144,28 @@ class SoftwareSpec
 #    add_set_options(d_set) if d_set
 #  end # SoftwareSpec#depends_1_of
 
+  # depends_group takes a two-element array.  The first element is the group name and the second
+  # lists its component dependencies.  The second element, the list, must be in the form of a
+  # singleton hash:  the key is an array of formula names and the value is an array of tags that
+  # must include either :optional or :recommended.  The array of formula names can have members
+  # which themselves are singleton hashes:  Such a member has a key that is a formula name, and a
+  # value that is a string or array of strings giving the option(s) that formula must be built with.
   def depends_group(group)
-    group_name, group_members = *(group.keys.first)
-    group_tags = Array(group.values.first)
+    group_name, group_members = Array(group)
+    group_tags = Array(group_members.values.first)
+    group_members = Array(group_members.keys.first)
     raise UsageError, "dependency group “#{group_name}” MUST have :optional or :recommended priority" \
       unless group_tags.any?{ |tag| [:optional, :recommended].include? tag }
     _deps = []
-    group_members.each{ |name| _deps << dependency_collector.add(Dependency.new(name, group_tags, nil, group_name)) }
+    group_members.each do |member|
+      if Hash === member
+        _deps << dependency_collector.add(Dependency.new(member.keys.first,
+                                                         group_tags + member.values.first,
+                                                         nil, group_name))
+      else
+        _deps << dependency_collector.add(Dependency.new(member, group_tags, nil, group_name))
+      end
+    end
     add_group_option( group_name, group_tags.detect{ |tag| [:optional, :recommended].include? tag }) unless _deps.empty?
   end # SoftwareSpec#depends_group
 

@@ -11,7 +11,7 @@ class Grep < Formula
 
   depends_on 'pkg-config' => :build
   depends_on 'pcre2'
-  depends_group ['nls', ['gettext', 'libiconv']] => :recommended
+  depends_on :nls => :recommended
 
   enhanced_by 'libsigsegv'
 

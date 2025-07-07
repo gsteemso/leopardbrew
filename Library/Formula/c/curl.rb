@@ -11,19 +11,20 @@ class Curl < Formula
   keg_only :provided_by_osx
 
   option :universal
-  option 'with-gnutls',      'Add GnuTLS security, independent of OpenSSL/LibreSSL'
-  option 'with-libressl',    'Use LibreSSL security instead of OpenSSL'
-  option 'with-rtmpdump',    'Add RTMP (streaming Flash) capability'
-  option 'with-tests',       'Run the build‐time test suite (slow; requires Python3)'
-  option 'with-standalone',  'Omit every discretionary dependency except OpenSSL3'
-  option 'without-gsasl',    'Omit SASL SCRAM authentication'
-  option 'without-libssh2',  'Omit scp and sFTP access'
-  option 'without-more-dns', 'Omit asynchronous, internationalized, public‐suffix‐aware DNS'
-  option 'without-ssl',      'Omit LibreSSL/OpenSSL security (recommend adding GnuTLS)'
-  option 'without-zstd',     'Omit ZStandard compression'
+  option 'with-gnutls',        'Add GnuTLS security, independent of OpenSSL/LibreSSL'
+  option 'with-libressl',      'Use LibreSSL security instead of OpenSSL'
+  option 'with-rtmpdump',      'Add RTMP (streaming Flash) capability'
+  option 'with-tests',         'Run the build‐time test suite (slow; requires Python3)'
+  option 'with-standalone',    'Omit every discretionary dependency except OpenSSL3'
+  option 'without-dns-extras', 'Omit asynchronous, internationalized, public‐suffix‐aware DNS'
+  option 'without-gsasl',      'Omit SASL SCRAM authentication'
+  option 'without-libssh2',    'Omit scp and sFTP access'
+  option 'without-ssl',        'Omit LibreSSL/OpenSSL security (recommend adding GnuTLS)'
+  option 'without-zstd',       'Omit ZStandard compression'
 
-  deprecated_option 'with-rtmp'   => 'with-rtmpdump'
-  deprecated_option 'with-ssh'    => 'with-libssh2'
+  deprecated_option 'with-rtmp'        => 'with-rtmpdump'
+  deprecated_option 'with-ssh'         => 'with-libssh2'
+  deprecated_option 'without-more-dns' => 'without-dns-extras'
 
   depends_on :ld64        => :build
   depends_on 'make'       => :build  # pre‐version 4 `make` can be flaky when running parallel jobs
@@ -38,11 +39,10 @@ class Curl < Formula
   depends_on 'zlib'
 
   if build.without? 'standalone'
-    depends_on    'gsasl'   => :recommended
-    depends_on    'libssh2' => :recommended
-    depends_group ['more-dns', ['c-ares', 'libidn2', 'libpsl']
-                  ]         => :recommended
-    depends_on    'zstd'    => :recommended
+    depends_group ['dns-extras', ['c-ares', 'libidn2', 'libpsl'] => :recommended]
+    depends_on     'gsasl'      => :recommended
+    depends_on     'libssh2'    => :recommended
+    depends_on     'zstd'       => :recommended
 
     depends_on 'gnutls'   => :optional
     depends_on 'libressl' => :optional
