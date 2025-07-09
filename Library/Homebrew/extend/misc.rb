@@ -1,8 +1,17 @@
 class Array
   def choke; self unless flatten.compact.empty?; end
 
+  def list
+    case length
+      when 0 then ''
+      when 1 then self[0].to_s
+      when 2 then "#{self[0].to_s} and #{self[1].to_s}"
+      else "#{self[0..-2] * ', '}, and #{self[-1].to_s}"
+    end
+  end # Array#list
+
   alias_method :includes?, :include? unless method_defined? :includes?
-end
+end # Array
 
 module Enumerable
   alias_method :includes?, :include? unless method_defined? :includes?
