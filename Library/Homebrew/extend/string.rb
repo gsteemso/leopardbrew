@@ -1,6 +1,5 @@
 class String
   def undent; gsub(%r{^[ \t]{#{(slice(%r{^[ \t]+}) || '').length}}}, ''); end
-
   # eg:
   #   if foo then <<-EOS.undent_________________________________________________________72
   #               Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do
@@ -14,6 +13,28 @@ class String
   alias_method :undent_________________________________________________________72, :undent
 
   def indent(columns = 8); gsub(%r{^}, ' ' * columns); end
+
+  def rewrap(width = 80)
+    lines = []
+    paras = split("\n\n")
+    paras.each do |p|
+      p.gsub!("\n", ' ')
+      while p.length > width
+        pos = width
+        while pos > 0 and p[pos] !~ %r{\s} do pos -= 1; end
+        if pos == 0
+          lines << p[0,width]
+          p[0,width] = ''
+        else
+          lines << p[0..pos].sub(%r{\s+$}, '')
+          p[0..pos] = ''
+          p.sub!(%r{^\s+}, '')
+        end
+      end
+      lines << p
+    end # each paragraph |p|
+    lines * "\n"
+  end # String#rewrap
 
   # String.chomp, but if result is empty: returns nil instead.
   # Allows `choke || foo` short-circuits.
