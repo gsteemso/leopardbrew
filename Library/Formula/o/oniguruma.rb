@@ -1,20 +1,53 @@
 class Oniguruma < Formula
-  desc "Regular expressions library"
-  homepage "https://github.com/kkos/oniguruma/"
-  url "https://github.com/kkos/oniguruma/releases/download/v6.9.8/onig-6.9.8.tar.gz"
-  sha256 "28cd62c1464623c7910565fb1ccaaa0104b2fe8b12bcd646e81f73b47535213e"
+  desc 'Discontinued regular expressions library'
+  homepage 'https://github.com/kkos/oniguruma/'
+  url 'https://github.com/kkos/oniguruma/releases/download/v6.9.10/onig-6.9.10.tar.gz'
+  sha256 '2a5cfc5ae259e4e97f86b68dfffc152cdaffe94e2060b770cb827238d769fc05'
 
-  bottle do
-    cellar :any
-    sha256 "38b40d3467c15f25c0ee58508cb5408db9474ca7b1c9b6754d8b901d7417f32b" => :tiger_altivec
-  end
+  option :universal
+
+  patch :DATA
 
   def install
-    system "./configure", "--disable-dependency-tracking", "--prefix=#{prefix}"
-    system "make", "install"
-  end
+    ENV.universal_binary if build.universal?
+    system './configure', "--prefix=#{prefix}",
+                          '--disable-dependency-tracking',
+                          '--disable-silent-rules'
+    system 'make'
+    system 'make', 'check'
+    system 'make', 'install'
+  end # install
 
   test do
-    assert_match /#{prefix}/, shell_output("#{bin}/onig-config --prefix")
+    assert_match %r{#{Regexp.escape(prefix.to_s)}}, shell_output("#{bin}/onig-config --prefix")
   end
-end
+end # Oniguruma
+
+__END__
+--- old/test/test_regset.c
++++ new/test/test_regset.c
+@@ -292,23 +292,7 @@
+ static int
+ get_all_content_of_file(char* path, char** rs, char** rend)
+ {
+-  ssize_t len;
+-  size_t n;
+-  char* line;
+-  FILE* fp;
+-
+-  fp = fopen(path, "r");
+-  if (fp == 0) return -1;
+-
+-  n = 0;
+-  line = NULL;
+-  len = getdelim(&line, &n, EOF, fp);
+-  fclose(fp);
+-  if (len < 0) return -2;
+-
+-  *rs   = line;
+-  *rend = line + len;
+-  return 0;
++  return -1;
+ }
+ #endif
+ 
