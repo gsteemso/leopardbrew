@@ -1,5 +1,5 @@
 class AppleGcc42 < Formula
-  desc 'the last Apple version of the GNU Compiler Collection for OS X'
+  desc 'the last Apple version of the GNU Compiler Collection for Mac OS'
   homepage 'http://https://opensource.apple.com/releases/'
   url 'https://github.com/apple-oss-distributions/gcc/archive/refs/tags/gcc-5666.3.tar.gz'
   version '4.2.1-5666.3'
@@ -7,10 +7,11 @@ class AppleGcc42 < Formula
 
   option 'with-arm', 'Build with 32‐bit ARM support for iOS etc (requires iPhone SDK)' if MacOS.version >= :leopard
 
-  depends_on 'cctools'  # make sure we have a suitable `as` for every target (and don’t do
-                        # “:cctools”, that doesn’t necessarily pull in the actual formula)
   depends_on 'gmp'
   depends_on 'mpfr'
+  # Make sure we have a suitable `as` for every target (and don’t do “:cctools”, that doesn’t
+  # necessarily pull in the actual formula).
+  depends_on 'cctools' if build.with? 'arm'
 
   keg_only :provided_by_osx if MacOS.version > :tiger and MacOS.version < :lion
 
@@ -30,13 +31,18 @@ class AppleGcc42 < Formula
     end
 
     def stock_apple_gcc42_build
-      if installed? and not (candidates = Dir['/usr/bin/*-apple-darwin*-gcc-4.2.1.5[0-9][0-9][0-9]']).empty?
-        return candidates.first[-4,4]
+      if installed? and not (candidates = Dir['/usr/bin/*-apple-darwin*-gcc-4.2.1.5[0-9][0-9][0-9]*']).empty?
+        return candidates.sort.first[-4,4]
       end
       if (gcc42 = Pathname.new(Dir['/usr/bin/*-apple-darwin*-gcc-4.2.1'].first)).choke and not gcc42.symlink?
         return `#{gcc42} --version`[/build (5\d{3})/][1]
       end
     end
+
+    def insinuate; ensure_to_fro; system 'sudo', TO; end
+
+    # This command also deletes `to-*-gcc42` if the `apple-gcc42` rack is gone.
+    def uninsinuate; ensure_to_fro; system 'sudo', FRO; end
   end
 
   def croak_no_ios_sdk
@@ -77,13 +83,6 @@ class AppleGcc42 < Formula
     system "#{buildpath}/build_gcc", arg1_host_archs, arg2_target_archs, arg3_source_root,
       arg4_prefix_2_unused, arg5_install_prefix, arg6_debugsym_unused
   end # install
-
-  if MacOS.version > :tiger and MacOS.version < :lion
-    def insinuate; ensure_to_fro; system 'sudo', TO; end
-
-    # This command also deletes `to-*-gcc42` if the `apple-gcc42` rack is gone.
-    def uninsinuate; ensure_to_fro; system 'sudo', FRO; end
-  end
 
   def caveats
     caveat_text = <<-EOS.undent
