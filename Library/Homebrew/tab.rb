@@ -187,12 +187,9 @@ class Tab < OpenStruct
            when false then 'Built from source'
            else 'Installed'
          end
-    s << "(for #{built_archs.map(&:to_s) * ', '})"
-    unless used_options.empty?
-      s << 'with: '
-      s.concat used_options.to_a
-    end
-    s << "\nEnhanced by:  #{active_aids.map(&:full_name) * ', '}" if active_aids.choke
+    s << "(for #{built_archs.map(&:to_s).list})"
+    s << 'with: ' << used_options.to_a.sort.list unless used_options.empty?
+    s << "\nEnhanced by:  #{active_aids.map(&:full_name).list}" if active_aids.choke
     s * ' '
   end # to_s
 
