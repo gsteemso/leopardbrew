@@ -16,7 +16,13 @@ def pretty_duration(s)
   end
 end # pretty_duration
 
-def plural(n, plural = 's', singular = ''); (n == 1) ? singular : plural; end
+def plural(n, plural = 's', singular = '', dual = nil)
+  case n
+    when 1 then singular
+    when 2 then (dual ? dual : plural)
+    else plural  # also correct for 0:  “you have no apples”
+  end
+end # plural
 
 def interactive_shell(f = nil)
   unless f.nil?
