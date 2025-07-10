@@ -3,161 +3,87 @@ class Caveats
 
   def initialize(f)
     @f = f
+    @value = _caveats
   end
 
-  def caveats
-    caveats = []
-    s = f.caveats.to_s
-    caveats << s.chomp + "\n" if s.length > 0
-    caveats << enhancements_caveats
-    caveats << keg_only_caveats
-    caveats << bash_completion_caveats
-    caveats << zsh_completion_caveats
-    caveats << fish_completion_caveats
-    caveats << plist_caveats
-    caveats << python_caveats
-    caveats << app_caveats
-    caveats << elisp_caveats
-    caveats.compact.join("\n")
-  end # caveats
+  def caveats; @value; end # _caveats
 
   def empty?
-    caveats.empty?
+    @value.nil? or @value == ''
   end
 
   private
 
+  def _caveats
+    _caveats = []
+    s = f.caveats.to_s
+    _caveats << s.chomp if s.length > 0
+    _caveats << enhancements_caveats
+    _caveats << keg_only_caveats
+    _caveats << bash_completion_caveats
+    _caveats << zsh_completion_caveats
+    _caveats << fish_completion_caveats
+    _caveats << plist_caveats
+    _caveats << python_caveats
+    _caveats << app_caveats
+    _caveats << elisp_caveats
+    _caveats << ''
+    _caveats.compact.join("\n\n")
+  end # _caveats
+
   def keg
-    @keg ||= [f.prefix, f.opt_prefix, f.linked_keg].map do |d|
-      Keg.new(d.resolved_path) rescue nil
-    end.compact.first
+    @keg ||= [f.opt_prefix, f.linked_keg, f.prefix].map{ |d| d.resolved_path }.uniq.map{ |d| Keg.new(d) rescue nil }.compact.first
   end
 
   def enhancements_caveats
+    def list_aid_groups
+      out = []
+      f.named_enhancements.each{ |eg| out << "{#{eg * ' + '}}" }
+      out.list
+    end
     ne = f.named_enhancements
-    s = ne.size
-    return if s == 0
-    <<-_.undent
-      This formula will take advantage of the formul#{plural(s, 'æ', 'a')} named by
-          `brew info #{f.full_name}`
-      as enhancing it, if #{plural(s, 'they happen', 'it happens')} to be installed at the time of brewing.  Should
-      #{plural(s, 'they', 'it')} be installed later, this formula will not benefit unless reïnstalled.
+    return if ne.empty?
+    s = ne.length
+    ss = ne.flatten.uniq.length
+    <<-_.undent.rewrap
+      This formula will take advantage of the formul#{plural(ss, 'æ', 'a')} #{list_aid_groups} if
+      #{plural(ss, plural(s, 'any of them', 'they'), 'it', plural(s, 'either', 'both'))}
+      happen#{plural(ss, '', 's', plural(s))} to be installed at the time of brewing.  Should
+      #{plural(ss, plural(s, 'any', 'they'), 'it', plural(s, 'either or both', 'the two'))} be
+      installed later, this formula will not benefit unless reïnstalled.
     _
   end # enhancements_caveats
 
   def keg_only_caveats
     return unless f.keg_only?
 
-    s = "This formula is keg-only, which means it is not symlinked into\n#{HOMEBREW_PREFIX}."
-    s << "\n\n#{f.keg_only_reason}"
+    s = "This formula is keg-only, which means it is not symlinked into\n#{HOMEBREW_PREFIX}.\n\n"
+    s << "#{f.keg_only_reason}\n\n"
     if f.lib.directory? or f.include.directory?
       s << <<-EOS.undent
-
           Generally there are no consequences of this for you. If you build your
           own software and it requires this formula, you’ll need to add to your
           build variables:
-
         EOS
       s << "    LDFLAGS:  -L#{f.opt_lib}\n" if f.lib.directory?
-      s << "    CPPFLAGS: -I#{f.opt_include}\n" if f.include.directory?
+      s << "    CPPFLAGS: -I#{f.opt_include}" if f.include.directory?
     end
-    s << "\n"
   end # keg_only_caveats
 
   def bash_completion_caveats
-    if keg and keg.completion_installed?(:bash) then <<-EOS.undent
-      Bash completion is installed to:
-          #{HOMEBREW_PREFIX}/etc/bash_completion.d
-      EOS
-    end
-  end # bash_completion_caveats
+    "Bash completion is installed to:\n    #{HOMEBREW_PREFIX}/etc/bash_completion.d" \
+      if keg and keg.completion_installed?(:bash) and keg.linked?
+  end
 
   def zsh_completion_caveats
-    if keg and keg.completion_installed?(:zsh) then <<-EOS.undent
-      zsh completion is installed to:
-          #{HOMEBREW_PREFIX}/share/zsh/site-functions
-      EOS
-    end
+    "zsh completion is installed to:\n    #{HOMEBREW_PREFIX}/share/zsh/site-functions" \
+      if keg and keg.completion_installed?(:zsh) and keg.linked?
   end # zsh_completion_caveats
 
   def fish_completion_caveats
-    if keg and keg.completion_installed?(:fish) and which("fish") then <<-EOS.undent
-      fish completion is installed to:
-          #{HOMEBREW_PREFIX}/share/fish/vendor_completions.d
-      EOS
-    end
+    "fish completion is installed to:\n    #{HOMEBREW_PREFIX}/share/fish/vendor_completions.d" \
+      if keg and keg.completion_installed?(:fish) and keg.linked?
   end # fish_completion_caveats
-
-  def python_caveats
-    return unless keg
-    return unless keg.python_site_packages_installed?
-
-    s = nil
-    homebrew_site_packages = Language::Python.homebrew_site_packages
-    user_site_packages = Language::Python.user_site_packages "python"
-    pth_file = user_site_packages/"homebrew.pth"
-    instructions = <<-EOS.undent.gsub(/^/, "    ")
-      mkdir -p #{user_site_packages}
-      echo 'import site; site.addsitedir("#{homebrew_site_packages}")' >> #{pth_file}
-    EOS
-
-    if f.keg_only?
-      keg_site_packages = f.opt_prefix/"lib/python2.7/site-packages"
-      unless Language::Python.in_sys_path?("python", keg_site_packages)
-        s = <<-EOS.undent
-          If you need Python to find bindings for this keg-only formula, run:
-              echo #{keg_site_packages} >> #{homebrew_site_packages/f.name}.pth
-        EOS
-        s += instructions unless Language::Python.reads_brewed_pth_files?("python")
-      end
-      return s
-    end
-
-    return if Language::Python.reads_brewed_pth_files?("python")
-
-    if !Language::Python.in_sys_path?("python", homebrew_site_packages)
-      s = <<-EOS.undent
-        Python modules are installed and Leopardbrew’s site-packages is not
-        in your Python sys.path, so you will not be able to import the modules
-        this formula installs.  If you plan to develop with these modules,
-        please run:
-      EOS
-      s += instructions
-    elsif keg.python_pth_files_installed?
-      s = <<-EOS.undent
-        This formula installs .pth files to Leopardbrew’s site-packages and
-        your Python isn’t configured to process them, so you will not be able to
-        import the modules this formula installs. If you plan to develop with
-        these modules, please run:
-      EOS
-      s += instructions
-    end
-    s
-  end # python_caveats
-
-  def app_caveats
-    if keg and keg.app_installed?
-      <<-EOS.undent
-        .app bundles are installed.
-        Run “brew linkapps #{keg.name}” to symlink these to /Applications.
-      EOS
-    end
-  end # app_caveats
-
-  def elisp_caveats
-    return if f.keg_only?
-    if keg and keg.elisp_installed?
-      <<-EOS.undent
-        Emacs Lisp files are installed to:
-        #{HOMEBREW_PREFIX}/share/emacs/site-lisp/
-
-        Add the following to your init file to have Lisp packages installed by
-        Homebrew added to your load-path:
-        (let ((default-directory "#{HOMEBREW_PREFIX}/share/emacs/site-lisp/"))
-          (normal-top-level-add-subdirs-to-load-path))
-      EOS
-    end
-  end # elisp_caveats
 
   def plist_caveats
     s = []
@@ -225,4 +151,75 @@ class Caveats
     end
     s.join("\n") unless s.empty?
   end # plist_caveats
+
+  def python_caveats
+    return unless keg
+    return unless keg.python_site_packages_installed?
+
+    s = nil
+    homebrew_site_packages = Language::Python.homebrew_site_packages
+    user_site_packages = Language::Python.user_site_packages "python"
+    pth_file = user_site_packages/"homebrew.pth"
+    instructions = <<-EOS.undent.gsub(/^/, "    ")
+      mkdir -p #{user_site_packages}
+      echo 'import site; site.addsitedir("#{homebrew_site_packages}")' >> #{pth_file}
+    EOS
+
+    if f.keg_only?
+      keg_site_packages = f.opt_prefix/"lib/python2.7/site-packages"
+      unless Language::Python.in_sys_path?("python", keg_site_packages)
+        s = <<-EOS.undent
+          If you need Python to find bindings for this keg-only formula, run:
+              echo #{keg_site_packages} >> #{homebrew_site_packages/f.name}.pth
+        EOS
+        s += instructions unless Language::Python.reads_brewed_pth_files?("python")
+      end
+      return s
+    end
+
+    return if Language::Python.reads_brewed_pth_files?("python")
+
+    if !Language::Python.in_sys_path?("python", homebrew_site_packages)
+      s = <<-EOS.undent
+        Python modules are installed and Leopardbrew’s site-packages is not
+        in your Python sys.path, so you will not be able to import the modules
+        this formula installs.  If you plan to develop with these modules,
+        please run:
+      EOS
+      s += instructions
+    elsif keg.python_pth_files_installed?
+      s = <<-EOS.undent
+        This formula installs .pth files to Leopardbrew’s site-packages and
+        your Python isn’t configured to process them, so you will not be able to
+        import the modules this formula installs. If you plan to develop with
+        these modules, please run:
+      EOS
+      s += instructions
+    end
+    s.chomp
+  end # python_caveats
+
+  def app_caveats
+    if keg and keg.app_installed?
+      <<-EOS.undent.chomp
+        .app bundles are installed.
+        Run “brew linkapps #{keg.name}” to symlink these to /Applications.
+      EOS
+    end
+  end # app_caveats
+
+  def elisp_caveats
+    return if f.keg_only?
+    if keg and keg.elisp_installed?
+      <<-EOS.undent.chomp
+        Emacs Lisp files are installed to:
+        #{HOMEBREW_PREFIX}/share/emacs/site-lisp/
+
+        Add the following to your init file to have Lisp packages installed by
+        Homebrew added to your load-path:
+        (let ((default-directory "#{HOMEBREW_PREFIX}/share/emacs/site-lisp/"))
+          (normal-top-level-add-subdirs-to-load-path))
+      EOS
+    end
+  end # elisp_caveats
 end # Caveats
