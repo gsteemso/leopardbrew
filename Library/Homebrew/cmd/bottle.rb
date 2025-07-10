@@ -46,7 +46,7 @@ module Homebrew
 
       @put_filenames ||= []
       unless @put_filenames.include? filename
-        puts "#{Tty.red}#{filename}#{Tty.reset}"
+        puts "#{TTY.red}#{filename}#{TTY.reset}"
         @put_filenames << filename
       end
     end
@@ -70,7 +70,7 @@ module Homebrew
       if VERBOSE
         print_filename(string, file) if linked_libraries.any?
         linked_libraries.each do |lib|
-          puts " #{Tty.gray}-->#{Tty.reset} links to #{lib}"
+          puts " #{TTY.gray}-->#{TTY.reset} links to #{lib}"
         end
       end
 
@@ -93,7 +93,7 @@ module Homebrew
       if VERBOSE && text_matches.any?
         print_filename string, file
         text_matches.first(MAXIMUM_STRING_MATCHES).each do |match, offset|
-          puts " #{Tty.gray}-->#{Tty.reset} match '#{match}' at offset #{Tty.em}0x#{offset}#{Tty.reset}"
+          puts " #{TTY.gray}-->#{TTY.reset} match '#{match}' at offset #{TTY.em}0x#{offset}#{TTY.reset}"
         end
 
         if text_matches.size > MAXIMUM_STRING_MATCHES

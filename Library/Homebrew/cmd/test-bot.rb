@@ -94,7 +94,7 @@ module Homebrew
         puts "travis_fold:start:#{@travis_fold_id}"
         puts "travis_time:start:#{@travis_timer_id}"
       end
-      puts "#{Tty.blue}==>#{Tty.white} #{@command.join(" ")}#{Tty.reset}"
+      puts "#{TTY.blue}==>#{TTY.white} #{@command.join(" ")}#{TTY.reset}"
     end # puts_command
 
     def puts_result
@@ -102,11 +102,11 @@ module Homebrew
         travis_start_time = @start_time.to_i*1000000000
         travis_end_time = @end_time.to_i*1000000000
         travis_duration = travis_end_time - travis_start_time
-        puts "#{Tty.white}==>#{Tty.green} PASSED#{Tty.reset}" if passed?
+        puts "#{TTY.white}==>#{TTY.green} PASSED#{TTY.reset}" if passed?
         puts "travis_time:end:#{@travis_timer_id},start=#{travis_start_time},finish=#{travis_end_time},duration=#{travis_duration}"
         puts "travis_fold:end:#{@travis_fold_id}"
       end
-      puts "#{Tty.white}==>#{Tty.red} FAILED#{Tty.reset}" if failed?
+      puts "#{TTY.white}==>#{TTY.red} FAILED#{TTY.reset}" if failed?
     end # puts_result
 
     def has_output?; @output && !@output.empty?; end
@@ -366,7 +366,7 @@ module Homebrew
     end # download
 
     def skip(formula_name)
-      puts "#{Tty.blue}==>#{Tty.white} SKIPPING: #{formula_name}#{Tty.reset}"
+      puts "#{TTY.blue}==>#{TTY.white} SKIPPING: #{formula_name}#{TTY.reset}"
     end
 
     def satisfied_requirements?(formula, spec, dependency = nil)

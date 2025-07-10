@@ -116,7 +116,7 @@ class Build
       if ARGV.interactive?
         ohai 'Entering interactive mode'
         puts 'Type “exit” to return and finalize the installation'
-        puts "Install to this prefix:  #{Tty.white}#{formula.prefix}#{Tty.reset}"
+        puts "Install to this prefix:  #{TTY.white}#{formula.prefix}#{TTY.reset}"
 
         if ARGV.git?
           puts 'This directory is now a git repo. Make your changes and then use:'

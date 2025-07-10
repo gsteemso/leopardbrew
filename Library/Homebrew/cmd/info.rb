@@ -160,13 +160,12 @@ module Homebrew
     # necessary for 1.8.7 unicode handling since many installs are on 1.8.7
     tick = ["2714".hex].pack("U*")
     cross = ["2718".hex].pack("U*")
-
     deps_status = dependencies.collect do |dep|
       if dep.installed?
-        color = Tty.green
+        color = TTY.green
         symbol = tick
       else
-        color = Tty.red
+        color = TTY.red
         symbol = cross
       end
       if NO_EMOJI
@@ -174,7 +173,7 @@ module Homebrew
       else
         colored_dep = "#{dep} #{color}#{symbol}"
       end
-      "#{colored_dep}#{Tty.reset}"
+      "#{colored_dep}#{TTY.reset}"
     end
     deps_status * (clump ? ' + ' : ', ')
   end # decorate_dependencies

@@ -84,7 +84,7 @@ module Debrew
 
       begin
         puts "#{e.backtrace.first}"
-        puts "#{Tty.red}#{e.class.name}#{Tty.reset}: #{e}"
+        puts "#{TTY.ul_red}#{e.class.name}#{TTY.reset}: #{e}"
 
         loop do
           Menu.choose do |menu|

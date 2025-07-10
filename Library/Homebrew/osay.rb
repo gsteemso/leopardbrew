@@ -1,14 +1,18 @@
 # Routines for addressing the user.
 
-class Tty
+class TTY
   class << self
-    def blue; bold 34; end
-    def white; bold 39; end
-    def red; underline 31; end
-    def yellow; underline 33; end
-    def em; underline 39; end
-    def green; bold 32; end
-    def gray; bold 30; end
+    def blue;   bold 34; end
+    def gray;   bold 30; end  # bold black gets you an implementation-dependent shade of grey
+    alias_method :grey, :gray
+    def green;  bold 32; end
+    def red;    bold 31; end
+    def white;  bold 39; end
+    def yellow; bold 33; end
+
+    def em;        underline 39; end  # 39 is the default colour
+    def ul_red;    underline 31; end
+    def ul_yellow; underline 33; end
 
     def reset; escape 0; end
 
@@ -25,24 +29,24 @@ class Tty
 end
 
 def oh1(title)
-  title = Tty.truncate(title) if $stdout.tty? && !VERBOSE
-  puts "#{Tty.green}==>#{Tty.white} #{title}#{Tty.reset}"
+  title = TTY.truncate(title) if $stdout.tty? && !VERBOSE
+  puts "#{TTY.green}==>#{TTY.white} #{title}#{TTY.reset}"
 end
 
 def ohai(title, *sput)
-  title = Tty.truncate(title) if $stdout.tty? && !VERBOSE
-  puts "#{Tty.blue}==>#{Tty.white} #{title}#{Tty.reset}"
+  title = TTY.truncate(title) if $stdout.tty? && !VERBOSE
+  puts "#{TTY.blue}==>#{TTY.white} #{title}#{TTY.reset}"
   puts sput
 end
 
 # Print a warning (do this rarely)
 def opoo(warning, *sput)
-  $stderr.puts "#{Tty.yellow}Warning#{Tty.reset}: #{warning}"
+  $stderr.puts "#{TTY.ul_yellow}Warning#{TTY.reset}: #{warning}"
   $stderr.puts sput
 end
 
 def onoe(error, *sput)
-  $stderr.puts "#{Tty.red}Error#{Tty.reset}: #{error}"
+  $stderr.puts "#{TTY.ul_red}Error#{TTY.reset}: #{error}"
   $stderr.puts sput
 end
 

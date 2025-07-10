@@ -1234,9 +1234,9 @@ module Homebrew
       unless out.nil? or out.empty?
         if first_warning
           $stderr.puts <<-EOS.undent
-            #{Tty.white}Please note that these warnings are just used to help the Leopardbrew
+            #{TTY.white}Please note that these warnings are just used to help the Leopardbrew
             maintainers with debugging if you file an issue.  If everything you use Leopardbrew
-            for is working fine:  Please don’t worry and just ignore them.  Thanks!#{Tty.reset}
+            for is working fine:  Please don’t worry and just ignore them.  Thanks!#{TTY.reset}
           EOS
         end
 

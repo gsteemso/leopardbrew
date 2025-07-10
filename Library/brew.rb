@@ -131,8 +131,8 @@ rescue RuntimeError, SystemCallError => e
 rescue Exception => e
   onoe e
   if internal_cmd
-    puts "#{Tty.white}Please report this bug:"
-    puts "    #{Tty.em}#{ISSUES_URL}#{Tty.reset}"
+    puts "#{TTY.white}Please report this bug:"
+    puts "    #{TTY.em}#{ISSUES_URL}#{TTY.reset}"
   end
   puts e.backtrace
   exit 1

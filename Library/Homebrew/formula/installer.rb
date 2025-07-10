@@ -171,7 +171,7 @@ class FormulaInstaller
       opoo "#{formula.full_name}:  #{old_flag} was deprecated; using #{new_flag} instead"
     end
 
-    oh1 "Installing #{Tty.green}#{formula.full_name}#{Tty.reset}" if show_install_heading?
+    oh1 "Installing #{TTY.green}#{formula.full_name}#{TTY.reset}" if show_install_heading?
     @@attempted << formula
 
     if pour_bottle?(:warn => true)
@@ -334,7 +334,7 @@ class FormulaInstaller
     if deps.empty? and only_deps?
       puts "All dependencies for #{formula.full_name} are satisfied."
     else
-      oh1 "Installing dependencies for #{formula.full_name}: #{Tty.green}#{deps.map(&:first)*", "}#{Tty.reset}" unless deps.empty?
+      oh1 "Installing dependencies for #{formula.full_name}: #{TTY.green}#{deps.map(&:first)*", "}#{TTY.reset}" unless deps.empty?
       deps.each { |dep, options| install_dependency(dep, options) }
     end
     @show_install_heading = true unless deps.empty?
@@ -376,7 +376,7 @@ class FormulaInstaller
     fi.verbose            = verbose? and not quieter?
     fi.debug              = debug?
     fi.prelude
-    oh1 "Installing #{formula.full_name} dependency: #{Tty.green}#{dep.name}#{Tty.reset}"
+    oh1 "Installing #{formula.full_name} dependency: #{TTY.green}#{dep.name}#{TTY.reset}"
     fi.install
     fi.finish  # this links the new keg
   rescue Exception

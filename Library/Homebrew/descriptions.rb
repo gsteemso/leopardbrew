@@ -104,10 +104,10 @@ class Descriptions
 
   # Take search results (a hash mapping formula names to descriptions) and print them.
   def print
-    blank = "#{Tty.yellow}[no description]#{Tty.reset}"
+    blank = "#{TTY.ul_yellow}[no description]#{TTY.reset}"
     @descriptions.keys.sort.each do |name|
       description = @descriptions[name] || blank
-      puts "#{Tty.white}#{name}:#{Tty.reset} #{description}"
+      puts "#{TTY.white}#{name}:#{TTY.reset} #{description}"
     end
   end # print
 end # Descriptions

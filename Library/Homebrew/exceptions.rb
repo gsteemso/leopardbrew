@@ -69,7 +69,7 @@ class BuildError < RuntimeError
         puts logs.map { |fn| "     #{fn}" }.join("\n")
       end
     else # not VERBOSE
-      puts "\n#{Tty.red}READ THIS#{Tty.reset}: #{Tty.em}#{ISSUES_URL}#{Tty.reset}"
+      puts "\n#{TTY.ul_red}READ THIS#{TTY.reset}: #{TTY.em}#{ISSUES_URL}#{TTY.reset}"
       if formula.tap?
         case formula.tap
           when "homebrew/homebrew-boneyard"
