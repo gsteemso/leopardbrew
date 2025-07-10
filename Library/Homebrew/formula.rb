@@ -113,6 +113,9 @@ class Formula
   # @return [BuildOptions]
   attr_accessor :build
 
+  # Compare formulæ by their names.  If their names are equal, use their full names instead.
+  def <=>(other); r = (name <=> other.name).to_s.nope || full_name <=> other.full_name; r.to_i; end
+
   # @private
   def initialize(name, path, spec)
     @name = name
