@@ -15,7 +15,6 @@ class Bash < Formula
   FRO = HOMEBREW_PREFIX/'bin/to-stock-bash'
 
   option :universal
-  option 'without-nls', 'Brew without Natural Language Support (internationalization)'
 
   depends_on SelfUnbrewedRequirement.new(SYSTEM_BASH, MOVED_BASH, 'to-stock-bash')
   depends_on 'bison' => :build
@@ -61,11 +60,11 @@ class Bash < Formula
   def caveats; <<-EOS.undent
       Some older software may rely on behaviour that has changed since your system’s
       Bash was current.  To minimize breakage, source
-          #{HOMEBREW_PREFIX}/etc/bash_compat”
+          #{HOMEBREW_PREFIX}/etc/bash_compat
       from your .bash_profile.  It sets a Bash system variable for compatibility mode.
 
-      To minimize the trouble caused by software that insists on using a specific
-      version of Bash, two extra commands have been installed:
+      To minimize trouble caused by software that insists on using a specific version
+      of Bash, two extra commands have been installed:
           to-brewed-bash
           to-stock-bash
       These respectively activate and deactivate a complex arrangement of symlinks
