@@ -8,7 +8,6 @@ class Make < Formula
   option :universal
   option 'with-default-names', 'Do not prepend ‘g’ to the binary'
   option 'with-tests',         'Run the build-time unit tests (requires Perl)'
-  option 'without-nls',        'Build without natural‐language support (internationalization)'
 
   depends_on :nls => :recommended
   depends_on 'perl' if build.with? 'tests'

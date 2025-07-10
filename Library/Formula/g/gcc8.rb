@@ -29,7 +29,7 @@ class Gcc8 < Formula
     sha256 "092a1e615cdea11f55784252145d1da94f968d1a0ec59266d4f3a9e846be242d" => :tiger_altivec
   end
 
-  option "with-nls", "Build with native language support (localization)"
+  option "with-nls", "Build with Natural-Language Support (internationalization)"
   option "with-jit", "Build just-in-time compiler"
   # enabling multilib on a host that can't run 64-bit results in build failures
   option "without-multilib", "Build without multilib support" if MacOS.prefer_64_bit?

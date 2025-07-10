@@ -11,12 +11,10 @@ class Exif < Formula
     sha256 "0d5997d1d013822aee275d0e65403a1d99b579f53c2ee131b5b121d85377665d" => :mountain_lion
   end
 
-  option "with-gettext", "Build with Native Language Support"
-
   depends_on "pkg-config" => :build
   depends_on "popt"
   depends_on "libexif"
-  depends_on "gettext" => :optional
+  depends_on :nls => :optional
 
   def install
     args = %W[
@@ -25,7 +23,7 @@ class Exif < Formula
       --disable-silent-rules
     ]
 
-    args << "--disable-nls" if build.without? "gettext"
+    args << "--disable-nls" if build.without? 'nls'
 
     system "./configure", *args
     system "make", "install"

@@ -33,7 +33,7 @@ class Gcc44 < Formula
   option "with-fortran", "Build the gfortran compiler"
   option "with-java", "Build the gcj compiler"
   option "with-all-languages", "Enable all compilers and languages, except Ada"
-  option "with-nls", "Build with native language support (localization)"
+  option "with-nls", "Build with Natural-Language Support (internationalization)"
   option "with-profiled-build", "Make use of profile guided optimization when bootstrapping GCC"
 
   deprecated_option "enable-fortran" => "with-fortran"

@@ -6,13 +6,9 @@ class Libidn < Formula
   sha256 'd6c199dcd806e4fe279360cb4b08349a0d39560ed548ffd1ccadda8cdecb4723'
 
   option :universal
-  option 'without-nls', 'Build without internationalization'
 
   depends_on 'pkg-config' => :build
-  if build.with? 'nls'
-    depends_on 'libiconv'
-    depends_on 'gettext'
-  end
+  depends_on :nls => :recommended
 
   def install
     ENV.universal_binary if build.universal?

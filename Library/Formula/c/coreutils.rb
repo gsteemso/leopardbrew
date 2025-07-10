@@ -17,7 +17,6 @@ class Coreutils < Formula
   end
 
   option 'without-gmp',   'Build with default (inferior) math handling'
-  option 'without-nls',   'Build without natural‐language support (internationalization)'
   option 'without-tests', 'Skip the build‐time unit tests'
 
   depends_on "gmp" => :recommended

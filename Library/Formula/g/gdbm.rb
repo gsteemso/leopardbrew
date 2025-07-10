@@ -7,7 +7,6 @@ class Gdbm < Formula
 
   option :universal
   option 'without-libgdbm-compat', 'Omit the libgdbm_compat library, which provides old‐style dbm/ndbm interfaces'
-  option 'without-nls', 'Build without native language support (localization)'
 
   depends_on 'autoconf' => :build
   depends_on 'automake' => :build
@@ -15,7 +14,7 @@ class Gdbm < Formula
 
   depends_on 'coreutils'
   depends_on 'readline'
-  depends_on 'gettext' if build.with? 'nls'
+  depends_on :nls
 
   # technically only true if built with libgdbm-compat, but conditional keg‐onliness leads to chaos
   keg_only :shadowed_by_osx

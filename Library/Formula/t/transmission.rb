@@ -10,16 +10,12 @@ class Transmission < Formula
     sha256 "3e20545a9e0ca3a4c11e645585427cb00be1cebbf7a76f76fce595ff883fd11c" => :mountain_lion
   end
 
-  option "with-nls", "Build with native language support"
-
   depends_on "pkg-config" => :build
   depends_on "curl" if MacOS.version <= :leopard
   depends_on "libevent"
 
-  if build.with? "nls"
-    depends_on "intltool" => :build
-    depends_on "gettext"
-  end
+  depends_on "intltool" => :build if build.with? "nls"
+  depends_on :nls => :optional
 
   def install
     ENV.append "LDFLAGS", "-framework Foundation -prebind"

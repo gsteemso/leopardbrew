@@ -15,7 +15,6 @@ class KerberosV5 < Formula
   keg_only :provided_by_osx
 
   option :universal
-  option 'without-nls', 'Build without Natural Language Support (internationalization)'
   option 'without-test-dns', 'Don’t pull in resolv-wrapper for the build-time unit tests'
 
 #  depends_on :ld64
