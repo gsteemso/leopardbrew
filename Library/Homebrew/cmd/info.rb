@@ -8,8 +8,7 @@ require 'utils/json'
 
 module Homebrew
   def info
-    # eventually we'll solidify an API, but we'll keep old versions
-    # awhile around for compatibility
+    # Eventually we’ll solidify an API, but we’ll keep old versions around awhile for compatibility.
     if ARGV.json == 'v1'
       print_json
     elsif ARGV.flag? '--github'
@@ -105,7 +104,7 @@ module Homebrew
 
     specs << 'HEAD' if f.head
 
-    puts "#{f.full_name}:  #{specs * ', '}#{' (pinned)' if f.pinned?}"
+    oh1 "#{f.full_name}:  #{specs.list}#{' (pinned)' if f.pinned?}"
 
     puts f.desc if f.desc
 
@@ -149,32 +148,23 @@ module Homebrew
 
   def decorate_enhancement_groups(aid_groups)
     groups = []
-    aid_groups.map { |a| a.sort }.sort { |a, b| a.first <=> b.first }.each do |aid_group|
+    aid_groups.each do |aid_group|  # The individual groups, and lists thereof, are already sorted.
       is_grp = aid_group.length > 1
       groups << "#{'(' if is_grp}#{decorate_dependencies(aid_group, clump = true)}#{')' if is_grp}"
     end
-    groups * ', '
+    groups.list
   end
 
   def decorate_dependencies(dependencies, clump = false)
-    # necessary for 1.8.7 unicode handling since many installs are on 1.8.7
+    # necessary for 1.8.7 unicode handling
     tick = ["2714".hex].pack("U*")
     cross = ["2718".hex].pack("U*")
     deps_status = dependencies.collect do |dep|
-      if dep.installed?
-        color = TTY.green
-        symbol = tick
-      else
-        color = TTY.red
-        symbol = cross
+        colr = dep.installed? ? TTY.green : TTY.red
+        symb = dep.installed? ? tick : cross
+        colored_dep = NO_EMOJI ? "#{colr}#{dep}" : "#{dep} #{colr}#{symb}"
+        "#{colored_dep}#{TTY.reset}"
       end
-      if NO_EMOJI
-        colored_dep = "#{color}#{dep}"
-      else
-        colored_dep = "#{dep} #{color}#{symbol}"
-      end
-      "#{colored_dep}#{TTY.reset}"
-    end
-    deps_status * (clump ? ' + ' : ', ')
+    clump ? deps_status * ' + ' : deps_status.list
   end # decorate_dependencies
 end # Homebrew
