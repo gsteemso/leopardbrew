@@ -41,6 +41,8 @@ class Pulseaudio < Formula
   depends_on "gtk+3" => :optional
   depends_on "jack" => :optional
 
+  needs :tls
+
   # i386 patch per MacPorts
   patch :p0 do
     url "https://trac.macports.org/export/135547/trunk/dports/audio/pulseaudio/files/i386.patch"
