@@ -31,12 +31,12 @@ class SoftwareSpec
                              *Checksum::TYPES
 
   def initialize
+    @active_enhancements = []
     @bottle_specification = BottleSpecification.new
     @compiler_failures = []
     @dependency_collector = DependencyCollector.new
     @deprecated_actuals = []
     @deprecated_options = []
-    @active_enhancements = []
     @flags = ARGV.effective_flags
     @named_enhancements = []
     @options = Options.new
@@ -173,9 +173,10 @@ class SoftwareSpec
     # Enhancements may be specified individually or as a mutually necessary group.
     aids = Array(aid).map{ |name| if name == :nls then name = 'gettext'; end; Formulary.factory(name) rescue nil }
     # For that reason, the named enhancements are an array of arrays of formulæ.
-    @named_enhancements << aids
-    # The active enhancements are a flat array of formulæ.
-    @active_enhancements.concat(aids).uniq! if aids.all?{ |f| f and f.installed? }
+    @named_enhancements << aids.sort
+    @named_enhancements = named_enhancements.sort
+    # The active enhancements are just a flat array of formulæ.
+    @active_enhancements = active_enhancements.concat(aids).uniq.sort if aids.all?{ |f| f and f.installed? }
   end
 
   def enhanced_by?(aid); active_enhancements.any?{ |a| aid == a.name or aid == a.full_name }; end
@@ -202,9 +203,13 @@ class SoftwareSpec
     else
       name = dep.option_name
       if dep.optional? and not option_defined?("with-#{name}")
-        options << Option.new("with-#{name}", "Build with #{name} support")
+        options << Option.new("with-#{name}",
+                              name == 'nls' ? 'Build with Natural-Language Support (internationalization)' \
+                                            : "Build with #{name} support")
       elsif dep.recommended? and not option_defined?("without-#{name}")
-        options << Option.new("without-#{name}", "Build without #{name} support")
+        options << Option.new("without-#{name}",
+                              name == 'nls' ? 'Build without Natural-Language Support (internationalization)' \
+                                            : "Build without #{name} support")
       end
     end
   end # SoftwareSpec#add_dep_option
