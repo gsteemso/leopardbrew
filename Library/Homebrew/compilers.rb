@@ -48,7 +48,7 @@ class CompilerFailure
           when :clang, :gcc_4_0, :llvm
             version = build_or_major_version
           else
-            raise ArgumentError, "Compiler “#{name}”?  Sorry, Leopardbrew only knows about GCC variants and Clang."
+            raise ArgumentError, "Compiler “#{name}”?  Sorry, Leopardbrew only knows about GCC 4–8 and Clang."
         end # case |name|
       end # each spec |name & build/version|
     elsif spec.is_a?(Array)
@@ -82,13 +82,14 @@ class CompilerFailure
       create(:clang => 425,
              :gcc => ['4.3', '4.4', '4.5', '4.6', '4.7']),
       # the very last features of C++11 were not stable until GCC 4.8.1
-      create(:gcc => '4.8') do version = '4.8.0'; end
+      create(:gcc => '4.8') { version = '4.8.0' }
     ],
     :cxx14 => [
       create([:gcc_4_0, :gcc, :llvm]),
       create(:clang),  # build unknown
-      # the very last features of C++14 were not stable until GCC 5.x:
       create(:gcc => ['4.3', '4.4', '4.5', '4.6', '4.7', '4.8', '4.9'])
+      # the very last features of C++14 were not stable until GCC 5.2:
+      create(:gcc => '5') { version = '5.1' }
     ],
     :openmp => [
       create(:clang),  # build unknown
@@ -96,8 +97,8 @@ class CompilerFailure
     ],
     :tls => [
       create([:gcc_4_0, :gcc, :llvm]),
-      create(:clang)  # build unknown
-      # not sure when GCC gained its workaround... version 4.3? 4.4?
+      create(:clang => 421)  # exact build unknown
+      # not sure when GCC gained its workaround... version 4.3? 4.4? at latest 4.9, as required by C11
     ]
   }
 end # CompilerFailure
