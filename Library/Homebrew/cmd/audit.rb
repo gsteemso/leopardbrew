@@ -592,10 +592,7 @@ class FormulaAuditor
     if line =~ /## Naming --/
       problem 'Please remove default template comments'
     end
-    if line =~ %r{# if your formula requires any X11/XQuartz components}
-      problem 'Please remove default template comments'
-    end
-    if line =~ /# if your formula fails when building in parallel/
+    if line =~ %r{# if your formula }
       problem 'Please remove default template comments'
     end
     if line =~ /# Remove unrecognized options if warned by configure/
