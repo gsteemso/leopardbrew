@@ -1,3 +1,22 @@
+#:  Usage:
+#:    brew create ( --macports | --fink ) <name>
+#:    brew create <url> [ --set-name <name> ] [ --set-version <version> ] \
+#:                [ --cmake | --autotools ] [ -f | --force ] [ --no-fetch ]
+#:
+#:In the first form above, this command sends your web browser to the MacPorts or
+#:Fink page of the named package.
+#:
+#:In the second form, this command examines the source-code tarball whose URL you
+#:give it and generates a brewing-recipe template for you to fill out.  Should it
+#:guess wrongly about the package’s name and/or version, you can supply either or
+#:both on the command line.  (If the name is reserved, or already in use, you can
+#:force the template to be created anyway with “-f” or “--force”; but be sure you
+#:know what you are doing.)  Pass “--cmake” or “--autotools” to `brew create` for
+#:the template to be written with suitable commands already filled in.  Otherwise,
+#:it supplies both sets of commands and you have to choose the right ones by hand.
+#:Lastly, it will download and cache the tarball for you, unless the “--no-fetch”
+#:option is supplied.
+
 require 'formula'
 require 'blacklist'
 require 'digest'
@@ -41,8 +60,7 @@ module Homebrew
       fc.path = Formulary.path(fc.name)
     end
 
-    # Don't allow blacklisted formula, or names that shadow aliases,
-    # unless --force is specified.
+    # Don’t allow blacklisted formula, or names that shadow aliases, unless --force is specified.
     unless ARGV.force?
       if msg = blacklisted?(fc.name)
         raise "#{fc.name} is blacklisted for creation.\n#{msg}\nIf you really want to create this formula use --force."
@@ -117,7 +135,7 @@ class FormulaCreator
   end
 
   def template; <<-EOS.undent
-    # Documentation: https://github.com/Homebrew/homebrew/blob/master/share/doc/homebrew/Formula-Cookbook.md
+    # Documentation:  https://raw.githubusercontent.com/gsteemso/leopardbrew/combined/share/doc/homebrew/Formula-Cookbook.md
     # PLEASE REMOVE ALL GENERATED COMMENTS BEFORE SUBMITTING YOUR PULL REQUEST!
 
     class #{Formulary.class_s(name)} < Formula
