@@ -75,7 +75,7 @@ module HomebrewArgvExtension
   def effective_formula_flags
     flags = flags_only.reject{ |flag| BREW_SYSTEM_EQS.any?{ |eq| flag =~ /^#{eq}/ }}
     ENV_FLAG_HASH.each { |method, flag| flags << flag if not include?(flag) and send method.to_sym }
-    flags - BREW_SYSTEM_FLAGS - SWITCHES.values - ENV_FLAGS.map{ |ef| "--#{ef.chop}" }
+    flags - BREW_SYSTEM_FLAGS - SWITCHES.values - ENV_FLAGS.map{ |ef| "--#{ef.gsub('_', '-').chop}" }
   end
 
   def formulae
@@ -194,6 +194,8 @@ module HomebrewArgvExtension
   def flag?(flag); include?(flag) or switch?(flag[2, 1]); end
 
   def force_bottle?; include? '--force-bottle'; end
+
+  def flag?(arg); include? "--#{arg}"; end
 
   # eg. `foo -ns -i --bar` has three switches, n, s and i
   def switch?(char)
