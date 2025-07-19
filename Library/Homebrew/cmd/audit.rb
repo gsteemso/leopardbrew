@@ -161,8 +161,8 @@ class FormulaAuditor
       [/^  (sha1|sha256) ["'][\S\ ]+["']/, 'checksum'   ],
       [/^  head ["'][\S\ ]+["']/,          'head line'  ],
       [/^  keg_only/,                      'keg_only'   ],
-      [/^  stable do/,                     'stable'     ],
       [/^  bottle do/,                     'bottle'     ],
+      [/^  stable do/,                     'stable'     ],
       [/^  devel do/,                      'devel'      ],
       [/^  head do/,                       'head block' ],
       [/^  option/,                        'option'     ],
@@ -642,7 +642,7 @@ class FormulaAuditor
       problem "“#{$1}” should be “\#{#{$3}}#{$5}”"
     end
 
-    if line =~ %r[(/(info|man))]
+    if line =~ %r[([^}]/(info|man))]
       problem "“#{$1}” should be “\#{#{$2}}”"
     end
 
