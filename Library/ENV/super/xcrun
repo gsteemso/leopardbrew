@@ -39,7 +39,7 @@ if [ -x "$exe" ] && \
 then exec "$exe" "$@"; fi
 
 # absolute pathname to our directory (should be $HOMEBREW_REPOSITORY/Library/ENV/super/)
-SUPERBIN="$(cd "${0%/*}" && pwd -P)"
+SUPERBIN="$(cd "${0%/*}" >/dev/null && pwd -P)"
 
 # try a command found by the real xcrun
 exe="$(/usr/bin/xcrun --find "$arg0" 2>/dev/null)"
