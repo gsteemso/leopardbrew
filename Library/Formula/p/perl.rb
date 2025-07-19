@@ -10,13 +10,13 @@ class Perl < Formula
 
   head 'https://github.com/Perl/perl5.git', :branch => 'blead'
 
+  keg_only :provided_by_osx,
+    'Mac OS ships Perl and overriding that can cause unintended issues.'
+
   devel do
     url 'https://www.cpan.org/src/5.0/perl-5.41.12.tar.xz'
     sha256 '136225190411feefd0cb7b6a5f732528763d414d5945859fb7e59a6b6469f0f8'
   end
-
-  keg_only :provided_by_osx,
-    'Mac OS ships Perl and overriding that can cause unintended issues.'
 
   option :universal
   option 'with-dtrace', 'Build with DTrace probes' if (MacOS.version >= '10.5' and not MacOS.prefer_64_bit?) \
