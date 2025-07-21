@@ -48,7 +48,7 @@ class CompilerFailure
           when :clang, :gcc_4_0, :llvm
             version = build_or_major_version
           else
-            raise ArgumentError, "Compiler “#{name}”?  Sorry, Leopardbrew only knows about GCC variants and Clang."
+            raise AlienCompilerError.new(name)
         end # case |name|
       end # each spec |name & build/version|
     elsif spec.is_a?(Array)
@@ -114,19 +114,18 @@ class CompilerSelector
     :gcc_4_0 => [:gcc_4_0, :gcc, :llvm, :gnu, :clang]
   }
 
-  def self.select_for(formula, compilers = self.compilers)
-    new(formula, compilers).compiler
-  end
+  class << self
+    def select_for(formula, compilers = self.compilers); new(formula, compilers).compiler; end
 
-  def self.compilers; COMPILER_PRIORITY.fetch(MacOS.default_compiler); end
+    def compilers; COMPILER_PRIORITY.fetch(MacOS.default_compiler); end
 
-  def self.compiler_version(name)
-    if name =~ GNU_GCC_REGEXP
-      MacOS.non_apple_gcc_version(name)
-    else
-      MacOS.send("#{name}_build_version")
+    def compiler_version(name)
+      name =~ CompilerConstants::GNU_GCC_REGEXP ? MacOS.non_apple_gcc_version(name) \
+                                                : MacOS.send("#{name}_build_version")
     end
-  end # compiler_version
+
+    def validate_user_compiler(formula, sym); new(formula, [sym]).validate_user_compiler(sym); end
+  end # << self
 
   attr_reader :formula, :failures, :compilers
 
@@ -139,6 +138,16 @@ class CompilerSelector
   def compiler
     find_compiler { |c| return c.name unless fails_with?(c) }
     raise CompilerSelectionError.new(formula)
+  end
+
+  def validate_user_compiler(sym)
+    if (find_compiler { |c| fails_with?(c) })
+      name = COMPILER_SYMBOL_MAP.invert.fetch(sym) do
+          if sym.to_s =~ CompilerConstants::GNU_GCC_REGEXP then sym
+          else raise AlienCompilerError.new(sym); end
+        end
+      raise ChosenCompilerError.new(formula, name)
+    else sym; end
   end
 
   private
