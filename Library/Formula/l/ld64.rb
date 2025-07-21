@@ -1,8 +1,8 @@
 class Ld64 < Formula
   desc "Updated version of the ld shipped by Apple"
   homepage "https://github.com/apple-oss-distributions/ld64/tree/ld64-97.17"
-  # The latest version available that nominally builds for PPC is 127.2, which
-  # won’t build on Tiger, at least not without some patching.
+  # The latest version available that nominally builds for PPC is 127.2, which won’t build on Tiger,
+  # at least not without some patching.
   # Leopard users:  If you like, add a 127.2 option, or fix the build on Tiger.
   url "https://github.com/apple-oss-distributions/ld64/archive/refs/tags/ld64-97.17.tar.gz"
   sha256 "dc609d295365f8f5853b45e8dbcb44ca85e7dbc7a530e6fb5342f81d3c042db5"
@@ -13,31 +13,29 @@ class Ld64 < Formula
     sha256 "48e3475bd73f9501d17b7d334d3bf319f5664f2d5ab9d13378e37c2519ae2a3a"
   end
 
+  keg_only :provided_by_osx,
+    "ld64 is an updated version of the ld shipped by Apple."
+
   option :universal
 
   depends_on MaximumMacOSRequirement => :snow_leopard
 
-  # Tiger either includes old versions of these headers,
-  # or doesn't ship them at all
+  # Tiger either includes old versions of these headers, or doesn't ship them at all.
   depends_on "cctools-headers" => :build
   depends_on "dyld-headers" => :build
   depends_on "libunwind-headers" => :build
   # No CommonCrypto
-  depends_on "openssl" if MacOS.version < :leopard
-
-  keg_only :provided_by_osx,
-    "ld64 is an updated version of the ld shipped by Apple."
+  depends_on "openssl3" if MacOS.version < :leopard
 
   fails_with :gcc_4_0 do
     build 5370
   end
 
-  # Fix the smurfed‐up PowerPC maximum‐displacement constants, incorporating
-  # MacPorts’ un‐botching of the logic that chooses whether to do a branch
-  # island.  (Accidentally using “&&” when you meant “||” could happen to
-  # anybody, but how does someone get hired as a systems programmer at a major
-  # computer company when they can’t _count_?)  Also incorporates MacPorts’
-  # version‐number patch, tuned to this revision of ld64.
+  # Fix the smurfed‐up PowerPC maximum‐displacement constants, incorporating MacPorts’ un‐botching
+  # of the logic that chooses whether to do a branch island.  (Accidentally using “&&” when you
+  # meant “||” could happen to anybody, but how does someone get hired as a systems programmer at a
+  # major computer company when they can’t _count_?)  Also incorporates MacPorts’ version‐number
+  # patch, tuned to this revision of ld64.
   patch :DATA
 
   # Remove LTO support
