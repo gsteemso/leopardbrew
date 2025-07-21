@@ -161,11 +161,11 @@ class Cmd
       refurb_arg_parts << "-Wl,#{arg}"
     when /^-I(.+)?/
       # Support both '-Ifoo' (one argument) and '-I foo' (two arguments)
-      val  = chuzzle($1) || enum.next
+      val  = choke($1) || enum.next
       path = canonical_path(val)
       refurb_arg_parts << "-I#{val}" if keep?(path) and @iset.add?(path)
     when /^-L(.+)?/
-      val  = chuzzle($1) || enum.next
+      val  = choke($1) || enum.next
       path = canonical_path(val)
       refurb_arg_parts << "-L#{val}" if keep?(path) and @lset.add?(path)
     else
@@ -253,11 +253,7 @@ class Cmd
 
   def path_split(key); ENV.fetch(key) { '' }.split(File::PATH_SEPARATOR); end
 
-  def chuzzle(val)
-    return val if val.nil?
-    val = val.chomp
-    return val unless val.empty?
-  end
+  def choke(val); (val.nil? or (val = val.chomp).empty?) ? nil : val; end
 end # Cmd
 
 def log(basename, argv, tool, net_args)
