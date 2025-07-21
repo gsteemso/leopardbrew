@@ -821,7 +821,7 @@ class Formula
   # @private
   def self.alias_full_names; @alias_full_names ||= core_aliases + tap_aliases; end
 
-  def self.[](name); Formulary.factory(name); end
+  def self.[](name); Formulary.factory(name) rescue nil; end
 
   # @private
   def tap?; HOMEBREW_TAP_DIR_REGEX === path; end
@@ -1562,6 +1562,8 @@ class Formula
     #     fails_with :gcc => '4.8' do
     #       version '4.8.1'
     #     end
+    # Note that the cause is now neither used nor saved, but can still be specified for the formula
+    # author’s benefit.
     def fails_with(compiler, &block)
       specs.each { |spec| spec.fails_with(compiler, &block) }
     end
