@@ -145,7 +145,7 @@ module SharedEnvExtension
     @compiler ||= \
       if (cc = ARGV.cc)
         warn_about_non_apple_gcc($&) if cc =~ GNU_GCC_REGEXP
-        fetch_compiler(cc, '--cc')
+        CompilerSelector.validate_user_compiler(@formula, fetch_compiler(cc, '--cc'))
       elsif (cc = homebrew_cc)
         warn_about_non_apple_gcc($&) if cc =~ GNU_GCC_REGEXP
         compiler = fetch_compiler(cc, '$HOMEBREW_CC')
@@ -340,22 +340,26 @@ module SharedEnvExtension
   private
 
   def cc=(val)
-    if val then self['CC'] = self['OBJC'] = val.to_s + ' ' + build_archs.as_arch_flags
+    self['HOMEBREW_CC'] = val.to_s
+    if val then self['CC'] = self['OBJC'] = homebrew_cc + ' ' + build_archs.as_arch_flags
     else        self['CC'] = self['OBJC'] = ''; end
   end
 
   def cxx=(val)
-    if val then self['CXX'] = self['OBJCXX'] = val.to_s + ' ' + build_archs.as_arch_flags
+    self['HOMEBREW_CXX'] = val.to_s
+    if val then self['CXX'] = self['OBJCXX'] = homebrew_cxx + ' ' + build_archs.as_arch_flags
     else        self['CXX'] = self['OBJCXX'] = ''; end
   end
 
   def homebrew_cc; self['HOMEBREW_CC']; end
 
-  def fetch_compiler(value, source)
-    COMPILER_SYMBOL_MAP.fetch(value) do |other|
+  def homebrew_cxx; self['HOMEBREW_CXX']; end
+
+  def fetch_compiler(name, source)
+    COMPILER_SYMBOL_MAP.fetch(name) do |other|
       case other
         when GNU_GCC_REGEXP then other
-        else raise "Invalid value for #{source}: #{other}"
+        else raise "Invalid value for #{source}:  #{other}"
       end
     end # fetch do |other|
   end # fetch_compiler

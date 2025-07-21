@@ -60,20 +60,16 @@ module Superenv
     # This means we can use them for any combination of CLT and Xcode.
     self["HOMEBREW_PREFER_CLT_PROXIES"] = "1" if MacOS.version >= "10.9"
 
-    # The HOMEBREW_CCCFG ENV variable is used by the ENV/cc tool to control
-    # compiler flag stripping.  It consists of a string of characters which
-    # act as flags.  Some of these flags are mutually exclusive.
-    #
-    # O - Enables argument refurbishing. Only active under the
-    #     make/bsdmake wrappers currently.
+    # The HOMEBREW_CCCFG ENV variable is used by the ENV/cc tool to control compiler‐flag stripping.
+    # It consists of a string of flag characters, some of them mutually exclusive.
+    # O - Enables argument refurbishing.  Currently only active under the [bsd]make wrapper.
     # x - Enable C++11 mode.
-    # g - Enable "-stdlib=libc++" for clang.
-    # h - Enable "-stdlib=libstdc++" for clang.
-    # K - Don't strip -arch <arch>, -m32, or -m64
-    #
+    # g - Enable “-stdlib=libc++” for clang.
+    # h - Enable “-stdlib=libstdc++” for clang.
+    # K - Don't strip -arch <arch>, -m32, or -m64.
     # On 10.8 and newer, these flags will also be present:
-    # s - apply fix for sed's Unicode support
-    # a - apply fix for apr-1-config path
+    # s - Apply fix for sed’s Unicode support.
+    # a - Apply fix for apr-1-config path.
   end # setup_build_environment
 
   private
@@ -82,7 +78,7 @@ module Superenv
     paths = [Superenv.bin]
 
     # Formula dependencies can override standard tools.
-    paths += deps.map { |d| d.opt_bin.to_s }
+    paths += deps.map { |d| d.opt_bin }
 
     # On 10.9, there are shims for all tools in /usr/bin.
     # On 10.7 and 10.8 we need to add these directories ourselves.
@@ -91,25 +87,23 @@ module Superenv
       paths << "#{MacOS::Xcode.toolchain_path}/usr/bin"
     end
 
-    paths << MacOS::X11.bin.to_s if x11?
+    paths << MacOS::X11.bin if x11?
     paths += %w[/usr/bin /bin /usr/sbin /sbin]
 
-    # Homebrew's apple-gcc42 will be outside the PATH in superenv,
-    # so xcrun may not be able to find it
+    # Homebrew’s apple-gcc42 will be outside the PATH in superenv, so xcrun may not be able to find
+    # it without help.
     case homebrew_cc
       when 'gcc-4.2'
-        unless MacOS.locate('gcc-4.2')  # ignore Homebrew’s if one is already installed
-          begin
-            apple_gcc42 = Formulary.factory('apple-gcc42')
-          rescue FormulaUnavailableError
-          end
-          paths << apple_gcc42.opt_bin.to_s if apple_gcc42 and apple_gcc42.installed?
-        end
+        # ignore Homebrew’s if one is already installed
+        paths << if (agcc42 = MacOS.locate('gcc-4.2'))
+                   agcc42.realpath.parent
+                 elsif (agcc42 = Formula['apple-gcc42']) and agcc42.any_version_installed?
+                   agcc42.opt_bin
+                 end
       when GNU_GCC_REGEXP
         gcc_formula = gcc_version_formula($&)
-        paths << gcc_formula.opt_bin.to_s if gcc_formula.installed?
+        paths << gcc_formula.opt_bin if gcc_formula.installed?
     end
-
     paths.to_path_s
   end # determine_path
 
@@ -128,10 +122,12 @@ module Superenv
   def determine_cccfg
     # Always allow controlling the build architecture.
     s = "K"
-    # Fix issue with sed barfing on unicode characters on Mountain Lion
-    s << "s" if MacOS.version >= '10.8'
-    # Fix issue with >= 10.8 apr-1-config having broken paths
-    s << "a" if MacOS.version >= '10.8'
+    if MacOS.version >= :mountain_lion
+      # Fix issue with sed barfing on unicode characters on Mountain Lion.
+      s << "s"
+      # Fix issue with apr-1-config having broken paths >= 10.8.
+      s << "a"
+    end
     s
   end # determine_cccfg
 
@@ -206,10 +202,6 @@ module Superenv
     paths << "#{effective_sysroot}/System/Library/Frameworks/OpenGL.framework/Versions/Current/Headers"
   end # common_include_paths
 
-  def cc=(val); self["HOMEBREW_CC"] = super[/^\S+/]; end
-
-  def cxx=(val); self["HOMEBREW_CXX"] = super[/^\S+/]; end
-
   public
 
   def cccfg_add(datum)
@@ -281,6 +273,6 @@ end # module Superenv
 
 class Array
   def to_path_s
-    map(&:to_s).uniq.select { |s| File.directory? s }.join(File::PATH_SEPARATOR).choke
+    map(&:to_s).uniq.select{ |s| File.directory? s }.join(File::PATH_SEPARATOR).choke
   end
 end
