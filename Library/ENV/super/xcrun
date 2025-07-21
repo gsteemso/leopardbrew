@@ -62,7 +62,8 @@ IFS="$old_IFS"
 echo >&2 "
 Failed to execute $arg0 $@
 
-Xcode and/or the CLT appear to be misconfigured.  Try one or both of the following:
+Xcode and/or the CLT appear to be misconfigured.  On Mac OS 10.5 or greater, try
+one or both of the following:
     xcodebuild -license
     sudo xcode-select -switch /path/to/Xcode.app
 "
