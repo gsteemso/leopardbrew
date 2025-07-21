@@ -135,7 +135,7 @@ class FormulaCreator
   end
 
   def template; <<-EOS.undent
-    # Documentation:  https://raw.githubusercontent.com/gsteemso/leopardbrew/combined/share/doc/homebrew/Formula-Cookbook.md
+    # Documentation:  http://localhost`brew --repo`/share/doc/homebrew/Formula-Cookbook.md
     # PLEASE REMOVE ALL GENERATED COMMENTS BEFORE SUBMITTING YOUR PULL REQUEST!
 
     class #{Formulary.class_s(name)} < Formula
