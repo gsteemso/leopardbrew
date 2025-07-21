@@ -15,15 +15,15 @@ module MacOS
     # in order to get the full path back as a Pathname.
     (@locate ||= {}).fetch(tool) do |key|
       @locate[key] = if File.executable?(path = "/usr/bin/#{tool}")
-        Pathname.new path
-      # Homebrew GCCs most frequently; much faster to check this before xcrun
-      elsif (path = HOMEBREW_PREFIX/"bin/#{tool}").executable?
-        path
-      # xcrun was introduced in Xcode 3 on Leopard
-      elsif MacOS.version > '10.4'
-        path = Utils.popen_read("/usr/bin/xcrun", "-no-cache", "-find", tool).chomp
-        Pathname.new(path) if File.executable?(path)
-      end
+          Pathname.new path
+        # Homebrew GCCs most frequently; much faster to check this before xcrun
+        elsif (path = HOMEBREW_PREFIX/"bin/#{tool}").executable?
+          path
+        # xcrun was introduced in Xcode 3 on Leopard
+        elsif MacOS.version > '10.4'
+          path = Utils.popen_read("/usr/bin/xcrun", "-no-cache", "-find", tool).chomp
+          Pathname.new(path) if File.executable?(path)
+        end
     end
   end # locate(tool)
 
