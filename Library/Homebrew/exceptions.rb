@@ -22,6 +22,12 @@ class UsageError < RuntimeError; end
 # Migrator⸬MigratorNoOldnameError
 # Migrator⸬MigratorNoOldpathError
 
+class AlienCompilerError < ArgumentError
+  def initialize(name)
+    super "Compiler “#{name}”?  Sorry, Leopardbrew only knows about GCC variants and Clang."
+  end
+end
+
 class BottleVersionMismatchError < RuntimeError
   def initialize(bottle_file, bottle_version, formula, formula_version)
     super <<-EOS.undent
@@ -189,6 +195,17 @@ class ChecksumMismatchError < RuntimeError
       EOS
   end # initialize
 end # ChecksumMismatchError
+
+# Raised by CompilerSelector if the formula fails with the user‐specified compiler.
+class ChosenCompilerError < RuntimeError
+  def initialize(formula, compiler_name)
+    super <<-_.undent
+        #{formula.full_name} cannot be built with the specified compiler, #{compiler_name}.
+        To install this formula, you may need to
+            brew install gcc
+      _
+  end # initialize
+end # ChosenCompilerError
 
 # raised by CompilerSelector if the formula fails with all of
 # the compilers available on the user's system
