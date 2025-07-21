@@ -18,7 +18,6 @@ class Build
   def initialize(f, args)
     @formula = f
     @formula.build = BuildOptions.new(Options.create(args), f.options)
-
     if ARGV.ignore_deps?
       @deps = []
       @reqs = []
@@ -179,7 +178,7 @@ begin
   build   = Build.new(formula, ARGV.effective_flags)
   build.install
 rescue Exception => e
-  Marshal.dump(e, error_pipe)
+  Marshal.dump(e, error_pipe) rescue nil
   error_pipe.close
   exit! 1
 end
