@@ -113,20 +113,26 @@ module HomebrewArgvExtension
             if (pn = f.opt_prefix).symlink? and pn.directory? then Keg.new(pn.resolved_path)
             elsif (pn = f.linked_keg).symlink? and pn.directory? then Keg.new(pn.resolved_path)
             elsif (pn = f.spec_prefix(ss)) and pn.directory? then Keg.new(pn)
-            elsif (rack = f.rack).directory? and (dirs = rack.subdirs).length == 1 then Keg.new(dirs.first)
-            elsif (k = f.greatest_installed_keg) then k     # can fail if no install receipts
-            else raise MultipleVersionsInstalledError, rack.basename  # can vary from raw “name”
+            elsif (rack = f.rack).directory?
+              case (dirs = rack.subdirs).length
+                when 0 then raise FormulaNotInstalledError, rack.basename   # not necessarily “name”
+                when 1 then Keg.new(dirs.first)
+                else
+                  if (k = f.greatest_installed_keg) then k        # can fail if no install receipts
+                  else raise MultipleVersionsInstalledError, rack.basename  # not necessarily “name”
+                  end
+              end
             end
           else # no formula
             rack = HOMEBREW_CELLAR/name
             raise NoSuchRackError, name unless rack.directory?
             case (dirs = rack.subdirs).length
-              when 0 then raise NoSuchRackError, name
-              when 1 then keg = Keg.new(dirs.first)
+              when 0 then raise FormulaNotInstalledError, name
+              when 1 then Keg.new(dirs.first)
               else raise MultipleVersionsInstalledError, name
             end
           end # keg? formula?
-      end # collect |name|
+      end.compact  # end of kegs = ...collect do
   end # kegs
 
   # self documenting perhaps?
@@ -195,7 +201,7 @@ module HomebrewArgvExtension
 
   def force_bottle?; include? '--force-bottle'; end
 
-  def flag?(arg); include? "--#{arg}"; end
+  def longopt?(arg); include? "--#{arg}"; end
 
   # eg. `foo -ns -i --bar` has three switches, n, s and i
   def switch?(char)

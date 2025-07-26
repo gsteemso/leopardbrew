@@ -20,7 +20,7 @@ module Homebrew
 
     prefix = HOMEBREW_CELLAR/name/version
 
-    if ARGV.flag? 'bare'
+    if ARGV.longopt? 'bare'
       puts prefix
     elsif File.file? 'CMakeLists.txt'
       puts "-DCMAKE_INSTALL_PREFIX=#{prefix}"
