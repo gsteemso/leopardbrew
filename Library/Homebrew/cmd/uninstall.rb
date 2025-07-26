@@ -7,7 +7,21 @@ module Homebrew
     raise KegUnspecifiedError if ARGV.named.empty?
     f = nil
     unless ARGV.force? # remove active version only
-      ARGV.kegs.each do |keg|
+      begin
+        kegs = ARGV.kegs
+      rescue FormulaNotInstalledError => e  # Only issued by ARGV#kegs if empty rack encountered.
+        (HOMEBREW_CELLAR/e.name).rmtree
+        [LINKDIR, PINDIR, OPTDIR].each do |d|
+          link = d/e.name
+          link.unlink if link.symlink?
+        end
+        puts <<-_.undent.rewrap
+            Missing installation “#{e.name}” detected and cleaned up.  Depending how it got that
+            way, stray symlinks may still exist under #{HOMEBREW_PREFIX}.
+          _
+        kegs = []
+      end
+      kegs.each do |keg|
         was_linked = keg.linked?
         keg.lock do
           puts "Uninstalling #{keg}... (#{keg.abv})"
@@ -29,7 +43,7 @@ module Homebrew
               # report on whatever’s still installed
               versions = dirs.map(&:basename)
               verb = versions.length == 1 ? 'is' : 'are'
-              puts "#{keg.name} #{versions.join(", ")} #{verb} still installed."
+              puts "#{keg.name} #{versions.list} #{verb} still installed."
               puts "Remove them all with `brew uninstall --force #{keg.name}`."
             else # rack still exists even though empty of subdirectories – fix that:
               rack.rm_rf
