@@ -8,6 +8,7 @@ require "utils/inreplace"
 require "utils/popen"
 
 def pretty_duration(s)
+  s = s.round  # start with an integer number of seconds
   m = (s/60).truncate; _s = (s - 60*m).round  # h, m, s are totals
   h = (m/60).truncate; _m = m - 60*h          # _m, _s are < 60
   if m < 2 then "#{s.to_i} second#{plural(s)}"
@@ -140,7 +141,7 @@ end # quiet_system
 
 # repeats cmd for each of its runnable fat‐binary architectures
 def arch_system(cmd, *args)
-  for_archs(cmd) { |_, a_cmd| system *a_cmd, *args }
+  for_archs(cmd) { |_, cmd_array| system *cmd_array, *args }
 end # arch_system
 
 # Repeats {block} for each of {cmd}’s fat‐binary architectures, passing it the architecture symbol
