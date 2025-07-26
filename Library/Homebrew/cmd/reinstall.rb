@@ -1,24 +1,27 @@
 #:  Usage:  brew reinstall [/formula options/] /installed formula/ [...]
 #:
-#:Reïnstall each listed /installed formula/, using the same options each used
-#:before.  Further options may be added, but will apply to every given formula.
+#:Reïnstall each given /installed formula/, using the same options which each one
+#:used previously.  Further options may be added, but will apply to all specified
+#:formulæ.
 #:
-#:If multiple current specifications are installed (in the extreme case, all
-#:three of stable, devel, and HEAD), do clarify which one to reïnstall using or
-#:omitting the usual options and/or the special option “--stable”.  If you name
-#:a specification that ISN’T installed, the others will be removed upon success.
+#:If multiple current versions are installed (the extreme case being all three of
+#:of stable, devel, and HEAD), clarify which one to reïnstall by using or leaving
+#:out the usual options and/or the special option “--stable”.  Should you specify
+#:a current version that ISN’T already installed, the others will be removed upon
+#:success.
 #:
-#:Active options may be removed by specifying their opposite.  A formula brewed
-#:--with-A may be reïnstalled --without-A to cancel it, and one --without-B may
-#:be reïnstalled --with-B.  (“--cross” and “--universal”, having no obvious
-#:opposites, may be cancelled by specifying “--single-arch”.)
+#:Active options may be cancelled by specifying their opposite.  A formula brewed
+#:--with-A may be reïnstalled --without-A to cancel it; while one --without-B may
+#:likewise be reïnstalled --with-B.  (“--universal”, with no obvious antonym, can
+#:be cancelled by specifying “--single-arch” or “--no-universal”.)
 
 require 'formula/installer'
 
 module Homebrew
   def reinstall
     raise FormulaUnspecifiedError if ARGV.named.empty?
-    raise 'Specify “--HEAD” in uppercase to build from the latest source code.' if ARGV.include? '--head'
+    raise 'Specify “--HEAD” in uppercase to build from the latest source code.' \
+                                                                           if ARGV.include? '--head'
     raise '--ignore-dependencies and --only-dependencies are mutually exclusive.' \
                                                            if ARGV.ignore_deps? and ARGV.only_deps?
     FormulaInstaller.prevent_build_flags unless MacOS.has_apple_developer_tools?
@@ -32,9 +35,10 @@ module Homebrew
       if f.installed? then reinstall_formula(f, named_spec)
       else
         action = f.any_version_installed? ? 'upgrade' : 'install'
-        opoo <<-_.undent
-          The formula #{f.name} could not be reinstalled because no current version of it
-          is installed in the first place.  Use “brew #{action} #{f.full_name}” instead.
+        opoo <<-_.undent.rewrap
+          The formula #{f.name} could not be reinstalled because no current version of it is
+          installed in the first place.  Instead, use:
+              brew #{action} #{f.full_name}
         _
       end
     end
@@ -103,16 +107,19 @@ module Homebrew
     # next
   rescue Exception
     # leave no trace of the failed installation
-    if f.prefix.exists?
-      oh1 "Cleaning up the failed installation #{f.prefix}" if DEBUG
-      ignore_interrupts { f.prefix.rmtree; f.rack.rmdir_if_possible }
+    if f.prefix != previously_installed.path
+      if f.prefix.exists?
+        oh1 "Cleaning up the failed installation #{f.prefix}" if DEBUG
+        ignore_interrupts { f.prefix.rmtree }
+      end
+      ignore_interrupts { previously_installed.rename }
     end
-    ignore_interrupts { previously_installed.rename } if previously_installed
     ignore_interrupts { previously_linked.link } if previously_linked and not f.linked_keg.directory?
     raise
   else
-    ignore_interrupts { previously_installed.path.rmtree } if previously_installed.path.exists?
-    f.insinuate
+    ignore_interrupts { previously_installed.path.rmtree } if previously_installed.path.exists? \
+                                                              and previously_installed.path != f.prefix
+    f.insinuate if f.insinuate_defined?
   end # reinstall_formula
 
   def blenderize_options(use_opts, formula)
