@@ -202,7 +202,7 @@ module Homebrew
     fi.quieter             = QUIETER
     fi.debug               = DEBUG
     fi.prelude
-    fi.install  # if successful, this renames the new keg to its installed prefix
+    fi.install
   rescue FormulaInstallationAlreadyAttemptedError
     # next
   rescue CannotInstallFormulaError => e
