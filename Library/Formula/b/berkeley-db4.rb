@@ -8,14 +8,14 @@ class BerkeleyDb4 < Formula
   url "http://download.oracle.com/berkeley-db/db-4.8.30.tar.gz"
   sha256 "e0491a07cdb21fb9aa82773bbbedaeb7639cbd0e7f96147ab46141e0045db72a"
 
+  keg_only "BDB 4.8.30 is provided for software that doesn't compile against newer versions."
+
   bottle do
     cellar :any
     sha256 "50bf69bfe5d7e5085d8ed1f2ac60882a7ca5c408489143f092751441dfa11787" => :tiger_altivec
   end
 
   option :universal
-
-  keg_only "BDB 4.8.30 is provided for software that doesn't compile against newer versions."
 
   # Fix build under Xcode 4.6
   patch :DATA
