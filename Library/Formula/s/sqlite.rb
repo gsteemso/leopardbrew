@@ -1,114 +1,91 @@
 class Sqlite < Formula
-  desc "Command-line interface for SQLite"
-  homepage "https://sqlite.org/"
-  url "https://www.sqlite.org/2023/sqlite-autoconf-3440200.tar.gz"
-  version "3.44.2"
-  sha256 "1c6719a148bc41cf0f2bbbe3926d7ce3f5ca09d878f1246fcc20767b175bb407"
+  desc 'Command-line interface for SQLite'
+  homepage 'https://sqlite.org/'
+  url 'https://sqlite.org/2025/sqlite-autoconf-3500300.tar.gz'
+  version '3.50.3'
+  sha256 'ec5496cdffbc2a4adb59317fd2bf0e582bf0e6acd8f4aae7e97bc723ddba7233'
 
-  bottle do
-    sha256 "ac011e4f98d55b4c15f63c1a03bc5f82d0bb76b49d9f63104144bf05700ea842" => :tiger_altivec
-  end
-
-  keg_only :provided_by_osx, "OS X provides an older sqlite3."
+  keg_only :provided_by_osx, 'OS X provides an older sqlite3.'
 
   option :universal
-  option "with-docs", "Install HTML documentation"
-  option "without-rtree", "Disable the R*Tree index module"
-  option "with-fts", "Enable the FTS3 module"
-  option "with-fts5", "Enable the FTS5 module (experimental)"
-  option "with-secure-delete", "Defaults secure_delete to on"
-  option "with-unlock-notify", "Enable the unlock notification feature"
-  option "with-icu4c", "Enable the ICU module"
-  option "with-functions", "Enable more math and string functions for SQL queries"
-  option "with-dbstat", "Enable the 'dbstat' virtual table"
-  option "with-json1", "Enable the JSON1 extension"
-  option "with-session", "Enable the session extension"
+  option 'with-secure-delete', 'Defaults secure_delete to on'
+  option 'with-unlock-notify', 'Enable the unlock notification feature'
 
-  depends_on "readline" => :recommended
-  depends_on "icu4c" => :optional
-
-  resource "functions" do
-    url "https://www.sqlite.org/contrib/download/extension-functions.c?get=25", :using  => :nounzip
-    version "2010-01-06"
-    sha256 "991b40fe8b2799edc215f7260b890f14a833512c9d9896aa080891330ffe4052"
-  end
-
-  resource "docs" do
-    url "https://www.sqlite.org/2023/sqlite-doc-3440200.zip"
-    version "3.44.2"
-    sha256 "62e51962552fb204ef0a541d51f8f721499d1a3fffae6e86558d251c96084fcf"
+  resource 'docs' do
+    url 'https://sqlite.org/2025/sqlite-doc-3500300.zip'
+    version '3.50.3'
+    sha256 'bdbd4e47d52c64c7acc332d1294aa67ad6251ef370abeb0b086ee0cbec91186d'
   end
 
   def install
-    # sqlite segfaults on Tiger/PPC with our gcc-4.2
-    # obviously we need a newer GCC stat!
+    # Sqlite segfaults on Tiger/PPC with our gcc-4.2.
     ENV.no_optimization if ENV.compiler == :gcc && MacOS.version == :tiger
-    # Need to allow -w when building with extensions
+    # Need to allow -w when building with extensions.
     ENV.enable_warnings if ENV.compiler == :gcc_4_0
 
-    ENV.append "CPPFLAGS", "-DSQLITE_ENABLE_COLUMN_METADATA=1"
-    # Default value of MAX_VARIABLE_NUMBER is 999 which is too low for many
-    # applications. Set to 250000 (Same value used in Debian and Ubuntu).
-    ENV.append "CPPFLAGS", "-DSQLITE_MAX_VARIABLE_NUMBER=250000"
-    ENV.append "CPPFLAGS", "-DSQLITE_ENABLE_RTREE=1" if build.with? "rtree"
-    ENV.append "CPPFLAGS", "-DSQLITE_ENABLE_FTS3=1 -DSQLITE_ENABLE_FTS3_PARENTHESIS=1" if build.with? "fts"
-    ENV.append "CPPFLAGS", "-DSQLITE_ENABLE_FTS5=1" if build.with? "fts5"
-    ENV.append "CPPFLAGS", "-DSQLITE_SECURE_DELETE=1" if build.with? "secure-delete"
-    ENV.append "CPPFLAGS", "-DSQLITE_ENABLE_UNLOCK_NOTIFY=1" if build.with? "unlock-notify"
-    ENV.append "CPPFLAGS", "-DSQLITE_ENABLE_DBSTAT_VTAB=1" if build.with? "dbstat"
-    ENV.append "CPPFLAGS", "-DSQLITE_ENABLE_JSON1=1" if build.with? "json1"
-    ENV.append "CPPFLAGS", "-DSQLITE_ENABLE_PREUPDATE_HOOK=1 -DSQLITE_ENABLE_SESSION=1" if build.with? "session"
+    # (The recommended set of optimizations.)
 
-    if build.with? "icu4c"
-      icu4c = Formula["icu4c"]
-      icu4cldflags = `#{icu4c.opt_bin}/icu-config --ldflags`.tr("\n", " ")
-      icu4ccppflags = `#{icu4c.opt_bin}/icu-config --cppflags`.tr("\n", " ")
-      ENV.append "LDFLAGS", icu4cldflags
-      ENV.append "CPPFLAGS", icu4ccppflags
-      ENV.append "CPPFLAGS", "-DSQLITE_ENABLE_ICU"
-    end
+    # Disable the “double-quoted string literal” misfeature:
+    ENV.append 'CPPFLAGS', '-DSQLITE_DQS=0'
+    # Disable memory‐usage tracking (for speed):
+    ENV.append 'CPPFLAGS', '-DSQLITE_DEFAULT_MEMSTATUS=0'
+    # Set a better synchronization default for Write‐Ahead Log (WAL) mode:
+    ENV.append 'CPPFLAGS', '-DSQLITE_DEFAULT_WAL_SYNCHRONOUS=1'
+    # Stop LIKE and GLOB operations from matching BLOBs (for speed):
+    ENV.append 'CPPFLAGS', '-DSQLITE_LIKE_DOESNT_MATCH_BLOBS'
+    # Disable expression‐depth checking (for speed and memory usage):
+    ENV.append 'CPPFLAGS', '-DSQLITE_MAX_EXPR_DEPTH=0'
+    # (Do not disable deprecated features and interfaces, because Python uses at least one of them.)
+    # (Do not disable the progress‐handler callback feature [for speed], because Python uses it.)
+    # (Do not disable the shared cache [for speed], because Python uses it.)
+    # Use the “alloca” on‐stack memory allocator where applicable (for speed):
+    ENV.append 'CPPFLAGS', '-DSQLITE_USE_ALLOCA'
+    # (Do not disable autoinitialization [for speed], for reliability.)
+    # Enforce the requirements of the sqlite3_result_subtype() interface (for reliability):
+    ENV.append 'CPPFLAGS', '-DSQLITE_STRICT_SUBTYPE=1'
+
+    # (Optimizations that this formula has added in the past.)
+
+    # The default value of MAX_VARIABLE_NUMBER is now 32766.  If this is too low for your
+    # application, file a Leopardbrew bug report and we will raise it; in the meantime, we do not
+    # intend to second‐guess the SQLite developers.
+
+    # (Optimizations that this recipe previously made optional.)
+
+    # Enable the various column-metadata interfaces:
+    ENV.append 'CPPFLAGS', '-DSQLITE_ENABLE_COLUMN_METADATA'
+    # Enable the DBSTAT virtual table:
+    ENV.append 'CPPFLAGS', '-DSQLITE_ENABLE_DBSTAT_VTAB'
+    # Enable versions 3 through 5 of the Full‐Text Search feature:
+    ENV.append 'CPPFLAGS', '-DSQLITE_ENABLE_FTS3 -DSQLITE_ENABLE_FTS3_PARENTHESIS -DSQLITE_ENABLE_FTS5'
+    # JSON serialization is now enabled by default.
+    # Enable the R*Tree index extension:
+    ENV.append 'CPPFLAGS', '-DSQLITE_ENABLE_RTREE=1'
+    # Enable the session extension and the preüpdate hooks that enhance it:
+    ENV.append 'CPPFLAGS', '-DSQLITE_ENABLE_SESSION -DSQLITE_ENABLE_PREUPDATE_HOOK'
+
+    # (Still‐optional optimizations.)
+
+    # Cause deletion to involve overwriting with zeroes:
+    ENV.append 'CPPFLAGS', '-DSQLITE_SECURE_DELETE=1' if build.with? 'secure-delete'
+    # Enable the unlock‐notify API:
+    ENV.append 'CPPFLAGS', '-DSQLITE_ENABLE_UNLOCK_NOTIFY=1' if build.with? 'unlock-notify'
 
     ENV.universal_binary if build.universal?
 
-    system "./configure", "--prefix=#{prefix}", "--disable-dependency-tracking", "--enable-dynamic-extensions"
-    system "make", "install"
+    system './configure', "--prefix=#{prefix}",
+                          '--disable-dependency-tracking',
+                          '--disable-static-shell',
+                          '--disable-readline', '--editline'
+    system 'make'
+    # There is no `make check`.
+    system 'make', 'install'
 
-    if build.with? "functions"
-      buildpath.install resource("functions")
-      system ENV.cc, "-fno-common",
-                     "-dynamiclib",
-                     "extension-functions.c",
-                     "-o", "libsqlitefunctions.dylib",
-                     *ENV.cflags.to_s.split
-      lib.install "libsqlitefunctions.dylib"
-    end
-    doc.install resource("docs") if build.with? "docs"
-  end
-
-  def caveats
-    if build.with? "functions" then <<-EOS.undent
-      Usage instructions for applications calling the sqlite3 API functions:
-
-        In your application, call sqlite3_enable_load_extension(db,1) to
-        allow loading external libraries.  Then load the library libsqlitefunctions
-        using sqlite3_load_extension; the third argument should be 0.
-        See https://www.sqlite.org/loadext.html.
-        Select statements may now use these functions, as in
-        SELECT cos(radians(inclination)) FROM satsum WHERE satnum = 25544;
-
-      Usage instructions for the sqlite3 program:
-
-        If the program is built so that loading extensions is permitted,
-        the following will work:
-         sqlite> SELECT load_extension('#{lib}/libsqlitefunctions.dylib');
-         sqlite> select cos(radians(45));
-         0.707106781186548
-      EOS
-    end
+    doc.install resource('docs')
   end
 
   test do
-    path = testpath/"school.sql"
+    path = testpath/'school.sql'
     path.write <<-EOS.undent
       create table students (name text, age integer);
       insert into students (name, age) values ('Bob', 14);
