@@ -22,27 +22,56 @@ class Python < Formula
   end
 
   depends_on 'pkg-config' => :build
-  depends_on 'openssl'
+  depends_on 'openssl3'
   depends_on 'tcl-tk'
   depends_on 'gdbm' => :recommended
   depends_on 'readline' => :recommended
   depends_on 'sqlite' => :recommended
   depends_on 'berkeley-db4' => :optional
 
-  enhanced_by 'python3'
+  enhanced_by ':nls'
+  enhanced_by 'zlib'
 
   skip_clean 'bin/pip', 'bin/pip-2.7'
   skip_clean 'bin/easy_install', 'bin/easy_install-2.7'
 
-  # Patch to disable the search for Tk.framework, since Homebrew’s Tk is
-  # a plain unix build.  Remove `-lX11` too, because our Tk is “AquaTk”.
-  # Note that’s inaccurate on Tiger and Leopard as AquaTk requires Snow Leopard features.
-  patch do
-    url 'https://raw.githubusercontent.com/Homebrew/patches/42fcf22/python/brewed-tk-patch.diff'
-    sha256 '15c153bdfe51a98efe48f8e8379f5d9b5c6c4015e53d3f9364d23c8689857f09'
-  end
+  patch :DATA  # What the patches do are noted in the comments.
 
-  patch :DATA  # enable PPC‐only universal builds
+  # On Snow Leopard or greater, don’t link to LibX11, because our Tk uses Aqua.
+  patch <<END_OF_PATCH if MacOS.version >= :snow_leopard
+@@ -1973,21 +1973,6 @@ class PyBuildExt(build_ext):
+             if dir not in include_dirs:
+                 include_dirs.append(dir)
+
+-        # Check for various platform-specific directories
+-        if host_platform == 'sunos5':
+-            include_dirs.append('/usr/openwin/include')
+-            added_lib_dirs.append('/usr/openwin/lib')
+-        elif os.path.exists('/usr/X11R6/include'):
+-            include_dirs.append('/usr/X11R6/include')
+-            added_lib_dirs.append('/usr/X11R6/lib64')
+-            added_lib_dirs.append('/usr/X11R6/lib')
+-        elif os.path.exists('/usr/X11R5/include'):
+-            include_dirs.append('/usr/X11R5/include')
+-            added_lib_dirs.append('/usr/X11R5/lib')
+-        else:
+-            # Assume default location for X11
+-            include_dirs.append('/usr/X11/include')
+-            added_lib_dirs.append('/usr/X11/lib')
+
+         # If Cygwin, then verify that X is installed before proceeding
+         if host_platform == 'cygwin':
+@@ -2012,9 +1997,6 @@ class PyBuildExt(build_ext):
+         if host_platform in ['aix3', 'aix4']:
+             libs.append('ld')
+
+-        # Finally, link with the X11 libraries (not appropriate on cygwin)
+-        if host_platform != "cygwin":
+-            libs.append('X11')
+
+         ext = Extension('_tkinter', ['_tkinter.c', 'tkappinit.c'],
+                         define_macros=[('WITH_APPINIT', 1)] + defs,
+END_OF_PATCH
 
   # setuptools remembers the build flags python is built with and uses them to
   # build packages later.  Xcode-only systems need different flags.
@@ -62,18 +91,6 @@ class Python < Formula
     ENV['PYTHONHOME'] = nil  # Unset these so that installing pip and setuptools puts them where we
     ENV['PYTHONPATH'] = nil  # want and not into some other Python the user has installed.
 
-    args = %W[
-      --prefix=#{prefix}
-      --enable-ipv6
-      --datarootdir=#{share}
-      --datadir=#{share}
-      --enable-framework=#{frameworks}
-      --without-ensurepip
-      MACOSX_DEPLOYMENT_TARGET=#{MacOS.version}
-    ]
-    # Avoid linking to libgcc (see https://code.activestate.com/lists/python-dev/112195/)
-    args << '--without-gcc' if ENV.compiler == :clang
-
     # There is no simple way to extract a “ppc” slice from a universal file.  We have to
     # specify the exact sub‐architecture we actually put in there in the first place.
     if CPU.powerpc?
@@ -81,21 +98,25 @@ class Python < Formula
       inreplace 'configure' do |s| s.gsub! '-extract ppc7400', "-extract ppc#{our_ppc_flavour}" end
     end
 
-    # We want our readline and openssl! This is just to outsmart the detection code,
-    # superenv handles that cc finds includes/libs!
+    # Outsmart the detection code; superenv makes cc always find includes/libs.
     inreplace 'setup.py' do |s|
-      s.gsub! "do_readline = self.compiler.find_library_file(lib_dirs, 'readline')",
-              "do_readline = '#{Formula['readline'].opt_lib}/libhistory.dylib'" if build.with? 'readline'
-      s.gsub! '/usr/local/ssl', Formula['openssl'].opt_prefix
+      s.gsub! '/usr/local/ssl', Formula['openssl3'].opt_prefix
       s.gsub! '/usr/include/db4', Formula['berkeley-db4'].opt_include if build.with? 'berkeley-db4'
-    end
-
-    args << '--enable-universalsdk=/'
-    # ARM builds are not supported; just build for Intel and hope it keeps working
-    args << "--with-universal-archs=#{CPU.type}#{build.universal? ? '' : "-#{CPU.bits}"}"
-
-    if build.with? 'sqlite'
-      inreplace 'setup.py' do |s|
+      if build.with? 'gdbm'
+        s.gsub! 'if find_file("ndbm.h", inc_dirs,',
+                "if find_file('ndbm.h', ['#{Formula['gdbm'].opt_include}'],"
+        s.gsub! %r{if self\.compiler\.find_library_file\(lib_dirs,[ \t\n]+'gdbm_compat'},
+                  "if self.compiler.find_library_file(['#{Formula['gdbm'].opt_lib}'], 'gdbm_compat'"
+        s.gsub! "self.compiler.find_library_file(lib_dirs, 'gdbm')",
+                "self.compiler.find_library_file(['#{Formula['gdbm'].opt_lib}'], 'gdbm')"
+      end
+      if build.with? 'readline'
+        s.gsub! 'do_readline = self.compiler.find_library_file(lib_dirs,',
+                "do_readline = self.compiler.find_library_file(['#{Formula['readline'].opt_lib}'],"
+        s.gsub! "find_file('readline/rlconf.h', inc_dirs,",
+                "find_file('readline/rlconf.h', ['#{Formula['readline'].opt_include}'],"
+      end
+      if build.with? 'sqlite'
         s.gsub! 'sqlite_setup_debug = False', 'sqlite_setup_debug = True'
         s.gsub! 'for d_ in inc_dirs + sqlite_inc_paths:',
                 "for d_ in ['#{Formula['sqlite'].opt_include}']:"
@@ -113,6 +134,26 @@ class Python < Formula
       s.gsub! 'DEFAULT_FRAMEWORK_FALLBACK = [', "DEFAULT_FRAMEWORK_FALLBACK = [ '#{HOMEBREW_PREFIX}/Frameworks',"
     end
 
+    args = %W[
+      --prefix=#{prefix}
+      --enable-ipv6
+      --datarootdir=#{share}
+      --datadir=#{share}
+      --enable-framework=#{frameworks}
+      --without-ensurepip
+      MACOSX_DEPLOYMENT_TARGET=#{MacOS.version}
+    ]
+    # Coreutils ginstall now treats a destination file that already exists as a bad directory name,
+    # instead of simply overwriting the file.  This causes a failure when installing `pythonw`.
+    args << 'INSTALL=/usr/bin/install' if Formula['coreutils'].any_version_installed?
+    # Avoid linking to libgcc (see https://code.activestate.com/lists/python-dev/112195/)
+    # Enable LLVM optimizations.
+    args << '--without-gcc' << '--enable-optimizations' if ENV.compiler == :clang
+
+    args << '--enable-universalsdk=/'
+    # ARM builds are not supported; just build for Intel and hope it keeps working
+    args << "--with-universal-archs=#{CPU.type}#{build.universal? ? '' : "-#{CPU.bits}"}"
+
     cflags   = []
     ldflags  = []
     cppflags = []
@@ -125,6 +166,9 @@ class Python < Formula
       cppflags << "-I#{MacOS.sdk_path}/usr/include" # find zlib
     end
 
+    # G5 build under Tiger failed to recognize “vector” keyword in system header
+    cflags << '-mpim-altivec' if MacOS.version == :tiger and CPU.altivec? \
+                                 and [:gcc, :gcc_4_0, :llvm].any?{ |c| c == ENV.compiler }
     cppflags << "-I#{Formula['tcl-tk'].opt_include}"
     ldflags  << "-L#{Formula['tcl-tk'].opt_lib}"
 
@@ -134,7 +178,6 @@ class Python < Formula
 
     system './configure', *args
     system 'make'
-    system 'make', 'test'
     ENV.deparallelize do
       # Tell Python not to install into /Applications
       system 'make', 'install', "PYTHONAPPSDIR=#{prefix}"
@@ -191,7 +234,7 @@ class Python < Formula
     # minor updates, such as going from 2.7.0 to 2.7.1:
 
     # Symlink the prefix site-packages into the cellar.
-    cellar_site_packages.unlink if cellar_site_packages.exist?
+    cellar_site_packages.unlink if cellar_site_packages.exists?
     cellar_site_packages.parent.install_symlink_to site_packages
 
     # Create a site-packages in HOMEBREW_PREFIX/lib/python2.7/site-packages
@@ -219,12 +262,12 @@ class Python < Formula
     # When building from source, these symlinks will not exist, since
     # post_install happens after linking.
     %w[pip pip2 pip2.7 easy_install easy_install-2.7 wheel].each do |e|
-      (HOMEBREW_PREFIX/'bin').install_symlink_to bin/e
+      (HOMEBREW_PREFIX/'bin').install_symlink_to bin/e if (bin/e).exists?
     end
 
     # Help distutils find brewed stuff when building extensions
-    include_dirs = [HOMEBREW_PREFIX/'include', Formula['openssl'].opt_include, Formula['tcl-tk'].opt_include]
-    library_dirs = [HOMEBREW_PREFIX/'lib', Formula['openssl'].opt_lib, Formula['tcl-tk'].opt_lib]
+    include_dirs = [HOMEBREW_PREFIX/'include', Formula['openssl3'].opt_include, Formula['tcl-tk'].opt_include]
+    library_dirs = [HOMEBREW_PREFIX/'lib', Formula['openssl3'].opt_lib, Formula['tcl-tk'].opt_lib]
 
     if build.with? 'sqlite'
       include_dirs << Formula['sqlite'].opt_include
@@ -306,7 +349,7 @@ class Python < Formula
       They will install into the site-package directory
           #{site_packages}
 
-      See: https://docs.brew.sh/Homebrew-and-Python
+      See:  #{HOMEBREW_REPOSITORY}/share/doc/homebrew/Homebrew-and-Python.md
     EOS
   end # caveats
 
@@ -321,6 +364,7 @@ class Python < Formula
 end # Python
 
 __END__
+# Enable PowerPC-only universal builds.
 --- old/configure	2020-04-19 14:13:39 -0700
 +++ new/configure	2024-09-24 20:31:23 -0700
 @@ -6152,6 +6152,21 @@
@@ -356,3 +400,17 @@ __END__
              elif archs == ('i386', 'x86_64'):
                  machine = 'intel'
              elif archs == ('i386', 'ppc', 'x86_64'):
+# Don’t search for a Tk framework – our Tk is a pure Unix build.
+# from https://raw.githubusercontent.com/Homebrew/patches/42fcf22/python/brewed-tk-patch.diff
+--- old/setup.py
++++ new/setup.py
+@@ -1928,9 +1928,6 @@
+         # Rather than complicate the code below, detecting and building
+         # AquaTk is a separate method. Only one Tkinter will be built on
+         # Darwin - either AquaTk, if it is found, or X11 based Tk.
+-        if (host_platform == 'darwin' and
+-            self.detect_tkinter_darwin(inc_dirs, lib_dirs)):
+-            return
+
+         # Assume we haven't found any of the libraries or include files
+         # The versions with dots are used on Unix, and the versions without
