@@ -24,7 +24,8 @@ class Caveats
     _caveats << zsh_completion_caveats
     _caveats << fish_completion_caveats
     _caveats << plist_caveats
-    _caveats << python_caveats
+    _caveats << python_2_caveats
+    _caveats << python_3_caveats
     _caveats << app_caveats
     _caveats << elisp_caveats
     _caveats << ''
@@ -89,9 +90,9 @@ class Caveats
     s = []
     if f.plist or (keg and keg.plist_installed?)
       destination = if f.plist_startup
-        "/Library/LaunchDaemons"
+        '/Library/LaunchDaemons'
       else
-        "~/Library/LaunchAgents"
+        '~/Library/LaunchAgents'
       end
 
       plist_filename = if f.plist
@@ -100,7 +101,7 @@ class Caveats
         File.basename Dir["#{keg}/*.plist"].first
       end
       plist_link = "#{destination}/#{plist_filename}"
-      plist_domain = f.plist_path.basename(".plist")
+      plist_domain = f.plist_path.basename('.plist')
       destination_path = Pathname.new File.expand_path destination
       plist_path = destination_path/plist_filename
 
@@ -143,61 +144,107 @@ class Caveats
       end
 
       if f.plist_manual
-        s << "Or, if you don't want/need launchctl, you can just run:"
+        s << 'Or, if you don’t want/need launchctl, you can just run:'
         s << "    #{f.plist_manual}"
       end
 
-      s << "" << "WARNING: launchctl will fail when run under tmux." if ENV["TMUX"]
+      s << '' << 'WARNING: launchctl will fail when run under tmux.' if ENV['TMUX']
     end
     s.join("\n") unless s.empty?
   end # plist_caveats
 
-  def python_caveats
+  def python_2_caveats
     return unless keg
-    return unless keg.python_site_packages_installed?
+    return unless keg.python2_site_packages_installed?
 
     s = nil
-    homebrew_site_packages = Language::Python.homebrew_site_packages
-    user_site_packages = Language::Python.user_site_packages "python"
-    pth_file = user_site_packages/"homebrew.pth"
-    instructions = <<-EOS.undent.gsub(/^/, "    ")
-      mkdir -p #{user_site_packages}
-      echo 'import site; site.addsitedir("#{homebrew_site_packages}")' >> #{pth_file}
-    EOS
+    homebrew_py2_site_packages = Language::Python.homebrew_site_packages
+    py2_user_site_packages = Language::Python.user_site_packages 'python'
+    pth_file = py2_user_site_packages/'homebrew.pth'
+    instructions = <<-EOS.undent.gsub(/^/, '    ')
+        mkdir -p #{py2_user_site_packages}
+        echo 'import site; site.addsitedir("#{homebrew_py2_site_packages}")' >> #{pth_file}
+      EOS
 
     if f.keg_only?
-      keg_site_packages = f.opt_prefix/"lib/python2.7/site-packages"
-      unless Language::Python.in_sys_path?("python", keg_site_packages)
+      keg_py2_site_packages = f.opt_prefix/'lib/python2.7/site-packages'
+      unless Language::Python.in_sys_path?('python', keg_py2_site_packages)
         s = <<-EOS.undent
-          If you need Python to find bindings for this keg-only formula, run:
-              echo #{keg_site_packages} >> #{homebrew_site_packages/f.name}.pth
-        EOS
-        s += instructions unless Language::Python.reads_brewed_pth_files?("python")
+            If you need Python 2 to find bindings for this keg-only formula, run:
+                echo #{keg_py2_site_packages} >> #{homebrew_py2_site_packages/f.name}.pth
+          EOS
+        s += instructions unless Language::Python.reads_brewed_pth_files?('python')
       end
       return s
     end
 
-    return if Language::Python.reads_brewed_pth_files?("python")
+    return if Language::Python.reads_brewed_pth_files?('python')
 
-    if !Language::Python.in_sys_path?("python", homebrew_site_packages)
+    if not Language::Python.in_sys_path?('python', homebrew_py2_site_packages)
       s = <<-EOS.undent
-        Python modules are installed and Leopardbrew’s site-packages is not
-        in your Python sys.path, so you will not be able to import the modules
-        this formula installs.  If you plan to develop with these modules,
-        please run:
-      EOS
+          Python 2 modules are installed and Leopardbrew’s site-packages is not in your
+          Python 2 sys.path, so you will not be able to import the modules this formula
+          installs.  If you plan to develop with these modules, please run:
+        EOS
       s += instructions
-    elsif keg.python_pth_files_installed?
+    elsif keg.python2_pth_files_installed?
       s = <<-EOS.undent
-        This formula installs .pth files to Leopardbrew’s site-packages and
-        your Python isn’t configured to process them, so you will not be able to
-        import the modules this formula installs. If you plan to develop with
-        these modules, please run:
-      EOS
+          This formula installs .pth files to Leopardbrew’s site-packages and your Python
+          2 isn’t configured to process them, so you will not be able to import the
+          modules this formula installs.  If you plan to develop with these modules,
+          please run:
+        EOS
       s += instructions
     end
     s.chomp
-  end # python_caveats
+  end # python_2_caveats
+
+  def python_3_caveats
+    return unless keg
+    return unless keg.python3_site_packages_installed?
+
+    s = nil
+    py3xy = Formula['python3'].xy
+    homebrew_py3_site_packages = Language::Python.homebrew_site_packages(py3xy)
+    py3_user_site_packages = Language::Python.user_site_packages 'python3'
+    pth_file = py3_user_site_packages/'homebrew.pth'
+    instructions = <<-EOS.undent.gsub(/^/, '    ')
+        mkdir -p #{py3_user_site_packages}
+        echo 'import site; site.addsitedir("#{homebrew_py3_site_packages}")' >> #{pth_file}
+      EOS
+
+    if f.keg_only?
+      keg_py3_site_packages = f.opt_prefix/"lib/python#{py3xy}/site-packages"
+      unless Language::Python.in_sys_path?('python3', keg_py3_site_packages)
+        s = <<-EOS.undent
+            If you need Python 3 to find bindings for this keg-only formula, run:
+                echo #{keg_py3_site_packages} >> #{homebrew_py3_site_packages/f.name}.pth
+          EOS
+        s += instructions unless Language::Python.reads_brewed_pth_files?('python3')
+      end
+      return s
+    end
+
+    return if Language::Python.reads_brewed_pth_files?('python3')
+
+    if not Language::Python.in_sys_path?('python3', homebrew_py3_site_packages)
+      s = <<-EOS.undent
+          Python 3 modules are installed and Leopardbrew’s site-packages is not in your
+          Python 3 sys.path, so you will not be able to import the modules this formula
+          installs.  If you plan to develop with these modules, please run:
+        EOS
+      s += instructions
+    elsif keg.python3_pth_files_installed?
+      s = <<-EOS.undent
+          This formula installs .pth files to Leopardbrew’s site-packages and your Python
+          3 isn’t configured to process them, so you will not be able to import the
+          modules this formula installs.  If you plan to develop with these modules,
+          please run:
+        EOS
+      s += instructions
+    end
+    s.chomp
+  end # python_3_caveats
 
   def app_caveats
     if keg and keg.app_installed?
