@@ -40,7 +40,7 @@ class Keg
     def to_s
       s = []
       s << "Could not symlink #{tgt}"
-      s << "Target #{lnk}" << suggestion
+      s << "Object at #{lnk}" << suggestion
       s << <<-EOS.undent
           To force the link and overwrite all conflicting files:
               brew link --overwrite #{keg.name}
@@ -211,11 +211,10 @@ class Keg
   end # unlink
 
   def lock
-    FormulaLock.new(name).with_lock do
-      if oldname_opt_record then FormulaLock.new(oldname_opt_record.basename.to_s).with_lock { yield }
-      else yield; end
-    end
-  end # lock
+    FormulaLock.new(name).with_lock{
+      if oldname_opt_record then FormulaLock.new(oldname_opt_record.basename.to_s).with_lock{ yield }
+      else yield; end }
+  end
 
   def completion_installed?(shell)
     dir = case shell
@@ -228,9 +227,21 @@ class Keg
 
   def plist_installed?; Dir["#{path}/*.plist"].any?; end
 
-  def python_site_packages_installed?; (path/'lib/python2.7/site-packages').directory?; end
+  def python2_site_packages_installed?; (path/'lib/python2.7/site-packages').directory?; end
 
-  def python_pth_files_installed?; Dir["#{path}/lib/python2.7/site-packages/*.pth"].any?; end
+  def python2_pth_files_installed?; Dir["#{path}/lib/python2.7/site-packages/*.pth"].any?; end
+
+  private
+
+  def py3xy; Formula['python3'].xy; end
+
+  public
+
+  def python3_site_packages_installed?
+    (candidate = Dir["#{path}/lib/python#{py3xy}/site-packages"].first) && File.directory?(candidate)
+  end
+
+  def python3_pth_files_installed?; Dir["#{path}/lib/python#{py3xy}/site-packages/*.pth"].any?; end
 
   def app_installed?; Dir["#{path}/{,libexec/}*.app"].any?; end
 
@@ -287,6 +298,7 @@ class Keg
           when INFOFILE_RX               then :info
           when 'fish',
                'fish/vendor_completions.d',
+               'gtk-doc', 'gtk-doc/html',
                'icons', 'ri', *SHARE_PATHS,
                'zsh', 'zsh/site-functions',
                MAN_RX                    then :mkdir
@@ -359,7 +371,7 @@ class Keg
                                                                ? "link to #{lnk.resolved_path}" \
                                                                : stats.ftype}"; end
       end
-      puts "#{lnk} -> #{_src}"
+      puts "#{lnk} -> #{tgt}"
       return
     end
     lnk.rmtree if stats and mode.overwrite
