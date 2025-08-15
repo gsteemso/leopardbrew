@@ -162,13 +162,18 @@ class Build
       elsif (gik = f.greatest_installed_keg)
         gik.path
       else
-        raise
+        raise RuntimeError, 'can’t make opt/ link:  none of the usual directories are valid'
       end
     Keg.new(path).optlink
   rescue StandardError
     raise "#{f.opt_prefix} is missing or broken.\nPlease reinstall #{f.full_name}."
   end # fixopt
 end # Build
+
+trap('INT') {
+  if DEBUG then raise RuntimeError, 'User Interrupt'
+  else old_trap; end
+}
 
 begin
   error_pipe = IO.new(ENV['HOMEBREW_ERROR_PIPE'].to_i, 'w')
