@@ -27,9 +27,9 @@ module Homebrew
   def create
     # Allow searching MacPorts or Fink.
     if ARGV.include? '--macports'
-      exec_browser "https://www.macports.org/ports.php?by=name&substr=#{ARGV.next}"
+      exec_browser "https://www.macports.org/ports.php?by=name&substr=#{ARGV._next}"
     elsif ARGV.include? '--fink'
-      exec_browser "http://pdb.finkproject.org/pdb/browse.php?summary=#{ARGV.next}"
+      exec_browser "http://pdb.finkproject.org/pdb/browse.php?summary=#{ARGV._next}"
     end
 
     raise UsageError if ARGV.named.empty?
@@ -39,8 +39,8 @@ module Homebrew
 
     url = ARGV.named.first # Pull the first (and only) url from ARGV
 
-    version = ARGV.next if ARGV.include? '--set-version'
-    name = ARGV.next if ARGV.include? '--set-name'
+    version = ARGV._next if ARGV.include? '--set-version'
+    name = ARGV._next if ARGV.include? '--set-name'
 
     fc = FormulaCreator.new
     fc.name = name
