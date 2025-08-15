@@ -642,10 +642,6 @@ class FormulaAuditor
       problem "“#{$1}” should be “\#{#{$3}}#{$5}”"
     end
 
-    if line =~ %r[([^}]/(info|man))]
-      problem "“#{$1}” should be “\#{#{$2}}”"
-    end
-
     if line =~ /depends_on :(automake|autoconf|libtool)/
       problem ":#{$1} is deprecated.  Usage should be '#{$1}'"
     end
