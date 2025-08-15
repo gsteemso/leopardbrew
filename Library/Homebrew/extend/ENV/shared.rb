@@ -172,11 +172,30 @@ module SharedEnvExtension
     end
   end # define a method for each |compiler| in COMPILERS, for use exactly once during setup
 
-# TODO:  Fix these so they check the correct _versions_ of clang
+  def default_c_version(comp = compiler)
+    case comp
+      when GNU_C11_DEFAULT_REGEXP then :c11
+#     when :clang then ???
+      else :c89
+    end
+  end # default_c_version
+
+  def default_cxx_version(comp = compiler)
+    case comp
+      when GNU_CXX14_DEFAULT_REGEXP then :cxx14
+#     when :clang then ???
+      else :cxx98
+    end
+  end # default_cxx_version
+
+# TODO:  Fix this to check the correct _version_ of clang
   def supports_c11?; cc =~ GNU_C11_REGEXP or cc =~ /clang/; end
 
-  def supports_cxx11?; cc =~ GNU_CXX11_REGEXP or cc =~ /clang/; end
+  def supports_cxx11?
+    cc =~ GNU_CXX11_REGEXP or (cc =~ /clang/ and MacOS.clang_version.to_f >= CLANG_CXX11_MIN.to_f)
+  end
 
+# TODO:  Fix this to check the correct _version_ of clang
   def supports_cxx14?; cc =~ GNU_CXX14_REGEXP or cc =~ /clang/; end
 
   def building_pure_64_bit?; build_archs.all?{ |a| a.to_s =~ /64/ }; end
@@ -296,6 +315,7 @@ module SharedEnvExtension
   def set_build_archs(archset)
     archset = Array(archset).extend ArchitectureListExtension unless archset.responds_to?(:fat?)
     clear_compiler_archflags
+    if @without_archflags then @without_archflags = false; end
     @build_archs = archset
     self['HOMEBREW_BUILD_ARCHS'] = archset.as_build_archs
     self['CMAKE_OSX_ARCHITECTURES'] = archset.as_cmake_arch_flags
@@ -304,12 +324,14 @@ module SharedEnvExtension
   end # set_build_archs
 
   def without_archflags
+    @without_archflags = true
     clear_compiler_archflags
     arch_flags = delete 'HOMEBREW_ARCHFLAGS' if superenv?
     cmake_archs = delete 'CMAKE_OSX_ARCHITECTURES'
     begin
       yield
     ensure
+      @without_archflags = false
       set_compiler_archflags
       self['HOMEBREW_ARCHFLAGS'] = arch_flags if superenv?
       self['CMAKE_OSX_ARCHITECTURES'] = cmake_archs
@@ -325,17 +347,35 @@ module SharedEnvExtension
   end
 
   def m32
-    @build_arch_stash ||= build_archs
-    set_build_archs CPU.select_32b_archs(@build_arch_stash)
-  end
+    if @without_archflags
+      clear_compiler_archflags
+      set_compiler_archflags '-m32'
+    else
+      @build_arch_stash ||= build_archs
+      set_build_archs CPU.select_32b_archs(@build_arch_stash)
+    end
+  end # m32
 
   def m64
-    @build_arch_stash ||= build_archs
-    set_build_archs CPU.select_64b_archs(@build_arch_stash)
-  end
+    if @without_archflags
+      clear_compiler_archflags
+      set_compiler_archflags '-m64'
+    else
+      @build_arch_stash ||= build_archs
+      set_build_archs CPU.select_64b_archs(@build_arch_stash)
+    end
+  end # m64
 
-  def un_m32; set_build_archs @build_arch_stash; @build_arch_stash = nil; end
-  def un_m64; set_build_archs @build_arch_stash; @build_arch_stash = nil; end
+  def un_mnn
+    if @without_archflags
+      clear_compiler_archflags
+    else
+      set_build_archs @build_arch_stash
+      @build_arch_stash = nil
+    end
+  end
+  alias_method :un_m32, :un_mnn
+  alias_method :un_m64, :un_mnn
 
   private
 
