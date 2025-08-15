@@ -1,12 +1,13 @@
+# stable release 2025-03-27; checked 2025-08-04
 class Expat < Formula
-  desc "XML 1.0 parser"
-  homepage "http://www.libexpat.org"
-  url "https://github.com/libexpat/libexpat/releases/download/R_2_6_4/expat-2.6.4.tar.lz"
-  sha256 '80a5bec283c7cababb3c6ec145feb4f34a7741eae69f9e6654cc82f5890f05e2'
+  desc 'Stream‐oriented XML parser'
+  homepage 'https://libexpat.github.io/'
+  url 'https://github.com/libexpat/libexpat/releases/download/R_2_7_1/expat-2.7.1.tar.lz'
+  sha256 'baacdd8d98d5d3b753f2a2780d84b0bc7731be11cacdc1b98cb8ad73f0504e68'
 
-  head "https://github.com/libexpat/libexpat.git"
+  head 'https://github.com/libexpat/libexpat.git'
 
-  keg_only :provided_by_osx, "OS X includes Expat 1.5." if MacOS.version > :tiger
+  keg_only :provided_by_osx, 'Mac OS includes Expat 1.5.' if MacOS.version > :tiger
 
   option :universal
 
@@ -21,12 +22,12 @@ class Expat < Formula
     ]
     args << '--without-tests' unless ENV.supports_cxx11?
 
-    system "./configure", *args
-    system "make", "install"
-  end
+    system './configure', *args
+    system 'make', 'install'
+  end # install
 
   test do
-    (testpath/"test.c").write <<-EOS.undent
+    (testpath/'test.c').write <<-EOS.undent
       #include <stdio.h>
       #include "expat.h"
 
@@ -61,7 +62,7 @@ class Expat < Formula
       }
     EOS
     ENV.universal_binary if build.universal?
-    system ENV.cc, "test.c", "-lexpat", "-o", "test"
-    assert_equal "tag:str|data:Hello, world!|", shell_output("./test")
-  end
-end
+    system ENV.cc, 'test.c', '-lexpat', '-o', 'test'
+    assert_equal 'tag:str|data:Hello, world!|', shell_output('./test')
+  end # test
+end # Expat
