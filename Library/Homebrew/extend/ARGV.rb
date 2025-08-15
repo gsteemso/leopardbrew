@@ -138,9 +138,12 @@ module HomebrewArgvExtension
   # self documenting perhaps?
   def include?(arg); @n = index arg; end
 
-  def next; at(@n+1) or raise(UsageError); end
+  def _next; @n and at(@n + 1) or raise(UsageError); end
 
-  def value(arg); arg = find { |o| o =~ /--#{arg}=(.+)/ }; $1 if arg; end
+  def value(arg)
+    if find{ |o| o =~ /^--#{arg}=(.+)$/ } then $1
+    elsif include?("--#{arg}") then _next; end
+  end
 
   def force?; flag? '--force'; end
 
@@ -191,7 +194,7 @@ module HomebrewArgvExtension
 
   def build_bottle?; include?('--build-bottle') or ENV['HOMEBREW_BUILD_BOTTLE'].choke; end
 
-  def bottle_arch; arch = value 'bottle-arch'; arch.to_sym if arch; end
+  def bottle_arch; if (arch = value 'bottle-arch') then arch.to_sym; end; end
 
   def build_from_source?
     switch?('s') or include?('--build-from-source') or ENV['HOMEBREW_BUILD_FROM_SOURCE'].choke
