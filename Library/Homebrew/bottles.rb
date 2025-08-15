@@ -22,17 +22,16 @@ def bottle_native_regex
 end
 
 def bottle_tag
-  if MacOS.version >= '11'
+  if MacOS.version >= :big_sur
     if CPU.bottle_target_arch == :arm64e
       "#{MacOS.codename}_arm".to_sym
     else
       "#{MacOS.codename}_intel".to_sym
     end
-  elsif MacOS.version >= '10.6'  # Everything up to Catalina can run 32‐bit, but from Snow Leopard
-    MacOS.codename               # onward we only build 64‐bit (too many obsolescences w/ 32‐bit)
-  elsif ARGV.bottle_arch == :altivec
-    # really a euphemism for “..._g4”, but more widely applicable for end users
-    "#{MacOS.codename}_altivec".to_sym
+  elsif MacOS.version >= :snow_leopard  # Everything through Catalina can run 32‐bit, but from Snow
+    MacOS.codename                      # Leopard on we only build 64 (too many obsolescences w/32).
+  elsif ARGV.bottle_arch == :altivec    # Really a euphemism for “..._g4”, but more widely
+    "#{MacOS.codename}_altivec".to_sym  # applicable to end users.
   else
     # Return, e.g., :tiger_g3, :leopard_g5_64, :leopard_intel_64
     case CPU.bottle_target_arch
