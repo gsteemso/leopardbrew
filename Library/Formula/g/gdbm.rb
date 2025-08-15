@@ -1,9 +1,10 @@
+# stable release 2025-07-31; checked 2025-08-04
 class Gdbm < Formula
   desc 'GNU database manager'
   homepage 'https://www.gnu.org/software/gdbm/'
-  url 'http://ftpmirror.gnu.org/gdbm/gdbm-1.25.tar.gz'
-  mirror 'https://ftp.gnu.org/gnu/gdbm/gdbm-1.25.tar.gz'
-  sha256 'd02db3c5926ed877f8817b81cd1f92f53ef74ca8c6db543fbba0271b34f393ec'
+  url 'http://ftpmirror.gnu.org/gdbm/gdbm-1.26.tar.gz'
+  mirror 'https://ftp.gnu.org/gnu/gdbm/gdbm-1.26.tar.gz'
+  sha256 '6a24504a14de4a744103dcb936be976df6fbe88ccff26065e54c1c47946f4a5e'
 
   # Technically only true if built with libgdbm-compat, but conditional keg‐onliness leads to chaos.
   keg_only :shadowed_by_osx
@@ -19,9 +20,6 @@ class Gdbm < Formula
   depends_on 'readline'
   depends_on :nls       => :recommended
 
-  # Realtime extensions do not exist on older Mac OSes.  Use nanosleep, not clock_nanosleep.
-  patch :DATA
-
   def install
     ENV.universal_binary if build.universal?
 
@@ -36,7 +34,7 @@ class Gdbm < Formula
 
     system './configure', *args
     system 'make'
-    # `make check` now fails several tests, probably because of the clock substitution.
+    system 'make', 'check'
     system 'make', 'install'
   end # install
 
@@ -48,16 +46,3 @@ class Gdbm < Formula
     end
   end # test
 end # Gdbm
-
-__END__
---- old/src/lock.c
-+++ new/src/lock.c
-@@ -291,7 +291,7 @@
-       if (timespec_cmp (&ttw, iv) < 0)
- 	break;
-       timespec_sub (&ttw, iv);
--      if (clock_nanosleep (CLOCK_REALTIME, 0, iv, &r))
-+      if (nanosleep (iv, &r))
- 	{
- 	  if (errno == EINTR)
- 	    timespec_add (&ttw, &r);
