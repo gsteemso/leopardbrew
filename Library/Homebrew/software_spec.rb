@@ -110,7 +110,7 @@ class SoftwareSpec
         raise ArgumentError, 'option name must not start with dashes' if name.starts_with?('-')
         Option.new(name, description)
       end
-    options << opt
+    @options << opt
   end # SoftwareSpec#option
 
   def deprecated_option(hash)
@@ -158,26 +158,31 @@ class SoftwareSpec
       unless group_tags.any?{ |tag| [:optional, :recommended].include? tag }
     _deps = []
     group_members.each do |member|
-      if Hash === member
+      if member.is_a? Hash
         _deps << dependency_collector.add(Dependency.new(member.keys.first,
-                                                         group_tags + member.values.first,
+                                                         (group_tags + member.values).uniq,
                                                          nil, group_name))
       else
         _deps << dependency_collector.add(Dependency.new(member, group_tags, nil, group_name))
       end
     end
-    add_group_option( group_name, group_tags.detect{ |tag| [:optional, :recommended].include? tag }) unless _deps.empty?
+    add_group_option(group_name, group_tags.detect{ |tag| [:optional, :recommended].include? tag }) unless _deps.empty?
   end # SoftwareSpec#depends_group
 
   def enhanced_by(aid)
-    # Enhancements may be specified individually or as a mutually necessary group.
-    aids = Array(aid).map{ |name| if name == :nls then name = 'gettext'; end; Formulary.factory(name) rescue nil }
-    # For that reason, the named enhancements are an array of arrays of formulæ.
-    @named_enhancements << aids.sort
-    @named_enhancements = named_enhancements.sort
-    # The active enhancements are just a flat array of formulæ.
-    @active_enhancements = active_enhancements.concat(aids).uniq.sort if aids.all?{ |f| f and f.installed? }
-  end
+    # Enhancements may be specified either individually, or as a mutually‐necessary group.  Named
+    # enhancements are therefore stored as one large array of small, usually single-element, arrays
+    # of formulæ.  The active enhancements are just a flat array of formulæ.  All of these are kept
+    # sorted for convenience.
+    aids = Array(aid).map{ |name| if name == :nls then name = 'gettext'; end; Formula[name] rescue nil }.compact
+    unless aids.empty?
+      @named_enhancements << aids.sort{ |a, b| a.full_name <=> b.full_name }
+      @named_enhancements = named_enhancements.sort{ |a, b| sort_named_enhancements(a, b) }
+    end
+    @active_enhancements = active_enhancements.concat(aids).uniq.sort{ |a, b|
+        a.full_name <=> b.full_name
+      } if aids.all?{ |f| f and f.installed? }
+  end # enhanced_by
 
   def enhanced_by?(aid); active_enhancements.any?{ |a| aid == a.name or aid == a.full_name }; end
 
@@ -203,24 +208,43 @@ class SoftwareSpec
     else
       name = dep.option_name
       if dep.optional? and not option_defined?("with-#{name}")
-        options << Option.new("with-#{name}",
-                              name == 'nls' ? 'Build with Natural-Language Support (internationalization)' \
-                                            : "Build with #{name} support")
+        @options << Option.new("with-#{name}",
+                               name == 'nls' ? 'Build with Natural-Language Support (internationalization)' \
+                                             : "Build with #{name} support")
       elsif dep.recommended? and not option_defined?("without-#{name}")
-        options << Option.new("without-#{name}",
-                              name == 'nls' ? 'Build without Natural-Language Support (internationalization)' \
-                                            : "Build without #{name} support")
+        @options << Option.new("without-#{name}",
+                               name == 'nls' ? 'Build without Natural-Language Support (internationalization)' \
+                                             : "Build without #{name} support")
       end
     end
   end # SoftwareSpec#add_dep_option
 
   def add_group_option(group_name, priority)
     if priority == :optional and not option_defined?("with-#{group_name}")
-      options << Option.new("with-#{group_name}", "Build with #{group_name} support")
+      @options << Option.new("with-#{group_name}",
+                             group_name == 'nls' ? 'Build with Natural-Language Support (internationalization)' \
+                                                 : "Build with #{group_name} support")
     elsif priority == :recommended and not option_defined?("without-#{group_name}")
-      options << Option.new("without-#{group_name}", "Build without #{group_name} support")
+      @options << Option.new("without-#{group_name}",
+                             group_name == 'nls' ? 'Build without Natural-Language Support (internationalization)' \
+                                                 : "Build without #{group_name} support")
     end
   end # SoftwareSpec#add_group_option
+
+  private
+
+  def sort_named_enhancements(a, b)
+    # The named enhancements are an array of sorted arrays of formulæ.  Sort based on the elements’
+    # full formula names, with shorter arrays sorting first if otherwise equal.
+    a.compact!; b.compact!
+    i = 0; while (i < a.length and i < b.length and a[i].full_name == b[i].full_name) do i += 1; end
+    if i < a.length # elements differ, or else b is shorter
+      i < b.length ? a[i].full_name <=> b[i].full_name : 1
+    else # a is shorter, or else they were equal
+      i < b.length ? -1 : 0
+    end
+  end
+
 end # SoftwareSpec
 
 class HeadSoftwareSpec < SoftwareSpec
