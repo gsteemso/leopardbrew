@@ -39,11 +39,17 @@ class AppleGcc42 < Formula
       end
     end
 
-    def insinuate; ensure_to_fro; system 'sudo', TO; end
+    insinuate do |silent|
+      ensure_to_fro
+      do_system((silent ? [:silent] : []), 'sudo', TO)
+    end
 
-    # This command also deletes `to-*-gcc42` if the `apple-gcc42` rack is gone.
-    def uninsinuate; ensure_to_fro; system 'sudo', FRO; end
-  end
+    # This command also deletes `to-*-gcc42` if our rack is gone.
+    uninsinuate do |silent|
+      ensure_to_fro
+      do_system((silent ? [:silent] : []), 'sudo', FRO)
+    end
+  end # :leopard or :snow_leopard?
 
   def croak_no_ios_sdk
     raise CannotInstallFormulaError, 'Can’t make compilers for ARM; the iPhoneOS SDK was not found.'

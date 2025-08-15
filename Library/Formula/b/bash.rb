@@ -53,9 +53,16 @@ class Bash < Formula
     system 'make', 'install'
   end # install
 
-  def insinuate; ensure_to_fro; system('sudo', TO); end
+  insinuate do |silent|
+    ensure_to_fro
+    do_system((silent ? [:silent] : []), 'sudo', TO)
+  end
 
-  def uninsinuate; ensure_to_fro; system('sudo', MOVED_BASH, FRO); end
+  # This command also deletes `to-*-bash` if our rack is gone.
+  uninsinuate do |silent|
+    ensure_to_fro
+    do_system((silent ? [:silent] : []), 'sudo', MOVED_BASH, FRO)
+  end
 
   def caveats; <<-EOS.undent
       Some older software may rely on behaviour that has changed since your system’s
