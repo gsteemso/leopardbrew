@@ -85,7 +85,7 @@ module Homebrew
                                   f.linked_keg.resolved_real_path == f.spec_prefix(requested_spec))
           msg << '.'
           opoo msg
-        elsif f.old_version_installed?
+        elsif f.only_old_version_installed?
           opoo <<-_.undent
               An outdated version of #{f.full_name} is already installed.  Use
                   brew upgrade #{f.full_name}
@@ -218,6 +218,6 @@ module Homebrew
     raise
   else
     fi.finish
-    f.insinuate
+    f.insinuate rescue nil if f.insinuate_defined?
   end # install_formula
 end # Homebrew
