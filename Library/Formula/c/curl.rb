@@ -1,3 +1,4 @@
+# stable release 2025-07-16, checked 2025-08-12
 require 'merge'
 
 class Curl < Formula
@@ -5,19 +6,20 @@ class Curl < Formula
 
   desc 'Get a file from an HTTP, HTTPS or FTP server'
   homepage 'https://curl.se/'
-  url 'https://curl.se/download/curl-8.13.0.tar.xz'
-  sha256 '4a093979a3c2d02de2fbc00549a32771007f2e78032c6faa5ecd2f7a9e152025'
+  url 'https://curl.se/download/curl-8.15.0.tar.xz'
+  sha256 ''
 
   keg_only :provided_by_osx
 
   option :universal
   option 'with-gnutls',        'Add GnuTLS security, independent of OpenSSL/LibreSSL'
+  option 'with-kerberos',      'Support Kerberos and SPNEGO authentication (via the MIT release)'
   option 'with-libressl',      'Use LibreSSL security instead of OpenSSL'
-  option 'with-rtmpdump',      'Add RTMP (streaming Flash) capability'
-  option 'with-tests',         'Run the build‐time test suite (slow; requires Python3)'
+  option 'with-rtmpdump',      'Support RTMP (streaming Flash)'
   option 'with-standalone',    'Omit every discretionary dependency except OpenSSL3'
+  option 'with-tests',         'Run the build‐time test suite (slow and requires Python3)'
   option 'without-dns-extras', 'Omit asynchronous, internationalized, public‐suffix‐aware DNS'
-  option 'without-gsasl',      'Omit SASL SCRAM authentication'
+  option 'without-gsasl',      'Omit Simple Authentication & Security Layer SCRAM authentication'
   option 'without-libssh2',    'Omit scp and sFTP access'
   option 'without-ssl',        'Omit LibreSSL/OpenSSL security (recommend adding GnuTLS)'
   option 'without-zstd',       'Omit ZStandard compression'
@@ -45,18 +47,23 @@ class Curl < Formula
     depends_on     'zstd'       => :recommended
 
     depends_on 'gnutls'   => :optional
+    depends_on 'kerberos' => :optional
     depends_on 'libressl' => :optional
     depends_on 'rtmpdump' => :optional
 
     enhanced_by 'brotli'
   end
 
-  # The script for fetching certificate data from Mozilla fails without following HTTP redirects.
+  # The script for fetching certificate data from Mozilla fails if HTTP redirects are not followed.
   patch :DATA
 
   def install
-    raise UsageError, '“--with-libressl” and “--without-ssl” are mutually exclusive.  Pick one.' \
-                             if build.with? 'libressl' and build.without? 'ssl'
+    raise RuntimeError, '“--with-libressl” and “--without-ssl” are mutually exclusive.  Pick one.' \
+      if build.with? 'libressl' and build.without? 'ssl'
+    # Complain about this, but it doesn’t justify cancelling the build.
+    opoo '“--with-standalone” overrides all other “--with-” options except “--with-tests”.  Ignoring them.' \
+      if build.with? 'standalone' and (build.with? 'gnutls' or build.with? 'kerberos' or \
+                                       build.with? 'libressl' or build.with? 'rtmpdump')
     if build.universal?
       archs = CPU.local_archs
       the_binaries = %w[
@@ -106,8 +113,8 @@ class Curl < Formula
     # Options that don't, or don’t always, work for ’brewing:
     #   --with-apple-idn :  Apple IDN is more recent than Power Macs provide.
     #   --enable-ech :  LibreSSL doesn’t do it & OpenSSL’s isn’t released yet (and it’s been YEARS).
-    #                   That’s why this is only enabled if GNUTLS is selected.
-    #   --with-openssl-quic :  Requires a specific non‐OpenSSL build and is not well supported.
+    #                   This is therefore only enabled if GNUTLS is selected.
+    #   --with-openssl-quic :  Requires a specific unofficial build and is not well supported.
     #   --with-quiche :  QUICHE is only supported on little‐endian platforms.
     #   --with-secure-transport :  Not in Tiger; many versions from Leopard onward are obsolete; &
     #                              cURL loses some features when using it instead of, e.g., OpenSSL.
@@ -123,38 +130,50 @@ class Curl < Formula
     #   --enable-unity :  Unity is a C# wrapper ecosystem.
     #   --enable-windows-unicode :  Only applicable to Windows.
     #   --with-winidn :  Windows IDN.
-    # Options that need packages, which may or may not already exist:
-    #   --with[out]-brotli[=…] :  A compression protocol.
-    #   --with[out]-fish-functions-dir=… :  The FISh completions directory.
-    #   --with-gssapi=… :  The GSS‐API directory root.
+    # Options that need packages or similar support, not all of which exist:
+    #   --with[out]-brotli[=…] :  A compression protocol.  Use $PKG_CONFIG_PATH instead.
+    #   --with[out]-fish-functions-dir=… :  A shell‐completions directory.
+    #   --with-gssapi=… :  The GSS‐API directory root.  (Heimdal or MIT Kerberos)
     #     or, --with-gssapi-includes=… :  The GSS‐API headers directory.
     #         --with-gssapi-libs=… :  The GSS‐API libraries directory.
-    #   --with[out]-hyper=… :  Hells if I know.
-    #   --with-lber-lib=… :  The LBER library file.
+    #   --with[out]-hyper=… :  Hyper is an HTTP library written in Rust, and therefore unavailable
+    #                          on Power Macs.
+    #   --with-lber-lib=… :  LBER is the Lightweight BER library (Basic Encoding Rules, an ASN.1
+    #                        thing.  Possibly associated with OpenLDAP).
     #   --with-ldap-lib=… :  The LDAP library file.
     #   --with[out]-libidn2=… :  The LibIDN2 file.
     #   --with[out]-librtmp=… :  The LibRTMP file.
-    #   --with-libssh[=…] :  The LibSSH file.
-    #   --with-libssh2[=…] :  The LibSSH2 file.
+    #   --with-libssh[=…] :  The LibSSH file.  Use LibSSH2 (via $PKG_CONFIG_PATH) instead.
+    #   --with-libssh2[=…] :  The LibSSH2 file.  Use $PKG_CONFIG_PATH instead.
     #   --with[out]-libuv=… :  The LibUV file.
     #   --with[out]-nghttp2=…* :  The LibNGHTTP2 file.
     #   --with[out]-nghttp3=…* :  The LibNGHTTP3 file.
-    #   --with[out]-ngtcp2=…* (v1.2.0), plus --with-nghttp3 (v1.1.0), plus (--with-gnutls
+    #   --with[out]-ngtcp2=…* :  the LibNGTCP2 file.
+    #     Get HTTP/3 support with --with-ngtcp2 (v1.2.0), plus --with-nghttp3 (v1.1.0), plus
+    #                                                                 (--with-gnutls
     #                                                                 OR --with-openssl=quicktls
     #                                                                 OR --with-wolfssl)
-    #     OR --with-quiche (quasi‐experimental)
-    #   --with[out]-quiche=…* :  Google’s “QUIC, Http, Etc.” – HTTP/2 & –3 (QUIC).
+    #                             OR --with-quiche (quasi‐experimental)
+    #   --with[out]-quiche=…* :  Google’s “QUIC, Http, Etc.” – HTTP/2 & /3 (QUIC).  Not available
+    #                            for big‐endian platforms.
     #   --with-test-caddy=…* :  A test program.
-    #   --with-test-httpd=…* :  A test program (from apache, or possibly libnghttp2 if so compiled?).
-    #   --with-test-nghttpx=…* :  A test program (from libnghttp2, if so compiled).
+    #   --with-test-httpd=…* :  A test program (from apache – or libnghttp2, but we don’t build it
+    #                           there, for good reasons).
+    #   --with-test-nghttpx=…* :  A test program (from libnghttp2, but we don’t build it, for good
+    #                             reasons).
     #   --with-test-vsftpd=… :  A test program.
-    #   --with-wolfssh[=…] :  The WolfSSH library file.
-    #   --with[out]-zlib[=…]* :  The ZLib file.
-    #   --with[out]-zsh-functions-dir=… :  The ZSh completions directory.
-    #   --with[out]-zstd[=…]* :  A compression protocol.
+    #   --with-wolfssh[=…] :  The WolfSSH library file.  Use $PKG_CONFIG_PATH instead.
+    #   --with[out]-zlib[=…]* :  The ZLib library file.
+    #   --with[out]-zsh-functions-dir=… :  A shell‐completions directory.
+    #   --with[out]-zstd[=…]* :  The Zstandard library file.  Use $PKG_CONFIG_PATH instead.
     # Installation locations that, if specified, are preferably done via PKG_CONFIG_PATH:
     #   {brotli}, {libpsl}, {(libssh) | libssh2}, {libressl|openssl3}, {rtmpdump}, ({!wolfssh}),
     #   {zstd}
+    # Explicitly‐described dependencies (there are others not called out on the website):
+    #   For TLS:  any of {OpenSSL, mbed TLS, GnuTLS, NSS, WolfSSL}
+    #             (NSS is Mozilla’s Network Security Services package.)
+    #   For GSS‐API:  either of {Heimdal, MIT Kerberos}
+    #   Other:  Zlib, OpenLDAP, NGHTTP2, C-ARES, LibIDN 2, LibSSH 2
     args = [
       "--prefix=#{prefix}",
       '--disable-dependency-tracking',
@@ -164,12 +183,12 @@ class Curl < Formula
       '--with-ca-fallback',
       '--with-gssapi',
       '--enable-httpsrr',
-      '--enable-libgcc',
       '--enable-mqtt',
       '--enable-ssls-export',
       "--with-fish-functions-dir=#{fish_completion}",
       "--with-zsh-functions-dir=#{zsh_completion}"
     ]
+    args << '--enable-libgcc' if ENV.compiler != :clang
 
     # cURL now wants to find a lot of things via pkg-config instead of using “--with-xxx=”:  “When
     # possible, set the PKG_CONFIG_PATH environment variable instead of using this option.”  Multi-
@@ -195,6 +214,7 @@ class Curl < Formula
     end
 
     args << '--without-brotli' unless enhanced_by? 'brotli'
+    args << "--with-gssapi=#{Formula['kerberos'].opt_prefix}" if build.with? 'kerberos'
     args << '--with-libssh2' if build.with? 'libssh2'
     args << '--without-librtmp' if build.without? 'rtmpdump'
     args << '--without-zstd' if build.without? 'zstd'
@@ -229,7 +249,7 @@ class Curl < Formula
     if build.universal?
       ENV.set_build_archs(archs)
       merge_binaries(archs)
-      inreplace prefix/script_to_fix, %r{-arch \w+}, archs.as_arch_flags
+      inreplace prefix/script_to_fix, %r{-arch [0-9a-z_]+}, archs.as_arch_flags
     end # universal?
   end # install
 
