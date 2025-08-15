@@ -1,4 +1,3 @@
-#:
 #:Check the library links of an installed formula.
 #:
 #:  Usage:    linkage [--test | --reverse] <formula>
@@ -10,7 +9,6 @@
 #:
 #:If `--reverse` is passed, for each dynamic library the keg references, print
 #:its name and which of the keg’s binaries link to it.
-#:
 
 require "macos/linkage_checker"
 

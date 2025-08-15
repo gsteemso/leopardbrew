@@ -171,7 +171,9 @@ class AbstractFileDownloadStrategy < AbstractDownloadStrategy
 
   def pipe_to_tar(tool)
     Utils.popen_read(tool, '-dc', cached_location.to_s) do |rd|
-      Utils.popen_write(TAR_PATH, '-xif', '-') { |wr| buf = ''; wr.write(buf) while rd.read(16384, buf) }
+      Utils.popen_write(TAR_PATH, '-xif', '-') do |wr|
+        buf = ''; wr.write(buf) while rd.read(16384, buf)
+      end
     end
   end
 
@@ -201,7 +203,7 @@ class CurlDownloadStrategy < AbstractFileDownloadStrategy
   def initialize(name, resource)
     super
     @mirrors = resource.mirrors.dup
-    @tarball_path = HOMEBREW_CACHE.join("#{name}-#{version}#{ext}")
+    @tarball_path = HOMEBREW_CACHE/"#{name}-#{version}#{ext}"
     @temporary_path = Pathname.new("#{cached_location}.incomplete")
   end
 
