@@ -8,6 +8,7 @@ FORMULA_RENAMES = {
   "google-perftools"    => "gperftools",
   "google-app-engine"   => "app-engine-python",
   "libcppa"             => "caf",
+  'kerberos-v5'         => 'kerberos',
   "mpich2"              => "mpich",
   "objective-caml"      => "ocaml",
   "plt-racket"          => "racket",
