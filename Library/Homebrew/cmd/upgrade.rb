@@ -121,22 +121,10 @@ module Homebrew
     # pin it again to get a symlink pointing to the correct keg.
     if f.pinned? then f.unpin; f.pin; end
 
-    # If uninsinuation is followed immediately by insinuation, they must both be silent so as not
-    # to emit conflicting messages:
-    if f.uninsinuate_defined? and f.insinuate_defined? and not DEBUG
-      begin
-        old_stdout = $stdout
-        $stdout.reopen('/dev/null')
-        f.uninsinuate rescue nil if f.uninsinuate_defined?
-        f.insinuate if f.insinuate_defined?
-      ensure
-        $stdout.reopen(old_stdout)
-      end
-    elsif f.uninsinuate_defined?
-      f.uninsinuate rescue nil
-    elsif f.insinuate_defined?
-      f.insinuate
-    end
+    # If uninsinuation will be followed immediately by insinuation, the former must be silent so as
+    # not to emit conflicting messages:
+    f.uninsinuate(f.insinuate_defined? && ! DEBUG) rescue nil if f.uninsinuate_defined?
+    f.insinuate rescue nil if f.insinuate_defined?
   ensure # Restore the previous installation state if the build failed.
     unless f.installed?
       if f.prefix.exists?
