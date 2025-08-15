@@ -17,7 +17,7 @@ Troubleshooting:
 Brewing:
   brew create [URL [--no-fetch]]
   brew edit [FORMULA...]
-  https://github.com/Homebrew/homebrew/blob/master/share/doc/homebrew/Formula-Cookbook.md
+  #{HOMEBREW_REPOSITORY}/share/doc/homebrew/Formula-Cookbook.md
 
 Further help:
   man brew
