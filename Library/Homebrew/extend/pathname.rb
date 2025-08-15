@@ -14,7 +14,7 @@ class Pathname
   include FileUtils
 
   # @private
-  BOTTLE_EXTNAME_RX = /(\.[a-z0-9_]+\.bottle\.(\d+\.)?tar\.gz)$/
+  BOTTLE_EXTNAME_RX = /(\.[a-z0-9_]+\.bottle\.(\d+\.)?tar\.[gl]z)$/
 
   alias_method :exists?, :exist? unless method_defined? :exists?
   alias_method :to_str, :to_s unless method_defined? :to_str  # we don’t wanna, but Ruby 1.8.x doesn’t care
@@ -206,10 +206,10 @@ class Pathname
         # This code so that bad tarballs and archives produce good error
         #   messages when they don't unarchive properly.
         case extname
-          when '.tar.bz2', '.tar.gz', '.tbz', '.tgz' then :tar
-          when '.lz'          then :lzip
+          when %r{^\.tar(\..+)?}, '.tbz', '.tgz', '.tlz' then :tar
+          when %r{^\.lz4?}    then :lzip
           when '.xz'          then :xz
-          when '.zip'         then :zip
+          when '.Z', '.zip'   then :zip
           when '.zst'         then :zstd
         end # case extname
     end # magic number
