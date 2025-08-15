@@ -252,35 +252,26 @@ class Formulary
 
   def self.loader_for(ref)
     case ref
-    when %r{(https?|ftp|file)://}
-      return FromUrlLoader.new(ref)
-    when Pathname::BOTTLE_EXTNAME_RX
-      return BottleLoader.new(ref)
-    when HOMEBREW_CORE_FORMULA_REGEX
-      name = $1
-      formula_with_that_name = core_path(name)
-      if (newname = FORMULA_RENAMES[name]) && !formula_with_that_name.file?
-        return FormulaLoader.new(newname, core_path(newname))
-      else
-        return FormulaLoader.new(name, formula_with_that_name)
-      end
-    when HOMEBREW_TAP_FORMULA_REGEX
-      return TapLoader.new(ref)
+      when %r{(https?|ftp|file)://} then return FromUrlLoader.new(ref)
+      when Pathname::BOTTLE_EXTNAME_RX then return BottleLoader.new(ref)
+      when HOMEBREW_CORE_FORMULA_REGEX
+        name = $1
+        formula_with_that_name = core_path(name)
+        if (newname = FORMULA_RENAMES[name]) && !formula_with_that_name.file?
+          return FormulaLoader.new(newname, core_path(newname))
+        else
+          return FormulaLoader.new(name, formula_with_that_name)
+        end
+      when HOMEBREW_TAP_FORMULA_REGEX then return TapLoader.new(ref)
     end
 
-    if File.extname(ref) == ".rb"
-      return FromPathLoader.new(ref)
-    end
+    if File.extname(ref) == ".rb" then return FromPathLoader.new(ref); end
 
     formula_with_that_name = core_path(ref)
-    if formula_with_that_name.file?
-      return FormulaLoader.new(ref, formula_with_that_name)
-    end
+    if formula_with_that_name.file? then return FormulaLoader.new(ref, formula_with_that_name); end
 
     possible_alias = Pathname.new("#{HOMEBREW_LIBRARY}/Aliases/#{ref}")
-    if possible_alias.file?
-      return AliasLoader.new(possible_alias)
-    end
+    if possible_alias.file? then return AliasLoader.new(possible_alias); end
 
     possible_tap_formulae = tap_paths(ref)
     if possible_tap_formulae.size > 1
@@ -312,9 +303,7 @@ class Formulary
     end
 
     possible_cached_formula = Pathname.new("#{HOMEBREW_FORMULA_CACHE}/#{ref}.rb")
-    if possible_cached_formula.file?
-      return FormulaLoader.new(ref, possible_cached_formula)
-    end
+    if possible_cached_formula.file? then return FormulaLoader.new(ref, possible_cached_formula); end
 
     NullLoader.new(ref)
   end # Formulary::loader_for
@@ -325,12 +314,12 @@ class Formulary
     name = name.downcase
     taps.map do |tap|
       Pathname.glob([
-        "#{tap}Formula/#{name[0]}/#{name}.rb",
-        "#{tap}Formula/#{name}.rb",
-        "#{tap}HomebrewFormula/#{name}.rb",
-        "#{tap}#{name}.rb",
-        "#{tap}Aliases/#{name}",
-      ]).detect(&:file?)
+          "#{tap}Formula/#{name[0]}/#{name}.rb",
+          "#{tap}Formula/#{name}.rb",
+          "#{tap}HomebrewFormula/#{name}.rb",
+          "#{tap}#{name}.rb",
+          "#{tap}Aliases/#{name}",
+        ]).detect(&:file?)
     end.compact
   end # Formulary::tap_paths
 
