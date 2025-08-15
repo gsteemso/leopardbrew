@@ -1,3 +1,4 @@
+# stable release latest patch 2025-07-11; checked 2025-08-08
 class Readline < Formula
   desc 'Library for command-line editing'
   homepage 'https://tiswww.case.edu/php/chet/readline/rltop.html'

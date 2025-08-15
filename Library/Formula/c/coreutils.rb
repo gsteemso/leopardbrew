@@ -1,3 +1,4 @@
+# stable release 2025-04-09; checked 2025-08-02
 class Coreutils < Formula
   desc 'GNU File, Shell, and Text utilities'
   homepage 'https://www.gnu.org/software/coreutils'

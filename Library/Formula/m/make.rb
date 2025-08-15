@@ -1,3 +1,4 @@
+# stable release 2023-02-26; checked 2025-08-01
 class Make < Formula
   desc 'Utility for directing compilation'
   homepage 'https://www.gnu.org/software/make/'

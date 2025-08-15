@@ -1,3 +1,4 @@
+# stable release 2025-04-28; checked 2025-08-08
 class Libsigsegv < Formula
   desc 'Library for handling page faults in user mode'
   homepage 'https://www.gnu.org/software/libsigsegv/'

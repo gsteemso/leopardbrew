@@ -1,3 +1,4 @@
+# stable release 2024-11-20; checked 2025-08-03
 class Libtool < Formula
   desc 'Generic library support script'
   homepage 'https://www.gnu.org/software/libtool/'

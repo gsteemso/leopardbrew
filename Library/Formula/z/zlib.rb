@@ -1,3 +1,4 @@
+# stable release 2024-01-22; checked 2025-08-02
 class Zlib < Formula
   desc "General-purpose lossless data-compression library"
   homepage "http://www.zlib.net/"

@@ -1,3 +1,4 @@
+# stable release 2025-05-10; checked 2025-08-08
 class M4 < Formula
   desc 'Macro processing language'
   homepage 'https://www.gnu.org/software/m4'
