@@ -19,7 +19,7 @@ module Homebrew
             puts "Would uninsinuate #{f.name}"
           else
             puts "Uninsinuating #{f.name}"
-            f.uninsinuate
+            f.uninsinuate rescue nil
           end
         end
         print "Unlinking #{keg}... "
