@@ -1,9 +1,10 @@
+# stable release 2025-07-30; checked 2025-08-08
 class Sqlite < Formula
   desc 'Command-line interface for SQLite'
   homepage 'https://sqlite.org/'
-  url 'https://sqlite.org/2025/sqlite-autoconf-3500300.tar.gz'
-  version '3.50.3'
-  sha256 'ec5496cdffbc2a4adb59317fd2bf0e582bf0e6acd8f4aae7e97bc723ddba7233'
+  url 'https://sqlite.org/2025/sqlite-autoconf-3500400.tar.gz'
+  version '3.50.4'
+  sha256 'a3db587a1b92ee5ddac2f66b3edb41b26f9c867275782d46c3a088977d6a5b18'
 
   keg_only :provided_by_osx, 'OS X provides an older sqlite3.'
 
@@ -12,9 +13,9 @@ class Sqlite < Formula
   option 'with-unlock-notify', 'Enable the unlock notification feature'
 
   resource 'docs' do
-    url 'https://sqlite.org/2025/sqlite-doc-3500300.zip'
-    version '3.50.3'
-    sha256 'bdbd4e47d52c64c7acc332d1294aa67ad6251ef370abeb0b086ee0cbec91186d'
+    url 'https://sqlite.org/2025/sqlite-doc-3500400.zip'
+    version '3.50.4'
+    sha256 'f8a03cf461500310c7a785c9d6f86121ac9465601982cdcac6de0c5987dbfc2f'
   end
 
   def install
