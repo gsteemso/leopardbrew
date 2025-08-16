@@ -13,7 +13,7 @@ class Texinfo < Formula
   depends_on 'perl'
   depends_on :nls => :recommended
 
-  patch :DATA
+  patch :DATA  # This patch is not correct, but does lead to a successful build.
 
   def install
     ENV['HOMEBREW_FORCE_FLAGS'] = '-std=gnu99' if ENV.default_c_version == :c89
@@ -33,7 +33,7 @@ class Texinfo < Formula
     # At least on Tiger, `make check`’s many apparently‐legitimate failures are completely obscured
     # by the tests’ inability to start properly in the first place due to fork(2) being temporarily
     # unavailable, as Tiger’s per‐user process limit is only 100.  If you manually raise it (2/3 of
-    # the system maximum of 532, as used in later versions, would be 354), you could run the tests;
+    # the system maximum, as used in later versions, of 532 would be 354), you could run the tests;
     # but by that point it’s more trouble than it’s worth.
     system 'make', 'install'
     doc.install Dir['doc/refcard/txirefcard*']
