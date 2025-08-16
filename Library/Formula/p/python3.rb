@@ -1,3 +1,5 @@
+# stable release 2025-06-03; checked 2025-08-08
+# (Python 10.11.x should build but needs C11; 3.12.x and 3.13.x are inscrutable.)
 class Python3 < Formula
   desc 'Interpreted, interactive, object-oriented programming language'
   homepage 'https://www.python.org/'
@@ -13,9 +15,9 @@ class Python3 < Formula
   depends_on 'openssl3'
   depends_on 'sqlite'
   depends_on 'tcl-tk'
-  depends_on 'gdbm' => :recommended
+  depends_on 'gdbm'     => :recommended
   depends_on 'readline' => :recommended
-  depends_on 'xz' => :recommended # for the lzma module added in 3.3
+  depends_on 'xz'       => :recommended # for the lzma module added in 3.3
 
   enhanced_by 'libffi'
   enhanced_by :nls
@@ -67,9 +69,7 @@ END_OF_PATCH
 
   # setuptools remembers the build flags python is built with and uses them to
   # build packages later.  Xcode-only systems need different flags.
-  def pour_bottle?
-    MacOS::CLT.installed?
-  end
+  def pour_bottle?; MacOS::CLT.installed?; end
 
   def install
     ENV.universal_binary if build.universal?
@@ -243,9 +243,11 @@ END_OF_PATCH
 
   def cellar_framework; frameworks/"Python.framework/Versions/#{xy}"; end
 
-  def cellar_site_packages; cellar_framework/"lib/python#{xy}/site-packages"; end
+  def cellar_site_packages; cellar_framework/relative_site_packages; end
 
-  def site_packages; HOMEBREW_PREFIX/"lib/python#{xy}/site-packages"; end
+  def relative_site_packages; "lib/python#{xy}/site-packages"; end
+
+  def site_packages; HOMEBREW_PREFIX/relative_site_packages; end
 
   def xy; XY; end
 
