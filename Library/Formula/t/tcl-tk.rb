@@ -1,3 +1,4 @@
+# stable release 2024-12-11; checked 2025-08-08
 class TclTk < Formula
   desc 'Tool Command Language'
   homepage 'https://www.tcl.tk/'
@@ -6,14 +7,15 @@ class TclTk < Formula
   sha256 '91cb8fa61771c63c262efb553059b7c7ad6757afa5857af6265e4b0bdc2a14a5'
 
   keg_only :provided_by_osx,
-    'Tk installs some X11 headers and OS X provides an (older) Tcl/Tk.'
+    'Tk installs some X11 headers and Mac OS provides an (older) Tcl/Tk.'
 
   deprecated_option 'enable-threads' => 'with-threads'
+  deprecated_option 'without-tcllib' => 'without-libs'
 
   option :universal
   option 'with-threads', 'Build with multithreading support'
-  option 'without-tcllib', 'Don’t build tcllib (utility modules)'
-  option 'without-tk', 'Don’t build the Tk (window toolkit)'
+  option 'without-libs', 'Don’t build tcllib or tklib (utility modules)'
+  option 'without-tk', 'Don’t build Tk (the window toolkit)'
 
   if MacOS.version < :snow_leopard
     depends_on 'pkg-config' => :build
@@ -31,6 +33,11 @@ class TclTk < Formula
   resource 'tcllib' do
     url 'https://downloads.sourceforge.net/project/tcllib/tcllib/2.0/tcllib-2.0.tar.xz'
     sha256 '642c2c679c9017ab6fded03324e4ce9b5f4292473b62520e82aacebb63c0ce20'
+  end
+
+  resource 'tklib' do
+    url 'https://core.tcl-lang.org/tklib/raw/tklib-0.9.tar.xz?name=52e66024eff631ff'
+    sha256 'b0258d1a5039d44ac0cde0b3a7ee0aa0d687acc9eb4d9c5f683f2cbffd26c6ca'
   end
 
   def install
@@ -85,7 +92,7 @@ class TclTk < Formula
         cd 'unix' do
           system './configure', *args
           system 'make', "TK_LIBRARY=#{lib}"
-          # system 'make', 'test'  # for maintainers
+          # `make test` is for maintainers
           system 'make', 'install'
           system 'make', 'install-private-headers'
           ln_s bin/'wish8.6', bin/'wish'
@@ -93,10 +100,15 @@ class TclTk < Formula
       end
     end
 
-    if build.with? 'tcllib'
+    if build.with? 'libs'
       resource('tcllib').stage do
-        system './configure', "--prefix=#{prefix}",
-                              "--mandir=#{man}"
+        system './configure', "--prefix=#{prefix}", "--mandir=#{man}"
+        system 'make'
+        system 'make', 'install'
+      end
+      resource('tklib').stage do
+        system './configure', "--prefix=#{prefix}"
+        system 'make'
         system 'make', 'install'
       end
     end
