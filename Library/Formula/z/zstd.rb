@@ -1,8 +1,8 @@
-# Zstandard 1.5.6 requires C++14.  1.5.5 is the last version that can be built with Tiger‐/Leopard‐
-#   era compilers.
+# Zstandard 1.5.6 requires C++14.  1.5.5 (of 2023-04-05) is the last version that can be built with
+# PowerPC‐era compilers.  Latest release (1.5.7) 2025-03-12; checked 2025-08-09.
 class Zstd < Formula
-  desc 'Zstandard - fast real-time compression algorithm (see RFC 8878)'
-  homepage 'https://github.com/facebook/zstd/'
+  desc 'Zstandard – fast real-time compression algorithm (see RFC 8878)'
+  homepage 'https://facebook.github.io/zstd/'
   url 'https://github.com/facebook/zstd/releases/download/v1.5.5/zstd-1.5.5.tar.gz'
   sha256 '9c4396cc829cfae319a6e2615202e82aad41372073482fce286fac78646d3ee4'
 
@@ -11,7 +11,7 @@ class Zstd < Formula
   depends_on 'lz4' => :recommended
 
   if MacOS.version < :leopard
-    depends_on 'apple-gcc42' => :build  # may not actually be true
+#    depends_on 'apple-gcc42' => :build  # may not actually be true
     depends_on 'cctools'     => :build  # Needs a more recent "as".
     depends_on 'ld64'        => :build  # Tiger's system `ld` can't build the library.
     depends_on 'make'        => :build  # Tiger's system `make` can't handle the makefile.
