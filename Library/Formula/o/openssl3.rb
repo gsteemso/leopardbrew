@@ -1,18 +1,19 @@
+# stable release 2025-08-05; checked 2025-08-07
 require 'merge'
 
 class Openssl3 < Formula
   include Merge
 
   desc 'Cryptography and SSL/TLS Toolkit'
-  homepage 'https://openssl.org/'
-  url 'https://github.com/openssl/openssl/releases/download/openssl-3.3.2/openssl-3.3.2.tar.gz'
-  sha256 '2e8a40b01979afe8be0bbfb3de5dc1c6709fedb46d6c89c10da114ab5fc3d281'
+  homepage 'https://openssl-library.org/'
+  url 'https://github.com/openssl/openssl/releases/download/openssl-3.5.2/openssl-3.5.2.tar.gz'
+  sha256 'c53a47e5e441c930c3928cf7bf6fb00e5d129b630e0aa873b08258656e7345ec'
   license 'Apache-2.0'
 
   keg_only :provided_by_osx
 
   option :universal
-  option 'without-tests', 'Skip the build‐time unit tests (not recommended)'
+  option 'without-tests', 'Skip the build‐time unit tests (not recommended on the first install)'
 
   depends_on :macos => :tiger  # Panther doesn’t declare the right “timezone” in <time.h>.
 
