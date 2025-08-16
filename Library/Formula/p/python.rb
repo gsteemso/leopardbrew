@@ -1,3 +1,4 @@
+# stable release 2020-04-20; discontinued
 class Python < Formula
   desc 'Interpreted, interactive, object-oriented programming language'
   homepage 'https://www.python.org'
@@ -12,13 +13,11 @@ class Python < Formula
 
   # Please don't add a wide/ucs4 option, as it won't be accepted.
   # More details in: https://github.com/Homebrew/homebrew/pull/32368
-  option :universal
 
-  # sphinx-doc depends on python, but on 10.6 or earlier python is fulfilled by
-  # brew, which would lead to circular dependency.
-  if MacOS.version > :snow_leopard
-    option 'with-sphinx-doc', 'Build HTML documentation'
-    depends_on 'sphinx-doc' => [:build, :optional]
+  option :universal
+  if Formula['sphinx-doc'].installed?
+    option 'with-html-docs', 'also build documentation in HTML format'
+    deprecated_option 'with-sphinx-doc' => 'with-html-docs'
   end
 
   depends_on 'pkg-config' => :build
@@ -29,8 +28,10 @@ class Python < Formula
   depends_on 'sqlite' => :recommended
   depends_on 'berkeley-db4' => :optional
 
-  enhanced_by ':nls'
-  enhanced_by 'zlib'
+  enhanced_by ':nls'        # Useful if available, but not worth actually depending on.
+  enhanced_by 'sphinx-doc'  # For making documentation in HTML format.  Circularly dependent.
+  enhanced_by 'zlib'        # Sometimes it will pick this up even when not made explicit, but we
+                            # don’t _need_ it.
 
   skip_clean 'bin/pip', 'bin/pip-2.7'
   skip_clean 'bin/easy_install', 'bin/easy_install-2.7'
@@ -214,12 +215,10 @@ END_OF_PATCH
     # Remove the site-packages that Python created in its Cellar.
     cellar_site_packages.rmtree
 
-    if MacOS.version > :snow_leopard && build.with?('sphinx-doc')
-      cd 'Doc' do
-        system 'make', 'html'
-        doc.install Dir['build/html/*']
-      end
-    end
+    cd 'Doc' do
+      system 'make', 'html'
+      doc.install Dir['build/html/*']
+    end if enhanced_by?('sphinx-doc') and build.with?('html-docs')
   end # install
 
   def post_install
@@ -237,7 +236,6 @@ END_OF_PATCH
     cellar_site_packages.unlink if cellar_site_packages.exists?
     cellar_site_packages.parent.install_symlink_to site_packages
 
-    # Create a site-packages in HOMEBREW_PREFIX/lib/python2.7/site-packages
     site_packages.mkpath
 
     # Write our sitecustomize.py
@@ -286,9 +284,11 @@ END_OF_PATCH
 
   def cellar_framework; frameworks/'Python.framework/Versions/2.7/'; end
 
-  def cellar_site_packages; cellar_framework/'lib/python2.7/site-packages'; end
+  def cellar_site_packages; cellar_framework/relative_site_packages; end
 
-  def site_packages; HOMEBREW_PREFIX/'lib/python2.7/site-packages'; end
+  def relative_site_packages; 'lib/python2.7/site-packages'; end
+
+  def site_packages; HOMEBREW_PREFIX/relative_site_packages; end
 
   def sitecustomize; <<-EOS.undent
       # This file is created by Homebrew and is executed on each python startup.
@@ -299,14 +299,15 @@ END_OF_PATCH
       import sys
 
       if sys.version_info[0] != 2:
-          # This can only happen if the user has set the PYTHONPATH for 3.x and run Python 2.x or vice versa.
-          # Every Python looks at the PYTHONPATH variable and we can't fix it here in sitecustomize.py,
-          # because the PYTHONPATH is evaluated after the sitecustomize.py. Many modules (e.g. PyQt4) are
-          # built only for a specific version of Python and will fail with cryptic error messages.
-          # In the end this means: Don't set the PYTHONPATH permanently if you use different Python versions.
+          # This can only happen if the user has set the PYTHONPATH for 3.x and run Python 2.x or
+          # vice versa.  Every Python looks at the PYTHONPATH variable and we can't fix it here in
+          # sitecustomize.py, because the PYTHONPATH is evaluated after the sitecustomize.py.  Many
+          # modules (e.g. PyQt4) are built only for a specific version of Python and will fail with
+          # cryptic error messages.  In the end this means:  Don't set the PYTHONPATH permanently
+          # if you use different Python versions.
           exit('Your PYTHONPATH points to a site-packages dir for Python 2.x but you are running Python ' +
-               str(sys.version_info[0]) + '.x!\\n     PYTHONPATH is currently: "' + str(os.environ['PYTHONPATH']) + '"\\n' +
-               '     You should `unset PYTHONPATH` to fix this.')
+               str(sys.version_info[0]) + '.x!\\n     PYTHONPATH is currently: "' +
+               str(os.environ['PYTHONPATH']) + '"\\n' + '     You should `unset PYTHONPATH` to fix this.')
 
       # Only do this for a brewed python:
       if os.path.realpath(sys.executable).startswith('#{rack}'):
@@ -330,7 +331,7 @@ END_OF_PATCH
           # -F/#{HOMEBREW_PREFIX}/Frameworks switch.
           try:
               from _sysconfigdata import build_time_vars
-              build_time_vars['LINKFORSHARED'] = '-u _PyMac_Error #{opt_prefix}/Frameworks/Python.framework/Versions/2.7/Python'
+              build_time_vars['LINKFORSHARED'] = '-u _PyMac_Error #{opt_frameworks}/Python.framework/Versions/2.7/Python'
           except:
               pass  # remember: don't print here. Better to fail silently.
 
