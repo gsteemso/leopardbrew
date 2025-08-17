@@ -118,7 +118,7 @@ class CompilerFailure
     :cxx14 => [
       create([:gcc_4_0, :gcc, :llvm]),
       create(:clang),  # build unknown
-      create(:gcc => ['4.3', '4.4', '4.5', '4.6', '4.7', '4.8', '4.9'])
+      create(:gcc => ['4.3', '4.4', '4.5', '4.6', '4.7', '4.8', '4.9']),
       # the very last features of C++14 were not stable until GCC 5.2:
       create(:gcc => '5') { version = '5.1' }
     ],
