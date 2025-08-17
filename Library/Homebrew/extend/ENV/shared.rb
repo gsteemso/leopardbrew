@@ -1,6 +1,6 @@
 require 'compilers'
 require 'formula'
-require 'macos'
+require 'target'  # pulls in macos for us, which pulls in cpu
 
 # Homebrew extends Ruby's `ENV` to make our code more readable.  Implemented in
 # {SharedEnvExtension} and either {Superenv} or {Stdenv}, per the build mode.
@@ -129,9 +129,7 @@ module SharedEnvExtension
   def fcflags; self['FCFLAGS']; end
 
   def homebrew_build_archs
-    if (hba = self['HOMEBREW_BUILD_ARCHS'])
-      hba.split(' ').extend ArchitectureListExtension
-    end
+    if (hba = self['HOMEBREW_BUILD_ARCHS']) then hba.split(' ').extend ArchitectureListExtension; end
   end
 
   # Outputs the current compiler.

@@ -87,7 +87,7 @@ class Gcc45 < Formula
 
     # Otherwise libstdc++ will be incorrectly tagged with cpusubtype 10 (G4e)
     # https://github.com/mistydemeo/tigerbrew/issues/538
-    ENV.append_to_cflags "-force_cpusubtype_ALL" if CPU.model == :g3
+    ENV.append_to_cflags "-force_cpusubtype_ALL" if Target.model == :g3
 
     if build.with? "all-languages"
       # Everything but Ada, which requires a pre-existing GCC Ada compiler
@@ -133,7 +133,7 @@ class Gcc45 < Formula
 
     # "Building GCC with plugin support requires a host that supports
     # -fPIC, -shared, -ldl and -rdynamic."
-    args << "--enable-plugin" if MacOS.version > :tiger && Hardware.cpu_type == :intel
+    args << "--enable-plugin" if MacOS.version > :tiger && Target.type == :intel
 
     # Otherwise make fails during comparison at stage 3
     # See: http://gcc.gnu.org/bugzilla/show_bug.cgi?id=45248

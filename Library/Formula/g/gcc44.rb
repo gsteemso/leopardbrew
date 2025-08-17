@@ -76,7 +76,7 @@ class Gcc44 < Formula
 
     # Otherwise libstdc++ will be incorrectly tagged with cpusubtype 10 (G4e)
     # https://github.com/mistydemeo/tigerbrew/issues/538
-    ENV.append_to_cflags "-force_cpusubtype_ALL" if CPU.model == :g3
+    ENV.append_to_cflags "-force_cpusubtype_ALL" if Target.model == :g3
 
     if build.with? "all-languages"
       # Everything but Ada, which requires a pre-existing GCC Ada compiler

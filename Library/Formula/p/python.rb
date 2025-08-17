@@ -94,8 +94,8 @@ END_OF_PATCH
 
     # There is no simple way to extract a “ppc” slice from a universal file.  We have to
     # specify the exact sub‐architecture we actually put in there in the first place.
-    if CPU.powerpc?
-      our_ppc_flavour = CPU.optimization_flags(CPU.model)[/^-mcpu=(\d+)/, 1]
+    if Target.powerpc?
+      our_ppc_flavour = CPU.optimization_flags(Target.model)[/^-mcpu=(\d+)/, 1]
       inreplace 'configure' do |s| s.gsub! '-extract ppc7400', "-extract ppc#{our_ppc_flavour}" end
     end
 
@@ -153,7 +153,7 @@ END_OF_PATCH
 
     args << '--enable-universalsdk=/'
     # ARM builds are not supported; just build for Intel and hope it keeps working
-    args << "--with-universal-archs=#{CPU.type}#{build.universal? ? '' : "-#{CPU.bits}"}"
+    args << "--with-universal-archs=#{Target.type}#{build.universal? ? '' : "-#{Target.bits}"}"
 
     cflags   = []
     ldflags  = []

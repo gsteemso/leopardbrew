@@ -43,7 +43,7 @@ class Gmp < Formula
         include/gmp.h
       ]
     else
-      archs = [MacOS.preferred_arch]
+      archs = [Target.arch]
     end # universal?
 
     build_sym = CPU.model
@@ -56,10 +56,7 @@ class Gmp < Formula
       "--build=#{found_build = lookup(build_sym)}-#{tuple_tail}",
     ]
 
-    found_host = lookup(host_sym = (build.bottle? \
-                                    ? (ARGV.bottle_arch or CPU.oldest) \
-                                    : build_sym ) )
-
+    found_host = lookup(host_sym = Target.model)
     args << "--host=#{found_host}-#{tuple_tail}" if found_host != found_build
 
     archs.each do |arch|
