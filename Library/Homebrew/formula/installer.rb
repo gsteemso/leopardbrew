@@ -161,7 +161,7 @@ class FormulaInstaller
     end
     return if only_deps?
 
-    if build_bottle? and not CPU.bottle_target_model
+    if build_bottle? and not bottle_arch_is_valid?
       raise "Invalid target for --bottle-arch:  #{ARGV.bottle_arch}"
     end
 
