@@ -80,13 +80,13 @@ class Gcc5 < Formula
   def install
     # GCC Bug 25127
     # https://gcc.gnu.org/bugzilla//show_bug.cgi?id=25127
-    ENV.no_optimization if Hardware::CPU.type == :ppc
+    ENV.no_optimization if Target.powerpc?
     # GCC will suffer build errors if forced to use a particular linker.
     ENV.delete "LD"
 
     # Otherwise libstdc++ will be incorrectly tagged with cpusubtype 10 (G4e)
     # https://github.com/mistydemeo/tigerbrew/issues/538
-    ENV.append_to_cflags "-force_cpusubtype_ALL" if CPU.model == :g3
+    ENV.append_to_cflags "-force_cpusubtype_ALL" if Target.model == :g3
 
     if MacOS.version < :leopard
       ENV["AS"] = ENV["AS_FOR_TARGET"] = "#{Formula["cctools"].bin}/as"

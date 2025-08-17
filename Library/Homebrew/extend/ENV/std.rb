@@ -259,24 +259,12 @@ module Stdenv
     remove flags, /-mssse3/
     remove flags, /-msse4(\.\d)?/
     append flags, xarch unless xarch.empty?
-    append flags, map.fetch(effective_arch, default)
+    append flags, map.fetch(target_model, default)
     # Work around a buggy system header on Tiger
-    append flags, "-faltivec" if MacOS.version == '10.4' and CPU.powerpc? and not CPU.model == :g3
+    append flags, "-faltivec" if MacOS.version == '10.4' and CPU.powerpc? and target_model != :g3
     # not really a 'CPU' cflag, but is only used with clang
     remove flags, '-Qunused-arguments'
   end # set_cpu_flags
-
-  # @private
-  def effective_arch
-    if ARGV.build_bottle? then CPU.bottle_target_arch
-    elsif CPU.intel? and not CPU.sse4?
-      # If the CPU doesn't support SSE4, we cannot trust -march=native or
-      # -march=<cpu family> to do the right thing because we might be running
-      # in a VM or on a Hackintosh.
-      CPU.oldest(CPU._64b? ? :x86_64 : :i386)
-    else CPU.model
-    end
-  end # effective_arch
 
   # @private
   def set_cpu_cflags(default = DEFAULT_FLAGS, map = CPU.opt_flags_as_map(compiler_version))

@@ -32,7 +32,7 @@ class Hardware
     alias_method :intel_family, :cpu_family
     alias_method :ppc_family, :cpu_family
 
-    def oldest_cpu; ::CPU.oldest; end
+    def oldest_cpu; ::CPU.bottle_model_for; end
 
     def processor_count; ::CPU.cores; end
   end # << self
