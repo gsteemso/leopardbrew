@@ -1,5 +1,4 @@
-# This file is loaded before `global.rb`, so must eschew many Homebrew‐isms at
-# eval time.
+# This file is loaded before `global.rb`, so must eschew many Homebrew‐isms at eval time.
 
 require 'version'
 
@@ -12,20 +11,20 @@ module MacOS
       :sonoma        => '14',     # 23
       :ventura       => '13',     # 22
       :monterey      => '12',     # 21
-      :big_sur       => '11',     # 20
-      :catalina      => '10.15',  # 19
-      :mojave        => '10.14',  # 18
+      :big_sur       => '11',     # 20 – start of :arm64 and Rosetta 2 / Universal 2
+      :catalina      => '10.15',  # 19 – start of :x86_64‐only
+      :mojave        => '10.14',  # 18 – end of :i386
       :high_sierra   => '10.13',  # 17
       :sierra        => '10.12',  # 16
       :el_capitan    => '10.11',  # 15
       :yosemite      => '10.10',  # 14
       :mavericks     => '10.9',   # 13
       :mountain_lion => '10.8',   # 12
-      :lion          => '10.7',   # 11
-      :snow_leopard  => '10.6',   # 10
-      :leopard       => '10.5',   # 9
-      :tiger         => '10.4',   # 8
-      :panther       => '10.3'    # 7
+      :lion          => '10.7',   # 11 – start of 64‐bit CPU requirement
+      :snow_leopard  => '10.6',   # 10 – end of Rosetta
+      :leopard       => '10.5',   #  9 – end of :powerpc
+      :tiger         => '10.4',   #  8 – start of :intel, of Rosetta (:ppc only) / Universal, and of 64‐bit
+      :panther       => '10.3'    #  7
     }.freeze
 
     def self.from_encumbered_symbol(sym)
