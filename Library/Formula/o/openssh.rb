@@ -1,14 +1,17 @@
+# stable release 2025-04-09; checked 2025-08-08
 class Openssh < Formula
   desc 'OpenBSD freely-licensed SSH connectivity tools'
   homepage 'https://www.openssh.com/'
-  url 'https://cdn.openbsd.org/pub/OpenBSD/OpenSSH/portable/openssh-9.9p2.tar.gz'
-  mirror 'https://cloudflare.cdn.openbsd.org/pub/OpenBSD/OpenSSH/portable/openssh-9.9p2.tar.gz'
-  version '9.9p2'
-  sha256 '91aadb603e08cc285eddf965e1199d02585fa94d994d6cae5b41e1721e215673'
+  url 'https://cdn.openbsd.org/pub/OpenBSD/OpenSSH/portable/openssh-10.0p2.tar.gz'
+  mirror 'https://cloudflare.cdn.openbsd.org/pub/OpenBSD/OpenSSH/portable/openssh-10.0p2.tar.gz'
+  version '10.0p2'
+  sha256 '021a2e709a0edf4250b1256bd5a9e500411a90dddabea830ed59cef90eb9d85c'
   license 'SSH-OpenSSH'
 
-  # Please don't resubmit the keychain patch option.  It will never be accepted.
+  # Please don’t resubmit the keychain patch option.  It will never be accepted.
   # https://archive.is/hSB6d#10%25
+
+  keg_only :provided_by_osx
 
   option :universal
 
@@ -17,8 +20,6 @@ class Openssh < Formula
   depends_on 'openssl3'
   depends_on 'zlib'
 
-  keg_only :provided_by_osx
-
   # This patch is applied by Apple.
   # https://github.com/apple-oss-distributions/OpenSSH/blob/main/openssh/sandbox-darwin.c#L66
   patch do
@@ -26,11 +27,7 @@ class Openssh < Formula
     sha256 'd886b98f99fd27e3157b02b5b57f3fb49f43fd33806195970d4567f12be66e71'
   end
 
-  # defines.h:
-  # - Testing for endian.h is insufficient – the older‐Mac‐OS one defined different macros than the
-  #   Linux one does.  Test for one of the affected #define names directly.
-  patch :DATA
-
+  # This is a small file defining Apple sandbox permissions.
   resource 'com.openssh.sshd.sb' do
     url 'https://raw.githubusercontent.com/apple-oss-distributions/OpenSSH/OpenSSH-268.100.4/com.openssh.sshd.sb'
     sha256 'a273f86360ea5da3910cfa4c118be931d10904267605cdd4b2055ced3a829774'
@@ -73,17 +70,23 @@ class Openssh < Formula
 
     # This was removed by upstream with very little announcement and has potential to break
     # scripts, so recreate it for now.  Debian have done the same thing.
-    bin.install_symlink 'ssh' => 'slogin'
-    man1.install_symlink 'ssh.1' => 'slogin.1'
+    bin.install_symlink_to 'ssh' => 'slogin'
+    man1.install_symlink_to 'ssh.1' => 'slogin.1'
 
     buildpath.install resource('com.openssh.sshd.sb')
     (etc/'ssh').install 'com.openssh.sshd.sb' => 'org.openssh.sshd.sb'
   end # install
 
-  def insinuate; ensure_to_fro; system 'sudo', TO; end
+  insinuate do |silent|
+    ensure_to_fro
+    do_system((silent ? [:silent] : []), 'sudo', TO)
+  end
 
-  # This command also deletes `to-*-openssh` if the `openssh` rack is gone.
-  def uninsinuate; ensure_to_fro; system 'sudo', FRO; end
+  # This command also deletes `to-*-openssh` if our rack is gone.
+  uninsinuate do |silent|
+    ensure_to_fro
+    do_system((silent ? [:silent] : []), 'sudo', FRO)
+  end
 
   test do
     require 'socket'
@@ -162,6 +165,7 @@ class Openssh < Formula
     for stock_file in /etc/ssh*; do if [ -L "$stock_file" ]; then sudo rm -f "$stock_file"; fi; done
     # Move any unmoved files.
     for stock_file in /etc/ssh*; do   # A bunch of loose files, or a directory.
+      # Luckily, none of these filenames contain hyphens other than the one we add.
       if [ "${stock_file##*-}" = "$stock_file" ]; then   # Unversioned, so assume it’s not been moved.
         sudo mv -f "$stock_file" "${stock_file}-$stock_version"
       fi
@@ -207,7 +211,6 @@ class Openssh < Formula
     # to-stock-openssh:  Switches system SSH from brewed to stock OpenSSH.
     set +f   # enable pathname expansion
     shopt -s nullglob   # allow null pattern matches
-    shopt -u failglob   # don’t act out if a pattern fails to match
 
     # We need to ask stock SSH its version, but if we didn’t already replace it, we’ll get ENOENT; in
     # that case, check for the stock configuration and abort.  Otherwise, look for our moved version.
@@ -308,16 +311,3 @@ class Openssh < Formula
   _
   end # switch_from
 end # Openssh
-
-__END__
---- old/defines.h
-+++ new/defines.h
-@@ -646,7 +646,7 @@
- # endif /* WORDS_BIGENDIAN */
- #endif /* BYTE_ORDER */
- 
--#ifndef HAVE_ENDIAN_H
-+#ifndef le32toh
- # define openssh_swap32(v)					\
- 	(uint32_t)(((uint32_t)(v) & 0xff) << 24 |		\
- 	((uint32_t)(v) & 0xff00) << 8 |				\

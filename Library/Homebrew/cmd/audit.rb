@@ -161,8 +161,8 @@ class FormulaAuditor
       [/^  (sha1|sha256) ["'][\S\ ]+["']/, 'checksum'   ],
       [/^  head ["'][\S\ ]+["']/,          'head line'  ],
       [/^  keg_only/,                      'keg_only'   ],
-      [/^  stable do/,                     'stable'     ],
       [/^  bottle do/,                     'bottle'     ],
+      [/^  stable do/,                     'stable'     ],
       [/^  devel do/,                      'devel'      ],
       [/^  head do/,                       'head block' ],
       [/^  option/,                        'option'     ],
@@ -592,10 +592,7 @@ class FormulaAuditor
     if line =~ /## Naming --/
       problem 'Please remove default template comments'
     end
-    if line =~ %r{# if your formula requires any X11/XQuartz components}
-      problem 'Please remove default template comments'
-    end
-    if line =~ /# if your formula fails when building in parallel/
+    if line =~ %r{# if your formula }
       problem 'Please remove default template comments'
     end
     if line =~ /# Remove unrecognized options if warned by configure/
@@ -643,10 +640,6 @@ class FormulaAuditor
 
     if line =~ %r[((\#\{prefix\}/share|\#\{share\})/(info|man))((/)|['"])]
       problem "“#{$1}” should be “\#{#{$3}}#{$5}”"
-    end
-
-    if line =~ %r[(/(info|man))]
-      problem "“#{$1}” should be “\#{#{$2}}”"
     end
 
     if line =~ /depends_on :(automake|autoconf|libtool)/

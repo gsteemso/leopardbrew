@@ -133,10 +133,7 @@ class Formula
     set_spec :head
 
     @active_spec = determine_active_spec(spec)
-    @active_spec_sym = if head? then :head
-      elsif devel? then :devel
-      else :stable
-      end
+    @active_spec_sym = head? ? :head : (devel? ? :devel : :stable)
     validate_attributes!
     @build = active_spec.build
     @pin = FormulaPin.new(self)
@@ -316,12 +313,12 @@ class Formula
     rack.directory? and rack.subdirs.any? { |keg| is_installed_prefix?(keg) }
   end
 
-  # If any version of {Formula} other than one of the current ones is installed.
+  # If only versions of {Formula} other than the current ones are installed.
   # @private
-  def old_version_installed?
-    rack.directory? and rack.subdirs.reject{ |keg|
-                          [:head, :devel, :stable].any?{ |ss| keg == spec_prefix(ss) }
-                        }.any?{ |keg| is_installed_prefix?(keg) }
+  def only_old_version_installed?
+    rack.directory? and rack.subdirs.select{ |kegpath|
+                          [:head, :devel, :stable].any?{ |ss| kegpath == spec_prefix(ss) }
+                        }.empty? and rack.subdirs.any?{ |kegpath| is_installed_prefix?(kegpath) }
   end
 
   # If some version of {Formula} is installed under its old name.
@@ -821,7 +818,7 @@ class Formula
   # @private
   def self.alias_full_names; @alias_full_names ||= core_aliases + tap_aliases; end
 
-  def self.[](name); Formulary.factory(name); end
+  def self.[](name); Formulary.factory(name) rescue nil; end
 
   # @private
   def tap?; HOMEBREW_TAP_DIR_REGEX === path; end
@@ -954,6 +951,8 @@ class Formula
 
   # @private
   def test_defined?; false; end
+  def insinuate_defined?; false; end
+  def uninsinuate_defined?; false; end
 
   def test_fixtures(file); TEST_FIXTURES/file; end
 
@@ -965,30 +964,6 @@ class Formula
   #       system 'make', 'install'
   #     end
   def install; end
-
-  # These methods must be likewise overridden, in such formulæ as need to carry out some action to
-  # very deeply integrate with the system upon installation, and then to remove that integration
-  # before formula uninstallation is safe.  THESE METHODS MUST BE IDEMPOTENT!  It is not only
-  # possible, but actively expected, for them to be called more than once without their counterpart
-  # being called in between, in which case they must not make a mess!
-  # It is also possible for an insinuate method to be called when a formula’s dependencies are not
-  # necessarily in place or functional.  If this could be a problem, the insinuate method should
-  # test its environment and act accordingly.
-  # Further, an uninsinuate method must not assume that its rack still exists, as it may be called
-  # after the rack’s removal in order for helper scripts to delete themselves.
-  def insinuate; end
-
-  def uninsinuate; end
-
-  # @private
-  def insinuate_defined?
-    self.class.public_instance_methods(false).map(&:to_s).include?('insinuate')
-  end
-
-  # @private
-  def uninsinuate_defined?
-    self.class.public_instance_methods(false).map(&:to_s).include?('uninsinuate')
-  end
 
   protected
 
@@ -1082,8 +1057,7 @@ class Formula
       Process.wait(pid)
       $stdout.flush
       unless $?.success?
-        log_lines = ENV['HOMEBREW_FAIL_LOG_LINES']
-        log_lines ||= '15'
+        log_lines = ENV['HOMEBREW_FAIL_LOG_LINES'].choke || '15'
         log.flush
         if not VERBOSE or verbose_using_dots
           puts "Last #{log_lines} lines from #{logfn}:"
@@ -1152,9 +1126,9 @@ class Formula
   def self.method_added(method)
     case method
       when :brew
-        raise "You cannot override Formula#brew in class #{name}."
-      when :test
-        define_method(:test_defined?) { true }
+        raise RuntimeError, "You cannot override Formula#brew in class #{name}."
+      when :insinuate
+        define_method(:insinuate_defined?) { true }
       when :options
         instance = allocate
         specs.each do |spec|
@@ -1163,6 +1137,10 @@ class Formula
           end
         end # do each |spec|
         remove_method(:options)
+      when :test
+        define_method(:test_defined?) { true }
+      when :uninsinuate
+        define_method(:uninsinuate_defined?) { true }
     end
   end # Formula::method_added
 
@@ -1562,6 +1540,8 @@ class Formula
     #     fails_with :gcc => '4.8' do
     #       version '4.8.1'
     #     end
+    # Note that the cause is now neither used nor saved, but can still be specified for the formula
+    # author’s benefit.
     def fails_with(compiler, &block)
       specs.each { |spec| spec.fails_with(compiler, &block) }
     end
@@ -1579,17 +1559,21 @@ class Formula
     # @return [Boolean]
     # The block will create, run in and delete a temporary directory.  We are fine if the
     # executable does not error out, so we know linking and building the software was ok.
-    #     system bin/'foobar', '--version'
-    #     (testpath/'test.file').write <<-EOS.undent
-    #       writing some test file, if you need to
-    #     EOS
-    #     assert_equal 'OK', shell_output('test_command test.file').strip
+    #     test do
+    #       system bin/'foobar', '--version'
+    #       (testpath/'test.file').write <<-EOS.undent
+    #         writing some test file, if you need to
+    #       EOS
+    #       assert_equal 'OK', shell_output('test_command test.file').strip
+    #     end
     # Need complete control over stdin, stdout?
-    #     require 'open3'
-    #     Open3.popen3("#{bin}/example", 'argument') do |stdin, stdout, _|
-    #       stdin.write('some text')
-    #       stdin.close
-    #       assert_equal 'result', stdout.read
+    #     test do
+    #       require 'open3'
+    #       Open3.popen3("#{bin}/example", 'argument') do |stdin, stdout, _|
+    #         stdin.write('some text')
+    #         stdin.close
+    #         assert_equal 'result', stdout.read
+    #       end
     #     end
     # The test will fail if it returns false, or if an exception is raised.  Failed assertions and
     # failed `system` commands will raise exceptions.
@@ -1598,6 +1582,23 @@ class Formula
     #    test { :does_not_apply }
     # A message will be printed and the test will “succeed”.
     def test(&block); define_method(:test, &block); end
+
+    # Insinuation is for formulæ which must carry out some action to very deeply integrate with the
+    # system upon installation, and then to remove that integration prior to formula uninstallation.
+    #     insinuate do |silent|
+    #       # ensure the helper script is present
+    #       do_system((silent ? [:silent] : []), 'sudo', "#{bin}/to-brewed-package")
+    #     end
+    # THESE METHOD BLOCKS MUST BE IDEMPOTENT!  It is not only possible, but actively expected, that
+    # they may be called more than once without their counterpart being called in between; in which
+    # case, they must not make a mess!
+    # It is also possible for an insinuate block to be called when a formula’s dependencies are not
+    # necessarily in place or functional.  If this may be a problem, it should test its environment
+    # and act accordingly.
+    # Further, an uninsinuate block must not assume that its rack still exists.  It shall be called
+    # after the rack’s removal in order for helper scripts to delete themselves.
+    def insinuate(silent = nil, &block); define_method(:insinuate){ yield silent }; end
+    def uninsinuate(silent = nil, &block); define_method(:uninsinuate){ yield silent }; end
 
     # @private
     def link_overwrite(*paths)

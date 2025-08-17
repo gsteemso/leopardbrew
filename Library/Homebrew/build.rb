@@ -18,7 +18,6 @@ class Build
   def initialize(f, args)
     @formula = f
     @formula.build = BuildOptions.new(Options.create(args), f.options)
-
     if ARGV.ignore_deps?
       @deps = []
       @reqs = []
@@ -163,13 +162,18 @@ class Build
       elsif (gik = f.greatest_installed_keg)
         gik.path
       else
-        raise
+        raise RuntimeError, 'can’t make opt/ link:  none of the usual directories are valid'
       end
     Keg.new(path).optlink
   rescue StandardError
     raise "#{f.opt_prefix} is missing or broken.\nPlease reinstall #{f.full_name}."
   end # fixopt
 end # Build
+
+trap('INT') {
+  if DEBUG then raise RuntimeError, 'User Interrupt'
+  else old_trap; end
+}
 
 begin
   error_pipe = IO.new(ENV['HOMEBREW_ERROR_PIPE'].to_i, 'w')
@@ -179,7 +183,7 @@ begin
   build   = Build.new(formula, ARGV.effective_flags)
   build.install
 rescue Exception => e
-  Marshal.dump(e, error_pipe)
+  Marshal.dump(e, error_pipe) rescue nil
   error_pipe.close
   exit! 1
 end

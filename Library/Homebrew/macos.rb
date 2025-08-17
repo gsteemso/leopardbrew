@@ -10,20 +10,19 @@ module MacOS
   extend self
 
   def locate(tool)
-    # Don't call tools (cc, make, strip, etc.) directly!
-    # Give the name of the binary you look for as a string to this method
-    # in order to get the full path back as a Pathname.
+    # Don't call tools (cc, make, strip, etc.) directly!  Give the name of the binary you want as a
+    # string to this method in order to get the full path back as a Pathname.
     (@locate ||= {}).fetch(tool) do |key|
       @locate[key] = if File.executable?(path = "/usr/bin/#{tool}")
-        Pathname.new path
-      # Homebrew GCCs most frequently; much faster to check this before xcrun
-      elsif (path = HOMEBREW_PREFIX/"bin/#{tool}").executable?
-        path
-      # xcrun was introduced in Xcode 3 on Leopard
-      elsif MacOS.version > '10.4'
-        path = Utils.popen_read("/usr/bin/xcrun", "-no-cache", "-find", tool).chomp
-        Pathname.new(path) if File.executable?(path)
-      end
+          Pathname.new path
+        # Homebrew GCCs most frequently; much faster to check this before xcrun
+        elsif (path = HOMEBREW_PREFIX/"bin/#{tool}").executable?
+          path
+        # xcrun was introduced in Xcode 3 on Leopard
+        elsif MacOS.version >= :leopard
+          path = Utils.popen_read("/usr/bin/xcrun", "-no-cache", "-find", tool).chomp
+          Pathname.new(path) if File.executable?(path)
+        end
     end
   end # locate(tool)
 
@@ -34,6 +33,9 @@ module MacOS
       (path = OPTDIR/"cctools/bin/#{tool}").executable? ? path : locate(tool)
     }
   end
+
+  # Similar, but for ld64.
+  def ld; (path = OPTDIR/'ld64/bin/ld').executable? ? path : locate('ld'); end
 
   # Checks if the user has any developer tools installed, either via Xcode or the CLT.  Convenient
   # for guarding against formula builds when building is impossible.
@@ -158,7 +160,7 @@ module MacOS
   end # macports_or_fink
 
   def prefer_64_bit?
-    CPU._64b? and version >= '10.7' or ENV['HOMEBREW_PREFER_64_BIT'] and version >= '10.5'
+    CPU._64b? and version >= :lion or ENV['HOMEBREW_PREFER_64_BIT'] and version >= :leopard
   end
 
   def preferred_arch
@@ -175,7 +177,7 @@ module MacOS
       when :arm64, :arm64e   then :x86_64h
       when :g5_64, :ppc64    then :x86_64
       when :i386             then :ppc
-      when :x86_64, :x86_64h then (version >= '10.15' ? :arm64e : :ppc64)
+      when :x86_64, :x86_64h then (version >= :catalina ? :arm64e : :ppc64)
       else :dunno
     end
   end # counterpart_arch
@@ -185,7 +187,7 @@ module MacOS
   def counterpart_type(main_type)
     case main_type
       when :arm, :powerpc then :intel
-      when :intel then (version >= '10.15' ? :arm : :powerpc)
+      when :intel then (version >= :catalina ? :arm : :powerpc)
       else :dunno
     end
   end # counterpart_type

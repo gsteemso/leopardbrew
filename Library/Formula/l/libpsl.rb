@@ -1,12 +1,16 @@
+# stable release 2024-01-13; checked 2025-08-08
 class Libpsl < Formula
   desc 'C library for the Public Suffix List'
-  homepage 'https://rockdaboot.github.io/libpsl'
+  homepage 'https://github.com/rockdaboot/libpsl'
   url 'https://github.com/rockdaboot/libpsl/releases/download/0.21.5/libpsl-0.21.5.tar.lz'
   sha256 '9a9f6a8c6edba650cf9ea55475cd172dd28487316804e9c73202d97572cd3a2d'
 
   depends_on 'libidn2'
   depends_on 'libunistring'
+  depends_on :nls     => :recommended
   depends_on :python3 => :build
+
+  enhanced_by 'libiconv'
 
   def install
     ENV.universal_binary
@@ -19,10 +23,18 @@ class Libpsl < Formula
       --enable-man
       --enable-builtin
     ]
+    args << '--disable-nls' if build.without? 'nls'
+    # The purported “--with-libiconv-prefix=” configure option does not work, so work around it
+    # using environment variables.
+    if enhanced_by? 'libiconv'
+      libiconv = Formula['libiconv']
+      ENV.append 'CPPFLAGS', "-I#{libiconv.opt_include}"
+      ENV.append 'LDFLAGS',  "-L#{libiconv.opt_lib}"
+    end
 
     system './configure', *args
     system 'make'
-    system 'make', 'check'
+    # `make check` skips all three tests, so is pointless.
     system 'make', 'install'
   end
 

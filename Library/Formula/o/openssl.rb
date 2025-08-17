@@ -1,3 +1,4 @@
+# stable release 2023-09-12; discontinued
 require 'merge'
 
 class Openssl < Formula

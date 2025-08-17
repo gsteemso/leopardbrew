@@ -1,66 +1,28 @@
+# stable release 2025-06-26; checked 2025-08-02
 class Automake < Formula
   desc 'Tool for generating GNU Standards-compliant Makefiles'
   homepage 'https://www.gnu.org/software/automake/'
-  url 'http://ftpmirror.gnu.org/automake/automake-1.17.tar.xz'
-  mirror 'https://ftp.gnu.org/gnu/automake/automake-1.17.tar.xz'
-  sha256 '8920c1fc411e13b90bf704ef9db6f29d540e76d232cb3b2c9f4dc4cc599bd990'
-
-  option 'with-tests', 'Run the build‐time unit tests (requires Python; enhanced by libtool)'
-
-  depends_on 'autoconf' => [:build, :run]
-
-  if build.with? 'tests'
-    depends_on :python
-    enhanced_by 'libtool'
-  end
+  url 'http://ftpmirror.gnu.org/automake/automake-1.18.tar.xz'
+  mirror 'https://ftp.gnu.org/gnu/automake/automake-1.18.tar.xz'
+  sha256 '5bdccca96b007a7e344c24204b9b9ac12ecd17f5971931a9063bdee4887f4aaf'
 
   keg_only :provided_until_xcode43
 
-  # Superenv argument refurbishment messes up the compiler‐flag jiggery‐pokery
-  # used by one of the `make check` tests.  This makes that test skip itself
-  # when argument refurbishment is active.
-  patch :DATA
+  depends_on 'autoconf' => [:build, :run]
 
   def install
-    ENV['PERL'] = '/usr/bin/perl'
-
-    system './configure', "--prefix=#{prefix}"
+    system './configure', "--prefix=#{prefix}", '--disable-silent-rules'
     system 'make'
-    begin
-      safe_system 'make', 'check'
-    rescue ErrorDuringExecution
-      opoo 'Some of the unit tests did not complete successfully.',
-        'This is not unusual.  If you ran Leopardbrew in “verbose” mode, the fraction of',
-        'tests which failed will be visible in the text above; only you can say whether',
-        'the pass rate shown there counts as “good enough”.'
-    end if build.with? 'tests'
     system 'make', 'install'
 
-    # Our aclocal must go first. See:
-    # https://github.com/Homebrew/homebrew/issues/10618
+    # Our aclocal must go first.  See:  https://github.com/Homebrew/homebrew/issues/10618
     (share/'aclocal/dirlist').write <<-EOS.undent
-      #{HOMEBREW_PREFIX}/share/aclocal
-      /usr/share/aclocal
-    EOS
+        #{HOMEBREW_PREFIX}/share/aclocal
+        /usr/share/aclocal
+      EOS
   end
 
   test do
-    system bin/'automake', '--version'
+    system "#{bin}/automake", '--version'
   end
 end
-
-__END__
---- old/t/amhello-cflags.sh
-+++ new/t/amhello-cflags.sh
-@@ -22,6 +22,11 @@
- required=gcc
- . test-init.sh
- 
-+case "$HOMEBREW_CCCFG" in
-+  *O*) skip_ 'Homebrew argument refurbishment precludes meaningful results' ;;
-+  *) ;;
-+esac
-+
- cp "$am_docdir"/amhello-1.0.tar.gz . \
-   || fatal_ "cannot get amhello tarball"
- 

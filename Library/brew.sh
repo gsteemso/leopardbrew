@@ -52,7 +52,7 @@ HOMEBREW_RUBY_LIBRARY="${HOMEBREW_LIBRARY}/Homebrew"
 
 ###### Sanity checks ######
 
-[ "$HOMEBREW_PREFIX" != '/' -a "$HOMEBREW_PREFIX" != '/usr' ] || \
+[ "$HOMEBREW_PREFIX" = '/' -o "$HOMEBREW_PREFIX" = '/usr' ] && \
   odie "Refusing to continue at this prefix:  $HOMEBREW_PREFIX"
 
 # Many Pathname operations use getwd() when they shouldn’t, and then fail in
@@ -61,7 +61,7 @@ HOMEBREW_RUBY_LIBRARY="${HOMEBREW_LIBRARY}/Homebrew"
 
 ###### The command line ######
 
-if [ ! "$1" != -v ]; then shift; set -- "$@" -v; fi
+if [ "$1" = -v ]; then shift; set -- "$@" -v; fi
 # Shift the -v to the end of the parameter list
 
 HOMEBREW_ARG_COUNT="$#"
@@ -90,7 +90,7 @@ elif [ -n "$HOMEBREW_DEVELOPER" -a -f "$HOMEBREW_RUBY_LIBRARY/dev-cmd/$HOMEBREW_
   HOMEBREW_BASH_COMMAND="$HOMEBREW_RUBY_LIBRARY/dev-cmd/$HOMEBREW_COMMAND.sh"
 fi
 
-[ ! "$(id -u)" != '0' -a "$(/usr/bin/stat -f%u "$HOMEBREW_BREW_FILE")" != '0' ] &&
+[ "$(id -u)" = '0' ] && [ "$(/usr/bin/stat -f%u "$HOMEBREW_BREW_FILE")" != '0' ] &&
   case "$HOMEBREW_COMMAND" in
     install|reinstall|postinstall|link|pin|unpin|update|upgrade|vendor-install|create|migrate|tap|tap-pin|switch)
       odie <<EOS
@@ -106,7 +106,7 @@ EOS
 
 HOMEBREW_PROCESSOR="$(uname -p)"
 # This is i386 even on x86_64 machines
-[ ! "$HOMEBREW_PROCESSOR" != 'i386' ] && HOMEBREW_PROCESSOR='Intel'
+[ "$HOMEBREW_PROCESSOR" = 'i386' ] && HOMEBREW_PROCESSOR='Intel'
 HOMEBREW_OS_VERSION="$(/usr/bin/sw_vers -productVersion)"
 HOMEBREW_OS_VERSION_DIGITS="$(version_string "$HOMEBREW_OS_VERSION")"
 HOMEBREW_USER_AGENT="Leopardbrew/$LEOPARDBREW_VERSION (Macintosh; $HOMEBREW_PROCESSOR Mac OS $HOMEBREW_OS_VERSION)"
@@ -115,8 +115,8 @@ HOMEBREW_USER_AGENT="Leopardbrew/$LEOPARDBREW_VERSION (Macintosh; $HOMEBREW_PROC
 
 # Check early for bad xcode-select, because `doctor` and many other things will
 # hang.  Note that this bug was fixed in 10.9.
-[ $HOMEBREW_OS_VERSION_DIGITS -lt 100900 -a -f '/usr/bin/xcode-select' -a \
-   ! "$('/usr/bin/xcode-select' --print-path)" != '/' ] && odie <<EOS
+[ $HOMEBREW_OS_VERSION_DIGITS -lt 100900 ] && [ -f '/usr/bin/xcode-select' ] \
+  && [ "$('/usr/bin/xcode-select' --print-path)" = '/' ] && odie <<EOS
 Your xcode-select path is currently set to “/”.
 This causes the ‘xcrun’ tool to hang, and can render Homebrew unusable.
 If you are using Xcode, you should:

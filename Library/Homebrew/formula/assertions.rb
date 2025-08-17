@@ -32,7 +32,10 @@ module Homebrew
     def pipe_output(cmd, input = nil, result = nil)
       ohai cmd
       output = IO.popen(cmd, "w+") do |pipe|
-        pipe.write(input) unless input.nil?
+        unless input.nil?
+          puts input if VERBOSE
+          pipe.write(input)
+        end
         pipe.close_write
         pipe.read
       end

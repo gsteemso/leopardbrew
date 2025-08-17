@@ -1,8 +1,9 @@
+# stable release 2025-06-17; checked 2025-08-06
 class Libnghttp2 < Formula
   desc 'HTTP/2 C Library'
   homepage 'https://nghttp2.org/'
-  url 'https://github.com/nghttp2/nghttp2/releases/download/v1.65.0/nghttp2-1.65.0.tar.xz'
-  sha256 'f1b9df5f02e9942b31247e3d415483553bc4ac501c87aa39340b6d19c92a9331'
+  url 'https://github.com/nghttp2/nghttp2/releases/download/v1.66.0/nghttp2-1.66.0.tar.xz'
+  sha256 '00ba1bdf0ba2c74b2a4fe6c8b1069dc9d82f82608af24442d430df97c6f9e631'
   license 'MIT'
 
   head do
@@ -10,12 +11,14 @@ class Libnghttp2 < Formula
 
     depends_on 'autoconf' => :build
     depends_on 'automake' => :build
-    depends_on 'libtool' => :build
+    depends_on 'libtool'  => :build
   end # head
 
   option :universal
+  # Can’t do an option to build the apps, as they require C++11 (or possibly C++20, hard to tell).
 
   depends_on 'pkg-config' => :build
+  enhanced_by 'python3'
 
   # These used to live in `nghttp2`.
   link_overwrite 'include/nghttp2'
@@ -29,15 +32,22 @@ class Libnghttp2 < Formula
   def install
     ENV.universal_binary if build.universal?
     system 'autoreconf', '-ivf' if build.head?
-    system './configure', "--prefix=#{prefix}",
-                          '--disable-dependency-tracking',
-                          '--disable-silent-rules',
-                          '--enable-lib-only'
+
+    args = %W[
+        --prefix=#{prefix}
+        --disable-dependency-tracking
+        --disable-silent-rules
+        --enable-lib-only
+      ]
+    ENV['PYTHON'] = "#{Formula['python3'].bin}/python3" \
+                                  if enhanced_by? 'python3'
+
+    system './configure', *args
     cd 'lib' do
       system 'make'
       # `make check` does nothing
       system 'make', 'install'
-    end # cd 'lib'
+    end
   end # install
 
   test do

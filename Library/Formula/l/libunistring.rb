@@ -1,3 +1,4 @@
+# stable release 2024-10-16; checked 2025-08-06
 class Libunistring < Formula
   desc 'C string library for manipulating Unicode strings'
   homepage 'https://www.gnu.org/software/libunistring/'
@@ -14,8 +15,8 @@ class Libunistring < Formula
                           '--disable-dependency-tracking',
                           '--disable-silent-rules'
     system 'make'
-    # `make check` hardcodes bit widths, causing failure with 32b/64b universal builds
-    # ...with 1.3 on Tiger, fails 3 gnulib tests but no actual libunistring tests
+    # `make check` hardcodes bit widths, causing failure with 32b/64b universal builds.
+    # ...with Tiger on a G5, fails 3 gnulib tests but no actual libunistring tests.
     system 'make', 'install'
   end
 end

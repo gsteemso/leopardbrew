@@ -389,14 +389,9 @@ class FormulaInstaller
     previously_linked.link if previously_linked
     raise
   else
-    begin
-      old_stdout = $stdout
-      $stdout.reopen('/dev/null')   # Uninsinuation must, if followed immediately by insinuation,
-      df.uninsinuate rescue nil     # be silent so as to not emit conflicting messages.
-    ensure
-      $stdout.reopen(old_stdout)
-    end if previously_installed
-    df.insinuate
+    # Uninsinuate silently immediately before insinuation (do not emit conflicting messages).
+    df.uninsinuate(:silent) rescue nil if df.uninsinuate_defined? and previously_installed
+    df.insinuate rescue nil if df.insinuate_defined?
   end # install_dependency
 
   def caveats
@@ -575,7 +570,7 @@ class FormulaInstaller
     begin
       keg.link
     rescue Keg::ConflictError => e
-      conflict_file = e.dst
+      conflict_file = e.lnk
       if formula.link_overwrite?(conflict_file) && !link_overwrite_backup.key?(conflict_file)
         backup_file = backup_dir/conflict_file.relative_path_from(HOMEBREW_PREFIX).to_s
         backup_file.parent.mkpath

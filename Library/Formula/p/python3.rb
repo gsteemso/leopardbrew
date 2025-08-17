@@ -1,3 +1,5 @@
+# stable release 2025-06-03; checked 2025-08-08
+# (Python 10.11.x should build but needs C11; 3.12.x and 3.13.x are inscrutable.)
 class Python3 < Formula
   desc 'Interpreted, interactive, object-oriented programming language'
   homepage 'https://www.python.org/'
@@ -13,19 +15,61 @@ class Python3 < Formula
   depends_on 'openssl3'
   depends_on 'sqlite'
   depends_on 'tcl-tk'
-  depends_on 'gdbm' => :recommended
+  depends_on 'gdbm'     => :recommended
   depends_on 'readline' => :recommended
-  depends_on 'xz' => :recommended # for the lzma module added in 3.3
+  depends_on 'xz'       => :recommended # for the lzma module added in 3.3
+
+  enhanced_by 'libffi'
+  enhanced_by :nls
+  enhanced_by 'zlib'
 
   skip_clean 'bin/pip3', 'bin/pip-3.4', 'bin/pip-3.5', 'bin/pip-3.6', 'bin/pip-3.7', 'bin/pip-3.10'
 
   patch :DATA  # The purposes of each patch fragment are documented in comments preceding them.
 
+  # On Snow Leopard and above, our Tk uses Aqua, not X11.  Don’t link to LibX11.
+  patch <<END_OF_PATCH if MacOS.version >= :snow_leopard
+--- old/setup.py
++++ new/setup.py
+@@ -2158,22 +2158,6 @@
+             if dir not in include_dirs:
+                 include_dirs.append(dir)
+ 
+-        # Check for various platform-specific directories
+-        if HOST_PLATFORM == 'sunos5':
+-            include_dirs.append('/usr/openwin/include')
+-            added_lib_dirs.append('/usr/openwin/lib')
+-        elif os.path.exists('/usr/X11R6/include'):
+-            include_dirs.append('/usr/X11R6/include')
+-            added_lib_dirs.append('/usr/X11R6/lib64')
+-            added_lib_dirs.append('/usr/X11R6/lib')
+-        elif os.path.exists('/usr/X11R5/include'):
+-            include_dirs.append('/usr/X11R5/include')
+-            added_lib_dirs.append('/usr/X11R5/lib')
+-        else:
+-            # Assume default location for X11
+-            include_dirs.append('/usr/X11/include')
+-            added_lib_dirs.append('/usr/X11/lib')
+-
+         # If Cygwin, then verify that X is installed before proceeding
+         if CYGWIN:
+             x11_inc = find_file('X11/Xlib.h', [], include_dirs)
+@@ -2194,10 +2178,6 @@
+         libs.append('tk'+ version)
+         libs.append('tcl'+ version)
+ 
+-        # Finally, link with the X11 libraries (not appropriate on cygwin)
+-        if not CYGWIN:
+-            libs.append('X11')
+-
+         # XXX handle these, but how to detect?
+         # *** Uncomment and edit for PIL (TkImaging) extension only:
+         #       -DWITH_PIL -I../Extensions/Imaging/libImaging  tkImaging.c \\
+END_OF_PATCH
+
   # setuptools remembers the build flags python is built with and uses them to
   # build packages later.  Xcode-only systems need different flags.
-  def pour_bottle?
-    MacOS::CLT.installed?
-  end
+  def pour_bottle?; MacOS::CLT.installed?; end
 
   def install
     ENV.universal_binary if build.universal?
@@ -34,23 +78,6 @@ class Python3 < Formula
     ENV['PYTHONHOME'] = nil  # Unset these so that installing pip puts it where we want
     ENV['PYTHONPATH'] = nil  # and not into some other Python the user has installed.
 
-    args = %W[
-      --prefix=#{prefix}
-      --enable-ipv6
-      --datarootdir=#{share}
-      --datadir=#{share}
-      --enable-framework=#{frameworks}
-      --enable-loadable-sqlite-extensions
-      --with-openssl=#{Formula['openssl3'].opt_prefix}
-      MACOSX_DEPLOYMENT_TARGET=#{MacOS.version}
-    ]
-    # Avoid linking to libgcc.
-    # see http://code.activestate.com/lists/python-dev/112195/
-    args << '--without-gcc' if ENV.compiler == :clang
-
-    args << '--enable-universalsdk=/'
-    args << "--with-universal-archs=#{CPU.type}#{build.universal? ? '' : "-#{CPU.bits}"}"
-
     # There is no simple way to extract a “ppc” slice from a universal file.  We have to
     # specify the exact sub‐architecture we actually put in there in the first place.
     if CPU.powerpc?
@@ -58,16 +85,26 @@ class Python3 < Formula
       inreplace 'configure' do |s| s.gsub! '-extract ppc7400', "-extract ppc#{our_ppc_flavour}" end
     end
 
+    # Outsmart the detection code; superenv makes cc always find includes/libs.
     inreplace 'setup.py' do |s|
-      # We want our readline! This is just to outsmart the detection code,
-      # superenv makes cc always find includes/libs!
-      s.gsub! %r{do_readline = self\.compiler\.find_library_file\(self\.lib_dirs,[ \t\n]+readline_lib\)},
-              "do_readline = '#{Formula['readline'].opt_lib}/libhistory.dylib'" if build.with? 'readline'
-
       s.gsub! 'sqlite_setup_debug = False',
               'sqlite_setup_debug = True'
       s.gsub! 'for d_ in self.inc_dirs + sqlite_inc_paths:',
               "for d_ in ['#{Formula['sqlite'].opt_include}']:"
+      if build.with? 'gdbm'
+        s.gsub! 'if find_file("ndbm.h", self.inc_dirs,',
+                "if find_file('ndbm.h', ['#{Formula['gdbm'].opt_include}'],"
+        s.gsub! %r{if self\.compiler\.find_library_file\(self\.lib_dirs,[ \t\n]+'gdbm_compat'},
+                  "if self.compiler.find_library_file(['#{Formula['gdbm'].opt_lib}'], 'gdbm_compat'"
+        s.gsub! "self.compiler.find_library_file(self.lib_dirs, 'gdbm')",
+                "self.compiler.find_library_file(['#{Formula['gdbm'].opt_lib}'], 'gdbm')"
+      end
+      if build.with? 'readline'
+        s.gsub! 'do_readline = self.compiler.find_library_file(self.lib_dirs,',
+                "do_readline = self.compiler.find_library_file(['#{Formula['readline'].opt_lib}'],"
+        s.gsub! "find_file('readline/rlconf.h', self.inc_dirs,",
+                "find_file('readline/rlconf.h', ['#{Formula['readline'].opt_include}'],"
+      end
     end
 
     # Allow python modules to use ctypes.find_library to find Leopardbrew’s stuff even if the
@@ -79,6 +116,23 @@ class Python3 < Formula
       s.gsub! 'DEFAULT_FRAMEWORK_FALLBACK = [',
               "DEFAULT_FRAMEWORK_FALLBACK = [ '#{HOMEBREW_PREFIX}/Frameworks',"
     end
+
+    args = %W[
+      --prefix=#{prefix}
+      --enable-ipv6
+      --datarootdir=#{share}
+      --datadir=#{share}
+      --enable-framework=#{frameworks}
+      --enable-loadable-sqlite-extensions
+      --with-openssl=#{Formula['openssl3'].opt_prefix}
+      MACOSX_DEPLOYMENT_TARGET=#{MacOS.version}
+    ]
+    # Avoid linking to libgcc.  See http://code.activestate.com/lists/python-dev/112195/
+    # Enable LLVM optimizations.
+    args << '--without-gcc' << '--enable-optimizations' if ENV.compiler == :clang
+
+    args << '--enable-universalsdk=/'
+    args << "--with-universal-archs=#{CPU.type}#{build.universal? ? '' : "-#{CPU.bits}"}"
 
     cflags   = []
     ldflags  = []
@@ -92,6 +146,9 @@ class Python3 < Formula
       cppflags << "-I#{MacOS.sdk_path}/usr/include" # find zlib
     end
 
+    # G5 build under Tiger failed to recognize “vector” keyword in system header
+    cflags << '-mpim-altivec' if MacOS.version == :tiger and CPU.altivec? \
+                                 and [:gcc, :gcc_4_0, :llvm].any?{ |c| c == ENV.compiler }
     cppflags << "-I#{Formula['tcl-tk'].opt_include}"
     ldflags  << "-L#{Formula['tcl-tk'].opt_lib}"
 
@@ -113,8 +170,7 @@ class Python3 < Formula
     # Symlink the pkgconfig files into HOMEBREW_PREFIX so they're accessible.
     (lib/'pkgconfig').install_symlink_to Dir[cellar_framework/'lib/pkgconfig/*']
 
-    # No need to remove 2to3 – while python2 includes it, the python 2 formula already deletes it
-    # rm bin/'2to3'
+    # No need to remove 2to3 – while python2 includes it, the python 2 formula already deletes it.
 
     # Remove the site-packages that Python created in its Cellar.  See below in post_install.
     cellar_site_packages.rmtree
@@ -140,8 +196,10 @@ class Python3 < Formula
     cellar_site_packages.parent.install_symlink_to site_packages
 
     rm_rf cellar_framework/'bin/pip'
-    mv cellar_framework/'bin/wheel', cellar_framework/'bin/wheel3'
-    bin.install_symlink_to cellar_framework/'bin/wheel3'
+    if (cellar_framework/'bin/wheel').exists?
+      mv cellar_framework/'bin/wheel', cellar_framework/'bin/wheel3'
+      bin.install_symlink_to cellar_framework/'bin/wheel3'
+    end
 
     # Write our sitecustomize.py
     rm_rf Dir[site_packages/'sitecustomize.py[co]']
@@ -156,12 +214,13 @@ class Python3 < Formula
     { 'pip' => 'pip3',
       'wheel' => 'wheel3',
     }.each do |unversioned_name, versioned_name|
-      (libexec/'bin').install_symlink (bin/versioned_name).realpath => unversioned_name
+      (libexec/'bin').install_symlink (bin/versioned_name).realpath => unversioned_name \
+        if (bin/versioned_name).exists?
     end
 
     # post_install happens after link
     %W[pip3 pip#{xy} wheel3].each do |e|
-      (HOMEBREW_PREFIX/'bin').install_symlink_to bin/e
+      (HOMEBREW_PREFIX/'bin').install_symlink_to bin/e if (bin/e).exists?
     end
 
     # Help distutils find brewed stuff when building extensions
@@ -184,9 +243,11 @@ class Python3 < Formula
 
   def cellar_framework; frameworks/"Python.framework/Versions/#{xy}"; end
 
-  def cellar_site_packages; cellar_framework/"lib/python#{xy}/site-packages"; end
+  def cellar_site_packages; cellar_framework/relative_site_packages; end
 
-  def site_packages; HOMEBREW_PREFIX/"lib/python#{xy}/site-packages"; end
+  def relative_site_packages; "lib/python#{xy}/site-packages"; end
+
+  def site_packages; HOMEBREW_PREFIX/relative_site_packages; end
 
   def xy; XY; end
 
@@ -250,7 +311,7 @@ class Python3 < Formula
       They will install into the site-package directory
           #{HOMEBREW_PREFIX/"lib/python#{xy}/site-packages"}
 
-      See: https://docs.brew.sh/Homebrew-and-Python
+      See:  #{HOMEBREW_REPOSITORY}/share/doc/homebrew/Homebrew-and-Python.md
     EOS
 
     text += <<-EOS.undent if MacOS.version <= :snow_leopard
@@ -273,7 +334,7 @@ class Python3 < Formula
 end # Python3
 
 __END__
-# - Enable PPC‐only universal builds.
+# Enable PPC‐only universal builds.
 --- old/configure	2024-09-06 17:20:06 -0700
 +++ new/configure	2024-09-28 18:29:02 -0700
 @@ -7578,6 +7578,21 @@
@@ -318,8 +379,7 @@ __END__
              elif archs == ('i386', 'x86_64'):
                  machine = 'intel'
              elif archs == ('i386', 'ppc', 'x86_64'):
-# - Homebrew's tcl-tk is built in standard unix fashion (due to link errors), so we have to stop
-#   python from searching for frameworks and linking against X11.
+# Don’t search for frameworks; our Tk is a standard Unix build.
 --- old/setup.py
 +++ new/setup.py
 @@ -2111,12 +2111,6 @@
@@ -335,43 +395,9 @@ __END__
          # Assume we haven't found any of the libraries or include files
          # The versions with dots are used on Unix, and the versions without
          # dots on Windows, for detection by cygwin.
-@@ -2164,22 +2158,6 @@
-             if dir not in include_dirs:
-                 include_dirs.append(dir)
- 
--        # Check for various platform-specific directories
--        if HOST_PLATFORM == 'sunos5':
--            include_dirs.append('/usr/openwin/include')
--            added_lib_dirs.append('/usr/openwin/lib')
--        elif os.path.exists('/usr/X11R6/include'):
--            include_dirs.append('/usr/X11R6/include')
--            added_lib_dirs.append('/usr/X11R6/lib64')
--            added_lib_dirs.append('/usr/X11R6/lib')
--        elif os.path.exists('/usr/X11R5/include'):
--            include_dirs.append('/usr/X11R5/include')
--            added_lib_dirs.append('/usr/X11R5/lib')
--        else:
--            # Assume default location for X11
--            include_dirs.append('/usr/X11/include')
--            added_lib_dirs.append('/usr/X11/lib')
--
-         # If Cygwin, then verify that X is installed before proceeding
-         if CYGWIN:
-             x11_inc = find_file('X11/Xlib.h', [], include_dirs)
-@@ -2200,10 +2178,6 @@
-         libs.append('tk'+ version)
-         libs.append('tcl'+ version)
- 
--        # Finally, link with the X11 libraries (not appropriate on cygwin)
--        if not CYGWIN:
--            libs.append('X11')
--
-         # XXX handle these, but how to detect?
-         # *** Uncomment and edit for PIL (TkImaging) extension only:
-         #       -DWITH_PIL -I../Extensions/Imaging/libImaging  tkImaging.c \
-# - Add Support for OS X before 10.6
-#   from macports/lang/python310/files/patch-threadid-older-systems.diff
-#   and macports/lang/python310/files/patch-no-copyfile-on-Tiger.diff
+# Add support for Mac OS before 10.6.
+# From macports/lang/python310/files/patch-threadid-older-systems.diff
+# and macports/lang/python310/files/patch-no-copyfile-on-Tiger.diff
 --- old/Modules/posixmodule.c
 +++ new/Modules/posixmodule.c
 @@ -72,6 +72,8 @@

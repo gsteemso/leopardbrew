@@ -1,9 +1,13 @@
+# stable release 2025-07-31; checked 2025-08-04
 class Gdbm < Formula
   desc 'GNU database manager'
   homepage 'https://www.gnu.org/software/gdbm/'
-  url 'http://ftpmirror.gnu.org/gdbm/gdbm-1.24.tar.gz'
-  mirror 'https://ftp.gnu.org/gnu/gdbm/gdbm-1.24.tar.gz'
-  sha256 '695e9827fdf763513f133910bc7e6cfdb9187943a4fec943e57449723d2b8dbf'
+  url 'http://ftpmirror.gnu.org/gdbm/gdbm-1.26.tar.gz'
+  mirror 'https://ftp.gnu.org/gnu/gdbm/gdbm-1.26.tar.gz'
+  sha256 '6a24504a14de4a744103dcb936be976df6fbe88ccff26065e54c1c47946f4a5e'
+
+  # Technically only true if built with libgdbm-compat, but conditional keg‐onliness leads to chaos.
+  keg_only :shadowed_by_osx
 
   option :universal
   option 'without-libgdbm-compat', 'Omit the libgdbm_compat library, which provides old‐style dbm/ndbm interfaces'
@@ -14,13 +18,7 @@ class Gdbm < Formula
 
   depends_on 'coreutils'
   depends_on 'readline'
-  depends_on :nls
-
-  # technically only true if built with libgdbm-compat, but conditional keg‐onliness leads to chaos
-  keg_only :shadowed_by_osx
-
-  # A libintl dependency was missing from the test Makefile.  Patch from upstream.
-  patch :DATA
+  depends_on :nls       => :recommended
 
   def install
     ENV.universal_binary if build.universal?
@@ -42,22 +40,9 @@ class Gdbm < Formula
 
   test do
     for_archs bin/'gdbmtool' do |_, cmd|
-      pipe_output("#{cmd * ' '} --norc --newdb test", "store 1 2\nquit\n")
-      assert File.exist?('test')
+      system *cmd, '--norc', '--newdb', 'test', 'store', '1', '2', ';', 'quit'
+      assert File.exists?('test')
       assert_match /2/, pipe_output("#{cmd * ' '} --norc test", "fetch 1\nquit\n")
     end
   end # test
 end # Gdbm
-
-__END__
---- a/tests/Makefile.am
-+++ b/tests/Makefile.am
-@@ -142,6 +142,6 @@ dtdump_LDADD = ../src/libgdbm.la ../compat/libgdbm_compat.la
- dtfetch_LDADD = ../src/libgdbm.la ../compat/libgdbm_compat.la
- dtdel_LDADD = ../src/libgdbm.la ../compat/libgdbm_compat.la
- d_creat_ce_LDADD = ../src/libgdbm.la ../compat/libgdbm_compat.la
--t_wordwrap_LDADD = ../tools/libgdbmapp.a
-+t_wordwrap_LDADD = ../tools/libgdbmapp.a @LTLIBINTL@
- 
- SUBDIRS = gdbmtool
- 

@@ -1,10 +1,11 @@
+# stable release latest patch 2025-07-11; checked 2025-08-08
 class Readline < Formula
-  desc "Library for command-line editing"
-  homepage "https://tiswww.case.edu/php/chet/readline/rltop.html"
-  url "http://ftpmirror.gnu.org/readline/readline-8.2.13.tar.gz"
-  mirror "https://ftp.gnu.org/gnu/readline/readline-8.2.13.tar.gz"
-  sha256 '0e5be4d2937e8bd9b7cd60d46721ce79f88a33415dd68c2d738fb5924638f656'
-  revision 1
+  desc 'Library for command-line editing'
+  homepage 'https://tiswww.case.edu/php/chet/readline/rltop.html'
+  url 'http://ftpmirror.gnu.org/readline/readline-8.3.tar.gz'
+  mirror 'https://ftp.gnu.org/gnu/readline/readline-8.3.tar.gz'
+  version '8.3.1'
+  sha256 'fe5383204467828cd495ee8d1d3c037a7eba1389c22bc6a041f627976f9061cc'
 
   keg_only :shadowed_by_osx, <<-EOS.undent
     OS X provides the BSD libedit library, which shadows libreadline.
@@ -12,17 +13,20 @@ class Readline < Formula
     defaulting this GNU Readline installation to keg-only.
   EOS
 
+  patch :p0 do
+    url 'https://ftpmirror.gnu.org/readline/readline-8.3-patches/readline83-001'
+    mirror 'https://ftp.gnu.org/gnu/readline/readline-8.3-patches/readline83-001'
+    sha256 '21f0a03106dbe697337cd25c70eb0edbaa2bdb6d595b45f83285cdd35bac84de'
+  end
+
   def install
     ENV.universal_binary
-    # Since we don't set any CFLAGS, readline adds some
-    # which break the build as they're not supported by GCC 4.2
-    ENV.append_to_cflags "-g -Os" if ENV.compiler == :gcc
-    system "./configure", "--prefix=#{prefix}", "--enable-multibyte"
-    system "make", "install"
+    system './configure', "--prefix=#{prefix}", '--enable-multibyte'
+    system 'make', 'install'
   end
 
   test do
-    (testpath/"test.c").write <<-EOS.undent
+    (testpath/'test.c').write <<-EOS.undent
       #include <stdio.h>
       #include <stdlib.h>
       #include <readline/readline.h>
@@ -34,7 +38,7 @@ class Readline < Formula
       }
     EOS
     ENV.universal_binary
-    system ENV.cc, "test.c", "-lreadline", "-o", "test"
-    assert_equal "Hello, World!", pipe_output("./test", "Hello, World!\n").strip
+    system ENV.cc, 'test.c', '-lreadline', '-o', 'test'
+    assert_equal 'Hello, World!', pipe_output('./test', "Hello, World!\n").strip
   end
 end

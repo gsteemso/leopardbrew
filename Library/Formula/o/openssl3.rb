@@ -1,16 +1,21 @@
+# stable release 2025-08-05; checked 2025-08-07
 require 'merge'
 
 class Openssl3 < Formula
   include Merge
 
   desc 'Cryptography and SSL/TLS Toolkit'
-  homepage 'https://openssl.org/'
-  url 'https://github.com/openssl/openssl/releases/download/openssl-3.3.2/openssl-3.3.2.tar.gz'
-  sha256 '2e8a40b01979afe8be0bbfb3de5dc1c6709fedb46d6c89c10da114ab5fc3d281'
+  homepage 'https://openssl-library.org/'
+  url 'https://github.com/openssl/openssl/releases/download/openssl-3.5.2/openssl-3.5.2.tar.gz'
+  sha256 'c53a47e5e441c930c3928cf7bf6fb00e5d129b630e0aa873b08258656e7345ec'
   license 'Apache-2.0'
 
+  keg_only :provided_by_osx
+
   option :universal
-  option 'without-tests', 'Skip the build‐time unit tests (not recommended)'
+  option 'without-tests', 'Skip the build‐time unit tests (not recommended on the first install)'
+
+  depends_on :macos => :tiger  # Panther doesn’t declare the right “timezone” in <time.h>.
 
   depends_on 'curl-ca-bundle'
   depends_on 'perl'
@@ -18,8 +23,6 @@ class Openssl3 < Formula
   enhanced_by 'brotli'
   enhanced_by 'zlib'
   enhanced_by 'zstd'
-
-  keg_only :provided_by_osx
 
   def arg_format(arch)
     case arch
@@ -36,9 +39,9 @@ class Openssl3 < Formula
     ENV.enable_warnings if ENV.compiler == :gcc_4_0
     # This could interfere with how we expect OpenSSL to build.
     ENV.delete('OPENSSL_LOCAL_CONFIG_DIR')
-    # This ensures where Homebrew's Perl is needed the Cellar path isn't
-    # hardcoded into OpenSSL's scripts, breaking them every Perl update.  Our
-    # env does point to opt_bin, but by default OpenSSL resolves the symlink.
+    # This ensures where Homebrew’s Perl is needed its Cellar path isn’t hardcoded into OpenSSL’s
+    # scripts, breaking them every Perl update.  Our env does point to opt_bin, but by default
+    # OpenSSL resolves the symlink.
     ENV['PERL'] = Formula['perl'].opt_bin/'perl'
 
     if build.universal?
@@ -65,19 +68,21 @@ class Openssl3 < Formula
     args = [
       "--prefix=#{prefix}",
       "--openssldir=#{openssldir}",
-      'no-legacy',  # for whatever reason, the build tests fail to locate the legacy provider
+      'no-legacy',  # For whatever reason, the build tests fail to locate the legacy provider.
       'no-makedepend',
       'enable-trace',
       'zlib-dynamic'
     ]
     if MacOS.version < '10.5'
-      args << 'no-async'                          # No {get,make,set}context support pre‐Leopard.
-      args << '-DOPENSSL_NO_APPLE_CRYPTO_RANDOM'  # Leopard and newer have the crypto framework.
+      args << 'no-async'           # There’s no {get,make,set}context support pre‐Leopard.
+      args << '-DOPENSSL_NO_APPLE_CRYPTO_RANDOM'  # Nor the crypto framework.
+      args << '-D__DARWIN_UNIX03'  # If this is not set, 'timezone' is a pointer to characters
+                                   # instead of a longint, making a mess in crypto/asn1/a_time.c.
     end
-    args << 'enable-brotli-dynamic' if enhanced_by? 'brotli'
-    args << 'sctp' if MacOS.version > '10.5'  # Pre‐Snow Leopard lacks these system headers.
+    args << 'sctp'       if MacOS.version >  '10.5'   # Pre‐Snow Leopard lacks these system headers.
     args << 'enable-tfo' if MacOS.version >= '10.14'  # Pre-Mojave doesn’t support TCP Fast Open.
-    args << 'enable-zstd-dynamic' if enhanced_by? 'zstd'
+    args << 'enable-brotli-dynamic' if enhanced_by? 'brotli'
+    args << 'enable-zstd-dynamic'   if enhanced_by? 'zstd'
 
     archs.each do |arch|
       ENV.set_build_archs(arch) if build.universal?
@@ -86,10 +91,6 @@ class Openssl3 < Formula
         arg_format(arch),
       ]
       arch_args << '-D__ILP32__' if CPU.is_32b_arch?(arch)  # Apple never needed to define this.
-
-      # The assembly routines may still not work right on Tiger (needs checking).
-      # → “no-asm” isn’t intended for production use.  This needs work either way.
-      arch_args << 'no-asm' if MacOS.version < '10.5'
 
       system 'perl', './Configure', *args, *arch_args
       system 'make'

@@ -10,19 +10,19 @@ module Homebrew
 
   def search
     if ARGV.include? "--macports"
-      exec_browser "https://www.macports.org/ports.php?by=name&substr=#{ARGV.next}"
+      exec_browser "https://www.macports.org/ports.php?by=name&substr=#{ARGV._next}"
     elsif ARGV.include? "--fink"
-      exec_browser "http://pdb.finkproject.org/pdb/browse.php?summary=#{ARGV.next}"
+      exec_browser "http://pdb.finkproject.org/pdb/browse.php?summary=#{ARGV._next}"
     elsif ARGV.include? "--debian"
-      exec_browser "https://packages.debian.org/search?keywords=#{ARGV.next}&searchon=names&suite=all&section=all"
+      exec_browser "https://packages.debian.org/search?keywords=#{ARGV._next}&searchon=names&suite=all&section=all"
     elsif ARGV.include? "--opensuse"
-      exec_browser "https://software.opensuse.org/search?q=#{ARGV.next}"
+      exec_browser "https://software.opensuse.org/search?q=#{ARGV._next}"
     elsif ARGV.include? "--fedora"
-      exec_browser "https://admin.fedoraproject.org/pkgdb/packages/%2A#{ARGV.next}%2A/"
+      exec_browser "https://admin.fedoraproject.org/pkgdb/packages/%2A#{ARGV._next}%2A/"
     elsif ARGV.include? "--ubuntu"
-      exec_browser "http://packages.ubuntu.com/search?keywords=#{ARGV.next}&searchon=names&suite=all&section=all"
+      exec_browser "http://packages.ubuntu.com/search?keywords=#{ARGV._next}&searchon=names&suite=all&section=all"
     elsif ARGV.include? "--desc"
-      query = ARGV.next
+      query = ARGV._next
       rx = query_regexp(query)
       Descriptions.search(rx, :desc).print
     elsif ARGV.empty?

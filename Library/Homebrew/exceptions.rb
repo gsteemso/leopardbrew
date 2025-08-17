@@ -22,6 +22,12 @@ class UsageError < RuntimeError; end
 # Migrator⸬MigratorNoOldnameError
 # Migrator⸬MigratorNoOldpathError
 
+class AlienCompilerError < ArgumentError
+  def initialize(name)
+    super "Compiler “#{name}”?  Sorry, Leopardbrew only knows about GCC variants and Clang."
+  end
+end
+
 class BottleVersionMismatchError < RuntimeError
   def initialize(bottle_file, bottle_version, formula, formula_version)
     super <<-EOS.undent
@@ -36,7 +42,7 @@ class BuildError < RuntimeError
   attr_reader :formula, :env
 
   def initialize(formula, cmd, args, env)
-    @formula = formula
+    @formula = formula.full_name
     @env = env
     args = args.map { |arg| arg.to_s.gsub " ", "\\ " }.join(" ")
     super "Failed executing: #{cmd} #{args}"
@@ -45,39 +51,40 @@ class BuildError < RuntimeError
   def issues; @issues ||= fetch_issues; end
 
   def fetch_issues
-    GitHub.issues_for_formula(formula.name)
+    GitHub.issues_for_formula(formula)
   rescue GitHub::RateLimitExceededError => e
     opoo e.message
     []
   end # fetch_issues
 
   def dump
+    f = Formulary.factory(formula)
     if VERBOSE
       require "cmd/config"
       require "cmd/--env"
       ohai "Formula"
-      puts "Tap: #{formula.tap}" if formula.tap?
-      puts "Path: #{formula.path}"
+      puts "Tap: #{f.tap}" if f.tap?
+      puts "Path: #{f.path}"
       ohai "Configuration"
       Homebrew.dump_verbose_config
       ohai "ENV"
       Homebrew.dump_build_env(env)
       puts
-      onoe "#{formula.full_name} #{formula.version} did not build"
-      unless (logs = Dir["#{formula.logs}/*"]).empty?
+      onoe "#{formula} #{f.version} did not build"
+      unless (logs = Dir["#{f.logs}/*"]).empty?
         puts "Logs:"
         puts logs.map { |fn| "     #{fn}" }.join("\n")
       end
     else # not VERBOSE
       puts "\n#{TTY.ul_red}READ THIS#{TTY.reset}: #{TTY.em}#{ISSUES_URL}#{TTY.reset}"
-      if formula.tap?
-        case formula.tap
+      if f.tap?
+        case f.tap
           when "homebrew/homebrew-boneyard"
             puts "#{formula} was moved to homebrew-boneyard because it has unfixable issues."
             puts "Please do not file any issues about this. Sorry!"
           else
             puts "If reporting this issue please do so not at the address above, but rather at"
-            puts "  https://github.com/#{formula.tap}/issues"
+            puts "    https://github.com/#{f.tap}/issues"
         end
       end
     end # VERBOSE?
@@ -120,9 +127,9 @@ class BuildFlagsError < RuntimeError
     end
     fp = plural flags.length
     super <<-EOS.undent
-        The following flag#{fp}:
-            #{flags.join(", ")}
-        require#{fp == 's' ? '' : 's'} building tools, but none are installed.
+        The following flag#{fp}
+            #{flags.list}
+        require#{fp == 's' ? '' : 's'} build tools, but none are installed.
         Either remove the flag#{fp} to attempt bottle installation,
         #{xcode_text}
       EOS
@@ -134,41 +141,31 @@ end # BuildFlagsError
 # and are being installed on a system without necessary build tools
 class BuildToolsError < RuntimeError
   def initialize(formulae)
-    if formulae.length > 1
-      formula_text = "formulae"
-      package_text = "binary packages"
-    else
-      formula_text = "formula"
-      package_text = "a binary package"
-    end
-    if MacOS.version >= "10.10"
-      xcode_text = <<-EOS.undent
-        To continue, you must install Xcode from the App Store,
-        or the CLT by running:
-          xcode-select --install
-      EOS
-    elsif MacOS.version == "10.9"
-      xcode_text = <<-EOS.undent
-        To continue, you must install Xcode from:
-          https://developer.apple.com/downloads/
-        or the CLT by running:
-          xcode-select --install
-      EOS
-    elsif MacOS.version >= "10.7"
-      xcode_text = <<-EOS.undent
-        To continue, you must install Xcode or the CLT from:
-          https://developer.apple.com/downloads/
-      EOS
-    else
-      xcode_text = <<-EOS.undent
-        To continue, you must install Xcode from:
-          https://developer.apple.com/xcode/downloads/
-      EOS
-    end
+    xcode_text = if MacOS.version >= "10.10" then <<-EOS.undent
+          To continue, you must install Xcode from the App Store,
+          or the CLT by running:
+              xcode-select --install
+        EOS
+      elsif MacOS.version == "10.9" then <<-EOS.undent
+          To continue, you must install Xcode from:
+              https://developer.apple.com/downloads/
+          or the CLT by running:
+              xcode-select --install
+        EOS
+      elsif MacOS.version >= "10.7" then <<-EOS.undent
+          To continue, you must install Xcode or the CLT from:
+              https://developer.apple.com/downloads/
+        EOS
+      else <<-EOS.undent
+          To continue, you must install Xcode from:
+              https://developer.apple.com/xcode/downloads/
+        EOS
+      end
     super <<-EOS.undent
-      The following #{formula_text}:
-        #{formulae.join(", ")}
-      cannot be installed as #{package_text} and must be built from source.
+      The following formul#{plural(formulae.length, 'æ', 'a')}:
+          #{formulae.list}
+      cannot be installed as #{plural(formulae.length, 'binary packages',
+      'a binary package')} and must be built from source.
       #{xcode_text}
     EOS
   end # initialize
@@ -189,6 +186,17 @@ class ChecksumMismatchError < RuntimeError
       EOS
   end # initialize
 end # ChecksumMismatchError
+
+# Raised by CompilerSelector if the formula fails with the user‐specified compiler.
+class ChosenCompilerError < RuntimeError
+  def initialize(formula, compiler_name)
+    super <<-_.undent
+        #{formula.full_name} cannot be built with the specified compiler, #{compiler_name}.
+        To install this formula, you may need to
+            brew install gcc
+      _
+  end # initialize
+end # ChosenCompilerError
 
 # raised by CompilerSelector if the formula fails with all of
 # the compilers available on the user's system
@@ -253,7 +261,7 @@ class FormulaConflictError < RuntimeError
   end
 
   def message
-    message = ["Cannot install #{formula.full_name} because conflicting formulae are installed.\n"]
+    message = ["Cannot install #{formula.full_name} because conflicting formulæ are installed.\n"]
     message.concat conflicts.map { |c| conflict_message(c) } << ''
     message << <<-EOS.undent
         Please `brew unlink #{conflicts.map(&:name) * ' '}` before continuing.
@@ -272,15 +280,16 @@ class FormulaInstallationAlreadyAttemptedError < RuntimeError
 end
 
 class FormulaNotInstalledError < RuntimeError
-  def initialize(name); super "#{name} is not installed."; end
+  attr_reader :name
+  def initialize(name); @name = name; super "#{name} is not installed."; end
 end
 
 class FormulaUnavailableError < RuntimeError
   attr_reader :name
   attr_accessor :dependent
   def initialize(name); @name = name; end
-  def dependent_s; "(dependency of #{dependent})" if dependent and dependent != name; end
-  def to_s; "No available formula for #{name} #{dependent_s}"; end
+  def dependent_s; " (dependency of #{dependent})" if dependent and dependent != name; end
+  def to_s; "No available formula for #{name}#{dependent_s}"; end
 end # FormulaUnavailableError
 
   class TapFormulaUnavailableError < FormulaUnavailableError

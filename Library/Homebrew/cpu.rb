@@ -32,8 +32,8 @@ class CPU
       :kabylake    => [64, :intel,   :x86_64h, :haswell, 6,     '-march=skylake'],
       :icelake     => [64, :intel,   :x86_64h, :haswell, 8,     '-march=icelake-client'],
       :cometlake   => [64, :intel,   :x86_64h, :haswell, 6,     '-march=skylake'],
-      :a12z        => [64, :arm,     :arm64e,  :m1,      false, ''],  # e → Apple silicon
-      :m1          => [64, :arm,     :arm64e,  :m1,      false, ''],
+      :a12z        => [64, :arm,     :arm64,   :a12z,    false, ''],
+      :m1          => [64, :arm,     :arm64e,  :m1,      false, ''],  # e → “Apple silicon” (:m𝑛)
       :m2          => [64, :arm,     :arm64e,  :m1,      false, ''],
       :m3          => [64, :arm,     :arm64e,  :m1,      false, ''],
       :m4          => [64, :arm,     :arm64e,  :m1,      false, ''],
@@ -101,12 +101,11 @@ class CPU
 
     def is_native_arch?(a); _64b? ? (type == type_of(a)) : (_32b_arch == a); end
 
-  # Many of the following use things spewed out by sysctl.  See <sys/sysctl.h>
-  # for sysctl keys along with some related constants, and <mach/machine.h> for
-  # constants associated with Mach‐O CPU encoding.
+  # Many of the following use things spewed out by sysctl.  See <sys/sysctl.h> for sysctl keys
+  # along with some related constants, and <mach/machine.h> for Mach‐O CPU encoding constants.
 
     def type
-      @type ||= case sysctl_int('hw.cputype')  # always has flags masked out, including 64-bitness
+      @type ||= case sysctl_int('hw.cputype')  # Always has flags masked out, including 64-bitness.
                   when  7 then :intel
                   when 12 then :arm
                   when 18 then :powerpc
@@ -248,12 +247,13 @@ class CPU
         when :x86_64               then :core2
         when :x86_64h              then :haswell
         else bottle_target_for(barch) or
-               raise ArgumentError, 'The requested bottle architecture was not recognized.'
+               raise ArgumentError, "The bottle architecture “#{barch}” was not recognized."
       end
     end # bottle_target_model
 
     def bottle_target_arch
-      case (barch = ARGV.bottle_arch || arch)
+      barch = ARGV.bottle_arch || arch
+      case (barch)
         when :altivec     then :ppc
         when :arm, :arm64 then :arm64e
         when :arm64e, :i386, :ppc, :ppc64, :x86_64, :x86_64h then barch
@@ -261,7 +261,7 @@ class CPU
         when :intel       then MacOS.prefer_64_bit? ? :x86_64 : :i386
         when :powerpc     then MacOS.prefer_64_bit? ? :ppc64  : :ppc
         else arch(barch) or
-               raise ArgumentError, 'The requested bottle architecture was not recognized.'
+               raise ArgumentError, "The bottle architecture “#{barch}” was not recognized."
       end
     end # bottle_target_arch
 
@@ -322,7 +322,7 @@ class CPU
 
     def intel_can_run?(this)
       case this
-        when :arm64, :arm64e, :ppc64 then false  # No forward compatibility, & Rosetta never did PPC64
+        when :arm64, :arm64e, :ppc64 then false  # No fwd compatibility, & Rosetta never did PPC64.
         when :ppc                    then MacOS.version < '10.7'  # Rosetta still available?
         when :i386                   then MacOS.version <= '10.14'
         when :x86_64                 then _64b?
@@ -335,7 +335,7 @@ class CPU
       case this
         when :ppc   then true
         when :ppc64 then _64b? and MacOS.version >= '10.5'
-        else false  # No forwards compatibility
+        else false  # No forwards compatibility.
       end
     end # CPU⸬ppc_can_run?
   end # << self

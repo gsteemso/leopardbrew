@@ -1,3 +1,14 @@
+#:  Usage:  brew diy [--name=<name>] [--version=<version>] [--bare]
+#:
+#:Invoke this command from the root of an unpacked source tarball.  It’ll attempt
+#:to guess the package’s name and version based on the pathname of that directory,
+#:then print out a CMake (or else Autotools) command option describing the Cellar
+#:prefix corresponding to that information.  If it guesses incorrectly, either or
+#:both of the name and version may be given explicitly on the command line.
+#:
+#:To get the Cellar-ready prefix in its bare form (i.e., not preprocessed to suit
+#:a specific build system), include “--bare” in the command.
+
 require 'formula'
 
 module Homebrew
@@ -9,7 +20,9 @@ module Homebrew
 
     prefix = HOMEBREW_CELLAR/name/version
 
-    if File.file? 'CMakeLists.txt'
+    if ARGV.longopt? 'bare'
+      puts prefix
+    elsif File.file? 'CMakeLists.txt'
       puts "-DCMAKE_INSTALL_PREFIX=#{prefix}"
     elsif File.file? 'configure'
       puts "--prefix=#{prefix}"

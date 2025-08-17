@@ -1,3 +1,4 @@
+# stable release 2023-07-30; checked 2025-08-04
 require 'merge'
 
 class Gmp < Formula
@@ -16,7 +17,7 @@ class Gmp < Formula
   option :universal
 
   def install
-    # Map Tigerbrew’s CPU‐model symbols to those for configuring a GMP build.
+    # Map Leopardbrew’s CPU‐model symbols to those for configuring a GMP build.
     def lookup(cpu_sym)
       case cpu_sym
         when :g3  then 'powerpc750'

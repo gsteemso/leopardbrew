@@ -7,25 +7,25 @@ module MacOS
   MAX_SUPPORTED_VERSION = '15'
 
   class Version < ::Version
-    SYMBOLS = {
-      :sequoia       => '15',
-      :sonoma        => '14',
-      :ventura       => '13',
-      :monterey      => '12',
-      :big_sur       => '11',
-      :catalina      => '10.15',
-      :mojave        => '10.14',
-      :high_sierra   => '10.13',
-      :sierra        => '10.12',
-      :el_capitan    => '10.11',
-      :yosemite      => '10.10',
-      :mavericks     => '10.9',
-      :mountain_lion => '10.8',
-      :lion          => '10.7',
-      :snow_leopard  => '10.6',
-      :leopard       => '10.5',
-      :tiger         => '10.4',
-      :panther       => '10.3'
+    SYMBOLS = {       # Mac OS    Darwin
+      :sequoia       => '15',     # 24
+      :sonoma        => '14',     # 23
+      :ventura       => '13',     # 22
+      :monterey      => '12',     # 21
+      :big_sur       => '11',     # 20
+      :catalina      => '10.15',  # 19
+      :mojave        => '10.14',  # 18
+      :high_sierra   => '10.13',  # 17
+      :sierra        => '10.12',  # 16
+      :el_capitan    => '10.11',  # 15
+      :yosemite      => '10.10',  # 14
+      :mavericks     => '10.9',   # 13
+      :mountain_lion => '10.8',   # 12
+      :lion          => '10.7',   # 11
+      :snow_leopard  => '10.6',   # 10
+      :leopard       => '10.5',   # 9
+      :tiger         => '10.4',   # 8
+      :panther       => '10.3'    # 7
     }.freeze
 
     def self.from_encumbered_symbol(sym)

@@ -16,16 +16,16 @@ class Git < Formula
     sha256 'dc118b1d4036e58d5cc4f4e804d903e1e137dac3e9826a246a7e517afd877bd3'
   end
 
-  option 'with-brewed-svn', 'Use Homebrew’s version of Subversion'
-  option 'with-pcre2', 'Build with support for Perl‐compatible regular expressions'
+  option 'with-brewed-svn',       'Use brewed Subversion'
+  option 'with-pcre2',            'Build with support for Perl‐compatible regular expressions'
   option 'with-persistent-https', 'Build contributed git-remote-persistent-https feature (needs Go, so not for PowerPC)'
-  option 'without-tcl-tk', 'Disable graphical user interface'
+  option 'without-tcl-tk',        'Disable graphical user interface'
 
-  depends_on 'gnu-tar' => :build if MacOS.version == :tiger # system tar has odd permissions errors
-  depends_on 'go' => :build if build.with? 'persistent-https'
-  depends_on 'make' => :build
-  depends_on 'tcl-tk' => :recommended
-  depends_on 'pcre2' => :optional
+  depends_on 'gnu-tar' => :build if MacOS.version == :tiger  # stock tar has odd permissions errors
+  depends_on 'go'      => :build if build.with? 'persistent-https'
+  depends_on 'make'    => :build
+  depends_on 'tcl-tk'  => :recommended
+  depends_on 'pcre2'   => :optional
   depends_on 'curl'
   depends_on :expat
   depends_on 'gettext'
@@ -39,16 +39,18 @@ class Git < Formula
   end
 
   enhanced_by 'expat'
+  enhanced_by 'python'
+  enhanced_by 'python3'
   enhanced_by 'zlib'
 
-  # Fix PowerPC build and support for OS X Tiger & Leopard
+  # Fix PowerPC build, and support for OS X Tiger through roughly Mavericks
   # - Stock regex(3) is too old and lacks some file system monitoring functionality.
   # - Needs arc4random_buf(3) which is missing on Leopard and prior, so just use OpenSSL since
   #   newer implementations were based on AES cipher.
   # - We use the 2.40.1 version of git-credential-osxkeychain, not the 2.43.0 version, as we lack
   #   getline(3).  The totally rewritten 2.46.0 version is out of the question (it requires Snow
   #   Leopard or later).
-  patch :DATA
+  patch :DATA if MacOS.version <= :mavericks
 
   def install
     # GCC is invoked with -w
@@ -93,10 +95,13 @@ class Git < Formula
     ENV['OPENSSL_SHA1'] = '1'
     ENV['BLK_SHA1'] = '1'
     ENV['OPENSSL_SHA256'] = '1'
-    ENV['prefix'] = prefix
-    ENV['sysconfdir'] = etc  # this is weirdly missing from the Makefile, even though it’s very
-                             #    obviously assumed to be present
     ENV['CFLAGS_APPEND'] = '-std=gnu99'
+
+    dir_args = %W[
+        prefix=#{prefix}
+        sysconfdir=#{etc}
+      ]    # “sysconfdir” is weirdly missing from the Makefile, even though it’s very obviously
+           # assumed to be present.
 
     perl_version = /\d\.\d+/.match(`#{perl_pathname} --version`)
     if build.with? 'brewed-svn'
@@ -114,8 +119,8 @@ class Git < Formula
       end.join(':')
     end
 
-    make "prefix=#{prefix}", "sysconfdir=#{etc}"            # for some reason these are not getting
-    make 'install', "prefix=#{prefix}", "sysconfdir=#{etc}" #    picked up from the environment
+    make *dir_args
+    make 'install', *dir_args
 
     # Install the OS X keychain credential helper
     cd 'contrib/credential/osxkeychain' do
@@ -162,11 +167,11 @@ class Git < Formula
   end # install
 
   def caveats; <<-EOS.undent
-    The OS X keychain credential helper has been installed to:
-      #{HOMEBREW_PREFIX}/bin/git-credential-osxkeychain
+    The OS X keychain credential helper is installed to:
+        #{HOMEBREW_PREFIX}/bin/git-credential-osxkeychain
 
-    The “contrib” directory has been installed to:
-      #{HOMEBREW_PREFIX}/share/git-core/contrib
+    The “contrib” directory is installed to:
+        #{HOMEBREW_PREFIX}/share/git-core/contrib
     EOS
   end # caveats
 

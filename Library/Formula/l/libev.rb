@@ -1,3 +1,4 @@
+# stable release 202-03-18; checked 2025-08-08
 class Libev < Formula
   desc 'Asynchronous event library'
   homepage 'http://software.schmorp.de/pkg/libev.html'
@@ -9,6 +10,8 @@ class Libev < Formula
     system './configure', "--prefix=#{prefix}",
                           '--disable-dependency-tracking',
                           '--disable-silent-rules'
+    system 'make'
+    # `make check` does nothing.
     system 'make', 'install'
 
     # Remove compatibility header to prevent conflict with libevent

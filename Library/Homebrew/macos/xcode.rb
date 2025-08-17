@@ -9,20 +9,21 @@ module MacOS
     V3_BUNDLE_ID = "com.apple.Xcode"
 
     XCODE_RELEASE = {
-      '10.4'  => '2.5',
-      '10.5'  => '3.1.4',
-      '10.6'  => '3.2.6',
-      '10.7'  => '4.6.3',
-      '10.8'  => '5.1.1',
-      '10.9'  => '6.2',
-      '10.10' => '6.4',
-      '10.11' => '7.0',
+      :panther       => '0',
+      :tiger         => '2.5',
+      :leopard       => '3.1.4',
+      :snow_leopard  => '3.2.6',
+      :lion          => '4.6.3',
+      :mountain_lion => '5.1.1',
+      :mavericks     => '6.2',
+      :yosemite      => '6.4',
+      :el_capitan    => '7.0',
     }.freeze
 
     def latest_version
       if (found = XCODE_RELEASE[MacOS.version])
         found
-      elsif MacOS.version > '10.11'
+      elsif MacOS.version > :el_capitan
         '7.0'
       else
         raise "Mac OS “#{MacOS.version}” is unknown"
@@ -151,11 +152,11 @@ module MacOS
 
     def latest_version
       case MacOS.version
-        when "10.11" then "700.0.72"
-        when "10.10" then "602.0.53"
-        when "10.9"  then "600.0.57"
-        when "10.8"  then "503.0.40"
-        else              "425.0.28"
+        when :el_capitan     then "700.0.72"
+        when :yosemite       then "602.0.53"
+        when :mavericks      then "600.0.57"
+        when :mountain_lion  then "503.0.40"
+        else                      "425.0.28"
       end
     end # latest_version
 

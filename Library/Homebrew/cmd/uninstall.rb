@@ -7,32 +7,48 @@ module Homebrew
     raise KegUnspecifiedError if ARGV.named.empty?
     f = nil
     unless ARGV.force? # remove active version only
-      ARGV.kegs.each do |keg|
+      begin
+        kegs = ARGV.kegs
+      rescue FormulaNotInstalledError => e  # Only issued by ARGV#kegs if empty rack encountered.
+        (HOMEBREW_CELLAR/e.name).rmtree
+        [LINKDIR, PINDIR, OPTDIR].each do |d|
+          link = d/e.name
+          link.unlink if link.symlink?
+        end
+        puts <<-_.undent.rewrap
+            Missing installation “#{e.name}” detected and cleaned up.  Depending how it got that
+            way, stray symlinks may still exist under #{HOMEBREW_PREFIX}.
+          _
+        kegs = []
+      end
+      kegs.each do |keg|
         was_linked = keg.linked?
         keg.lock do
           puts "Uninstalling #{keg}... (#{keg.abv})"
           if f = attempt_from_keg(keg)
             f.unpin rescue nil
-            f.uninsinuate if f.uninsinuate_defined?  # Repeat this later, so helper scripts can
-                                                     # self‐delete if the rack has gone.
+            # We will either be repeating this when the rack has gone (so helper scripts can delete
+            # themselves), or we will immediately insinuate another version.  In neither case do we
+            # want duplicate messages.
+            f.uninsinuate(:silent) rescue nil if f.uninsinuate_defined?
           end
           keg.unlink
           keg.uninstall  # this also deletes the whole rack, if it’s empty
           rack = keg.rack
           if rack.directory?
-            if (dirs = rack.subdirs) != []
-              # hook up the next keg in line
+            if (dirs = rack.subdirs) == []  # Still present even though empty?  Fix that.
+              rack.rm_rf
+              # Repeat uninsinuation now that the rack has gone, to let helper scripts self‐delete.
+              f.uninsinuate rescue nil if f and f.uninsinuate_defined?
+            else # hook up the next keg in line
               next_keg = dirs.map{ |d| Keg.new(d) }.max_by(&:version)
               next_keg.optlink
               next_keg.link if was_linked
-              if f = attempt_from_keg(next_keg) then f.insinuate; end
+              f = attempt_from_keg(next_keg); f.insinuate rescue nil if f and f.insinuate_defined?
               # report on whatever’s still installed
               versions = dirs.map(&:basename)
-              verb = versions.length == 1 ? 'is' : 'are'
-              puts "#{keg.name} #{versions.join(", ")} #{verb} still installed."
+              puts "#{keg.name} #{versions.list} #{plural(versions.length, 'are', 'is')} still installed."
               puts "Remove them all with `brew uninstall --force #{keg.name}`."
-            else # rack still exists even though empty of subdirectories – fix that:
-              rack.rm_rf
             end
           end # rack is a directory
         end # keg lock
@@ -41,8 +57,9 @@ module Homebrew
       ARGV.racks.each do |rack|
         if f = attempt_from_rack(rack)
           f.unpin rescue nil
-          f.uninsinuate if f.uninsinuate_defined?  # Repeat this later, so helper scripts can self‐
-                                                   # delete if the rack has gone.
+          # We will be repeating this once the rack has gone so helper scripts can self‐delete.  We
+          # do not want duplicate messages.
+          f.uninsinuate(:silent) rescue nil if f.uninsinuate_defined?
         end
         if rack.directory?
           puts "Uninstalling #{rack.basename}... (#{rack.abv})"
@@ -52,10 +69,10 @@ module Homebrew
             keg.uninstall  # this also deletes the whole rack when it’s empty
           end
         end
-      end
+        # Repeat uninsinuation now that the rack has gone, to let helper scripts self‐delete.
+        f.uninsinuate rescue nil if f and f.uninsinuate_defined?
+      end # each |rack|
     end # --force?
-    f.uninsinuate if f and f.uninsinuate_defined?  # This repetition lets helper scripts self‐
-                                                   # delete if the rack has gone.
   rescue MultipleVersionsInstalledError => e
     ofail e
     puts "Use `brew uninstall --force #{e.name}` to remove all versions."

@@ -37,8 +37,9 @@ class LinkageChecker
           rescue Errno::ENOENT
             @broken_dylibs << dylib
           else
-            t = Tab.for_keg(owner).tap
-            f = ([nil, 'mistydemeo/tigerbrew', 'gsteemso/leopardbrew'].include?(t) ? owner.name : "#{tap}/#{owner.name}")
+            f = ([nil, 'mistydemeo/tigerbrew', 'gsteemso/leopardbrew'].include?(Tab.for_keg(owner).tap) \
+                  ? owner.name \
+                  : "#{tap}/#{owner.name}")
             @brewed_dylibs[f] << dylib
           end
         end # does dylib start with '@'?
@@ -56,16 +57,15 @@ class LinkageChecker
     declared_req_deps = formula.requirements.reject{ |req| filter_out(req) }.map(&:default_formula).compact
     declared_aids = formula.active_enhancements.map(&:name)
     declared_dep_names = (declared_deps + declared_req_deps + declared_aids).map{ |dep| dep.split("/").last }
-    undeclared_deps = @brewed_dylibs.keys.select do |full_name|
+    undeclared_deps = @brewed_dylibs.keys.select{ |full_name|
       name = full_name.split("/").last
       next false if name == formula.name
       !declared_dep_names.include?(name)
-    end
-    undeclared_deps.sort do |a, b|
-      if    a.include?("/") and not b.include?("/") then 1
-      elsif b.include?("/") and not a.include?("/") then -1
-      else a <=> b; end
-    end
+    }.sort{ |a, b|
+      if    a.includes?("/") and not b.includes?("/") then 1
+      elsif b.includes?("/") and not a.includes?("/") then -1
+      else  a <=> b; end
+    }
   end # check_undeclared_deps
 
   def display_normal_output

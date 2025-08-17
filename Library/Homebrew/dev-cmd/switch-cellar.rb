@@ -44,7 +44,8 @@ module Homebrew
             f = Formulary.from_keg(keg) or raise FormulaUnavailableError, keg.versioned_name
             switched_list.append "#{keg.versioned_name.sub(/=/, "\t")}\n" unless mode.dry_run
             if f.uninsinuate_defined?
-              if mode.dry_run then puts "Would uninsinuate #{f.name}"; else f.uninsinuate; end
+              if mode.dry_run then puts "Would uninsinuate #{f.name}"
+              else f.uninsinuate rescue nil; end
             end
             keg.unlink(mode) # if keg.linked?
             keg.remove_opt_record unless mode.dry_run
@@ -101,7 +102,8 @@ module Homebrew
             f = Formulary.from_keg(keg) or raise FormulaUnavailableError, keg.versioned_name
             if f.name == 'bash' then seen_bash = true
             elsif f.insinuate_defined?
-              if mode.dry_run then puts "Would insinuate #{f.name}"; else f.insinuate; end
+              if mode.dry_run then puts "Would insinuate #{f.name}"
+              else f.insinuate rescue nil; end
             end
             keg.link(mode) unless f.keg_only?
           rescue FormulaUnavailableError
@@ -120,7 +122,10 @@ module Homebrew
           end
         end # lock
       end # each |rack|
-      if seen_bash then if mode.dry_run then puts "Would insinuate bash"; else Formula['bash'].insinuate; end; end
+      if seen_bash
+        if mode.dry_run then puts "Would insinuate bash"
+        else Formula['bash'].insinuate rescue nil; end
+      end
       (_cellar/'SwitchedList').unlink unless mode.dry_run
     end # unsever_racklist
 

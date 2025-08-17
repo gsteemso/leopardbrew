@@ -156,7 +156,7 @@ module Homebrew
 
   def ohey(title, *msg); oho title; puts msg; end
 
-  def list_archs
+  def archs
     def thorough?; @thorough ||= ARGV.include? '--thorough'; end;
 
     def scour(loc)
@@ -288,7 +288,7 @@ module Homebrew
         or script files.
       _
     end # no_archs_msg?
-  end # list_archs
+  end # archs
 end # Homebrew
 
 class Array; def sum; total = 0; each{ |e| total += e.to_i }; total; end; end

@@ -7,9 +7,12 @@ class Cctools < Formula
     sha256 '7c31652cefde324fd6dc6f4dabbcd936986430039410a65c98d4a7183695f6d7'
   else
     # 806 (from Xcode 4.1) is the latest version that supports Tiger or PowerPC
+    # (Not strictly true, but it is the last version that Apple supported on them.)
     url 'https://github.com/apple-oss-distributions/cctools/archive/refs/tags/cctools-806.tar.gz'
     sha256 '331b44a2df435f425ea3171688305dcb46aa3b29df2d38b421d82eb27dbd4d2e'
   end
+
+  keg_only :provided_by_osx, 'This package duplicates tools shipped by Xcode.'
 
   bottle do
     cellar :any_skip_relocation
@@ -22,9 +25,6 @@ class Cctools < Formula
   depends_on :ld64
 
   cxxstdlib_check :skip
-
-  keg_only :provided_by_osx,
-    'This package duplicates tools shipped by Xcode.'
 
   if MacOS.version >= :snow_leopard
     option 'with-llvm', 'Build with LTO support'
@@ -92,14 +92,45 @@ class Cctools < Formula
       url 'https://trac.macports.org/export/103959/trunk/dports/devel/cctools/files/PR-12475288.patch'
       sha1 '3d6cb1ff1443b8c1c68c21c9808833537f7ce48d'
     end
+
+    patch <<'END_OF_PATCH'
+--- old/otool/Makefile
++++ new/otool/Makefile
+# $LIBS is set to the names of libraries that simply do not exist on a shipped system – & the otool
+# executable somehow gets built with relocation entries in its (__TEXT,__text) section, which ought
+# to be read‐only.
+@@ -19,7 +19,7 @@
+ 		     [ "$(RC_RELEASE)" = "SUPanWheat" ]; then \
+ 		    echo "-static" ; \
+ 	    else if [ "$(RC_RELEASE)" = "Tiger" ]; then \
+-		    echo "-static" ; \
++		    echo "" ; \
+ 	    else \
+ 		    echo "" ; \
+ 	  fi; fi; )
+@@ -113,7 +113,7 @@
+ 	$(CC) $(RC_CFLAGS) -nostdlib -r -o $(OBJROOT)/private.o \
+ 		$(OBJS) $(LIBSTUFF)
+ 	$(CC) $(RC_CFLAGS) $(SDK) -o $(SYMROOT)/$@ $(OBJROOT)/private.o \
+-		$(LIBSTUFF) $(LIBS)
++		$(LIBSTUFF)
+ 
+ vers.c:
+ 	vers_string -c $(VERS_STRING_FLAGS) $(PRODUCT) > $(OFILE_DIR)/$@
+END_OF_PATCH
   end
 
   def install
-    ENV.deparallelize  # see https://github.com/mistydemeo/tigerbrew/issues/102
+    ENV.deparallelize      # See ⟨https://github.com/mistydemeo/tigerbrew/issues/102⟩.
+
+    ENV.without_archflags  # The -arch flags are handled by the Makefile.
 
     if build.with? 'llvm'
       inreplace 'libstuff/lto.c', '@@LLVM_LIBDIR@@', Formula['llvm'].opt_lib
     end
+
+    # Fixes build with gcc-4.2: https://trac.macports.org/ticket/43745
+    ENV.append_to_cflags '-std=gnu99'
 
     args = %W[
       RC_ProjectSourceVersion=#{version}
@@ -110,14 +141,12 @@ class Cctools < Formula
       LTO=#{'-DLTO_SUPPORT' if build.with? 'llvm'}
       RC_CFLAGS=#{ENV.cflags}
       TRIE=
-      RC_OS='macos'
+      RC_OS=macos
       DSTROOT=#{prefix}
+      RC_RELEASE=#{MacOS.version.pretty_name}
     ]
 
-    # Fixes build with gcc-4.2: https://trac.macports.org/ticket/43745
-    args << 'SDK=-std=gnu99'
-
-    args << "RC_ARCHS=#{CPU.cross_archs.as_build_archs}"
+    args << "RC_ARCHS=#{'ppc ppc64 ' if CPU.powerpc?}i386 x86_64"
 
     system 'make', 'install_tools', *args
 
@@ -128,7 +157,7 @@ class Cctools < Formula
     # We didn’t build the obsolete `ld` from this package, but (on version 806, at least) `strip`
     # expects it to be present and when called with certain options, will fail when it isn’t there.
     # Fill in for it with a symlink to whatever other version we can find.
-    bin.install_symlink(which 'ld')
+    bin.install_symlink_to MacOS.ld
 
     # cctools installs into a /-style prefix in the supplied DSTROOT,
     # so need to move the files into the standard paths.
@@ -150,7 +179,7 @@ class Cctools < Formula
     end
   end # install
 
-  def caveats; 'cctools’ version of ld is not built.'; end
+  def caveats; 'cctools’ very obsolete version of ld is not built.'; end
 
   test do
     assert_match '/usr/lib/libSystem.B.dylib', shell_output("#{bin}/otool -L #{bin}/install_name_tool")

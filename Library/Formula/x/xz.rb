@@ -1,3 +1,4 @@
+# stable release 2025-04-03; checked 2025-08-01
 class Xz < Formula
   desc 'General-purpose data compression with high compression ratio'
   homepage 'http://tukaani.org/xz/'

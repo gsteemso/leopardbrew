@@ -34,12 +34,12 @@ module Homebrew
     if outdated.empty?
       oh1 "No packages to upgrade"
     else
-      ohai "Upgrading #{outdated.length} outdated package#{plural(outdated.length)}, with result:", \
-                                        outdated.map { |f| "#{f.full_name} #{f.pkg_version}" } * ", "
+      ohai "Upgrading #{outdated.length} outdated package#{plural(outdated.length)}:", \
+           outdated.map{ |f| "#{f.full_name} #{f.pkg_version}" }.list
     end
 
     ohai "Not upgrading #{pinned.length} pinned package#{plural(pinned.length)}:", \
-                        pinned.map { |f| "#{f.full_name} #{f.pkg_version}" } * ", " \
+         pinned.map{ |f| "#{f.full_name} #{f.pkg_version}" }.list \
                                                             unless upgrade_pinned? or pinned.empty?
 
     named_spec = (ARGV.build_head? ? :head :
@@ -89,7 +89,7 @@ module Homebrew
     f.set_active_spec new_spec # now install to this spec; we don’t care about the Tab any more
 
     notice  = "Upgrading #{f.full_name}"
-    notice += " with #{options * ', '}" unless options.empty?
+    notice += " with #{options.list}" unless options.empty?
     oh1 notice
 
     fi = FormulaInstaller.new(f)
@@ -121,14 +121,10 @@ module Homebrew
     # pin it again to get a symlink pointing to the correct keg.
     if f.pinned? then f.unpin; f.pin; end
 
-    begin
-      old_stdout = $stdout
-      $stdout.reopen('/dev/null')  # Uninsinuation must, if followed immediately by insinuation, be
-      f.uninsinuate rescue nil     # silent so as to not emit conflicting messages.
-    ensure
-      $stdout.reopen(old_stdout)
-    end if f.uninsinuate_defined?
-    f.insinuate if f.insinuate_defined?
+    # If uninsinuation will be followed immediately by insinuation, the former must be silent so as
+    # not to emit conflicting messages:
+    f.uninsinuate(f.insinuate_defined? && ! DEBUG) rescue nil if f.uninsinuate_defined?
+    f.insinuate rescue nil if f.insinuate_defined?
   ensure # Restore the previous installation state if the build failed.
     unless f.installed?
       if f.prefix.exists?

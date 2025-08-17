@@ -150,11 +150,11 @@ class DependencyCollector
 
   def parse_url_spec(url, tags)
     case File.extname(url)
-    when ".xz"  then Dependency.new("xz", tags)
-    when ".lz"  then Dependency.new("lzip", tags)
-    when '.zst' then Dependency.new('zstd', tags)
-    when ".rar" then Dependency.new("unrar", tags)
-    when ".7z"  then Dependency.new("p7zip", tags)
+      when '.7z'  then Dependency.new('p7zip', tags)
+      when '.lz'  then Dependency.new('lzip', tags)
+      when '.rar' then Dependency.new('unrar', tags)
+      when '.xz'  then Dependency.new('xz', tags)
+      when '.zst' then Dependency.new('zstd', tags)
     end
   end # parse_url_spec
 end # DependencyCollector

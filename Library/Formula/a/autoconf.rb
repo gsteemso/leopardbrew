@@ -1,3 +1,4 @@
+# stable release 2023-12-22; checked 2025-08-02
 class Autoconf < Formula
   desc "Automatic configure script builder"
   homepage "https://www.gnu.org/software/autoconf"
@@ -10,7 +11,7 @@ class Autoconf < Formula
     sha256 "ef803264de782df052807bc4fdd57454d45fdad5502c029c55e91f34e3756bdc" => :tiger_altivec
   end
 
-  # Bundled m4 is too old.  (Would also need a newer automake to run the test suite.)
+  # Stock m4 is too old.  (Would also need a newer automake to run the test suite.)
   depends_on "m4"
 
   keg_only :provided_until_xcode43
@@ -18,10 +19,9 @@ class Autoconf < Formula
   def install
     ENV["PERL"] = "/usr/bin/perl"
 
-    # Force autoreconf to look for and use our glibtoolize – if for no other
-    # reason, Tiger has no libtoolize.  (“Our” glibtoolize is a shaky concept…
-    # the {libtool} formula depends on this one.  Fortunately, the stock
-    # version seems to work fine.)
+    # Force autoreconf to look for and use our glibtoolize – if for no other reason, Tiger has no
+    # libtoolize.  (“Our” glibtoolize is a shaky concept… the {libtool} formula depends on this one.
+    # Fortunately, this seems to work anyway.)
     inreplace "bin/autoreconf.in", "libtoolize", "glibtoolize"
     # Also touch the man page so that it isn’t rebuilt.
     inreplace "man/autoreconf.1", "libtoolize", "glibtoolize"

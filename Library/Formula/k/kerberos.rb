@@ -3,7 +3,7 @@
 # reason a fat build tries to also call it from 32‐bit slices.
 require 'merge'
 
-class KerberosV5 < Formula
+class Kerberos < Formula
   include Merge
 
   desc 'MIT’s implementation of Kerberos version 5 authentication'
@@ -115,7 +115,7 @@ class KerberosV5 < Formula
   test do
     system 'false'
   end
-end # KerberosV5
+end # Kerberos
 
 __END__
 # The kdc line is needed for when DNS is not available (i.e. during unit testing, if resolv_wrapper

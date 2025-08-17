@@ -16,7 +16,7 @@ class Requirement
     @default_formula = self.class.default_formula
     @cask ||= self.class.cask
     @download ||= self.class.download
-    tags.each do |tag|
+    (tags = Array(tags)).each do |tag|
       next unless tag.is_a? Hash
       @cask ||= tag[:cask]
       @download ||= tag[:download]

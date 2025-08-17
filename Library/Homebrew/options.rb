@@ -85,4 +85,6 @@ class Options
   alias_method :to_ary, :to_a
 
   def inspect; "#<#{self.class.name}: #{to_a.inspect}>"; end
+
+  def list; to_a.list; end
 end # Options

@@ -1,11 +1,42 @@
+# The four C revisions are [:c89, :c99, :c11, :c23].
+# (GCC support for :c99 was so lacklustre that the default implementation went from :c89 in GCC 4.9
+#  to :c11 in GCC 5.)
+# The six C++ revisions are [:cxx98, :cxx11, :cxx14, :cxx17, :cxx20, :cxx23].
+# (GCC support for C++11 was delayed long enough that the default implementation went from :cxx98
+#  in GCC 5 to :cxx14 in GCC 6.)
+# Other nominal revisions of each language exist, but are effectively redundant.
+
 # @private
 module CompilerConstants
   GNU_GCC_VERSIONS = %w[4.3 4.4 4.5 4.6 4.7 4.8 4.9 5 6 7 8]
   GNU_GCC_REGEXP = /^gcc-(4\.[3-9]|[5-8])$/
+
+  GNU_C11_REGEXP = /^gcc-(4\.9|[5-8])$/
+  # C23 is not yet stable as of GCC 15.
   GNU_CXX11_REGEXP = /^gcc-(4\.[89]|[5-8])$/
   GNU_CXX14_REGEXP = /^gcc-([5-8])$/
-  GNU_C11_REGEXP = /^gcc-(4\.9|[5-8])$/
-  CLANG_CXX11_MIN = '5'
+  # C++17 is stable from GCC 9.  C++20 is mostly stable as of GCC 13 and C++23 as of GCC 15.
+# CLANG_C99_MIN = ???
+# CLANG_C11_MIN = ???
+# CLANG_C23_MIN = ???
+  CLANG_CXX11_MIN = '5.0'
+# CLANG_CXX14_MIN = ???
+# CLANG_CXX17_MIN = ???
+# CLANG_CXX20_MIN = ???
+# CLANG_CXX23_MIN = ???
+
+  GNU_C11_DEFAULT_REGEXP   = /^gcc-([5-8])$/  # Older versions defaulted to C89.
+  GNU_CXX14_DEFAULT_REGEXP = /^gcc-([6-8])$/  # Older versions defaulted to C++98.
+  # C++17 is the default from GCC 11 through 15.
+# CLANG_C99_DEFAULT_MIN = ???
+# CLANG_C11_DEFAULT_MIN = ???
+# CLANG_C23_DEFAULT_MIN = ???
+# CLANG_CXX11_DEFAULT_MIN = ???
+# CLANG_CXX14_DEFAULT_MIN = ???
+# CLANG_CXX17_DEFAULT_MIN = ???
+# CLANG_CXX20_DEFAULT_MIN = ???
+# CLANG_CXX23_DEFAULT_MIN = ???
+
   COMPILER_SYMBOL_MAP = {
     "gcc-4.0"  => :gcc_4_0,
     "gcc-4.2"  => :gcc,
@@ -48,7 +79,7 @@ class CompilerFailure
           when :clang, :gcc_4_0, :llvm
             version = build_or_major_version
           else
-            raise ArgumentError, "Compiler “#{name}”?  Sorry, Leopardbrew only knows about GCC 4–8 and Clang."
+            raise AlienCompilerError.new(name)
         end # case |name|
       end # each spec |name & build/version|
     elsif spec.is_a?(Array)
@@ -115,19 +146,18 @@ class CompilerSelector
     :gcc_4_0 => [:gcc_4_0, :gcc, :llvm, :gnu, :clang]
   }
 
-  def self.select_for(formula, compilers = self.compilers)
-    new(formula, compilers).compiler
-  end
+  class << self
+    def select_for(formula, compilers = self.compilers); new(formula, compilers).compiler; end
 
-  def self.compilers; COMPILER_PRIORITY.fetch(MacOS.default_compiler); end
+    def compilers; COMPILER_PRIORITY.fetch(MacOS.default_compiler); end
 
-  def self.compiler_version(name)
-    if name =~ GNU_GCC_REGEXP
-      MacOS.non_apple_gcc_version(name)
-    else
-      MacOS.send("#{name}_build_version")
+    def compiler_version(name)
+      name =~ CompilerConstants::GNU_GCC_REGEXP ? MacOS.non_apple_gcc_version(name) \
+                                                : MacOS.send("#{name}_build_version")
     end
-  end # compiler_version
+
+    def validate_user_compiler(formula, sym); new(formula, [sym]).validate_user_compiler(sym); end
+  end # << self
 
   attr_reader :formula, :failures, :compilers
 
@@ -140,6 +170,16 @@ class CompilerSelector
   def compiler
     find_compiler { |c| return c.name unless fails_with?(c) }
     raise CompilerSelectionError.new(formula)
+  end
+
+  def validate_user_compiler(sym)
+    if (find_compiler { |c| fails_with?(c) })
+      name = COMPILER_SYMBOL_MAP.invert.fetch(sym) do
+          if sym.to_s =~ CompilerConstants::GNU_GCC_REGEXP then sym
+          else raise AlienCompilerError.new(sym); end
+        end
+      raise ChosenCompilerError.new(formula, name)
+    else sym; end
   end
 
   private

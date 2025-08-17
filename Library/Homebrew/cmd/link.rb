@@ -29,7 +29,7 @@ module Homebrew
             puts "Would insinuate #{f.name}"
           else
             puts "Insinuating #{f.name}"
-            f.insinuate
+            f.insinuate rescue nil
           end
         end
         puts "Linking #{keg}..."

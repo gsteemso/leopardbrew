@@ -1,3 +1,18 @@
 #!/bin/bash
+# absolute pathname to our directory (should be $HOMEBREW_REPOSITORY/Library/ENV/super/)
+SUPERBIN="$(cd "${0%/*}" >/dev/null && pwd -P)"
+
+# try the $PATH, but filter out our fake self in $SUPERBIN
+old_IFS="$IFS"
+IFS=:
+for path in $PATH; do
+  if [ "$path" != "$SUPERBIN" ]; then
+    POD2MAN="${path}/pod2man"
+    if [ -x "$POD2MAN" ]; then exec "$POD2MAN" "$@"; fi
+  fi
+done
+IFS="$old_IFS"
+
+# our last fallback here was already in the $PATH, but what else are we going to do?
 POD2MAN=$(/usr/bin/which pod2man5.18 || /usr/bin/which pod2man5.16 || /usr/bin/which pod2man5.12 || echo /usr/bin/pod2man)
 exec $POD2MAN "$@"
