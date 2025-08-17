@@ -69,7 +69,7 @@ module Stdenv
       append 'LDFLAGS', archset.as_arch_flags
       # Many, many builds are broken by Leopard’s buggy ld.  Our ld64 fixes
       # many of them, though obviously we can’t depend on it to build itself.
-      ld64 if Formula.factory('ld64').installed?
+      ld64 if Formula['ld64'].installed?
     end
   end # setup_build_environment
 
@@ -259,7 +259,7 @@ module Stdenv
     remove flags, /-mssse3/
     remove flags, /-msse4(\.\d)?/
     append flags, xarch unless xarch.empty?
-    append flags, map.fetch(target_model, default)
+    append flags, map.fetch(Target.model, default)
     # Work around a buggy system header on Tiger
     append flags, "-faltivec" if MacOS.version == '10.4' and CPU.powerpc? and target_model != :g3
     # not really a 'CPU' cflag, but is only used with clang
