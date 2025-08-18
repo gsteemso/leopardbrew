@@ -16,10 +16,10 @@ Unlike its ancestors, Leopardbrew makes no attempt to support Linux.  The whole 
 that you have complete control over what’s installed on your system, whereas Homebrew was made
 specifically to work around the gaps in a nearly unmodifiable Mac OS install.  Plus, almost every
 recipe refers to Mac‐OS‐specific features.  What is even supposed to be the point of supporting
-Linux here?  All right, the user interface of Homebrew is pleasantly simple compared to many Linux‐
-native package managers, but the design goals are totally divergent.  If a Linux user absolutely
-insists on running this anyway, any reasonable Linux system ought to support the actual Homebrew;
-use that instead.
+Linux here?  All right, the user interface of Homebrew is pleasantly simple compared to many
+Linux‐native package managers, but the design goals are totally divergent.  If a Linux user
+absolutely insists on running this anyway, any reasonable Linux system ought to support the actual
+Homebrew; use that instead.
 
 
 Installation
@@ -40,7 +40,7 @@ On the computer you’re reading this on, control‐ or secondary‐click this l
 The option will be something like “Save Link As” or “Download Linked File”, depending on your
 browser:
 
-<https://raw.github.com/gsteemso/leopardbrew/go/install>
+<https://raw.github.com/gsteemso/leopardbrew/go_to/install>
 
 (It used to be possible to use TenFourFox directly from the target machine, but that software is no
 longer maintained, and cannot handle most pages on Github.)
@@ -74,7 +74,8 @@ FAQ
 
 ### How do I switch from Homebrew or Tigerbrew?
 
-Run these commands from your terminal.  You must have git installed.
+Run these commands from your terminal.  You must have git installed.  That’s a non-trivial ask, but
+unavoidable.
 
 ```
 cd `brew --repository`
@@ -102,13 +103,13 @@ License
 Code is under the [BSD 2 Clause (NetBSD) license][license].
 
 [Tigerbrew]:https://github.com/mistydemeo/tigerbrew
-[Homebrew]:http://brew.sh
+[Homebrew]:https://brew.sh
 [xc25]:https://developer.apple.com/download/more/?=xcode%202.5
 [xc314]:https://developer.apple.com/download/more/?=xcode%203.1.4
 [formula]:https://github.com/gsteemso/leopardbrew/tree/master/Library/Formula
 [issues]:https://github.com/gsteemso/leopardbrew/issues
 [prs]:https://github.com/gsteemso/leopardbrew/pulls
-[mxcl]:http://twitter.com/mxcl
+[mxcl]:https://twitter.com/mxcl
 [mistydemeo]:https://github.com/mistydemeo
 [gsteemso]:https://github.com/gsteemso
 [license]:https://github.com/gsteemso/leopardbrew/blob/master/LICENSE.txt
