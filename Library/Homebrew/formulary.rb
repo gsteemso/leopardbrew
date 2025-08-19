@@ -215,8 +215,8 @@ class Formulary
     return factory(rack.basename.to_s, spec || :stable) unless keg
 
     tab = Tab.for_keg(keg)
-    tap = tab.tap
-    spec ||= tab.spec
+    tap = tab.tap if tab
+    spec ||= tab.spec if tab
 
     if [nil, "mistydemeo/tigerbrew", "gsteemso/leopardbrew"].include? tap
       factory(rack.basename.to_s, spec)
