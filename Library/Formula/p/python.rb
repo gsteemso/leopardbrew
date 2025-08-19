@@ -15,7 +15,8 @@ class Python < Formula
   # More details in: https://github.com/Homebrew/homebrew/pull/32368
 
   option :universal
-  if Formula['sphinx-doc'].installed?
+  recursing = false;
+  if Language::Python.major_minor_version('python') == '2.7' or (recursing = (OPTDIR/'python/bin/python').executable?)
     option 'with-html-docs', 'also build documentation in HTML format'
     deprecated_option 'with-sphinx-doc' => 'with-html-docs'
   end
@@ -27,9 +28,11 @@ class Python < Formula
   depends_on 'readline' => :recommended
   depends_on 'sqlite' => :recommended
   depends_on 'berkeley-db4' => :optional
+  if build.defined_options.include?('with-html-docs') and build.with? 'html-docs'
+    depends_on LanguageModuleRequirement.new('python', 'sphinx', nil, recursing)
+  end
 
   enhanced_by ':nls'        # Useful if available, but not worth actually depending on.
-  enhanced_by 'sphinx-doc'  # For making documentation in HTML format.  Circularly dependent.
   enhanced_by 'zlib'        # Sometimes it will pick this up even when not made explicit, but we
                             # don’t _need_ it.
 
@@ -218,7 +221,7 @@ END_OF_PATCH
     cd 'Doc' do
       system 'make', 'html'
       doc.install Dir['build/html/*']
-    end if enhanced_by?('sphinx-doc') and build.with?('html-docs')
+    end if build.with? 'html-docs'
   end # install
 
   def post_install
