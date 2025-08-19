@@ -15,7 +15,7 @@
 #:  --ignore-dependencies - Assume that the software’s dependencies are present.
 #:  --interactive (-i) - Install “by hand” using the command line.  Any patches
 #:                       the formula defines will have already been applied.
-#:  --no-enhancements - Install dependencies, but do not apply enhancements.
+#:  --no-enhancements - Do not apply any available enhancements.
 #:  --only-dependencies - Install its dependencies, but not the formula itself.
 #:  --quieter (-q)   - Don’t be verbose when brewing dependencies.  Implies -v.
 #:  --verbose (-v)   - See lots of progress messages as the software builds.
@@ -85,7 +85,7 @@ module Homebrew
                                   f.linked_keg.resolved_real_path == f.spec_prefix(requested_spec))
           msg << '.'
           opoo msg
-        elsif f.only_old_version_installed?
+        elsif f.only_old_versions_installed?
           opoo <<-_.undent
               An outdated version of #{f.full_name} is already installed.  Use
                   brew upgrade #{f.full_name}
