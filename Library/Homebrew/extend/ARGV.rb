@@ -85,14 +85,16 @@ module HomebrewArgvExtension
 
   def resolved_formulae
     require 'formula'
-    @resolved_fae ||= racks.map{ |r| Formulary.from_rack(r) }.select{ |f| f.any_version_installed? }
+    @resolved_fae ||= racks.map{ |r| Formulary.from_rack(r) }.select{ |f|
+        f.any_version_installed? or f.oldname_installed?
+      }
   end # resolved_formulae
 
   def casks; @casks ||= downcased_unique_named.grep HOMEBREW_CASK_TAP_FORMULA_REGEX; end
 
   def racks
     @racks ||= downcased_unique_named.map{ |name|
-        if (r = HOMEBREW_CELLAR/name).directory? and r.subdirs != [] then r
+        if (r = HOMEBREW_CELLAR/name).directory? then r
         else raise NoSuchRackError, name; end
       }
   end # racks
