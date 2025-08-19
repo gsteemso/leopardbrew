@@ -61,7 +61,7 @@ class Formula
   attr_reader :full_name
 
   # The full path to this {Formula}.
-  #     /usr/local/Library/Formula/t/this-formula.rb
+  #     "$(brew --repository)"/Library/Formula/t/this-formula.rb
   attr_reader :path
 
   # The stable (and default) {SoftwareSpec} for this {Formula}.  This contains all the attributes
@@ -124,9 +124,7 @@ class Formula
 
     @full_name = if path.to_s =~ HOMEBREW_TAP_PATH_REGEX
         "#{$1}/#{$2.gsub(/^homebrew-/, '')}/#{name}"
-      else
-        name
-      end
+      else name; end
 
     set_spec :stable
     set_spec :devel
@@ -310,37 +308,37 @@ class Formula
   # If at least one version of {Formula} is installed, no matter how outdated.
   # @private
   def any_version_installed?
-    rack.directory? and rack.subdirs.any? { |keg| is_installed_prefix?(keg) }
+    rack.directory? and rack.subdirs.any?{ |keg| is_installed_prefix?(keg) }
   end
 
   # If only versions of {Formula} other than the current ones are installed.
   # @private
-  def only_old_version_installed?
-    rack.directory? and rack.subdirs.select{ |kegpath|
-                          [:head, :devel, :stable].any?{ |ss| kegpath == spec_prefix(ss) }
-                        }.empty? and rack.subdirs.any?{ |kegpath| is_installed_prefix?(kegpath) }
+  def only_old_versions_installed?
+    rack.directory? and rack.subdirs.select{ |keg_dir|
+                          [:head, :devel, :stable].any?{ |ss| keg_dir == spec_prefix(ss) }
+                        }.empty? and rack.subdirs.any?{ |keg_dir| is_installed_prefix?(keg_dir) }
   end
 
   # If some version of {Formula} is installed under its old name.
   # @private
   def oldname_installed?
     oldname and (oldrack = HOMEBREW_CELLAR/oldname) and oldrack.directory? \
-      and oldrack.subdirs.any? { |keg| is_installed_prefix?(keg) }
+      and oldrack.subdirs.any?{ |keg_dir| is_installed_prefix?(keg_dir) }
   end
 
   # Returns a new Keg:  The greatest amongst versioned kegs in this rack, or HEAD if no others are
   # present.
   def greatest_installed_keg
     highest_seen = ''; head_seen = false
-    rack.subdirs.each do |keg|
-      if is_installed_prefix?(keg)
-        candidate = keg.basename
+    rack.subdirs.each{ |keg_dir|
+      if is_installed_prefix?(keg_dir)
+        candidate = keg_dir.basename
         if candidate == 'HEAD' then head_seen = true; next; end
         highest_seen = candidate if candidate.to_s > highest_seen.to_s
       else
-        raise NotAnInstalledKegError, keg
+        raise NotAnInstalledKegError, keg_dir
       end
-    end if rack.directory?
+    } if rack.directory?
     if highest_seen == ''
       if head_seen then highest_seen = 'HEAD'
       else raise FormulaNotInstalledError, full_name
@@ -355,14 +353,12 @@ class Formula
 
   # What would be the .prefix for the given SoftwareSpec?
   # @private
-  def spec_prefix(ss)
-    if spec = send(ss) then prefix(PkgVersion.new(spec.version, revision)); end
-  end
+  def spec_prefix(ss); if s = send(ss) then prefix(PkgVersion.new(s.version, revision)); end; end
 
   # The list of installed current spec versions.
   def installed_current_prefixes
     icp = {}
-    [:head, :devel, :stable].each { |ss|
+    [:head, :devel, :stable].each{ |ss|
       pfx = spec_prefix(ss)
       icp[ss] = pfx if is_installed_prefix?(pfx)
     }
@@ -435,9 +431,7 @@ class Formula
   #
   # No `make install` available?
   #     man1.install "example.1"
-  1.upto(8).each do |n|
-    define_method("man#{n}".to_sym) { man/"man#{n}" }
-  end
+  1.upto(8).each{ |n| define_method("man#{n}".to_sym) { man/"man#{n}" } }
 
   # The directory where the formula’s `sbin` binaries should be installed.  This is symlinked into
   # `HOMEBREW_PREFIX` after installation or with `brew link` for formulæ that are not keg-only.
@@ -553,9 +547,9 @@ class Formula
   #     args << "--with-readline=#{Formula["readline"].opt_prefix}" if build.with? "readline"
   def opt_prefix; OPTDIR/name; end
 
-  %w[bin include lib libexec sbin share Frameworks].each do |dir|
+  %w[bin include lib libexec sbin share Frameworks].each{ |dir|
     define_method("opt_#{dir}".downcase) { opt_prefix/dir }
-  end
+  }
 
   def opt_pkgshare; opt_share/name; end
 
@@ -628,16 +622,16 @@ class Formula
     begin
       Keg.for(path)
     rescue NotAKegError, Errno::ENOENT
-      # File doesn’t belong to any keg.
+      # File doesn’t belong to any keg, which is what we want; do nothing.
     else
       return false
     end
     to_check = path.relative_path_from(HOMEBREW_PREFIX).to_s
-    self.class.link_overwrite_paths.any? do |p|
-      p == to_check ||
-        to_check.starts_with?(p.chomp("/") + "/") ||
-        %r{^#{Regexp.escape(p).gsub('\*', ".*?")}$} === to_check
-    end
+    self.class.link_overwrite_paths.any?{ |p|
+      p == to_check or
+        to_check.starts_with?(p.chomp('/') + '/') or
+        %r{^#{Regexp.escape(p).gsub('\*', '.*?')}$} === to_check
+    }
   end # link_overwrite?
 
   def skip_cxxstdlib_check?; false; end
@@ -646,12 +640,7 @@ class Formula
   def require_universal_deps?; false; end
 
   # @private
-  def patch
-    unless patchlist.empty?
-      ohai "Patching"
-      patchlist.each(&:apply)
-    end
-  end
+  def patch; unless patchlist.empty?; ohai "Patching"; patchlist.each(&:apply); end; end
 
   # Yields self with the current working directory set to the decompressed tarball.
   # @private
@@ -659,7 +648,6 @@ class Formula
     stage do
       logs.mkpath unless logs.directory?
       prepare_patches
-
       begin
         yield self
       ensure
@@ -679,15 +667,11 @@ class Formula
   end # lock
 
   # @private
-  def unlock
-    @lock.unlock if @lock
-    @oldname_lock.unlock if @oldname_lock
-  end
+  def unlock; @lock.unlock if @lock; @oldname_lock.unlock if @oldname_lock; end
 
   # @private
   def clean_up_lock
-    @lock.delete if @lock
-    @oldname_lock.delete if @oldname_lock
+    @lock.delete if @lock; @oldname_lock.delete if @oldname_lock
   rescue
     # Do nothing.  Stray lockfiles are a minor nuisance at worst.
   end # clean_up_lock
@@ -719,13 +703,13 @@ class Formula
   def to_s; name; end
 
   # @private
-  def inspect; "#<Formula #{name} (#{active_spec_sym}) #{path}>"; end
+  def inspect; "#<Formula #{name} (:#{active_spec_sym}) #{path}>"; end
 
   # Standard parameters for CMake builds.
-  # Setting CMAKE_FIND_FRAMEWORK to "LAST" tells CMake to search for our libraries before trying to
-  # utilize Frameworks, many of which will be from 3rd party installs.
-  # Note:  There isn’t a std_autotools variant because autotools is a lot less consistent and the
-  # standard parameters are more memorable.
+  # Setting CMAKE_FIND_FRAMEWORK to “LAST” tells CMake to search for our libraries before trying to
+  # utilize Frameworks, many of which will be from third‐party installs.
+  # Note:  There’s no std_autotools_args because autotools is a lot less consistent, & the standard
+  # parameters are more memorable.
   def std_cmake_args
     %W[
       -DCMAKE_C_FLAGS_RELEASE=
@@ -741,7 +725,7 @@ class Formula
 
   # An array of all core {Formula} names.
   # @private
-  def self.core_names; @core_names ||= core_files.map { |f| f.basename('.rb').to_s }.sort; end
+  def self.core_names; @core_names ||= core_files.map{ |f| f.basename('.rb').to_s }.sort; end
 
   # An array of all core {Formula} files.
   # @private
@@ -769,16 +753,14 @@ class Formula
 
   # @private
   def self.each
-    files.each do |file|
+    files.each{ |file|
       begin
         yield Formulary.factory(file)
       rescue StandardError => e
         # Don't let one broken formula break commands. But do complain.
-        onoe "Failed to import:  #{file}"
-        puts e
-        next
+        onoe "Failed to import:  #{file}"; puts e; next
       end
-    end
+    }
   end # Formula::each
 
   # An array of all installed racks.
@@ -790,18 +772,18 @@ class Formula
   # An array of all installed {Formula}.
   # @private
   def self.installed
-    @installed ||= racks.map do |rack|
-        begin
-          Formulary.from_rack(rack)
+    @installed ||= racks.map{ |rack|
+        begin Formulary.from_rack(rack)
         rescue FormulaUnavailableError, TapFormulaAmbiguityError
+          # do nothing
         end
-      end.compact
+      }.compact
   end # Formula::installed
 
   # An array of all core aliases.
   # @private
   def self.core_aliases
-    @core_aliases ||= Dir["#{HOMEBREW_LIBRARY}/Aliases/*"].map { |f| File.basename f }.sort
+    @core_aliases ||= Dir["#{HOMEBREW_LIBRARY}/Aliases/*"].map{ |f| File.basename f }.sort
   end
 
   # An array of all tap aliases.
@@ -811,7 +793,7 @@ class Formula
   # An array of all aliases.
   # @private
   def self.aliases
-    @aliases ||= (core_aliases + tap_aliases.map { |name| name.split("/")[-1] }).uniq.sort
+    @aliases ||= (core_aliases + tap_aliases.map{ |name| name.split("/")[-1] }).uniq.sort
   end
 
   # An array of all aliases, in which the tap formulæ have fully-qualified names.
@@ -825,20 +807,14 @@ class Formula
 
   # @private
   def tap
-    if path.to_s =~ HOMEBREW_TAP_DIR_REGEX
-      "#{$1}/#{$2}"
-    elsif core_formula?
-      'gsteemso/leopardbrew'
-    end
-  end # tap
+    if path.to_s =~ HOMEBREW_TAP_DIR_REGEX then "#{$1}/#{$2}"
+    elsif core_formula? then 'gsteemso/leopardbrew'; end
+  end
 
   # @private
   def print_tap_action(options = {})
-    if tap?
-      verb = options[:verb] || 'Installing'
-      ohai "#{verb} #{name} from #{tap}"
-    end
-  end # print_tap_action
+    if tap?; verb = options[:verb] || 'Installing'; ohai "#{verb} #{name} from #{tap}"; end
+  end
 
   # True if this formula is provided by Leopardbrew itself.
   # @private
@@ -938,8 +914,7 @@ class Formula
     old_home = ENV['HOME']
     mktemp do
       @testpath = Pathname.pwd
-      ENV['HOME'] = @testpath
-      setup_test_home @testpath
+      setup_test_home(ENV['HOME'] = @testpath)
       if (result = test) == :does_not_apply
         puts 'This formula cannot meaningfully be tested.'; true
       else result; end
@@ -980,8 +955,8 @@ class Formula
 
   public
 
-  # To call out to the system, we use the `system` method.  We prefer to give the args separately
-  # as shown below, otherwise a subshell has to be opened first.
+  # To call out to the system, use the `system` method.  We prefer to give the args separately, as
+  # shown below, as otherwise a subshell has to be opened first.
   #     system './bootstrap.sh', '--arg1', "--prefix=#{prefix}"
   #
   # For CMake we have some necessary defaults in {#std_cmake_args}:
@@ -995,7 +970,7 @@ class Formula
   # options are.
   #     system './configure', "--prefix=#{prefix}", '--disable-debug',
   #                           '--disable-dependency-tracking', '--disable-silent-rules',
-  #                           *args  # our custom arg list (needs `*` to unpack)
+  #                           *args  # our custom arg list (needs “*” to unpack)
   #
   # If there is a 'make', 'install' available, please use it!
   #     system 'make', 'install'
@@ -1005,8 +980,9 @@ class Formula
     # that we trim long ohai lines to the terminal width.
     pretty_args = args.dup
     if cmd == './configure' and not VERBOSE
-      pretty_args.delete '--disable-dependency-tracking'
       pretty_args.delete '--disable-debug'
+      pretty_args.delete '--disable-dependency-tracking'
+      pretty_args.delete '--disable-silent-rules'
     end
     pretty_args.each_index do |i|
       if pretty_args[i].to_s.starts_with? 'import setuptools'
@@ -1083,23 +1059,16 @@ class Formula
     # TODO: system 'xcodebuild' is deprecated, this should be removed soon.
     ENV.remove_cc_etc if cmd.starts_with? 'xcodebuild'
     # Turn on argument filtering in the superenv compiler wrapper.
-    # We should probably have a better mechanism for this than adding
-    # special cases to this method.
+    # We should probably have a better mechanism for this than adding special cases to this method.
     if cmd == 'python'
       setup_py_in_args = %w[setup.py build.py].include?(args.first)
-      setuptools_shim_in_args = args.any? { |a| a.to_s.start_with? 'import setuptools' }
-      if setup_py_in_args || setuptools_shim_in_args
-        ENV.refurbish_args
-      end
+      setuptools_shim_in_args = args.any?{ |a| a.to_s.starts_with? 'import setuptools' }
+      if setup_py_in_args or setuptools_shim_in_args then ENV.refurbish_args; end
     end
-    $stdout.reopen(out)
-    $stderr.reopen(out)
-    out.close
-    cmd = cmd.split(' ')
-    args.collect!(&:to_s)
+    $stdout.reopen(out); $stderr.reopen(out); out.close
+    cmd = cmd.split(' '); args.collect!(&:to_s)
     exec(*cmd, *args) rescue nil
-    puts "Failed to execute:  #{cmd}"
-    exit! 1 # never gets here unless exec threw or failed
+    puts "Failed to execute:  #{cmd}"; exit! 1  # never gets here unless exec threw or failed
   end # exec_cmd
 
   def stage
@@ -1120,27 +1089,19 @@ class Formula
   def prepare_patches
     active_spec.add_legacy_patches(patches) if respond_to?(:patches)
     patchlist.grep(DATAPatch) { |p| p.path = path }
-    patchlist.each { |p| p.verify_download_integrity(p.fetch) if p.external? }
+    patchlist.each{ |p| p.verify_download_integrity(p.fetch) if p.external? }
   end
 
   def self.method_added(method)
     case method
-      when :brew
-        raise RuntimeError, "You cannot override Formula#brew in class #{name}."
-      when :insinuate
-        define_method(:insinuate_defined?) { true }
+      when :brew    then raise RuntimeError, "You may not override Formula#brew in class #{name}."
+      when :insinuate then define_method(:insinuate_defined?){ true }
       when :options
         instance = allocate
-        specs.each do |spec|
-          instance.options.each do |opt, desc|
-            spec.option(opt[/^--(.+)$/, 1], desc)
-          end
-        end # do each |spec|
+        specs.each{ |ss| instance.options.each{ |opt, desc| ss.option(opt[/^--(.+)$/, 1], desc) } }
         remove_method(:options)
-      when :test
-        define_method(:test_defined?) { true }
-      when :uninsinuate
-        define_method(:uninsinuate_defined?) { true }
+      when :test    then define_method(:test_defined?){ true }
+      when :uninsinuate then define_method(:uninsinuate_defined?){ true }
     end
   end # Formula::method_added
 
@@ -1243,9 +1204,7 @@ class Formula
     # what we’ve declared in the {Formula}.  To quickly fill this value you can leave it blank and
     # run `brew fetch --force`; it’ll tell you the currently valid value.
     #     sha256 '2a2ba417eebaadcb4418ee7b12fe2998f26d6e6f7fda7983412ff66a741ab6f7'
-    Checksum::TYPES.each do |type|
-      define_method(type) { |val| stable.send(type, val) }
-    end
+    Checksum::TYPES.each do |type| define_method(type){ |val| stable.send(type, val) }; end
 
     # @!attribute [w] bottle
     # Adds a {.bottle} {SoftwareSpec}.  This provides a pre-built binary package built by the
@@ -1333,14 +1292,10 @@ class Formula
     #       sha256 'c6bc3f48ce8e797854c4b865f6a8ff969867bbcaebd648ae6fd825683e59fef2'
     #     end
     def resource(name, klass = Resource, &block)
-      specs.each do |spec|
-        spec.resource(name, klass, &block) unless spec.resource_defined?(name)
-      end
+      specs.each{ |ss| ss.resource(name, klass, &block) unless ss.resource_defined?(name) }
     end
 
-    def go_resource(name, &block)
-      specs.each { |spec| spec.go_resource(name, &block) }
-    end
+    def go_resource(name, &block); specs.each{ |ss| ss.go_resource(name, &block) }; end
 
     # The dependencies for this formula.  Use strings for the names of other formulae.  Homebrew
     # provides some :special dependencies for stuff that requires certain extra handling (often
@@ -1388,7 +1343,7 @@ class Formula
     #     depends_on :python3 => :optional
     # `depends_on` also accepts an array of operands.  Internally, it converts such an array to a
     # succession of individual `depends_on` statements.
-    def depends_on(dep); specs.each { |spec| spec.depends_on(dep) }; end
+    def depends_on(dep); specs.each{ |ss| ss.depends_on(dep) }; end
 
     # Define a set of alternate dependencies, only one of which is to be selectable.  For example,
     #     depends_1_of ['label', ['formula_1', 'formula_2', 'formula_3']] => :optional
@@ -1483,18 +1438,15 @@ class Formula
     # @private
     def conflicts; @conflicts ||= []; end
 
-    # If this formula conflicts with another one.
+    # Use this if this formula conflicts with another one.
     #     conflicts_with 'imagemagick', :because => 'because this is just a stupid example'
     def conflicts_with(*names)
       opts = Hash === names.last ? names.pop : {}
       names.each { |name| conflicts << FormulaConflict.new(name, opts[:because]) }
     end
 
-    def skip_clean(*paths)
-      paths.flatten!
-      # Specifying :all is deprecated and will become an error
-      skip_clean_paths.merge(paths)
-    end
+    # Specifying :all is deprecated and will become an error
+    def skip_clean(*paths); paths.flatten!; skip_clean_paths.merge(paths); end
 
     # @private
     def skip_clean_paths; @skip_clean_paths ||= Set.new; end
@@ -1506,13 +1458,11 @@ class Formula
     # we don't shadow software provided by OS X.
     #     keg_only :provided_by_osx
     #     keg_only 'because I want it so'
-    def keg_only(reason, explanation = '')
-      @keg_only_reason = KegOnlyReason.new(reason, explanation)
-    end
+    def keg_only(reason, blurb = ''); @keg_only_reason = KegOnlyReason.new(reason, blurb); end
 
     # Pass :skip to this method to disable post-install stdlib checking.
     def cxxstdlib_check(check_type)
-      define_method(:skip_cxxstdlib_check?) { true } if check_type == :skip
+      define_method(:skip_cxxstdlib_check?){ true } if check_type == :skip
     end
 
     # Marks the {Formula} as failing with a particular compiler so it will fall back to others.
@@ -1542,9 +1492,7 @@ class Formula
     #     end
     # Note that the cause is now neither used nor saved, but can still be specified for the formula
     # author’s benefit.
-    def fails_with(compiler, &block)
-      specs.each { |spec| spec.fails_with(compiler, &block) }
-    end
+    def fails_with(compiler, &block); specs.each{ |spec| spec.fails_with(compiler, &block) }; end
 
     # The formula may need compiler support for a specific set of features.  These can be specified
     # using `needs`:
@@ -1553,7 +1501,7 @@ class Formula
     #     needs :tls    # Thread-Local Storage.  GCCs a bit more recent than Apple’s implemented a
     #                   # trick that makes this work on PowerPC, even though Leopard itself doesn’t
     #                   # have that concept.
-    def needs(*standards); specs.each { |spec| spec.needs(*standards) }; end
+    def needs(*standards); specs.each{ |spec| spec.needs(*standards) }; end
 
     # Test (is required for new formula and makes us happy).
     # @return [Boolean]
@@ -1601,10 +1549,7 @@ class Formula
     def uninsinuate(silent = nil, &block); define_method(:uninsinuate){ yield silent }; end
 
     # @private
-    def link_overwrite(*paths)
-      paths.flatten!
-      link_overwrite_paths.merge(paths)
-    end
+    def link_overwrite(*paths); paths.flatten!; link_overwrite_paths.merge(paths); end
 
     # @private
     def link_overwrite_paths; @link_overwrite_paths ||= Set.new; end
