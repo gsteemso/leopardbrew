@@ -1,5 +1,5 @@
 # stable release 2025-06-03; checked 2025-08-08
-# (Python 10.11.x should build but needs C11; 3.12.x and 3.13.x are inscrutable.)
+# (Python 3.11.x should build but needs C11; 3.12.x and 3.13.x are inscrutable.)
 class Python3 < Formula
   desc 'Interpreted, interactive, object-oriented programming language'
   homepage 'https://www.python.org/'
@@ -230,15 +230,21 @@ END_OF_PATCH
                     Formula['sqlite'].opt_lib, Formula['tcl-tk'].opt_lib]
 
     cfg = cellar_framework/"lib/python#{xy}/distutils/distutils.cfg"
-
     cfg.atomic_write <<-EOS.undent
-      [install]
-      prefix=#{HOMEBREW_PREFIX}
+        [install]
+        prefix=#{HOMEBREW_PREFIX}
 
-      [build_ext]
-      include_dirs=#{include_dirs.join ':'}
-      library_dirs=#{library_dirs.join ':'}
-    EOS
+        [build_ext]
+        include_dirs=#{include_dirs.join ':'}
+        library_dirs=#{library_dirs.join ':'}
+      EOS
+
+    cfg = cellar_framework/'pip.conf'
+    cfg.atomic_write <<-_.undent
+        [install]
+        prefix = #{HOMEBREW_PREFIX}
+        no-warn-script-location = true
+      _
   end # post_install
 
   def cellar_framework; frameworks/"Python.framework/Versions/#{xy}"; end
@@ -281,10 +287,9 @@ END_OF_PATCH
           # .pth files have already been processed so don't use addsitedir
           sys.path.extend(library_packages)
 
-          # the Cellar site-packages is a symlink to the HOMEBREW_PREFIX
-          # site_packages; prefer the shorter paths
-          long_prefix = re.compile(r'#{rack}/[0-9\._abrc]+/Frameworks/Python\.framework/Versions/#{xy}/lib/python#{xy}/site-packages')
-          sys.path = [long_prefix.sub('#{HOMEBREW_PREFIX/"lib/python#{xy}/site-packages"}', p) for p in sys.path]
+          # the Cellar site-packages is a symlink to the HOMEBREW_PREFIX site_packages; prefer the shorter paths
+          long_prefix = re.compile(r'#{rack}/[0-9\._abrc]+/Frameworks/Python\.framework/Versions/#{xy}/#{relative_site_packages}')
+          sys.path = [long_prefix.sub('#{site_packages}', p) for p in sys.path]
 
           # Set the sys.executable to use the opt_prefix
           sys.executable = '#{opt_bin}/python#{xy}'
