@@ -212,8 +212,7 @@ module Homebrew
     remove_failed_install(f)
     check_macports
     raise
-  rescue Exception => e
-    puts e.inspect if DEBUG
+  rescue Exception
     remove_failed_install(f)
     raise
   else
