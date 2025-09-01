@@ -11,19 +11,19 @@ class Zstd < Formula
   depends_on 'lz4' => :recommended
 
   if MacOS.version < :leopard
-#    depends_on 'apple-gcc42' => :build  # may not actually be true
+    # Does not actually depend on {apple-gcc42}, but {ld64}’s :compiler_failure for gcc-4.0 means
+    # this won’t build without it due to cross‐contamination of class instances.
     depends_on 'cctools'     => :build  # Needs a more recent "as".
     depends_on 'ld64'        => :build  # Tiger's system `ld` can't build the library.
     depends_on 'make'        => :build  # Tiger's system `make` can't handle the makefile.
   end
 
-  # eliminate dependency extraction, freeing :universal build
   patch :DATA
 
   def install
     ENV.deparallelize
     # For some reason, type `long long` is not understood unless this is made explicit:
-    ENV.append_to_cflags '-std=c99'
+    ENV.append_to_cflags '-std=gnu99'
     ENV.universal_binary if build.universal?
 
     # The “install” Make target covers static & dynamic libraries, CLI binaries, and manpages.
@@ -50,6 +50,18 @@ class Zstd < Formula
 end # Zstd
 
 __END__
+# eliminate a fake symbol, added to avoid a harmless warning, that prevents successful dylib build
+--- old/lib/common/threading.c
++++ new/lib/common/threading.c
+@@ -18,7 +18,6 @@
+ #include "threading.h"
+ 
+ /* create fake symbol to avoid empty translation unit warning */
+-int g_ZSTD_threading_useless_symbol;
+ 
+ #if defined(ZSTD_MULTITHREAD) && defined(_WIN32)
+ 
+# eliminate dependency extraction, freeing :universal build
 --- old/lib/Makefile
 +++ new/lib/Makefile
 @@ -200,15 +200,15 @@
@@ -63,13 +75,13 @@ __END__
 +$(ZSTD_DYNLIB_DIR)/%.o : %.c $(ZSTD_DYNLIB_DIR)
  	@echo CC $@
 -	$(COMPILE.c) $(DEPFLAGS) $(ZSTD_DYNLIB_DIR)/$*.d $(OUTPUT_OPTION) $<
-+	$(COMPILE.c) $(DEPFLAGS) $(OUTPUT_OPTION) $<
++	$(COMPILE.c) $(OUTPUT_OPTION) $<
  
 -$(ZSTD_STATLIB_DIR)/%.o : %.c $(ZSTD_STATLIB_DIR)/%.d | $(ZSTD_STATLIB_DIR)
 +$(ZSTD_STATLIB_DIR)/%.o : %.c $(ZSTD_STATLIB_DIR)
  	@echo CC $@
 -	$(COMPILE.c) $(DEPFLAGS) $(ZSTD_STATLIB_DIR)/$*.d $(OUTPUT_OPTION) $<
-+	$(COMPILE.c) $(DEPFLAGS) $(OUTPUT_OPTION) $<
++	$(COMPILE.c) $(OUTPUT_OPTION) $<
  
  $(ZSTD_DYNLIB_DIR)/%.o : %.S | $(ZSTD_DYNLIB_DIR)
  	@echo AS $@
@@ -97,7 +109,7 @@ __END__
 +$(BUILD_DIR)/%.o : %.c $(BUILD_DIR)
  	@echo CC $@
 -	$(COMPILE.c) $(DEPFLAGS) $(BUILD_DIR)/$*.d $(OUTPUT_OPTION) $<
-+	$(COMPILE.c) $(DEPFLAGS) $(OUTPUT_OPTION) $<
++	$(COMPILE.c) $(OUTPUT_OPTION) $<
  
  $(BUILD_DIR)/%.o : %.S | $(BUILD_DIR)
  	@echo AS $@
