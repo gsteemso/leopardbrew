@@ -18,7 +18,6 @@ class Coreutils < Formula
   end
 
   option 'without-gmp',   'Build with default (inferior) math handling'
-  option 'without-nls',   'Build without natural‐language support (internationalization)'
 
   depends_on 'gmp' => :recommended
   depends_on :nls  => :recommended
@@ -50,7 +49,7 @@ class Coreutils < Formula
       --program-prefix=g
       --disable-silent-rules
     ]
-    args << '--disable-year2038' unless MacOS.prefer_64_bit?
+    args << '--disable-year2038' unless ENV.building_pure_64_bit?
     args << '--without-gmp' if build.without? 'gmp'
     system './configure', *args
     system 'make'
