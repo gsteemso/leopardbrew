@@ -20,6 +20,8 @@ class Openssl3 < Formula
   depends_on 'curl-ca-bundle'
   depends_on 'perl'
 
+  # These are loaded dynamically by OpenSSL at runtime, so don’t be alarmed that they do not appear
+  # in the libraries’ linkage lists even when enhancement has been performed.
   enhanced_by 'brotli'
   enhanced_by 'zlib'
   enhanced_by 'zstd'
@@ -42,7 +44,7 @@ class Openssl3 < Formula
     # This ensures where Homebrew’s Perl is needed its Cellar path isn’t hardcoded into OpenSSL’s
     # scripts, breaking them every Perl update.  Our env does point to opt_bin, but by default
     # OpenSSL resolves the symlink.
-    ENV['PERL'] = Formula['perl'].opt_bin/'perl'
+    ENV['HASHBANGPERL'] = Formula['perl'].opt_bin/'perl'
 
     if build.universal?
       archs = CPU.local_archs
@@ -68,21 +70,40 @@ class Openssl3 < Formula
     args = [
       "--prefix=#{prefix}",
       "--openssldir=#{openssldir}",
-      'no-legacy',  # For whatever reason, the build tests fail to locate the legacy provider.
-      'no-makedepend',
+      'no-legacy',      # For whatever reason, the build tests fail to locate the legacy provider.
+      'no-makedepend',  # Required for multi-architecture builds.
+      'enable-pie',
       'enable-trace',
-      'zlib-dynamic'
+      'enable-zlib-dynamic'
     ]
-    if MacOS.version < '10.5'
-      args << 'no-async'           # There’s no {get,make,set}context support pre‐Leopard.
-      args << '-DOPENSSL_NO_APPLE_CRYPTO_RANDOM'  # Nor the crypto framework.
-      args << '-D__DARWIN_UNIX03'  # If this is not set, 'timezone' is a pointer to characters
-                                   # instead of a longint, making a mess in crypto/asn1/a_time.c.
+    if MacOS.version < :leopard
+      args += ['no-async',          # There’s no {get,make,set}context support pre‐Leopard.
+               '-DOPENSSL_NO_APPLE_CRYPTO_RANDOM',  # Nor the crypto framework.
+               '-D__DARWIN_UNIX03'  # If this is not set, 'timezone' is a pointer to characters
+        ]                           # instead of a longint, making a mess in crypto/asn1/a_time.c.
     end
-    args << 'sctp'       if MacOS.version >  '10.5'   # Pre‐Snow Leopard lacks these system headers.
-    args << 'enable-tfo' if MacOS.version >= '10.14'  # Pre-Mojave doesn’t support TCP Fast Open.
-    args << 'enable-brotli-dynamic' if enhanced_by? 'brotli'
-    args << 'enable-zstd-dynamic'   if enhanced_by? 'zstd'
+    args << 'sctp'       if MacOS.version >  :leopard  # Pre‐Snow Leopard lacks these system headers.
+    args << 'enable-tfo' if MacOS.version >= :mojave   # Pre-Mojave doesn’t support TCP Fast Open.
+    if enhanced_by? 'brotli'
+      brotli = Formula['brotli']
+      args += ['enable-brotli-dynamic',
+               "--with-brotli-include=#{brotli.opt_include}",
+               "--with-brotli-lib=#{brotli.opt_lib}"
+        ]
+    end
+    if enhanced_by? 'zlib'
+      zlib = Formula['zlib']
+      args += ["--with-zlib-include=#{zlib.opt_include}", "--with-zlib-lib=#{zlib.opt_lib}"]
+    else
+      args += ['--with-zlib-include=/usr/include', '--with-zlib-lib=/usr/lib']
+    end
+    if enhanced_by? 'zstd'
+      zstd = Formula['zstd']
+      args += ['enable-zstd-dynamic',
+               "--with-zstd-include=#{zstd.opt_include}",
+               "--with-zstd-lib=#{zstd.opt_lib}"
+        ]
+    end
 
     archs.each do |arch|
       ENV.set_build_archs(arch) if build.universal?
@@ -92,7 +113,10 @@ class Openssl3 < Formula
       ]
       arch_args << '-D__ILP32__' if CPU.is_32b_arch?(arch)  # Apple never needed to define this.
 
-      system 'perl', './Configure', *args, *arch_args
+      # “perl Configure”, instead of “./Configure”, because the Configure script’s shebang line may
+      # well name the wrong Perl binary.  (If we have an outdated stock Perl, we really do not want
+      # to use that when we meant to use brewed Perl.)
+      system 'perl', 'Configure', *args, *arch_args
       system 'make'
       system 'make', 'test' if build.with? 'tests'
       system 'make', 'install'
