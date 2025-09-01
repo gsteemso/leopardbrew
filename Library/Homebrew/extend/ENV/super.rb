@@ -44,7 +44,7 @@ module Superenv
     self['HOMEBREW_OPTIMIZATION_LEVEL'] = 'Os'
     self['HOMEBREW_TEMP']          = HOMEBREW_TEMP.to_s
     self['HOMEBREW_SDKROOT']       = effective_sysroot
-    self['HOMEBREW_OPTFLAGS']      = determine_optflags
+    self['HOMEBREW_OPTFLAGS']      = determine_optflags(archset)
     self['HOMEBREW_ARCHFLAGS']     = determine_archflags(archset)
     self['CMAKE_PREFIX_PATH']      = determine_cmake_prefix_path
     self['CMAKE_FRAMEWORK_PATH']   = determine_cmake_frameworks_path
@@ -135,15 +135,18 @@ module Superenv
     @effective_sysroot ||= MacOS::Xcode.without_clt? ? MacOS.sdk_path.to_s : nil
   end
 
-  def determine_optflags
+  def determine_optflags(archset)
     if compiler == :clang then '-march=native'
     else
       mdl = if ARGV.build_bottle? then CPU.bottle_target_model
-            # If the CPU doesn't support SSE4, we cannot trust -march=native or -march=<cpu family>
-            # to do the right thing because we might be running in a VM or on a Hackintosh.
+            # If an Intel-type CPU doesn't support SSE4, we cannot trust either -march=native or
+            # -march=<cpu family> to do the right thing because we might be running in a VM or on a
+            # Hackintosh.
             elsif CPU.intel? and not CPU.sse4? then CPU.oldest(CPU._64b? ? :x86_64 : :i386)
             else CPU.model; end
-      CPU.optimization_flags(mdl, compiler_version)
+      CPU.optimization_flags(mdl, compiler_version).split(' ').map{ |flag|
+          archset.map{ |arch| "-Xarch_#{arch} #{flag}" }
+        }.join(' ')
     end
   end # determine_optflags
 
