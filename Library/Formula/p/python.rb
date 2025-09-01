@@ -206,8 +206,7 @@ END_OF_PATCH
     # and therefore we can't link both into HOMEBREW_PREFIX/Frameworks
     # https://github.com/Homebrew/homebrew/issues/15943
     # After 2020, Python 3 is the norm; thus, remove these from Python rather than from Python3
-    ['Headers', 'Python', 'Resources'].each { |f| rm frameworks/"Python.framework/#{f}" }
-    rm frameworks/'Python.framework/Versions/Current'
+    ['Headers', 'Python', 'Resources', 'Versions/Current'].each { |f| rm frameworks/"Python.framework/#{f}" }
 
     # Symlink the pkgconfig files into HOMEBREW_PREFIX so they're accessible.
     (lib/'pkgconfig').install_symlink Dir[cellar_framework/'lib/pkgconfig/*']

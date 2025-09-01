@@ -12,7 +12,6 @@ class Binutils241 < Formula
   option :universal
   option 'with-tests', 'Enable running build-time unit tests (requires {deja-gnu})'
   option 'with-zstd', 'Allow debugging‐data compression in ZStandard format'
-  option 'without-nls', 'Build without natural‐language support (internationalization)'
 
   depends_on 'texinfo'    => :build  # for the documentation; stock version is too old
   depends_on 'deja-gnu'   => :build if build.with? 'tests'

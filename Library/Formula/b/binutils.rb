@@ -15,12 +15,11 @@ class Binutils < Formula
   # No --default-names option as it interferes with Homebrew builds.
   option :universal
   option 'with-zstd', 'Allow debugging‐data compression in ZStandard format'
-  option 'without-nls', 'Build without natural‐language support (internationalization)'
 
   depends_on 'pkg-config' => :build if build.with? 'zstd'
   depends_on 'isl'
   depends_on 'zlib'
-  depends_on 'gettext' if build.with? 'nls'
+  depends_on :nls => :recommended
   depends_on 'zstd' => :optional
 
   def install

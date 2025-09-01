@@ -11,9 +11,7 @@ class Snownews < Formula
     sha256 "50505095e31d0c0a0960cae1abd00e8900c64967c5ad81068de161c510e59afe" => :mavericks
   end
 
-  option "without-nls", "Build without translations"
-
-  depends_on "gettext" if build.with? "nls"
+  depends_on :nls => :recommended
   depends_on "openssl"
 
   # Fix system openssl linking error on OS X.

@@ -11,7 +11,6 @@ class Gcc7 < Formula
   option 'without-cross-compiler', 'Don’t build the complementary compiler for building fat binaries'
   # Enabling multilib on a host that can’t run 64‐bit causes build failures.
   option 'without-multilib', 'Build without multilib support' if MacOS.prefer_64_bit?
-  option 'without-nls', 'Build without Natural‐Language Support (localization)'
 
   # Tiger’s stock as can’t handle the PowerPC assembly found in libitm.
   depends_on :cctools => :build if MacOS.version < '10.5'

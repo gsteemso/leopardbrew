@@ -16,15 +16,17 @@ class Pulseaudio < Formula
     depends_on "automake" => :build
     depends_on "autoconf" => :build
     depends_on "intltool" => :build
-    depends_on "gettext" => :build
+    depends_on :nls       => :build
   end
 
-  option "with-nls", "Build with native language support"
+  stable do
+    depends_on :nls => [:optional, :build]
+    depends_on "intltool" => :build if build.with? "nls"
+  end
+
   option :universal
 
   depends_on "pkg-config" => :build
-  depends_on "intltool" => :build if build.with? "nls"
-  depends_on "gettext" => :build if build.with? "nls"
 
   depends_on "libtool" => :run
   depends_on "json-c"
@@ -38,6 +40,8 @@ class Pulseaudio < Formula
   depends_on "d-bus" => :optional
   depends_on "gtk+3" => :optional
   depends_on "jack" => :optional
+
+  needs :tls
 
   # i386 patch per MacPorts
   patch :p0 do

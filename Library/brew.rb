@@ -10,8 +10,7 @@ $:.unshift(ENV['HOMEBREW_RUBY_LIBRARY'])
 require 'global'  # among other things, imports our environment variables as constants
 require 'utils'   # defines or imports a lot of our infrastructure
 
-case ARGV.first
-when '-V', '--version'
+if ['-V', '--version'].include? ARGV.first
   puts Homebrew.homebrew_version_string
   exit 0
 end

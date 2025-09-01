@@ -46,7 +46,7 @@ class Migrator
   # old name of the formula
   attr_reader :oldname
 
-  # path to oldname's cellar
+  # path to oldname’s rack in the cellar
   attr_reader :old_cellar
 
   # path to oldname pin
@@ -73,7 +73,7 @@ class Migrator
   # new name of the formula
   attr_reader :newname
 
-  # path to newname cellar according to new name
+  # path to newname’s rack in the cellar according to new name
   attr_reader :new_cellar
 
   # path to newname pin
@@ -184,9 +184,9 @@ class Migrator
   def repin
     if pinned?
       # old_pin_record is a relative symlink and when we try to to read it
-      # from <dir> we actually try to find file
+      # from <dir> we actually try to find the directory
       # <dir>/../<...>/../Cellar/name/version.
-      # To repin formula we need to update the link thus that it points to
+      # To repin a formula we need to update the link such that it points to
       # the right directory.
       # NOTE: old_pin_record.realpath.sub(oldname, newname) is unacceptable
       # here, because it resolves every symlink for old_pin_record and then

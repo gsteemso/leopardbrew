@@ -33,7 +33,7 @@ class Gcc5 < Formula
   # See: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=46986
   option "with-java", "Build the gcj compiler"
   option "with-all-languages", "Enable all compilers and languages, except Ada"
-  option "with-nls", "Build with native language support (localization)"
+  option "with-nls", "Build with Natural-Language Support (internationalization)"
   option "with-profiled-build", "Make use of profile guided optimization when bootstrapping GCC"
   option "with-jit", "Build just-in-time compiler"
   option "without-fortran", "Build without the gfortran compiler"

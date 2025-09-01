@@ -7,7 +7,6 @@ class Grep < Formula
 
   option 'with-default-names', 'Do not prepend “g” to the binaries'
   deprecated_option 'default-names' => 'with-default-names'
-  option 'without-nls', 'Do not install with Natural Language Support (internationalization)'
 
   depends_on 'pkg-config' => :build
   depends_on 'pcre2'

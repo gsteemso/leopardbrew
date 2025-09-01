@@ -13,9 +13,7 @@ class Pv < Formula
     sha256 "1b48570302d9357be80e10a3dfd0362863ced93c111cc827c7fab7b2e79dae9e" => :mountain_lion
   end
 
-  option "with-gettext", "Build with Native Language Support"
-
-  depends_on "gettext" => :optional
+  depends_on :nls => :optional
 
   fails_with :llvm do
     build 2334
@@ -28,7 +26,7 @@ class Pv < Formula
       --mandir=#{man}
     ]
 
-    args << "--disable-nls" if build.without? "gettext"
+    args << "--disable-nls" if build.without? 'nls'
 
     system "./configure", *args
     system "make", "install"

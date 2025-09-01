@@ -135,39 +135,27 @@ module MacOS
   # https://github.com/Homebrew/homebrew/issues/48
   def macports_or_fink
     paths = []
-    # First look in the path because MacPorts is relocatable and Fink
-    # may become relocatable in the future.
-    %w[port fink].each do |ponk|
-      path = which(ponk)
-      paths << path unless path.nil?
-    end
-    # Look in the standard locations, because even if port or fink are
-    # not in the path they can still break builds if the build scripts
-    # have these paths baked in.
-    %w[/sw/bin/fink /opt/local/bin/port].each do |ponk|
-      path = Pathname.new(ponk)
-      paths << path if path.exist?
-    end
-    # Finally, some users make their MacPorts or Fink directories
-    # read-only in order to try out Homebrew, but this doesn't work as
-    # some build scripts error out when trying to read from these now
-    # unreadable paths.
-    %w[/sw /opt/local].map { |p| Pathname.new(p) }.each do |path|
-      paths << path if path.exist? && !path.readable?
-    end
-
+    # First look in the path, because MacPorts is relocatable and Fink may become so in future.
+    %w[port fink].each{ |ponk| if (path = which ponk) then paths << path; end }
+    # Look in the standard locations, because even if port or fink are not in the path they can
+    # still break builds if the build scripts have these paths baked in.
+    %w[/sw/bin/fink /opt/local/bin/port].each{ |ponk|
+      if (path = Pathname.new ponk).exists? then paths << path; end
+    }
+    # Finally, some users make their MacPorts or Fink directories read-only in order to try out
+    # Homebrew, but this doesn't work as some build scripts error out when trying to read from
+    # these now unreadable paths.
+    %w[/sw /opt/local].map{ |p| Pathname.new(p) }.each{ |path|
+      paths << path if path.exists? and not path.readable?
+    }
     paths.uniq
   end # macports_or_fink
 
   def prefer_64_bit?
-    CPU._64b? and version >= :lion or ENV['HOMEBREW_PREFER_64_BIT'] and version >= :leopard
+    CPU._64b? and version >= :snow_leopard or ENV['HOMEBREW_PREFER_64_BIT'] and version >= :leopard
   end
 
-  def preferred_arch
-    if ARGV.build_bottle? then CPU.bottle_target_arch
-    else prefer_64_bit? ? CPU._64b_arch : CPU._32b_arch
-    end
-  end
+  def preferred_arch; prefer_64_bit? ? CPU._64b_arch : CPU._32b_arch; end
 
   def preferred_arch_as_list; [preferred_arch].extend(ArchitectureListExtension); end
 
@@ -177,17 +165,17 @@ module MacOS
       when :arm64, :arm64e   then :x86_64h
       when :g5_64, :ppc64    then :x86_64
       when :i386             then :ppc
-      when :x86_64, :x86_64h then (version >= :catalina ? :arm64e : :ppc64)
+      when :x86_64, :x86_64h then (version >= :big_sur ? :arm64e : :ppc64)
       else :dunno
     end
   end # counterpart_arch
 
   def counterpart_arch_as_list; [counterpart_arch].extend(ArchitectureListExtension); end
 
-  def counterpart_type(main_type)
+  def counterpart_type(main_type = CPU.type)
     case main_type
       when :arm, :powerpc then :intel
-      when :intel then (version >= :catalina ? :arm : :powerpc)
+      when :intel then (version >= :big_sur ? :arm : :powerpc)
       else :dunno
     end
   end # counterpart_type

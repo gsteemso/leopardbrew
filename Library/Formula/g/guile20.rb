@@ -6,7 +6,6 @@ class Guile20 < Formula
   sha256 'e8442566256e1be14e51fc18839cd799b966bc5b16c6a1d7a7c35155a8619d82'
 
   option :universal
-  option 'without-nls',   'Build without natural‐language support (internationalization)'
   option 'without-tests', 'Skip the build-time unit tests'
 
   depends_on 'pkg-config' => :build

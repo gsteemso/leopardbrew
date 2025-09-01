@@ -126,8 +126,7 @@ Otherwise, you should:
 EOS
 
 XCRUN_OUTPUT="$(/usr/bin/xcrun clang 2>&1)"
-XCRUN_STATUS="$?"
-[ "$XCRUN_STATUS" -ne 0 ] &&
+[ "$?" -ne 0 ] &&
   case "$XCRUN_OUTPUT" in
     *license*)
       odie <<EOS
@@ -189,7 +188,8 @@ if [ -n "$HOMEBREW_BASH_COMMAND" ]; then
   source "$HOMEBREW_BASH_COMMAND"
   { "homebrew-$HOMEBREW_COMMAND" "$@"; exit $?; }
 else
-  # Unshift command back into argument list (unless argument list was empty).
+  # Unshift command back into argument list (unless it was empty, i.e. there was
+  # no command).
   [ "$HOMEBREW_ARG_COUNT" -gt 0 ] && set -- "$HOMEBREW_COMMAND" "$@"
   if [ -n "$HOMEBREW_DEBUG_RUBY" ]; then
     export HOMEBREW_DEBUG_RUBY

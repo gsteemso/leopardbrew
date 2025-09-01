@@ -12,11 +12,10 @@ class Shmcat < Formula
   end
 
   option "with-ftok", "Build the ftok utility"
-  option "with-gettext", "Build with Native Language Support"
 
-  deprecated_option "with-nls" => "with-gettext"
+  deprecated_option "with-gettext" => "with-nls"
 
-  depends_on "gettext" => :optional
+  depends_on :nls => :optional
 
   def install
     args = %W[
@@ -26,7 +25,7 @@ class Shmcat < Formula
 
     args << "--disable-ftok" if build.without? "ftok"
 
-    if build.with? "gettext"
+    if build.with? 'nls'
       args << "--with-libintl-prefix=#{Formula["gettext"].opt_include}"
     else
       args << "--disable-nls"
