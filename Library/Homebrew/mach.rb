@@ -7,7 +7,7 @@ INTEL_ARCHS = [:i386, :x86_64, :x86_64h].freeze;
 
 INTEL_ARCHS_64 = [:x86_64, :x86_64h].freeze;
 
-ARM_ARCHS = [:arm64e].freeze
+ARM_ARCHS = [:arm64, :arm64e].freeze
 
 module ArchitectureListExtension  # applicable to arrays of architecture symbols
   # @private
@@ -60,13 +60,13 @@ module MachO
   MACH_FILE_TYPE = {
     0x00000001 => :MH_OBJECT,       # Relatively small object‐code file
     0x00000002 => :MH_EXECUTE,      # Executable
-    0x00000003 => :MH_FVMLIB,       # Fixed VM shared library file
+    0x00000003 => :MH_FVMLIB,       # Fixed VM shared library file (obsolete)
     0x00000004 => :MH_CORE,         # Core dump
     0x00000005 => :MH_PRELOAD,      # Preloaded executable
     0x00000006 => :MH_DYLIB,        # Dynamically bound shared library
     0x00000007 => :MH_DYLINKER,     # Dynamic link editor (LD itself)
     0x00000008 => :MH_BUNDLE,       # Dynamically bound object‐code bundle
-    0x00000009 => :MH_DYLIB_STUB,   # Shared library stub – static linking only (no section contents)
+    0x00000009 => :MH_DYLIB_STUB,   # Shared library stub – static linking only (sections have no content)
     0x0000000a => :MH_DSYM,         # “companion file with only debug sections”
     0x0000000b => :MH_KEXT_BUNDLE,  # X86_64 kernel extension
     0x0000000c => :MH_FILESET       # “set of Mach‐Os”
@@ -87,8 +87,8 @@ module MachO
             if (fct = fat_count_at(0)) and fct > 0
               fct.times do |i|
                 # The second uint32 is the number of `struct fat_arch` in the file.  Each `struct
-                # fat_arch` is 5 uint32 (20 octets); the `offset` member is the 3rd (8 octets into
-                # the struct), with an additional 8‐octet offset due to the two-uint32 `struct
+                # fat_arch` is 5 uint32 (net 20 octets); the `offset` member is the 3rd (8 octets
+                # into the struct), with an additional 8‐octet offset due to the two-uint32 `struct
                 # fat_header` at the beginning of the file.
                 candidate = binread(4, 16 + 20*i).unpack("N").first
                 offsets << (ar_sigseek_from(candidate) or candidate)
@@ -98,7 +98,7 @@ module MachO
           end # mach-O signature?
         end # signatures?
         offsets.each do |offset|
-          if size >= (offset + 16)  # Mach headers:  We only care about the first 4 uint32 (16
+          if size >= (offset + 16)  # Mach headers:  We only care about the first 4 uint32 (net 16
             # octets) of the 7 in the header.  The first (at offset + 0) is the signature, the
             # second (at offset + 4) is the CPU type (with flags in the high‐order octet), the
             # third (at offset + 8) is the CPU subtype (with flags in the high‐order octet), and
@@ -246,11 +246,9 @@ module MachO
   # @private
   def mach_metadata; @mach_metadata ||= Metadata.new(self); end
 
-  # Returns an array containing all dynamically-linked libraries, based on the
-  # output of otool. This returns the install names, so these are not guaranteed
-  # to be absolute paths.
-  # Returns an empty array both for software that links against no libraries,
-  # and for non-mach objects.
+  # Returns an array containing all dynamically-linked libraries, based on the output of otool.
+  # This returns the install names, so these are not guaranteed to be absolute paths.  Returns an
+  # empty array both for software that links against no libraries, and for non-mach objects.
   # @private
   def dynamically_linked_libraries; mach_metadata.dylibs; end
 
