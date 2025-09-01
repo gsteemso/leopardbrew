@@ -10,7 +10,7 @@ require 'macos'
 module SharedEnvExtension
   include CompilerConstants
 
-  attr_reader :build_archs
+  attr_reader :build_archs, :formula_name
 
   # @private
   CC_FLAG_VARS = %w[CFLAGS CXXFLAGS OBJCFLAGS OBJCXXFLAGS]
@@ -33,6 +33,7 @@ module SharedEnvExtension
   # @private
   def setup_build_environment(formula = nil, archset = nil)
     @formula = formula
+    @formula_name = formula.full_name if formula
     reset
     @build_archs = archset || homebrew_build_archs || MacOS.preferred_arch_as_list
     set_build_archs(build_archs)
@@ -129,7 +130,7 @@ module SharedEnvExtension
   def fcflags; self['FCFLAGS']; end
 
   def homebrew_build_archs
-    if (hba = self['HOMEBREW_BUILD_ARCHS'])
+    if (hba = self['HOMEBREW_BUILD_ARCHS'].choke)
       hba.split(' ').extend ArchitectureListExtension
     end
   end
@@ -348,7 +349,6 @@ module SharedEnvExtension
 
   def m32
     if @without_archflags
-      clear_compiler_archflags
       set_compiler_archflags '-m32'
     else
       @build_arch_stash ||= build_archs
@@ -358,7 +358,6 @@ module SharedEnvExtension
 
   def m64
     if @without_archflags
-      clear_compiler_archflags
       set_compiler_archflags '-m64'
     else
       @build_arch_stash ||= build_archs
@@ -366,16 +365,23 @@ module SharedEnvExtension
     end
   end # m64
 
-  def un_mnn
+  def un_m32
     if @without_archflags
-      clear_compiler_archflags
+      remove COMPILER_VARS, '-m32'
     else
       set_build_archs @build_arch_stash
       @build_arch_stash = nil
     end
   end
-  alias_method :un_m32, :un_mnn
-  alias_method :un_m64, :un_mnn
+
+  def un_m64
+    if @without_archflags
+      remove COMPILER_VARS, '-m64'
+    else
+      set_build_archs @build_arch_stash
+      @build_arch_stash = nil
+    end
+  end
 
   private
 
