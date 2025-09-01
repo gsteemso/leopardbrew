@@ -42,6 +42,7 @@ class LanguageModuleRequirement < Requirement
       when :ruby
         if @require_brewed then %W[#{Formula['ruby'].opt_bin}/ruby -rubygems -e require\ '#{@import_name}']
         else %W[/usr/bin/env ruby -rubygems -e require\ '#{@import_name}']; end
+      else raise RuntimeError, "module specified for unknown language “#{@language}”"
     end # case @language
   end # the_test
 
