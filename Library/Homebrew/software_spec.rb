@@ -192,9 +192,9 @@ class SoftwareSpec
 
   def patch(strip = :p1, src = nil, &block); patches << Patch.create(strip, src, &block); end
 
-  def fails_with(compiler, &block); compiler_failures << CompilerFailure.create(compiler, &block); end
+  def fails_with(compiler, &block); @compiler_failures << CompilerFailure.create(compiler, &block); end
 
-  def needs(*stds); stds.each{ |std| compiler_failures.concat CompilerFailure.for_standard(std) }; end
+  def needs(*stds); stds.each{ |std| @compiler_failures.concat CompilerFailure.for_standard(std) }; end
 
   def add_legacy_patches(list)
     list = Patch.normalize_legacy_patches(list)
