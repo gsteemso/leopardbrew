@@ -1,3 +1,4 @@
+# stable release 2017-03-01; checked 2025-08-16
 class Lzo < Formula
   desc "Real-time data compression library"
   homepage "http://www.oberhumer.com/opensource/lzo/"
