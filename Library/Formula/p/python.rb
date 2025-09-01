@@ -12,15 +12,19 @@ class Python < Formula
   end
 
   # Please don't add a wide/ucs4 option, as it won't be accepted.
-  # More details in: https://github.com/Homebrew/homebrew/pull/32368
+  # More details in:  https://github.com/Homebrew/homebrew/pull/32368
 
   option :universal
-  if Formula['sphinx-doc'].installed?
+  if Formula['python3'].installed?
     option 'with-html-docs', 'also build documentation in HTML format'
     deprecated_option 'with-sphinx-doc' => 'with-html-docs'
   end
 
   depends_on 'pkg-config' => :build
+  if build.with?('html-docs')
+    depends_on :python3   => :build
+    depends_on LanguageModuleRequirement.new(:python3, 'sphinx') => :build
+  end
   depends_on 'openssl3'
   depends_on 'tcl-tk'
   depends_on 'gdbm' => :recommended
@@ -29,7 +33,6 @@ class Python < Formula
   depends_on 'berkeley-db4' => :optional
 
   enhanced_by ':nls'        # Useful if available, but not worth actually depending on.
-  enhanced_by 'sphinx-doc'  # For making documentation in HTML format.  Circularly dependent.
   enhanced_by 'zlib'        # Sometimes it will pick this up even when not made explicit, but we
                             # don’t _need_ it.
 
@@ -218,7 +221,7 @@ END_OF_PATCH
     cd 'Doc' do
       system 'make', 'html'
       doc.install Dir['build/html/*']
-    end if enhanced_by?('sphinx-doc') and build.with?('html-docs')
+    end if build.with?('html-docs')
   end # install
 
   def post_install
