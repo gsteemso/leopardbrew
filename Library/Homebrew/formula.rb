@@ -1543,7 +1543,9 @@ class Formula
     # Note that the cause is now neither used nor saved, but can still be specified for the formula
     # author’s benefit.
     def fails_with(compiler, &block)
-      specs.each { |spec| spec.fails_with(compiler, &block) }
+      # Only do our thing if we’re in the actual formula.  Otherwise we also get saddled with the
+      # limitations of its dependencies.  WTF, we get saddled with them ANYWAY?
+      specs.each { |spec| spec.fails_with(compiler, &block) } if ENV.formula_name and ENV.formula_name == full_name
     end
 
     # The formula may need compiler support for a specific set of features.  These can be specified
