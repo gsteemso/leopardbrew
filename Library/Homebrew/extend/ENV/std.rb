@@ -15,7 +15,7 @@ module Stdenv
   end
 
   # @private
-  def setup_build_environment(formula = nil, archset = nil)
+  def setup_build_environment(formula = nil, archset = CPU.default_archset)
     super
 
     if MacOS.version >= '10.8'

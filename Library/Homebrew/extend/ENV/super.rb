@@ -8,8 +8,8 @@ require 'extend/ENV/shared'
 # 4. Cater toolchain usage to specific Xcode versions
 # 5. Remove flags that we don't want or that will break builds
 # 6. Simpler code
-# 7. Simpler formula that *just work*
-# 8. Build-system agnostic configuration of the tool-chain
+# 7. Simpler formulæ that *just work*
+# 8. Build‐system‐agnostic configuration of the tool-chain
 module Superenv
   include SharedEnvExtension
 
@@ -32,11 +32,20 @@ module Superenv
   def reset; super; delete('as_nl'); end
 
   # @private
-  def setup_build_environment(formula = nil, archset = nil)
+  def setup_build_environment(formula = nil, archset = CPU.default_archset)
     super
 
     send(compiler)
 
+    # $M4 must go first because @deps may get modified.
+    if deps.any?{ |d| d.name == 'libtool' }
+      _m4 = OPTDIR/'m4/bin/m4'
+      unless _m4.executable? or deps.include? 'm4'
+        deps << 'm4'
+        keg_only_deps << 'm4'
+      end
+      self['M4']                   = _m4
+    end
     self['PATH']                   = determine_path
     self['PKG_CONFIG_PATH']        = determine_pkg_config_path
     self['PKG_CONFIG_LIBDIR']      = determine_pkg_config_libdir
@@ -51,7 +60,6 @@ module Superenv
     self['CMAKE_INCLUDE_PATH']     = determine_cmake_include_path
     self['CMAKE_LIBRARY_PATH']     = determine_cmake_library_path
     self['ACLOCAL_PATH']           = determine_aclocal_path
-    self['M4']                     = OPTDIR/'m4/bin/m4' if deps.any?{ |d| d.name == 'libtool' }
     self['HOMEBREW_ISYSTEM_PATHS'] = determine_isystem_paths
     self['HOMEBREW_INCLUDE_PATHS'] = determine_include_paths
     self['HOMEBREW_LIBRARY_PATHS'] = determine_library_paths
