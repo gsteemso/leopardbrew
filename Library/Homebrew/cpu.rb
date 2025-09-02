@@ -88,13 +88,14 @@ class CPU
 
     def oldest(arch_type = type)
       case arch_type
-        when :altivec              then :g4
-        when :arm, :arm64, :arm64e then :m1
-        when :i386, :intel         then :core
-        when :powerpc, :ppc        then :g3
-        when :ppc64                then :g5
-        when :x86_64               then :core2
-        when :x86_64h              then :haswell
+        when :altivec       then :g4
+        when :arm, :arm64   then :a12z
+        when :arm64e        then :m1
+        when :i386, :intel  then :core
+        when :powerpc, :ppc then :g3
+        when :ppc64         then :g5
+        when :x86_64        then :core2
+        when :x86_64h       then :haswell
         else :dunno
       end
     end # CPU⸬oldest
@@ -191,8 +192,8 @@ class CPU
 
     def _64b_arch
       case type
-        when :arm     then :arm64e
-        when :intel   then :x86_64  # the more compatible option
+        when :arm     then :arm64   # Use the most widely compatible architectures.
+        when :intel   then :x86_64  #
         when :powerpc then :ppc64
         else :dunno
       end
@@ -223,22 +224,27 @@ class CPU
     end # CPU⸬cross_archs
     def runnable_archs; all_archs.select{ |a| can_run?(a) }.extend ArchitectureListExtension; end;
 
+    def default_archset
+      ARGV.bottle_arch ? bottle_target_arch_as_list : MacOS.preferred_arch_as_list
+    end
+
     def select_32b_archs(archlist)
-      archlist.select{ |a| is_32b_arch?(a) }.extend ArchitectureListExtension
+      archlist.select{ |a| 32b_arch?(a) }.extend ArchitectureListExtension
     end
 
     def select_64b_archs(archlist)
-      archlist.select{ |a| is_64b_arch?(a) }.extend ArchitectureListExtension
+      archlist.select{ |a| 64b_arch?(a) }.extend ArchitectureListExtension
     end
 
-    def is_32b_arch?(a); all_32b_archs.any?{ |a32| a == a32 }; end
+    def 32b_arch?(a); all_32b_archs.any?{ |a32| a == a32 }; end
 
-    def is_64b_arch?(a); not is_32b_arch?(a); end
+    def 64b_arch?(a); not 32b_arch?(a); end
 
     def bottle_target_model
       case (barch = ARGV.bottle_arch || model)
         when :altivec              then :g4
-        when :arm, :arm64, :arm64e then :m1
+        when :arm, :arm64          then :a12z
+        when :arm64e               then :m1
         when :g5_64, :ppc64        then :g5
         when :i386                 then :core
         when :intel                then MacOS.prefer_64_bit? ? :core2 : :core
@@ -252,18 +258,19 @@ class CPU
     end # bottle_target_model
 
     def bottle_target_arch
-      barch = ARGV.bottle_arch || arch
-      case (barch)
-        when :altivec     then :ppc
-        when :arm, :arm64 then :arm64e
-        when :arm64e, :i386, :ppc, :ppc64, :x86_64, :x86_64h then barch
-        when :g5_64       then :ppc64
-        when :intel       then MacOS.prefer_64_bit? ? :x86_64 : :i386
-        when :powerpc     then MacOS.prefer_64_bit? ? :ppc64  : :ppc
+      case (barch = ARGV.bottle_arch || arch)
+        when :altivec  then :ppc
+        when :arm      then :arm64
+        when :arm64, :arm64e, :i386, :ppc, :ppc64, :x86_64, :x86_64h then barch
+        when :g5_64    then :ppc64
+        when :intel    then MacOS.prefer_64_bit? ? :x86_64 : :i386
+        when :powerpc  then MacOS.prefer_64_bit? ? :ppc64  : :ppc
         else arch(barch) or
                raise ArgumentError, "The bottle architecture “#{barch}” was not recognized."
       end
     end # bottle_target_arch
+
+    def bottle_target_arch_as_list; [bottle_target_arch].extend ArchitectureListExtension
 
     # Determines whether the current CPU and Mac OS combination can run an
     # executable of the specified architecture.  “this” is an arch symbol.
@@ -323,8 +330,8 @@ class CPU
     def intel_can_run?(this)
       case this
         when :arm64, :arm64e, :ppc64 then false  # No fwd compatibility, & Rosetta never did PPC64.
-        when :ppc                    then MacOS.version < '10.7'  # Rosetta still available?
-        when :i386                   then MacOS.version <= '10.14'
+        when :ppc                    then MacOS.version < :lion  # Rosetta still available?
+        when :i386                   then MacOS.version < :catalina
         when :x86_64                 then _64b?
         when :x86_64h                then bottle_target_for == :haswell
         else false  # dunno
@@ -334,7 +341,7 @@ class CPU
     def powerpc_can_run?(this)
       case this
         when :ppc   then true
-        when :ppc64 then _64b? and MacOS.version >= '10.5'
+        when :ppc64 then _64b? and MacOS.version >= :leopard
         else false  # No forwards compatibility.
       end
     end # CPU⸬ppc_can_run?

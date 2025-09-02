@@ -111,7 +111,7 @@ class Openssl3 < Formula
       arch_args = [
         arg_format(arch),
       ]
-      arch_args << '-D__ILP32__' if CPU.is_32b_arch?(arch)  # Apple never needed to define this.
+      arch_args << '-D__ILP32__' if CPU.32b_arch?(arch)  # Apple never needed to define this.
 
       # “perl Configure”, instead of “./Configure”, because the Configure script’s shebang line may
       # well name the wrong Perl binary.  (If we have an outdated stock Perl, we really do not want
