@@ -15,8 +15,9 @@ class Libtool < Formula
   depends_on 'automake' => :run
   depends_on 'gettext' if build.with? 'tests'
 
-  # For some reason, the Libtool maintainers think that Darwin’s loadable‐
-  # module extension is “.so” rather than “.bundle”.
+  # For some reason, the Libtool maintainers think that Darwin’s loadable‐module extension is “.so”
+  # rather than “.dylib”.  Apple’s documentation is clear on the topic – although called a bundle,
+  # its extension shall always be “.dylib”.  “.so” is never even mentioned.
   patch :DATA
 
   def install
@@ -51,7 +52,7 @@ __END__
    shlibpath_overrides_runpath=yes
    shlibpath_var=DYLD_LIBRARY_PATH
 -  shrext_cmds='`test .$module = .yes && echo .so || echo .dylib`'
-+  shrext_cmds='`test .$module = .yes && echo .bundle || echo .dylib`'
++  shrext_cmds='`echo .dylib`'
  
    sys_lib_search_path_spec="$sys_lib_search_path_spec /usr/local/lib"
    sys_lib_dlsearch_path_spec='/usr/local/lib /lib /usr/lib'
