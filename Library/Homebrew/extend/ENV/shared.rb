@@ -31,7 +31,7 @@ module SharedEnvExtension
   ] # CLICOLOR_FORCE  ← why was this in there?
 
   # @private
-  def setup_build_environment(formula = nil, archset = nil)
+  def setup_build_environment(formula, archset)
     @formula = formula
     @formula_name = formula.full_name if formula
     reset
