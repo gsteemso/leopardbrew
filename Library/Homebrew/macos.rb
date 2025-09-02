@@ -165,7 +165,7 @@ module MacOS
       when :arm64, :arm64e   then :x86_64h
       when :g5_64, :ppc64    then :x86_64
       when :i386             then :ppc
-      when :x86_64, :x86_64h then (version >= :big_sur ? :arm64e : :ppc64)
+      when :x86_64, :x86_64h then (version >= :big_sur ? :arm64 : :ppc64)
       else :dunno
     end
   end # counterpart_arch
