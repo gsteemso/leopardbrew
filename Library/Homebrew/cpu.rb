@@ -5,13 +5,21 @@ require 'mach'
 
 class CPU
   class << self
-    KNOWN_ARCHS = {
+    TYPE_ARCHS = {
       :powerpc => [:ppc, :ppc64],
-      :intel   => [:i386, :x86_64,  :x86_64h],
+      :intel   => [:i386, :x86_64, :x86_64h],
       :arm     => [:arm64, :arm64e],
     }.freeze
 
-    KNOWN_TYPES = [:powerpc, :intel, :arm].freeze
+    ARCH_FLAGS = {#bits type     btl. mdl.
+      :ppc     => [32, :powerpc, :g3],
+      :ppc64   => [64, :powerpc, :g5],
+      :i386    => [32, :intel,   :core],
+      :x86_64  => [64, :intel,   :core2],
+      :x86_64h => [64, :intel,   :haswell],
+      :arm64   => [64, :arm,     :a12z],
+      :arm64e  => [64, :arm,     :m1],
+    }.freeze
 
     # TODO:  Properly account for optflags under Clang
     MODEL_FLAGS = { # bits  type      arch    btl. mdl.  GCC?    GCC optflags
@@ -39,46 +47,89 @@ class CPU
       :m4          => [64, :arm,     :arm64e,  :m1,      false, ''],
     }.freeze
 
-    def known_archs; KNOWN_ARCHS.values.flatten; end
+    def known_types; TYPE_ARCHS.keys; end
 
-    KNOWN_TYPES.each { |t| define_method("#{t}?") { type == t } }
+    def type_archs(typ = type); TYPE_ARCHS.fetch(typ, nil); end
+
+    CPU.known_types().each { |t| define_method("#{t}?") { type == t } }
+
+    def known_archs; ARCH_FLAGS.keys; end
 
     def known_models; MODEL_FLAGS.keys; end
 
-    def bit_width(m = model); MODEL_FLAGS[m][0] if MODEL_FLAGS[m]; end
+    def bit_width(obj = model)
+      # obj is either a specific model, or an architecture
+      if known_models.include? obj then MODEL_FLAGS[obj][0]
+      elsif known_archs.include? obj then ARCH_FLAGS[obj][0]
+      end  # return nil for unrecognized input
+    end
 
-    def hw_type(m = model); MODEL_FLAGS[m][1] if MODEL_FLAGS[m]; end
+    def hw_type_of(obj)
+      # obj is:  a specific model, or an architecture, or a CPU type, or a bottle-supporting tag
+      known_models.include?(obj) ? MODEL_FLAGS[obj][1] \
+        : known_archs.include?(obj) ? ARCH_FLAGS[obj][1] \
+        : known_types.include?(obj) ? obj \
+        : case obj
+            when :intel_32, :intel_64   then :intel
+            when :altivec,  :g5_64      then :powerpc
+            else :dunno
+          end
+    end # CPU⸬hw_type_of
 
-    def arch(m = model); MODEL_FLAGS[m][2] if MODEL_FLAGS[m]; end
+    def arch(obj = model)
+      # obj is:  a specific model, or an architecture, or a CPU type, or a bottle-supporting tag
+      known_models.include?(obj) ? MODEL_FLAGS[obj][2] \
+        : known_archs.include?(obj) ? obj \
+        : known_types.include?(obj) ? TYPE_ARCHS[obj][0] \
+        : case obj
+            when :altivec  then :ppc
+            when :g5_64    then :ppc64
+            when :intel_32 then :i386
+            when :intel_64 then :x86_64
+            else :dunno
+          end
+    end
 
-    def bottle_target_for(m = model); MODEL_FLAGS[m][3] if MODEL_FLAGS[m];end
+    def bottle_model_for(obj = arch)
+      # obj is:  a specific model, or an architecture, or a CPU type, or a bottle-supporting tag
+      known_models.include?(obj) ? MODEL_FLAGS[obj][3] \
+        : known_archs.include?(obj) ? ARCH_FLAGS[obj][2] \
+        : known_types.include?(obj) ? ARCH_FLAGS[TYPE_ARCHS[obj][0]][2] \
+        : case obj
+            when :altivec  then :g4
+            when :g5_64    then :g5
+            when :intel_32 then :core
+            when :intel_64 then :core2
+            else :dunno
+          end
+    end # CPU⸬bottle_model_for
 
     def which_gcc_knows_about(m = model); MODEL_FLAGS[m][4] if MODEL_FLAGS[m]; end
 
     def gcc_intel_flags_for_post_(v)
-      if v < 4.2 then '-march=nocona -mssse3'
+      if    v < 4.2 then '-march=nocona -mssse3'
       elsif v < 4.9 then '-march=core2 -msse4.2'
-      elsif v < 5 then '-march=broadwell'
-      elsif v < 6 then '-march=broadwell -mclflushopt -mxsavec -mxsaves'
-      elsif v < 8 then '-march=skylake-avx512 -mavx512ifma -mavx512vbmi -msha'
+      elsif v <  5  then '-march=broadwell'
+      elsif v <  6  then '-march=broadwell -mclflushopt -mxsavec -mxsaves'
+      elsif v <  8  then '-march=skylake-avx512 -mavx512ifma -mavx512vbmi -msha'
       else ''; end
-    end # gcc_intel_flags_for_post_
+    end # CPU⸬gcc_intel_flags_for_post_
 
     def gcc_arm_flags_for_post_(v); ''; end
 
-    def optimization_flags(m = model, gcc_version = 4.2)
+    def optimization_flags(archset, gcc_version = 4.2)
       return '' unless MODEL_FLAGS[m]
       if (vers = which_gcc_knows_about(m))
         if gcc_version >= vers
           MODEL_FLAGS[m][5]
-        else case hw_type(m)
+        else case hw_type_of(m)
             when :intel then gcc_intel_flags_for_post_(gcc_version)
             when :arm   then gcc_arm_flags_for_post_(gcc_version)
             else ''
           end
         end
       else ''; end
-    end # optimization_flags
+    end # CPU⸬optimization_flags
 
     def opt_flags_as_map(gcc_version = 4.2)
       hsh = {}
@@ -86,21 +137,12 @@ class CPU
       hsh
     end
 
-    def oldest(arch_type = type)
-      case arch_type
-        when :altivec       then :g4
-        when :arm, :arm64   then :a12z
-        when :arm64e        then :m1
-        when :i386, :intel  then :core
-        when :powerpc, :ppc then :g3
-        when :ppc64         then :g5
-        when :x86_64        then :core2
-        when :x86_64h       then :haswell
-        else :dunno
-      end
-    end # CPU⸬oldest
+    def native_arch?(a); _64b? ? (type == hw_type_of(a)) : (_32b_arch == a); end
 
-    def is_native_arch?(a); _64b? ? (type == type_of(a)) : (_32b_arch == a); end
+    # A utility routine for constructing mappings between an architecture and the appropriate CPU
+    # model to build for within that architecture.  Only of much use within other utility routines.
+    # @private
+    def archmap(a); native_arch?(a) ? model : bottle_model_for(a); end
 
   # Many of the following use things spewed out by sysctl.  See <sys/sysctl.h> for sysctl keys
   # along with some related constants, and <mach/machine.h> for Mach‐O CPU encoding constants.
@@ -152,19 +194,6 @@ class CPU
       end
     end # CPU⸬model
 
-    def type_of(source)
-      # source is either a specific model, or an architecture
-      hw_type(source) || case source
-          when :altivec, :ppc, :ppc64
-            :powerpc
-          when :i386, :x86_64, :x86_64h
-            :intel
-          when :arm64, :arm64e
-            :arm
-          else :dunno
-        end
-    end # CPU⸬type_of
-
     def cores; sysctl_int('hw.physicalcpu_max'); end
 
     def cores_as_words
@@ -200,29 +229,41 @@ class CPU
     end # CPU⸬_64b_arch
 
     # These return arrays extended with ArchitectureListExtension, which gives helpers like
-    # #as_arch_flags and #as_cmake_arch_flags.  Note that building 64-bit is barely possible and of
-    # questionable utility (and sanity) on Tiger, and unevenly supported on Leopard.  Don’t even
-    # try unless 64‐bit builds are enabled, which they generally aren’t prior to Leopard.
+    # #as_arch_flags and #as_cmake_arch_flags.  Note that building 64-bit is barely possible on
+    # Tiger, and unevenly supported on Leopard.  Don’t even try unless 64‐bit builds are enabled,
+    # which they generally aren’t prior to Leopard.  Weirdly, Haswell-architecture :x86_64h builds
+    # do not seem to be a feature of later Mac OS releases.
     def all_32b_archs; [:i386, :ppc].extend ArchitectureListExtension; end
     def _64b_archs_1; [:ppc64, :x86_64].extend ArchitectureListExtension; end
-    def _64b_archs_2; [:arm64e, :x86_64h].extend ArchitectureListExtension; end
-    def all_64b_archs; [:arm64e, :ppc64, :x86_64, :x86_64h].extend ArchitectureListExtension; end
+    def _64b_archs_2; [:arm64, :arm64e, :x86_64, :x86_64h].extend ArchitectureListExtension; end
+    def all_64b_archs; [:arm64, :arm64e, :ppc64, :x86_64, :x86_64h].extend ArchitectureListExtension; end
+    def intel_archs; [:i386, :x86_64].extend ArchitectureListExtension; end
+    def tri_fat_archs; (all_32b_archs + [:x86_64]).extend ArchitectureListExtension; end
     def quad_fat_archs; (all_32b_archs + _64b_archs_1).extend ArchitectureListExtension; end
-    def all_archs; (all_32b_archs + all_64b_archs).extend ArchitectureListExtension; end
+    def all_archs; known_archs.extend ArchitectureListExtension; end
     def local_archs
-      ((MacOS.version <= '10.5' and not MacOS.prefer_64_bit?) ? [_32b_arch] \
-        : (MacOS.version >= '10.7' ? [_64b_arch] : [_32b_arch, _64b_arch])
+      ((MacOS.version <= :leopard and not MacOS.prefer_64_bit?) ? [_32b_arch] \
+        : (MacOS.version >= :lion ? [_64b_arch] : [_32b_arch, _64b_arch])
       ).extend ArchitectureListExtension
     end # CPU⸬local_archs
     def cross_archs
-      if MacOS.version <= '10.5' and MacOS.prefer_64_bit? then quad_fat_archs
-      elsif MacOS.version >= '11' then _64b_archs_2
-      elsif MacOS.version >= '10.7' then [_64b_arch].extend ArchitectureListExtension
-      elsif MacOS.version >= '10.4' then all_32b_archs
+      if    MacOS.version >= :big_sur      then _64b_archs_2
+      elsif MacOS.version >= :lion         then [_64b_arch].extend ArchitectureListExtension
+      elsif MacOS.version >= :snow_leopard then (MacOS.prefer_64_bit? ? tri_fat_archs : all_32b_archs)
+      elsif MacOS.version >= :tiger        then (MacOS.prefer_64_bit? ? quad_fat_archs : all_32b_archs)
       else [:ppc].extend ArchitectureListExtension
       end
     end # CPU⸬cross_archs
-    def runnable_archs; all_archs.select{ |a| can_run?(a) }.extend ArchitectureListExtension; end;
+    def buildable_archs
+      if    MacOS.version >= :big_sur      then _64b_archs_2
+      elsif MacOS.version == :catalina     then [:x86_64].extend ArchitectureListExtension
+      elsif MacOS.version >= :lion         then intel_archs
+      elsif MacOS.version >= :snow_leopard then tri_fat_archs
+      elsif MacOS.version >= :tiger        then quad_fat_archs
+      else [:ppc].extend ArchitectureListExtension
+      end
+    end
+    def runnable_archs; all_archs.select{ |a| can_run?(a) }.extend ArchitectureListExtension; end
 
     def default_archset
       ARGV.bottle_arch ? bottle_target_arch_as_list : MacOS.preferred_arch_as_list
@@ -236,7 +277,7 @@ class CPU
       archlist.select{ |a| 64b_arch?(a) }.extend ArchitectureListExtension
     end
 
-    def 32b_arch?(a); all_32b_archs.any?{ |a32| a == a32 }; end
+    def 32b_arch?(a); all_32b_archs.include?(a); end
 
     def 64b_arch?(a); not 32b_arch?(a); end
 
@@ -321,9 +362,8 @@ class CPU
 
     def arm_can_run?(this)
       case this
-        when :i386, :ppc, :ppc64                then false
         when :arm64, :arm64e, :x86_64, :x86_64h then true
-        else false  # dunno
+        else false  # :i386, :ppc, :ppc64, :dunno
       end
     end # CPU⸬arm_can_run?
 
@@ -334,7 +374,7 @@ class CPU
         when :i386                   then MacOS.version < :catalina
         when :x86_64                 then _64b?
         when :x86_64h                then bottle_target_for == :haswell
-        else false  # dunno
+        else false  # :dunno
       end
     end # CPU⸬intel_can_run?
 

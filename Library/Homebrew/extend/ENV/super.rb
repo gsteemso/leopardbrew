@@ -144,18 +144,7 @@ module Superenv
   end
 
   def determine_optflags(archset)
-    if compiler == :clang then '-march=native'
-    else
-      mdl = if ARGV.build_bottle? then CPU.bottle_target_model
-            # If an Intel-type CPU doesn't support SSE4, we cannot trust either -march=native or
-            # -march=<cpu family> to do the right thing because we might be running in a VM or on a
-            # Hackintosh.
-            elsif CPU.intel? and not CPU.sse4? then CPU.oldest(CPU._64b? ? :x86_64 : :i386)
-            else CPU.model; end
-      CPU.optimization_flags(mdl, compiler_version).split(' ').map{ |flag|
-          archset.map{ |arch| "-Xarch_#{arch} #{flag}" }
-        }.join(' ')
-    end
+    compiler == :clang ? "-march=native" : CPU.optimization_flags(archset, compiler_version)
   end # determine_optflags
 
   def determine_archflags(archset)
@@ -227,12 +216,10 @@ module Superenv
     archset = super
     self['HOMEBREW_ARCHFLAGS'] = archset.as_arch_flags
     self['HOMEBREW_OPTFLAGS'] = ''
-    archset.each do |a|
-      mdl = (CPU.is_native_arch?(a) ? CPU.model : CPU.oldest(a))
-      CPU.optimization_flags(mdl, compiler_version).split(' ').each do |fl|
+    archset.each{ |a|
+      CPU.optimization_flags(CPU.archmap(a), compiler_version).split(' ').each{ |fl|
         append 'HOMEBREW_OPTFLAGS', "-Xarch_#{a} #{fl}"
-      end
-    end
+    } }
   end # set_build_archs
 
   # Super filters the build archs to the 32‐bit ones via set_build_archs.

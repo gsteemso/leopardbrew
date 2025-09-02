@@ -1,6 +1,6 @@
 require 'compilers'
 require 'formula'
-require 'macos'
+require 'target'  # pulls in macos for us, which pulls in cpu
 
 # Homebrew extends Ruby's `ENV` to make our code more readable.  Implemented in
 # {SharedEnvExtension} and either {Superenv} or {Stdenv}, per the build mode.

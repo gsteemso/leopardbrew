@@ -12,11 +12,12 @@ class Gcc7 < Formula
   # Enabling multilib on a host that can’t run 64‐bit causes build failures.
   option 'without-multilib', 'Build without multilib support' if MacOS.prefer_64_bit?
 
-  # Tiger’s stock as can’t handle the PowerPC assembly found in libitm.
-  depends_on :cctools => :build if MacOS.version < '10.5'
+  # Tiger’s stock as can’t handle the PowerPC assembly found in libitm.  (Don’t specify this as
+  # :cctools, because it might incorrectly assume the stock version meets the requirement.)
+  depends_on 'cctools' => :build if MacOS.version < :leopard
   depends_group ['tests', ['autogen', 'deja-gnu'] => [:build, :optional]]
 
-  depends_on :ld64 if MacOS.version < '10.6'
+  depends_on :ld64 if MacOS.version < :snow_leopard
   depends_on 'gmp'
   depends_on 'libmpc'
   depends_on 'mpfr'
@@ -45,7 +46,7 @@ class Gcc7 < Formula
   patch do
     url 'https://gist.githubusercontent.com/mistydemeo/9c5b8dadd892ba3197a9cb431295cc83/raw/582d1ba135511272f7262f51a3f83c9099cd891d/sysdep-unix-tiger-intel.patch'
     sha256 '17afaf7daec1dd207cb8d06a7e026332637b11e83c3ad552b4cd32827f16c1d8'
-  end if MacOS.version < '10.5' && Hardware::CPU.intel?
+  end if MacOS.version < :leopard and Target.intel?
 
   def install
     def add_suffix(file, suffix)
@@ -74,14 +75,13 @@ class Gcc7 < Formula
                                                 "#{opt_lib}/gcc/#{version_suffix}"
 
     # See the note at the conditional cctools dependency above.
-    ENV['AS'] = ENV['AS_FOR_TARGET'] = Formula['cctools'].bin/'as' if MacOS.version < '10.5'
+    ENV['AS'] = ENV['AS_FOR_TARGET'] = Formula['cctools'].bin/'as' if MacOS.version < :leopard
 
     # Prevent libstdc++ being incorrectly tagged with CPU subtype 10 (G4e).
     # See:  https://github.com/mistydemeo/tigerbrew/issues/538
     # Note that we won’t have :gcc_4_0 or :llvm, as they are fails_with.
     # Getting a :g3 build target is still possible in multiple ways though.
-    ENV.append_to_cflags '-force_cpusubtype_ALL' \
-      if ENV.compiler == :gcc and CPU.model == :g3 or CPU.bottle_target_model == :g3
+    ENV.append_to_cflags '-force_cpusubtype_ALL' if Target.model == :g3 and ENV.compiler == :gcc
 
     # GCC will suffer build errors if forced to use a particular linker.
     ENV.delete 'LD'
@@ -121,34 +121,27 @@ class Gcc7 < Formula
       # Allow different GCC versions to coëxist.
       '--enable-version-specific-runtime-libs',
     ]
-
     # The pre-Mavericks toolchain requires the older DWARF-2 debug data format
     # to avoid failure during the stage 3 comparison of object files.
     # See: http://gcc.gnu.org/bugzilla/show_bug.cgi?id=45248
-    # Note that “-gdwarf-2” is removed by superenv anyway.
-    args << '--with-dwarf2' if MacOS.version < '10.9'
-
+    # While superenv removes “-gdwarf-2”, later bootstrap stages do see it.
+    args << '--with-dwarf2' if MacOS.version < :mavericks
     # “This option is required when building the libgccjit.so library.”
     args << '--enable-host-shared' if build.with? 'jit'
-
     args << '--disable-multilib' if build.without? 'multilib'
-
     args << '--disable-nls' if build.without? 'nls'
-
-    # “Building GCC with plugin support requires a host that supports -fPIC,
-    # -shared, -ldl and -rdynamic.”
-#    args << '--enable-plugin' if MacOS.version > '10.5'
-
-    # Xcode-only systems need a sysroot path.  “native-system-header-dir” will
-    # be appended.
+    # “Building GCC with plugin support requires a host that supports -fPIC, -shared, -ldl and -rdynamic.”
+    args << '--enable-plugin' if MacOS.version > :leopard
+    # Xcode-only systems need a sysroot path.  “native-system-header-dir” will be appended.
     unless MacOS::CLT.installed?
       args << '--with-native-system-header-dir=/usr/include'
       args << "--with-sysroot=#{MacOS.sdk_path}"
     end
 
-    arch_args = case CPU.type
+    arch_args = case Target.type
         when :intel then ['--with-arch-32=prescott', '--with-arch-64=core2']
-        when :powerpc then ["--with-cpu-32=7#{CPU.model == :g3 ? '5' : '40'}0", '--with-cpu-64=970']
+        when :powerpc
+          ["--with-cpu-32=#{Target.model == :g3 ? '750' : '7400'}", '--with-cpu-64=970']
         else [] # no good defaults here for :arm
       end
 
