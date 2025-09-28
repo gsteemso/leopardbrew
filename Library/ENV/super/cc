@@ -192,7 +192,7 @@ class Cmd
     return cflag_args unless refurbish_args? || configure?
 
     cflag_args << '-pipe'
-    cflag_args << '-w' unless configure? or ENV['HOMEBREW_DISABLE__W']
+    cflag_args << '-w' unless configure? or ENV['HOMEBREW_DISABLE__W'] or tool =~ /^g..-4.0/
     cflag_args << "-#{ENV['HOMEBREW_OPTIMIZATION_LEVEL']}" if ENV['HOMEBREW_OPTIMIZATION_LEVEL']
     cflag_args.concat(optflags)
     cflag_args << "-std=#{@arg0}" if @arg0 =~ /c[89]9/
