@@ -6,8 +6,9 @@ require 'extend/leopard' if RUBY_VERSION <= '1.8.6'  # also pulls in extend/tige
 require 'extend/string'
 require 'extend/ARGV'; ARGV.extend(HomebrewArgvExtension)
 require 'extend/misc'
-require 'extend/pathname'                            # also pulls in extend/fileutils, mach, metafiles, & resource
+require 'extend/pathname'  # also pulls in extend/fileutils, mach, metafiles, & resource
 require 'osay'
+require 'utils'
 
 # ENV['HOMEBREW_DEBUG_RUBY'] is set if we’re debugging [our interaction with] the ruby interpreter
 # that we’re running on.  This is not imported as a variable, because why would we?
@@ -128,7 +129,7 @@ QUIETER         = ARGV.quieter?               # Give less-verbose feedback when 
 VERBOSE         = ARGV.verbose?               # Give lots of feedback (checks all of “-v”,
                                               #   “--verbose”, $HOMEBREW_VERBOSE, & $VERBOSE)
 
-require 'extend/ENV'; ENV.activate_extensions!       # also pulls in cpu, compilers, formula, macos, and target
+require 'extend/ENV'; ENV.activate_extensions!  # also pulls in target, macos, and cpu, then compilers (and version) and formula
 
 # include backwards‐compatibility cruft?
 require 'compat' unless ENV['HOMEBREW_NO_COMPAT'] or ARGV.include?('--no-compat')

@@ -3,12 +3,12 @@
 
 std_trap = trap('INT') { exit! 130 } # no backtrace thanks
 
-# add HOMEBREW_RUBY_LIBRARY to front of Ruby‐library search path
+# Add $HOMEBREW_RUBY_LIBRARY to the front of the Ruby‐library search path.
 $:.unshift(ENV['HOMEBREW_RUBY_LIBRARY'])
 
 # Homebrew libraries:
-require 'global'  # among other things, imports our environment variables as constants
-require 'utils'   # defines or imports a lot of our infrastructure
+require 'global'  # Imports or defines all our infrastructure, such as reading specific environment
+                  # variables into global constants.
 
 if ['-V', '--version'].include? ARGV.first
   puts Homebrew.homebrew_version_string
@@ -114,7 +114,7 @@ rescue UsageError
 rescue MissingParameterError => e
   abort e.message
 rescue SystemExit => e
-  puts "Kernel.exit(#{e.status})" if e.status != 0 and ARGV.verbose?
+  $stderr.puts "Kernel.exit(#{e.status})" if e.status != 0 and VERBOSE
   raise
 rescue Interrupt => e
   puts # seemingly a newline is typical
@@ -125,15 +125,14 @@ rescue BuildError => e
 rescue RuntimeError, SystemCallError => e
   raise if e.message.empty?
   onoe e
-  puts e.backtrace if ARGV.debug?
+  $stderr.puts e.backtrace if DEBUG
   exit 1
 rescue Exception => e
   onoe e
   if internal_cmd
-    puts "#{TTY.white}Please report this bug:"
-    puts "    #{TTY.em}#{ISSUES_URL}#{TTY.reset}"
+    $stderr.puts "#{TTY.white}Please report this bug:\n    #{TTY.em}#{ISSUES_URL}#{TTY.reset}"
   end
-  puts e.backtrace
+  $stderr.puts e.backtrace if DEBUG
   exit 1
 else
   exit 1 if Homebrew.failed?
