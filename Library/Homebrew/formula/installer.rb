@@ -368,17 +368,17 @@ class FormulaInstaller
       previously_installed = Keg.new(df.spec_prefix(tss))
       ignore_interrupts { previously_installed.rename }
     end
-    fi = DependencyInstaller.new(df)
-    fi.options           |= tab.used_options
-    fi.options           |= Tab.remap_deprecated_options(df.deprecated_options, dep.options)
-    fi.options           |= inherited_options
-    fi.build_from_source  = build_from_source?
-    fi.verbose            = verbose? and not quieter?
-    fi.debug              = debug?
-    fi.prelude
+    di = DependencyInstaller.new(df)
+    di.options           |= tab.used_options
+    di.options           |= Tab.remap_deprecated_options(df.deprecated_options, dep.options)
+    di.options           |= inherited_options
+    di.build_from_source  = build_from_source?
+    di.verbose            = verbose? and not quieter?
+    di.debug              = debug?
+    di.prelude
     oh1 "Installing #{formula.full_name} dependency: #{TTY.green}#{dep.name}#{TTY.reset}"
-    fi.install
-    fi.finish  # this links the new keg
+    di.install
+    di.finish  # this links the new keg
   rescue Exception
     # leave no trace of the failed installation
     if df.prefix.exists?
@@ -389,9 +389,11 @@ class FormulaInstaller
     previously_linked.link if previously_linked
     raise
   else
-    # Uninsinuate silently immediately before insinuation (do not emit conflicting messages).
-    df.uninsinuate(:silent) rescue nil if df.uninsinuate_defined? and previously_installed
-    df.insinuate rescue nil if df.insinuate_defined?
+    if df.insinuation_defined?
+      # Uninsinuate silently immediately before insinuation (do not emit conflicting messages).
+      df.uninsinuate(DEBUG.nil?) rescue nil if previously_installed
+      df.insinuate rescue nil
+    end
   end # install_dependency
 
   def caveats

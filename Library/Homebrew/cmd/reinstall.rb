@@ -119,7 +119,7 @@ module Homebrew
   else
     ignore_interrupts { previously_installed.path.rmtree } if previously_installed.path.exists? \
                                                               and previously_installed.path != f.prefix
-    f.insinuate rescue nil if f.insinuate_defined?
+    f.insinuate rescue nil if f.insinuation_defined?
   end # reinstall_formula
 
   def blenderize_options(use_opts, formula)

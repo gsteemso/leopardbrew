@@ -45,7 +45,7 @@ module Homebrew
             switched_list.append "#{keg.versioned_name.sub(/=/, "\t")}\n" unless mode.dry_run
             if keg.name == 'bash' then seen_bash = keg
             else
-              if f and f.uninsinuate_defined?
+              if f and f.insinuation_defined?
                 if mode.dry_run then puts "Would uninsinuate #{f.name}"
                 else f.uninsinuate rescue nil; end
               end
@@ -107,7 +107,7 @@ module Homebrew
             keg.optlink(mode)
             f = Formulary.from_keg(keg)
             if keg.name == 'bash' then seen_bash = true
-            elsif f and f.insinuate_defined?
+            elsif f and f.insinuation_defined?
               if mode.dry_run then puts "Would insinuate #{f.name}"
               else f.insinuate rescue nil; end
             end

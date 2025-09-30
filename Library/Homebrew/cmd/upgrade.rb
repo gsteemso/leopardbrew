@@ -123,8 +123,10 @@ module Homebrew
 
     # If uninsinuation will be followed immediately by insinuation, the former must be silent so as
     # not to emit conflicting messages:
-    f.uninsinuate(f.insinuate_defined? && ! DEBUG) rescue nil if f.uninsinuate_defined?
-    f.insinuate rescue nil if f.insinuate_defined?
+    if f.insinuation_defined?
+      f.uninsinuate(DEBUG.nil?) rescue nil
+      f.insinuate rescue nil
+    end
   ensure # Restore the previous installation state if the build failed.
     unless f.installed?
       if f.prefix.exists?

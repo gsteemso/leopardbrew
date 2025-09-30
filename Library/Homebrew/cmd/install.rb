@@ -217,6 +217,6 @@ module Homebrew
     raise
   else
     fi.finish
-    f.insinuate rescue nil if f.insinuate_defined?
+    f.insinuate rescue nil if f.insinuation_defined?
   end # install_formula
 end # Homebrew

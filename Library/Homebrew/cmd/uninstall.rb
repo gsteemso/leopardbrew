@@ -16,7 +16,7 @@ module Homebrew
           link.unlink if link.symlink?
         end
         puts <<-_.undent.rewrap
-            Missing installation “#{e.name}” detected and cleaned up.  Depending how it got that
+            Missing installation “#{e.name}” detected and cleaned up.  Depending on how it got that
             way, stray symlinks may still exist under #{HOMEBREW_PREFIX}.
           _
         kegs = []
@@ -30,7 +30,7 @@ module Homebrew
             # We will either be repeating this when the rack has gone (so helper scripts can delete
             # themselves), or we will immediately insinuate another version.  In neither case do we
             # want duplicate messages.
-            f.uninsinuate(:silent) rescue nil if f.uninsinuate_defined?
+            f.uninsinuate(:silent) rescue nil if f.insinuation_defined?
           end
           keg.unlink
           keg.uninstall  # this also deletes the whole rack, if it’s empty
@@ -39,12 +39,12 @@ module Homebrew
             if (dirs = rack.subdirs) == []  # Still present even though empty?  Fix that.
               rack.rm_rf
               # Repeat uninsinuation now that the rack has gone, to let helper scripts self‐delete.
-              f.uninsinuate rescue nil if f and f.uninsinuate_defined?
+              f.uninsinuate rescue nil if f and f.insinuation_defined?
             else # hook up the next keg in line
               next_keg = dirs.map{ |d| Keg.new(d) }.max_by(&:version)
               next_keg.optlink
               next_keg.link if was_linked
-              f = attempt_from_keg(next_keg); f.insinuate rescue nil if f and f.insinuate_defined?
+              f = attempt_from_keg(next_keg); f.insinuate rescue nil if f and f.insinuation_defined?
               # report on whatever’s still installed
               versions = dirs.map(&:basename)
               puts "#{keg.name} #{versions.list} #{plural(versions.length, 'are', 'is')} still installed."
@@ -59,7 +59,7 @@ module Homebrew
           f.unpin rescue nil
           # We will be repeating this once the rack has gone so helper scripts can self‐delete.  We
           # do not want duplicate messages.
-          f.uninsinuate(:silent) rescue nil if f.uninsinuate_defined?
+          f.uninsinuate(:silent) rescue nil if f.insinuation_defined?
         end
         if rack.directory?
           puts "Uninstalling #{rack.basename}... (#{rack.abv})"
@@ -70,7 +70,7 @@ module Homebrew
           end
         end
         # Repeat uninsinuation now that the rack has gone, to let helper scripts self‐delete.
-        f.uninsinuate rescue nil if f and f.uninsinuate_defined?
+        f.uninsinuate rescue nil if f and f.insinuation_defined?
       end # each |rack|
     end # --force?
   rescue MultipleVersionsInstalledError => e
