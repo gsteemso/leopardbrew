@@ -257,7 +257,9 @@ class Formula
   # @private
   def requirements; active_spec.requirements; end
 
-  def enhanced_by?(aid); active_spec.enhanced_by?(aid); end
+  def enhanced_by?(aid)
+    active_spec.active_enhancements.any?{ |a| aid == a.name or aid == a.full_name }
+  end
 
   # The list of formulæ that are known to be installed and enhancing the active {SoftwareSpec}.
   # @private
@@ -926,8 +928,7 @@ class Formula
 
   # @private
   def test_defined?; false; end
-  def insinuate_defined?; false; end
-  def uninsinuate_defined?; false; end
+  def insinuation_defined?; false; end
 
   def test_fixtures(file); TEST_FIXTURES/file; end
 
@@ -1094,14 +1095,14 @@ class Formula
 
   def self.method_added(method)
     case method
-      when :brew    then raise RuntimeError, "You may not override Formula#brew in class #{name}."
-      when :insinuate then define_method(:insinuate_defined?){ true }
+      when :brew        then raise RuntimeError, "You may not override Formula#brew in class #{name}."
+      when :insinuate,
+           :uninsinuate then define_method(:insinuation_defined?){ true }
       when :options
         instance = allocate
         specs.each{ |ss| instance.options.each{ |opt, desc| ss.option(opt[/^--(.+)$/, 1], desc) } }
         remove_method(:options)
-      when :test    then define_method(:test_defined?){ true }
-      when :uninsinuate then define_method(:uninsinuate_defined?){ true }
+      when :test        then define_method(:test_defined?){ true }
     end
   end # Formula::method_added
 
@@ -1245,8 +1246,7 @@ class Formula
     #     end
     def stable(&block)
       @stable ||= SoftwareSpec.new
-      return @stable unless block_given?
-      @stable.instance_eval(&block)
+      block_given? ? @stable.instance_eval(&block) : @stable
     end
 
     # @!attribute [w] devel
@@ -1261,8 +1261,7 @@ class Formula
     #     end
     def devel(&block)
       @devel ||= SoftwareSpec.new
-      return @devel unless block_given?
-      @devel.instance_eval(&block)
+      block_given? ? @devel.instance_eval(&block) : @devel
     end
 
     # @!attribute [w] head
@@ -1279,9 +1278,9 @@ class Formula
     #     head 'https://hg.is.awesome.but.git.has.won.example.com/', :using => :hg
     def head(val = nil, specs = {}, &block)
       @head ||= HeadSoftwareSpec.new
-      if block_given? then @head.instance_eval(&block)
-      elsif val then @head.url(val, specs)
-      else @head; end
+      block_given? ? @head.instance_eval(&block) \
+        : val ? @head.url(val, specs) \
+        : @head
     end # head
 
     # Additional downloads can be defined as resources and accessed in the install method.
@@ -1492,11 +1491,7 @@ class Formula
     #     end
     # Note that the cause is now neither used nor saved, but can still be specified for the formula
     # author’s benefit.
-    def fails_with(compiler, &block)
-      # Only do our thing if we’re in the actual formula.  Otherwise we also get saddled with the
-      # limitations of its dependencies.  WTF, we get saddled with them ANYWAY?
-      specs.each { |spec| spec.fails_with(compiler, &block) } if ENV.formula_name and ENV.formula_name == full_name
-    end
+    def fails_with(compiler, &block) specs.each { |spec| spec.fails_with(compiler, &block) } end
 
     # The formula may need compiler support for a specific set of features.  These can be specified
     # using `needs`:
@@ -1538,7 +1533,7 @@ class Formula
     # Insinuation is for formulæ which must carry out some action to very deeply integrate with the
     # system upon installation, and then to remove that integration prior to formula uninstallation.
     #     insinuate do |silent|
-    #       # ensure the helper script is present
+    #       # ensure the helper script is present before doing this:
     #       do_system((silent ? [:silent] : []), 'sudo', "#{bin}/to-brewed-package")
     #     end
     # THESE METHOD BLOCKS MUST BE IDEMPOTENT!  It is not only possible, but actively expected, that
@@ -1549,8 +1544,8 @@ class Formula
     # and act accordingly.
     # Further, an uninsinuate block must not assume that its rack still exists.  It shall be called
     # after the rack’s removal in order for helper scripts to delete themselves.
-    def insinuate(silent = nil, &block); define_method(:insinuate){ yield silent }; end
-    def uninsinuate(silent = nil, &block); define_method(:uninsinuate){ yield silent }; end
+    def insinuate(&block); define_method(:insinuate, &block); end
+    def uninsinuate(&block); define_method(:uninsinuate, &block); end
 
     # @private
     def link_overwrite(*paths); paths.flatten!; link_overwrite_paths.merge(paths); end
