@@ -5,14 +5,14 @@ class Zlib < Formula
   url 'http://zlib.net/zlib-1.3.1.tar.xz'
   sha256 '38ef96b8dfe510d42707d9c781877914792541133e1870841463bfa73f883e32'
 
+  keg_only :provided_by_osx
+
   bottle do
     cellar :any
     sha256 "0ec484b96d45d53be8501f85f4b81b2ac2d70d84fd5d1602ece4668d570b05af" => :tiger_altivec
   end
 
   option :universal
-
-  keg_only :provided_by_osx
 
   # http://zlib.net/zlib_how.html
   resource "test_artifact" do
