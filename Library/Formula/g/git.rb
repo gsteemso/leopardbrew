@@ -1,19 +1,20 @@
+# Stable release 2025-08-18; checked 2025-09-25.
 class Git < Formula
   desc 'Distributed revision control system'
   homepage 'https://git-scm.com'
-  url 'https://mirrors.edge.kernel.org/pub/software/scm/git/git-2.46.0.tar.xz'
-  mirror 'https://www.kernel.org/pub/software/scm/git/git-2.46.0.tar.gz'
-  sha256 '7f123462a28b7ca3ebe2607485f7168554c2b10dfc155c7ec46300666ac27f95'
+  url 'https://mirrors.edge.kernel.org/pub/software/scm/git/git-2.51.0.tar.xz'
+  mirror 'https://www.kernel.org/pub/software/scm/git/git-2.51.0.tar.xz'
+  sha256 '60a7c2251cc2e588d5cd87bae567260617c6de0c22dca9cdbfc4c7d2b8990b62'
   head 'https://github.com/git/git.git', :shallow => false
 
   resource 'html' do
-    url 'https://mirrors.edge.kernel.org/pub/software/scm/git/git-htmldocs-2.46.0.tar.xz'
-    sha256 '175d756b9d5eda6656c8067c7f8f80f15bd0cd9f908c3c4995ee6fe8a4182104'
+    url 'https://mirrors.edge.kernel.org/pub/software/scm/git/git-htmldocs-2.51.0.tar.xz'
+    sha256 'dd33897c676ea140d57a652758e458756fa93582801cfd1d7e1f62acd5fa7580'
   end
 
   resource 'man' do
-    url 'https://mirrors.edge.kernel.org/pub/software/scm/git/git-manpages-2.46.0.tar.xz'
-    sha256 'dc118b1d4036e58d5cc4f4e804d903e1e137dac3e9826a246a7e517afd877bd3'
+    url 'https://mirrors.edge.kernel.org/pub/software/scm/git/git-manpages-2.51.0.tar.xz'
+    sha256 'c10aea63316865ace762078a6e67fc3cf117b11a5c9d4a2a52cb3762ae22ed35'
   end
 
   option 'with-brewed-svn',       'Use brewed Subversion'
@@ -21,93 +22,83 @@ class Git < Formula
   option 'with-persistent-https', 'Build contributed git-remote-persistent-https feature (needs Go, so not for PowerPC)'
   option 'without-tcl-tk',        'Disable graphical user interface'
 
-  depends_on 'gnu-tar' => :build if MacOS.version == :tiger  # stock tar has odd permissions errors
+  depends_on 'gnu-tar' => :build if MacOS.version < :leopard # stock tar has odd permissions errors
   depends_on 'go'      => :build if build.with? 'persistent-https'
   depends_on 'make'    => :build
-  depends_on 'tcl-tk'  => :recommended
+  depends_on 'tcl-tk'  => :recommended  # “wish” is used for the GUI.
   depends_on 'pcre2'   => :optional
+  # depends on libcurl 7.61.0 or later
   depends_on 'curl'
-  depends_on :expat
   depends_on 'gettext'
   depends_on 'libiconv'
-  depends_on 'openssh'
+#  depends_on 'openssh'
   depends_on 'openssl3'
-  # depends on Perl >= v5.8.1; Tiger includes v5.8.6, Leopard v5.8.8
-  if build.with? 'brewed-svn'               # Trigger an install of swig before subversion, as the
-    depends_on 'swig'                       #   swig formula doesn't get pulled in otherwise (see
-    depends_on 'subversion' => 'with-perl'  #   https://github.com/Homebrew/homebrew/issues/34554)
+  # depends on Perl >= v5.26.0; Tiger includes v5.8.6, Leopard v5.8.8
+  depends_on 'perl'
+  if build.with? 'brewed-svn'               # Trigger installation of {swig} before {subversion};
+    depends_on 'swig'                       # otherwise {swig} doesn’t get pulled in at all (see
+    depends_on 'subversion' => 'with-perl'  # https://github.com/Homebrew/homebrew/issues/34554)
   end
 
-  enhanced_by 'expat'
+  enhanced_by 'expat'  # Used for locking over DAV.
   enhanced_by 'python'
   enhanced_by 'python3'
-  enhanced_by 'zlib'
+  enhanced_by 'zlib'   # The stock version works, but newer is better.
 
-  # Fix PowerPC build, and support for OS X Tiger through roughly Mavericks
-  # - Stock regex(3) is too old and lacks some file system monitoring functionality.
-  # - Needs arc4random_buf(3) which is missing on Leopard and prior, so just use OpenSSL since
-  #   newer implementations were based on AES cipher.
-  # - We use the 2.40.1 version of git-credential-osxkeychain, not the 2.43.0 version, as we lack
-  #   getline(3).  The totally rewritten 2.46.0 version is out of the question (it requires Snow
-  #   Leopard or later).
-  patch :DATA if MacOS.version <= :mavericks
+  patch :DATA if MacOS.version <= :mavericks  # The patches are annotated inline.
 
   def install
-    # GCC is invoked with -w
-    ENV.enable_warnings if ENV.compiler == :gcc_4_0
-
-    if MacOS.version == :tiger
-      tar = Formula['gnu-tar']
-      tab = Tab.for_keg tar.installed_prefix
-      tar_name = tab.used_options.include?('--default-names') ? tar.bin/'tar' : tar.bin/'gtar'
+    if MacOS.version < :leopard
+      f = Formula['gnu-tar']
+      tab = Tab.for_keg f.prefix
+      tar_name = tab.used_options.include?('--default-names') ? f.bin/'tar' : f.bin/'gtar'
       inreplace 'Makefile' do |s|
         s.change_make_var! 'TAR', tar_name.to_s
       end
-    end
-
+    end # Older than Leopard?
     ENV['V'] = '1'                      # build verbosely
-    ENV['NO_FINK'] = '1'                # If these things are installed, tell the
+    ENV['NO_FINK'] = '1'                # If these are installed, tell the
     ENV['NO_DARWIN_PORTS'] = '1'        #   Git build system to not use them
-    perl_pathname = (Formula['perl'].installed? ? Formula['perl'].opt_bin/'perl' : `which perl`)
+    perl_pathname = Formula['perl'].opt_bin/'perl'
     ENV['PERL_PATH'] = perl_pathname    # path to the binary
     (ENV['PYTHON_PATH'] =               # path to the binary, if any
-        ((pf = Formula['python3']).any_version_installed? ? pf.opt_bin/'python3' :
-          ((pp = `which python3`).choke or
-            ((pf = Formula['python']).installed? ? pf.opt_bin/'python2.7' :
-              (pp = `which python2.7`).choke
+        ((f = Formula['python3']).any_version_installed? ? f.opt_bin/'python3' :
+          (which('python3').choke or
+            ((f = Formula['python']).installed? ? f.opt_bin/'python2.7' :
+              which('python2.7').choke
       ) ) ) ) or ENV['NO_PYTHON'] = '1' # system Python < 2.7, e.g. on Tiger/Leopard, won’t work
     if build.with? 'tcl-tk'
-      ENV['TCL_PATH'] = Formula['tcl-tk'].opt_bin/'tclsh'
-      ENV['TCLTK_PATH'] = Formula['tcl-tk'].opt_bin/'wish'
+      ENV['TCL_PATH'] = (fp = Formula['tcl-tk'].opt_bin)/'tclsh'
+      ENV['TCLTK_PATH'] = fp/'wish'
     else
       ENV['NO_TCLTK'] = '1'
     end
     ENV['DEFAULT_EDITOR'] = ENV['EDITOR'] || 'vi'  # default to the original default value
     ENV['DEFAULT_HELP_FORMAT'] = 'man'
     ENV['CHARSET_LIB'] = '-lcharset'
-    ENV['EXPATDIR'] = Formula['expat'].opt_prefix
-    ENV['CURLDIR'] = Formula['curl'].opt_prefix
-    ENV['CURL_CONFIG'] = Formula['curl'].opt_bin/'curl-config'
+    ENV['EXPATDIR'] = (f = Formula['expat']).installed? ? f.opt_prefix \
+                                                        : (MacOS.version > :tiger ? '/usr' : nil) \
+                                                        or ENV['NO_EXPAT'] = '1'
+    ENV['CURLDIR'] = (f = Formula['curl']).opt_prefix
+    ENV['CURL_CONFIG'] = f.opt_bin/'curl-config'
     if build.with? 'pcre2'
       ENV['USE_LIBPCRE2'] = '1'
       ENV['LIBPCREDIR'] = Formula['pcre2'].opt_prefix
     end
-    ENV['OPENSSL_SHA1'] = '1'
-    ENV['BLK_SHA1'] = '1'
+    ENV['NO_APPLE_COMMON_CRYPTO'] = '1'
+    ENV['NEEDS_CRYPTO_WITH_SSL'] = '1'
+    ENV['NEEDS_SSL_WITH_CRYPTO'] = '1'
+    ENV['BLK_SHA1_UNSAFE'] = '1'  # By choosing no “safe” SHA1 backend, we make git default to its
+                                  # internal sha1collisiondetection library implementation.
     ENV['OPENSSL_SHA256'] = '1'
+    ENV['NEEDS_LIBICONV'] = '1'  # Otherwise we get the inadequate stock version instead of ours.
     ENV['CFLAGS_APPEND'] = '-std=gnu99'
-
-    dir_args = %W[
-        prefix=#{prefix}
-        sysconfdir=#{etc}
-      ]    # “sysconfdir” is weirdly missing from the Makefile, even though it’s very obviously
-           # assumed to be present.
-
     perl_version = /\d\.\d+/.match(`#{perl_pathname} --version`)
     if build.with? 'brewed-svn'
+      f = Formula['subversion']
       ENV['PERLLIB_EXTRA'] = %W[
-        #{Formula['subversion'].opt_lib}/perl5/site_perl
-        #{Formula['subversion'].opt_prefix}/Library/Perl/#{perl_version}/darwin-thread-multi-2level
+        #{f.opt_lib}/perl5/site_perl
+        #{f.opt_prefix}/Library/Perl/#{perl_version}/darwin-thread-multi-2level
       ].join(':')
     elsif MacOS.version >= :mavericks
       ENV['PERLLIB_EXTRA'] = %W[
@@ -117,9 +108,18 @@ class Git < Formula
       ].uniq.map do |p|
         "#{p}/Library/Perl/#{perl_version}/darwin-thread-multi-2level"
       end.join(':')
+    else
+      ENV['NO_SVN_TESTS'] = '1'  # Save a LOT of time if we’re not using Subversion at all.
     end
 
+    dir_args = %W[
+        prefix=#{prefix}
+        sysconfdir=#{etc}
+      ]    # “sysconfdir” is weirdly missing from the Makefile, even though it’s very obviously
+           # assumed to be present.
+
     make *dir_args
+    # `make test` does not completely succeed, so don’t bother
     make 'install', *dir_args
 
     # Install the OS X keychain credential helper
@@ -157,8 +157,7 @@ class Git < Formula
     chmod 0644, Dir["#{share}/doc/git-doc/**/*.{html,txt}"]
     chmod 0755, Dir["#{share}/doc/git-doc/{RelNotes,howto,technical}"]
 
-    # Set the macOS keychain credential helper by default
-    # (as Apple's CLT's git also does this).
+    # Set the macOS keychain credential helper by default (as Apple’s CLT’s git also does this).
     (buildpath/'gitconfig').write <<-EOS.undent
       [credential]
       \thelper = osxkeychain
@@ -176,18 +175,22 @@ class Git < Formula
   end # caveats
 
   test do
-    system bin/'git', 'init'
+    system "#{bin}/git", 'init'
     %w[haunted house].each { |f| touch testpath/f }
-    system bin/'git', 'add', 'haunted', 'house'
-    system bin/'git', 'commit', '-a', '-m', 'Initial Commit'
+    system "#{bin}/git", 'add', 'haunted', 'house'
+    system "#{bin}/git", 'commit', '-a', '-m', 'Initial_Commit'
     assert_equal "haunted\nhouse", shell_output("#{bin}/git ls-files").strip
   end # test
 end # Git
 
 __END__
+# Fix PowerPC build, and support for Mac OS up through roughly Mavericks:
+# - Stock regex(3) is too old and lacks some file system monitoring functionality.
+# - Needs arc4random_buf(3) which is missing on Leopard and prior, so just use OpenSSL since
+#   newer implementations were based on AES cipher.
 --- old/config.mak.uname
 +++ new/config.mak.uname
-@@ -132,6 +132,11 @@
+@@ -131,6 +131,11 @@
          ifeq ($(shell expr "$(uname_R)" : '[15]\.'),2)
  		NO_STRLCPY = YesPlease
          endif
@@ -199,7 +202,7 @@ __END__
          ifeq ($(shell test "`expr "$(uname_R)" : '\([0-9][0-9]*\)\.'`" -ge 11 && echo 1),1)
  		HAVE_GETDELIM = YesPlease
          endif
-@@ -147,8 +152,7 @@
+@@ -146,8 +151,7 @@
  	HAVE_BSD_SYSCTL = YesPlease
  	FREAD_READS_DIRECTORIES = UnfortunatelyYes
  	HAVE_NS_GET_EXECUTABLE_PATH = YesPlease
@@ -209,7 +212,7 @@ __END__
  
  	# Workaround for `gettext` being keg-only and not even being linked via
  	# `brew link --force gettext`, should be obsolete as of
-@@ -174,6 +178,7 @@
+@@ -173,6 +177,7 @@
                  endif
          endif
  
@@ -217,7 +220,7 @@ __END__
  	# The builtin FSMonitor on MacOS builds upon Simple-IPC.  Both require
  	# Unix domain sockets and PThreads.
          ifndef NO_PTHREADS
-@@ -182,6 +187,7 @@
+@@ -181,6 +186,7 @@
  	FSMONITOR_OS_SETTINGS = darwin
          endif
          endif
@@ -225,9 +228,10 @@ __END__
  
  	BASIC_LDFLAGS += -framework CoreServices
  endif
+# Very old Mac OSes don’t understand “rpath”.
 --- old/Makefile
 +++ new/Makefile
-@@ -1366,7 +1366,7 @@
+@@ -1401,7 +1401,7 @@
  # Older versions of GCC may require adding "-std=gnu99" at the end.
  CFLAGS = -g -O2 -Wall
  LDFLAGS =
@@ -236,21 +240,24 @@ __END__
  BASIC_CFLAGS = -I.
  BASIC_LDFLAGS =
  
+# Older GCCs, which are the default on Apple PowerPC, do not define __BYTE_ORDER__.
 --- old/sha1dc/sha1.c
 +++ new/sha1dc/sha1.c
-@@ -102,6 +102,10 @@
+@@ -102,6 +102,9 @@
   */
  #define SHA1DC_BIGENDIAN
  
 +#elif (defined(__APPLE__) && defined(__BIG_ENDIAN__) && !defined(SHA1DC_BIGENDIAN))
-+/* older gcc compilers which are the default on Apple PPC do not define __BYTE_ORDER__ */
-+#define SHA1DC_BIGENDIAN
++# define SHA1DC_BIGENDIAN
 +
  /* Not under GCC-alike or glibc or *BSD or newlib or <processor whitelist> or <os whitelist> */
  #elif defined(SHA1DC_ON_INTEL_LIKE_PROCESSOR)
  /*
---- git-2.46.0/contrib/credential/osxkeychain/git-credential-osxkeychain.c	2024-07-29 07:24:50 -0700
-+++ git-2.43.0/contrib/credential/osxkeychain/git-credential-osxkeychain.c	2023-11-19 18:07:41 -0800
+# We use the 2.40.1 version of git-credential-osxkeychain, not the 2.43.0 version, because we don’t
+# have getline(3).  The totally rewritten 2.46.0 version is out of the question as it requires Snow
+# Leopard or later.
+--- old/contrib/credential/osxkeychain/git-credential-osxkeychain.c
++++ new/contrib/credential/osxkeychain/git-credential-osxkeychain.c
 @@ -3,52 +3,14 @@
  #include <stdlib.h>
  #include <Security/Security.h>
@@ -311,7 +318,7 @@ __END__
  static void die(const char *err, ...)
  {
  	char msg[4096];
-@@ -57,202 +19,70 @@
+@@ -57,289 +19,108 @@
  	vsnprintf(msg, sizeof(msg), err, params);
  	fprintf(stderr, "%s\n", msg);
  	va_end(params);
@@ -420,7 +427,7 @@ __END__
 -				username_buf,
 -				buffer_len,
 -				ENCODING)) {
--		write_item("username", username_buf, buffer_len - 1);
+-		write_item("username", username_buf, strlen(username_buf));
 -	}
 -	free(username_buf);
 +	write_item("username", attr.data, attr.length);
@@ -547,7 +554,7 @@ __END__
  
  	/*
  	 * Require at least a protocol and host for removal, which is what git
-@@ -260,86 +90,37 @@
+ 	 * will give us; if you want to do something more fancy, use the
  	 * Keychain manager.
  	 */
  	if (!protocol || !host)
@@ -648,7 +655,7 @@ __END__
  
  		v = strchr(buf, '=');
  		if (!v)
-@@ -348,64 +131,36 @@
+@@ -348,100 +131,61 @@
  
  		if (!strcmp(buf, "protocol")) {
  			if (!strcmp(v, "imap"))
@@ -726,7 +733,6 @@ __END__
  		/*
  		 * Ignore other lines; we don't know what they mean, but
  		 * this future-proofs us when later versions of git do
-@@ -412,36 +167,25 @@
  		 * learn new lines, and the helpers are updated to match.
  		 */
  	}
@@ -740,7 +746,7 @@ __END__
  	const char *usage =
  		"usage: git credential-osxkeychain <get|store|erase>";
  
- 	if (!argv[1])
+ 	if (argc < 2 || !*argv[1])
  		die("%s", usage);
  
 -	if (open(argv[0], O_RDONLY | O_EXLOCK) == -1)
@@ -766,3 +772,15 @@ __END__
 -
  	return 0;
  }
+# We can’t include <copyfile.h> prior to Leopard, because it didn’t exist.
+--- old/t/unit-tests/clar/clar/fs.h
++++ new/t/unit-tests/clar/clar/fs.h
+@@ -317,7 +317,7 @@
+ # include <sys/sendfile.h>
+ #endif
+ 
+-#if defined(__APPLE__)
++#if defined(__APPLE__) && MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
+ # include <copyfile.h>
+ #endif
+ 
