@@ -26,7 +26,8 @@ module Homebrew
               Requirement.prune if ignores.any? { |ignore| req.send(ignore) } && !dependent.build.with?(req)
             end
             deps.any? { |dep| dep.to_formula.full_name == ff.full_name rescue dep.name == ff.name } ||
-            reqs.any? { |req| req.name == ff.name || [ff.name, ff.full_name].include?(req.default_formula) }
+            reqs.any? { |req| req.name == ff.name || [ff.name, ff.full_name].include?(req.default_formula) } ||
+            (f.installed? && f.enhanced_by?(ff))
           else
             deps = f.deps.reject do |dep|
               ignores.any? { |ignore| dep.send(ignore) }
@@ -35,7 +36,8 @@ module Homebrew
               ignores.any? { |ignore| req.send(ignore) }
             end
             deps.any? { |dep| dep.to_formula.full_name == ff.full_name rescue dep.name == ff.name } ||
-            reqs.any? { |req| req.name == ff.name || [ff.name, ff.full_name].include?(req.default_formula) }
+            reqs.any? { |req| req.name == ff.name || [ff.name, ff.full_name].include?(req.default_formula) } ||
+            (f.installed? && f.enhanced_by?(ff))
           end
         rescue FormulaUnavailableError
           # Silently ignore this case as we don't care about things used in
