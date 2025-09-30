@@ -45,7 +45,7 @@ __END__
 # of the matter.
 --- old/configure
 +++ new/configure
-@@ -15584,25 +15584,33 @@
+@@ -15584,25 +15584,27 @@
  
  	# Check for potential -arch flags.  It is not universal unless
  	# there are at least two -arch flags with different values.
