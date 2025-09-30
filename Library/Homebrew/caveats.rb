@@ -20,6 +20,7 @@ class Caveats
     _caveats << s.chomp if s.length > 0
     _caveats << enhancements_caveats
     _caveats << keg_only_caveats
+    _caveats << insinuation_caveats
     _caveats << bash_completion_caveats
     _caveats << zsh_completion_caveats
     _caveats << fish_completion_caveats
@@ -57,19 +58,31 @@ class Caveats
 
   def keg_only_caveats
     return unless f.keg_only?
-
-    s = "This formula is keg-only, which means it is not symlinked into\n#{HOMEBREW_PREFIX}.\n\n"
-    s << "#{f.keg_only_reason}\n\n"
+    s = ["This formula is keg-only, which means it is not symlinked into\n#{HOMEBREW_PREFIX}.\n"]
+    s << "#{f.keg_only_reason}\n"
     if f.lib.directory? or f.include.directory?
       s << <<-EOS.undent
           Generally there are no consequences of this for you. If you build your
           own software and it requires this formula, you’ll need to add to your
           build variables:
         EOS
-      s << "    LDFLAGS:  -L#{f.opt_lib}\n" if f.lib.directory?
+      s << "    LDFLAGS:  -L#{f.opt_lib}" if f.lib.directory?
       s << "    CPPFLAGS: -I#{f.opt_include}" if f.include.directory?
     end
+    s * "\n"
   end # keg_only_caveats
+
+  def insinuation_caveats
+    return unless f.insinuation_defined? and f.caveats.to_s.length == 0
+    <<-_.undent
+      This formula installs a web of symlinks which effectively replace your system’s
+      stock version of the software with the brewed version.  The stock version and
+      its documentation remain available under #{f.name}-<version>, where <version>
+      is the simple form of the stock software’s version number.  You can also switch
+      between versions at any time by using the commands “sudo to-stock-#{f.name}”
+      or “sudo to-brewed-#{f.name}”, as appropriate.
+    _
+  end # insinuation_caveats
 
   def bash_completion_caveats
     "Bash completion is installed to:\n    #{HOMEBREW_PREFIX}/etc/bash_completion.d" \
@@ -89,22 +102,12 @@ class Caveats
   def plist_caveats
     s = []
     if f.plist or (keg and keg.plist_installed?)
-      destination = if f.plist_startup
-        '/Library/LaunchDaemons'
-      else
-        '~/Library/LaunchAgents'
-      end
-
-      plist_filename = if f.plist
-        f.plist_path.basename
-      else
-        File.basename Dir["#{keg}/*.plist"].first
-      end
+      destination = (f.plist_startup ? '/Library/LaunchDaemons' : '~/Library/LaunchAgents')
+      plist_filename = (f.plist ? f.plist_path.basename : File.basename(Dir["#{keg}/*.plist"].first))
       plist_link = "#{destination}/#{plist_filename}"
       plist_domain = f.plist_path.basename('.plist')
       destination_path = Pathname.new File.expand_path destination
       plist_path = destination_path/plist_filename
-
       # we readlink because this path probably doesn't exist since caveats
       # occurs before the link step of installation
       # Yosemite security measures mildly tighter rules:
@@ -126,8 +129,8 @@ class Caveats
         else
           s << "    launchctl load #{plist_link}"
         end
-      # For startup plists, we cannot tell whether it's running on launchd,
-      # as it requires for `sudo launchctl list` to get real result.
+      # For startup plists, we can’t tell whether it’s running on launchd, as is required for `sudo
+      # launchctl list` to get a real result.
       elsif f.plist_startup
         s << "To reload #{f.full_name} after an upgrade:"
         s << "    sudo launchctl unload #{plist_link}"
@@ -142,12 +145,10 @@ class Caveats
         s << "To load #{f.full_name}:"
         s << "    launchctl load #{plist_link}"
       end
-
       if f.plist_manual
         s << 'Or, if you don’t want/need launchctl, you can just run:'
         s << "    #{f.plist_manual}"
       end
-
       s << '' << 'WARNING: launchctl will fail when run under tmux.' if ENV['TMUX']
     end
     s.join("\n") unless s.empty?
@@ -156,7 +157,6 @@ class Caveats
   def python_2_caveats
     return unless keg
     return unless keg.python2_site_packages_installed?
-
     s = nil
     homebrew_py2_site_packages = Language::Python.homebrew_site_packages
     py2_user_site_packages = Language::Python.user_site_packages 'python'
@@ -165,7 +165,6 @@ class Caveats
         mkdir -p #{py2_user_site_packages}
         echo 'import site; site.addsitedir("#{homebrew_py2_site_packages}")' >> #{pth_file}
       EOS
-
     if f.keg_only?
       keg_py2_site_packages = f.opt_prefix/'lib/python2.7/site-packages'
       unless Language::Python.in_sys_path?('python', keg_py2_site_packages)
@@ -177,9 +176,7 @@ class Caveats
       end
       return s
     end
-
     return if Language::Python.reads_brewed_pth_files?('python')
-
     if not Language::Python.in_sys_path?('python', homebrew_py2_site_packages)
       s = <<-EOS.undent
           Python 2 modules are installed and Leopardbrew’s site-packages is not in your
@@ -202,7 +199,6 @@ class Caveats
   def python_3_caveats
     return unless keg
     return unless keg.python3_site_packages_installed?
-
     s = nil
     py3xy = Formula['python3'].xy
     homebrew_py3_site_packages = Language::Python.homebrew_site_packages(py3xy)
@@ -212,7 +208,6 @@ class Caveats
         mkdir -p #{py3_user_site_packages}
         echo 'import site; site.addsitedir("#{homebrew_py3_site_packages}")' >> #{pth_file}
       EOS
-
     if f.keg_only?
       keg_py3_site_packages = f.opt_prefix/"lib/python#{py3xy}/site-packages"
       unless Language::Python.in_sys_path?('python3', keg_py3_site_packages)
@@ -224,9 +219,7 @@ class Caveats
       end
       return s
     end
-
     return if Language::Python.reads_brewed_pth_files?('python3')
-
     if not Language::Python.in_sys_path?('python3', homebrew_py3_site_packages)
       s = <<-EOS.undent
           Python 3 modules are installed and Leopardbrew’s site-packages is not in your
