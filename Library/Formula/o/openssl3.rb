@@ -28,26 +28,24 @@ class Openssl3 < Formula
 
   def arg_format(arch)
     case arch
-      when :arm64  then 'darwin64-arm64'
-      when :i386   then 'darwin-i386'
-      when :ppc    then 'darwin-ppc'
-      when :ppc64  then 'darwin64-ppc'
-      when :x86_64 then 'darwin64-x86_64'
+      when :arm64, :arm64e   then 'darwin64-arm64'
+      when :i386             then 'darwin-i386'
+      when :ppc              then 'darwin-ppc'
+      when :ppc64            then 'darwin64-ppc'
+      when :x86_64, :x86_64h then 'darwin64-x86_64'
     end
   end
 
   def install
-    # Build breaks passing -w.
-    ENV.enable_warnings if ENV.compiler == :gcc_4_0
     # This could interfere with how we expect OpenSSL to build.
     ENV.delete('OPENSSL_LOCAL_CONFIG_DIR')
-    # This ensures where Homebrew’s Perl is needed its Cellar path isn’t hardcoded into OpenSSL’s
-    # scripts, breaking them every Perl update.  Our env does point to opt_bin, but by default
+    # Ensure that, where Homebrew’s Perl is needed, its Cellar path is not hardcoded into OpenSSL’s
+    # scripts, breaking them every Perl update.  Our variable does point to opt_bin, but by default
     # OpenSSL resolves the symlink.
     ENV['HASHBANGPERL'] = Formula['perl'].opt_bin/'perl'
 
-    if build.universal?
-      archs = CPU.local_archs
+    archs = Target.archset
+    if build.fat?
       the_binaries = %w[
         bin/openssl
         lib/engines-3/capi.dylib
@@ -61,9 +59,7 @@ class Openssl3 < Formula
       the_headers = %w[
         include/openssl/configuration.h
       ]
-    else
-      archs = [MacOS.preferred_arch]
-    end # universal?
+    end # build fat?
 
     openssldir.mkpath
 
@@ -72,15 +68,17 @@ class Openssl3 < Formula
       "--openssldir=#{openssldir}",
       'no-legacy',      # For whatever reason, the build tests fail to locate the legacy provider.
       'no-makedepend',  # Required for multi-architecture builds.
-      'enable-pie',
       'enable-trace',
       'enable-zlib-dynamic'
     ]
     if MacOS.version < :leopard
       args += ['no-async',          # There’s no {get,make,set}context support pre‐Leopard.
+               'disable-pie',        # ld only has this from Leopard on (no earlier OS supports PIE).
                '-DOPENSSL_NO_APPLE_CRYPTO_RANDOM',  # Nor the crypto framework.
                '-D__DARWIN_UNIX03'  # If this is not set, 'timezone' is a pointer to characters
         ]                           # instead of a longint, making a mess in crypto/asn1/a_time.c.
+    else
+      args << 'enable-pie'  # ld only has this from Leopard on (no earlier OS supports PIE).
     end
     args << 'sctp'       if MacOS.version >  :leopard  # Pre‐Snow Leopard lacks these system headers.
     args << 'enable-tfo' if MacOS.version >= :mojave   # Pre-Mojave doesn’t support TCP Fast Open.
@@ -106,12 +104,12 @@ class Openssl3 < Formula
     end
 
     archs.each do |arch|
-      ENV.set_build_archs(arch) if build.universal?
+      ENV.set_build_archs(arch) if build.fat?
 
       arch_args = [
         arg_format(arch),
       ]
-      arch_args << '-D__ILP32__' if CPU.32b_arch?(arch)  # Apple never needed to define this.
+      arch_args << '-D__ILP32__' if Target._32b_arch?(arch)  # Apple never needed to define this.
 
       # “perl Configure”, instead of “./Configure”, because the Configure script’s shebang line may
       # well name the wrong Perl binary.  (If we have an outdated stock Perl, we really do not want
@@ -121,18 +119,18 @@ class Openssl3 < Formula
       system 'make', 'test' if build.with? 'tests'
       system 'make', 'install'
 
-      if build.universal?
+      if build.fat?
         system 'make', 'clean'
         merge_prep(:binary, arch, the_binaries)
         merge_prep(:header, arch, the_headers)
-      end # universal?
+      end # build fat?
     end # each |arch|
 
-    if build.universal?
+    if build.fat?
       ENV.set_build_archs(archs)
       merge_binaries(archs)
       merge_c_headers(archs)
-    end # universal?
+    end # build fat?
   end # install
 
   def openssldir
