@@ -143,9 +143,9 @@ class Tab < OpenStruct
 
   def built_archs
     # Older tabs won’t have this field, so compute a plausible default.
-    if super.empty? then if cross? then CPU.cross_archs
-                         elsif universal? then CPU.local_archs
-                         else MacOS.preferred_arch_as_list; end
+    if super.empty? then if cross? then Target.cross_archs
+                         elsif universal? then Target.local_archs
+                         else Target.preferred_arch_as_list; end
     else super.map(&:to_sym).extend ArchitectureListExtension; end
   end # built_archs
 
@@ -189,7 +189,7 @@ class Tab < OpenStruct
          end
     s << "(for #{built_archs.map(&:to_s).list})"
     s << 'with: ' << used_options.to_a.sort.list unless used_options.empty?
-    s << "\nEnhanced by:  #{active_aids.map(&:full_name).list}" if active_aids.choke
+    s << "\nEnhanced by:  #{active_aids.compact.map(&:full_name).list}" if active_aids.choke
     s * ' '
   end # to_s
 
