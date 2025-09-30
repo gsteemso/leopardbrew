@@ -1,3 +1,4 @@
+# stable release 2017-03-20; checked 2025-09-11
 class PkgConfig < Formula
   desc "Manage compile and link flags for libraries"
   homepage "https://freedesktop.org/wiki/Software/pkg-config/"
@@ -18,8 +19,7 @@ class PkgConfig < Formula
       #{HOMEBREW_LIBRARY}/ENV/pkgconfig/#{MacOS.version}
     ].uniq.join(File::PATH_SEPARATOR)
 
-    ENV.append 'HOMEBREW_FORCE_FLAGS', '-mpim-altivec' if Hardware::CPU.ppc? and
-                                                          MacOS.version < :leopard
+    ENV.append 'HOMEBREW_FORCE_FLAGS', '-mpim-altivec' if CPU.powerpc? and MacOS.version < :leopard
 
     ENV.append "LDFLAGS", "-framework Foundation -framework Cocoa"
     system "./configure", "--prefix=#{prefix}",

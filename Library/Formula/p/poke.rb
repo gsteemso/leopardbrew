@@ -45,9 +45,9 @@ class Poke < Formula
       dump :size 4#B :ruler 0 :ascii 0
       .exit
     EOS
-    if Hardware::CPU.type == :intel
+    if CPU.intel?
       assert_match "00000000: cffa edfe", shell_output("#{bin}/poke --quiet -s test.pk")
-    elsif Hardware::CPU.type == :ppc
+    elsif CPU.powerpc?
       assert_match "00000000: feed face", shell_output("#{bin}/poke --quiet -s test.pk")
     end
   end
