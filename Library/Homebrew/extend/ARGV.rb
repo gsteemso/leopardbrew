@@ -40,11 +40,11 @@ module HomebrewArgvExtension
   public
 
   def clear
-    @bottle_arch = @b_check = @casks = @downcased_unique = @fae = @kegs = @n = @named = @racks = @resolved_fae = nil
+    @btl_arch = @btl_chk = @casks = @lowr_uniq = @fae = @kegs = @n = @named = @racks = @resolved_fae = nil
     super
   end
 
-  def named; @named ||= self - options_only; end
+  def named; @named ||= (self - options_only).select{ |nm| nm.choke }; end
 
   # Selects both switches (-x) and flags (--xxxx).
   def options_only; select{ |arg| arg.to_s.starts_with?('-') }; end
@@ -180,18 +180,20 @@ module HomebrewArgvExtension
 
   def build_universal?; flag? '--universal' or ENV['HOMEBREW_BUILD_UNIVERSAL'].choke; end
 
+  def build_fat?; build_universal? or build_cross?; end
+
   # Request a 32-bit only build.  Needed for some use-cases.  Building Universal is preferable.
   def build_32_bit?; include? '--32-bit'; end
 
   def build_bottle?; include? '--build-bottle' or ENV['HOMEBREW_BUILD_BOTTLE'].choke or bottle_arch; end
 
   def bottle_arch
-    unless @b_check
-      @b_check = true
-      @bottle_arch ||= if (arch = value 'bottle-arch') then arch.to_sym; end
+    unless @btl_chk
+      @btl_chk = true
+      @btl_arch ||= if (arch = value 'bottle-arch') then arch.to_sym; end
     end
-    @bottle_arch
-  end
+    @btl_arch
+  end # bottle_arch
 
   def build_from_source?
     switch? 's' or include? '--build-from-source' or ENV['HOMEBREW_BUILD_FROM_SOURCE'].choke
@@ -237,7 +239,7 @@ module HomebrewArgvExtension
 
   def downcased_unique_named
     # Only downcase names – pass paths, bottle filenames and URLs unaltered
-    @downcased_unique ||= named.map{ |arg|
+    @lowr_uniq ||= named.map{ |arg|
         if arg.include? '/' or arg =~ /\.tar\..{2,4}$/ then arg
         else arg.downcase; end
       }.compact.uniq
