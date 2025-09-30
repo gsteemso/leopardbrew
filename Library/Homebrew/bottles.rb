@@ -28,12 +28,11 @@ def bottle_tag
     else
       "#{MacOS.codename}_intel".to_sym
     end
-  elsif MacOS.version >= :snow_leopard  # Catalina and under can run 32‐bit, but after Leopard we
-    MacOS.codename                      # only build 64‐bit (too many obsolescences with 32‐bit).
+  elsif MacOS.version >= :lion  # Can run 32‐bit up to Catalina, but from Lion onward we only build
+    MacOS.codename              # 64‐bit unless building cross (too many obsolescences with 32‐bit).
   else
     # Return, e.g., :tiger_g3, :leopard_g5_64, :leopard_intel_64
     case Target.arch
-      when :altivec          then "#{MacOS.codename}_altivec".to_sym
       when :i386             then "#{MacOS.codename}_intel_32".to_sym
       when :ppc              then "#{MacOS.codename}_#{Target.model}".to_sym
       when :ppc64            then "#{MacOS.codename}_g5_64".to_sym
@@ -44,8 +43,8 @@ def bottle_tag
 end # bottle_tag
 
 def bottle_arch_is_valid?
-  ARGV.bottle_arch and (CPU::KNOWN_TYPES + CPU.known_archs + CPU.known_models + [:altivec, :g5_64,
-                        :intel_32, :intel_64]).includes? ARGV.bottle_arch
+  ARGV.bottle_arch and (CPU.known_types + CPU.known_archs + CPU.known_models +
+                        [:altivec, :g5_64, :intel_32, :intel_64]).includes? ARGV.bottle_arch
 end
 
 def bottle_receipt_path(bottle_file)
