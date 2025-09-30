@@ -77,9 +77,9 @@ class Gcc6 < Formula
 
     def version_suffix; version.to_s.slice(/\d\d?/); end
 
-    build_platform = arch_word(MacOS.preferred_arch)
-    host_platforms = CPU.local_archs.map{ |a| arch_word(a) }
-    target_platforms = CPU.buildable_archs.map{ |a| arch_word(a) }
+    build_platform = arch_word(Target.preferred_arch)
+    host_platforms = Target.local_archs.map{ |a| arch_word(a) }
+    target_platforms = Target.cross_archs.map{ |a| arch_word(a) }
     target_platforms << 'arm' if build.with? 'arm32'
 
     if ENV.compiler == :gcc_4_0
@@ -129,11 +129,11 @@ class Gcc6 < Formula
     ppc_configargs = configargs + ["--with-build-sysroot=#{ppc_sysroot}"]
     arm32_sysroot = ''; arm32_configargs = []; arm32_archs = []
     if build.with? 'arm32'
-      arm32_platform = "#{MacOS.active_developer_dir}/Platforms/iPhoneOS.platform"
-      raise__no_iphoneos_sdk_found unless File.directory?(arm32_platform)
-      arm32_toolroot = "#{arm32_platform}/Developer"
-      arm32_SDKs = "#{arm32_toolroot}/SDKs"
-      raise__no_iphoneos_sdk_found unless File.directory?(arm32_SDKs)
+      arm32_platform = MacOS.active_developer_dir/'Platforms/iPhoneOS.platform'
+      raise__no_iphoneos_sdk_found unless arm32_platform.directory?
+      arm32_toolroot = arm32_platform/'Developer'
+      arm32_SDKs = arm32_toolroot/'SDKs'
+      raise__no_iphoneos_sdk_found unless arm32_SDKs.directory?
       candidate_version = ((Dir.glob("#{arm32_SDKs}/iPhoneOS*.sdk").map{ |f|
           File.basename(f, '.sdk')[/\d+\.\d+(?:\.\d+)?/].split('.')
         }.each{ |a|
@@ -146,7 +146,7 @@ class Gcc6 < Formula
           ) : a[0].to_i <=> b[0].to_i   # nil.to_i produces 0
         }[-1] || []).compact * '.'      # drop the nil entries after sorting
         ).choke or raise__no_iphoneos_sdk_found
-      arm32_sysroot = "#{arm32_SDKs}/iPhoneOS#{candidate_version}.sdk"
+      arm32_sysroot = arm32_SDKs/"iPhoneOS#{candidate_version}.sdk"
       arm32_configargs = configargs + ["--with-build-sysroot=#{arm32_sysroot}"]
       atr = arm32_toolroot; asr = arm32_sysroot
       arm32_archs =
