@@ -6,8 +6,8 @@ class Cctools < Formula
     url 'https://github.com/apple-oss-distributions/cctools/archive/refs/tags/cctools-855.tar.gz'
     sha256 '7c31652cefde324fd6dc6f4dabbcd936986430039410a65c98d4a7183695f6d7'
   else
-    # 806 (from Xcode 4.1) is the latest version that supports Tiger or PowerPC
-    # (Not strictly true, but it is the last version that Apple supported on them.)
+    # CCTools 806, from Xcode 4.1, was the last version where Apple’s build scripts supported Tiger
+    # or PowerPC.
     url 'https://github.com/apple-oss-distributions/cctools/archive/refs/tags/cctools-806.tar.gz'
     sha256 '331b44a2df435f425ea3171688305dcb46aa3b29df2d38b421d82eb27dbd4d2e'
   end
@@ -27,7 +27,7 @@ class Cctools < Formula
   cxxstdlib_check :skip
 
   if MacOS.version >= :snow_leopard
-    option 'with-llvm', 'Build with LTO support'
+    option 'with-llvm', 'Build with Link-Time Optimization support'
     depends_on 'llvm' => :optional
 
     # These patches apply to cctools 855, for newer OSes
@@ -96,9 +96,9 @@ class Cctools < Formula
     patch <<'END_OF_PATCH'
 --- old/otool/Makefile
 +++ new/otool/Makefile
-# $LIBS is set to the names of libraries that simply do not exist on a shipped system – & the otool
-# executable somehow gets built with relocation entries in its (__TEXT,__text) section, which ought
-# to be read‐only.
+# Remove $LIBS, which is set to the names of libraries that simply do not exist on a shipped system.
+# Otherwise, the otool executable somehow gets built with relocation entries in its (__TEXT,__text)
+# section, which ought to be read‐only.
 @@ -19,7 +19,7 @@
  		     [ "$(RC_RELEASE)" = "SUPanWheat" ]; then \
  		    echo "-static" ; \
