@@ -11,11 +11,11 @@ class Zstd < Formula
   depends_on 'lz4' => :recommended
 
   if MacOS.version < :leopard
-    # Does not actually depend on {apple-gcc42}, but {ld64}’s :compiler_failure for gcc-4.0 means
-    # this won’t build without it due to cross‐contamination of class instances.
-    depends_on 'cctools'     => :build  # Needs a more recent "as".
-    depends_on 'ld64'        => :build  # Tiger's system `ld` can't build the library.
-    depends_on 'make'        => :build  # Tiger's system `make` can't handle the makefile.
+    # This doesn’t really depend on {apple-gcc42}, but {ld64}’s :compiler_failure for gcc-4.0 means
+    # this won’t build without it or some other newer compiler, due to cross‐contamination of class
+    # instances.
+    depends_on :ld64     => :build  # Tiger's system `ld` can't build the library.
+    depends_on 'make'    => :build  # Tiger's system `make` can't handle the makefile.
   end
 
   patch :DATA
