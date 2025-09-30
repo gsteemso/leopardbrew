@@ -3,7 +3,7 @@ require "digest/md5"
 require "formula/renames"
 
 # The Formulary is responsible for creating instances of Formula.
-# It is not meant to be used directy from formulae.
+# It is not meant to be used directly from formulæ.
 
 class Formulary
   FORMULAE = {}
