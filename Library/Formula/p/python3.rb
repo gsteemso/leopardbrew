@@ -78,10 +78,11 @@ END_OF_PATCH
     ENV['PYTHONHOME'] = nil  # Unset these so that installing pip puts it where we want
     ENV['PYTHONPATH'] = nil  # and not into some other Python the user has installed.
 
-    # There is no simple way to extract a “ppc” slice from a universal file.  We have to
-    # specify the exact sub‐architecture we actually put in there in the first place.
-    if Target.powerpc?
-      our_ppc_flavour = CPU.optimization_flags(Target.model)[/^-mcpu=(\d+)/, 1]
+    # There’s no simple way to extract a “ppc” slice from a universal file.  We have to specify the
+    # exact sub‐architecture we actually put in there in the first place.  Of course, if it already
+    # was :g4, we don’t need to do anything.
+    if Target.powerpc? and (m_for_ppc = Target.model_for_arch(:ppc)) != :g4
+      our_ppc_flavour = Target.model_optflags(m_for_ppc)[/^-mcpu=(\d+)/, 1]
       inreplace 'configure' do |s| s.gsub! '-extract ppc7400', "-extract ppc#{our_ppc_flavour}" end
     end
 
@@ -132,7 +133,7 @@ END_OF_PATCH
     args << '--without-gcc' << '--enable-optimizations' if ENV.compiler == :clang
 
     args << '--enable-universalsdk=/'
-    args << "--with-universal-archs=#{Target.type}#{build.universal? ? '' : "-#{Target.bits}"}"
+    args << "--with-universal-archs=#{Target.type}#{build.universal? ? '' : "-#{Target.bits(Target.arch)}"}"
 
     cflags   = []
     ldflags  = []
@@ -148,13 +149,13 @@ END_OF_PATCH
 
     # G5 build under Tiger failed to recognize “vector” keyword in system header
     cflags << '-mpim-altivec' if MacOS.version == :tiger and CPU.altivec? \
-                                 and [:gcc, :gcc_4_0, :llvm].any?{ |c| c == ENV.compiler }
+                                 and [:gcc, :gcc_4_0, :llvm].include? ENV.compiler
     cppflags << "-I#{Formula['tcl-tk'].opt_include}"
     ldflags  << "-L#{Formula['tcl-tk'].opt_lib}"
 
+    args << "CPPFLAGS=#{cppflags.join(' ')}"
     args << "CFLAGS=#{cflags.join(' ')}" unless cflags.empty?
-    args << "LDFLAGS=#{ldflags.join(' ')}" unless ldflags.empty?
-    args << "CPPFLAGS=#{cppflags.join(' ')}" unless cppflags.empty?
+    args << "LDFLAGS=#{ldflags.join(' ')}"
 
     system './configure', *args
     system 'make'
