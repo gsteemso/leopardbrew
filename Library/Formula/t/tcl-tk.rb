@@ -9,11 +9,9 @@ class TclTk < Formula
   keg_only :provided_by_osx,
     'Tk installs some X11 headers and Mac OS provides an (older) Tcl/Tk.'
 
-  deprecated_option 'enable-threads' => 'with-threads'
   deprecated_option 'without-tcllib' => 'without-libs'
 
   option :universal
-  option 'with-threads', 'Build with multithreading support'
   option 'without-libs', 'Don’t build tcllib or tklib (utility modules)'
   option 'without-tk', 'Don’t build Tk (the window toolkit)'
 
@@ -41,23 +39,21 @@ class TclTk < Formula
   end
 
   def install
+    # TCL has restrictions on doing :universal builds under Tiger, but they don’t factor in because
+    # Leopardbrew quietly makes :universal the same as not-:universal under Tiger.
     ENV.universal_binary if build.universal?
-    # TCL has restrictions on doing :universal builds under Tiger, but they aren’t a factor
-    # because Leopardbrew quietly makes :universal the same as not-:universal under Tiger
 
-    # Build breaks passing -w
-    ENV.enable_warnings if ENV.compiler == :gcc_4_0
     args = [
         "--prefix=#{prefix}",
         "--mandir=#{man}",
-        '--enable-man-symlinks',
-        '--enable-man-suffix',
-        '--disable-framework',
         '--disable-dtrace',
-        '--with-encoding=utf-8'
+        '--with-encoding=utf-8',
+        '--disable-framework',
+        '--enable-man-suffix',
+        '--enable-man-symlinks',
+        '--enable-threads',
       ]
-    args << '--enable-threads' if build.with? 'threads'
-    args << '--enable-64bit' if MacOS.prefer_64_bit?
+    args << '--enable-64bit' if Target.prefer_64b?
 
     cd 'unix' do
       system './configure', *args
@@ -74,14 +70,14 @@ class TclTk < Formula
         args = [
             "--prefix=#{prefix}",
             "--mandir=#{man}",
-            '--enable-man-symlinks',
             '--enable-man-suffix',
-            "--with-tcl=#{lib}"
+            '--enable-man-symlinks',
+            "--with-tcl=#{lib}",
+            '--enable-threads',
           ]
-        args << '--enable-threads' if build.with? 'threads'
-        args << '--enable-64bit' if MacOS.prefer_64_bit?
+        args << '--enable-64bit' if Target.prefer_64b?
 
-        # Aqua support now requires features introduced in Snow Leopard at least
+        # Aqua support now requires features introduced in Snow Leopard
         if MacOS.version < :snow_leopard
           args << '--with-x'
         else
@@ -98,7 +94,7 @@ class TclTk < Formula
           ln_s bin/'wish8.6', bin/'wish'
         end
       end
-    end
+    end # build with tk?
 
     if build.with? 'libs'
       resource('tcllib').stage do
@@ -111,10 +107,12 @@ class TclTk < Formula
         system 'make'
         system 'make', 'install'
       end
-    end
-  end
+    end # build with libs?
+  end # install
 
   test do
-    assert_equal 'honk', pipe_output("#{bin}/tclsh", "puts honk\n").chomp
-  end
-end
+    for_archs(bin/'tclsh') do |_, cmd_array|
+      assert_equal 'honk', pipe_output(*cmd_array, "puts honk\n").chomp
+    end
+  end # test
+end # TclTk
