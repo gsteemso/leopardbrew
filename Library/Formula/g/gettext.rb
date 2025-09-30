@@ -34,7 +34,7 @@ class Gettext < Formula
         '--without-xz'   # Avoid a dependency loop.
       ]
     args << "--with-libiconv-prefix=#{Formula['libiconv'].opt_prefix}" if enhanced_by? 'libiconv'
-    args << '--enable-year2038' if ENV.building_pure_64_bit?
+    args << '--enable-year2038' if Target.pure_64b?
     system './configure', *args
     system 'make'
     # `make check` can no longer be disentangled from Gnulib.  Trying to run the tests is now
@@ -43,16 +43,17 @@ class Gettext < Formula
   end # install
 
   def caveats; <<-_.undent
-    GNU Gettext and GNU Libiconv are circularly dependent on one another.  The
-    `libiconv` formula explicitly depends on this one, which means gettext will
-    be brewed for you (if it wasn’t already) when you brew libiconv.  The reverse
-    cannot be done at the same time because of the circular dependency.  To ensure
-    the full functionality of both packages, you should `brew reinstall gettext`
-    after you have brewed libiconv.
+      GNU Gettext and GNU Libiconv are circularly dependent on one another.
+      {libiconv} explicitly depends on this formula – meaning that {gettext} will be
+      brewed for you, if it wasn’t already, when you brew {libiconv}.  The reverse
+      cannot be done at the same time because of the circular dependency.
 
-    They should be brewed in this order because Mac OS includes an outdated iconv
-    that is enough to get by with, but does not include gettext at all.
-  _
+      In brief:  To make sure both packages work properly, once {libiconv} has been
+      brewed you should `brew reinstall gettext`.
+
+      (They should be brewed in this order because Mac OS includes an outdated iconv,
+      but has never included gettext.)
+    _
   end # caveats
 
   test do
