@@ -1,3 +1,5 @@
+# This file is loaded before `global.rb`, so must eschew most Homebrew‐isms at eval time.
+
 require 'open-uri'  # Ruby library.
 # The rest are Homebrew libraries:
 require 'exceptions'
@@ -124,31 +126,20 @@ ensure
 end # run_as_not_developer
 
 # Kernel.system but with exceptions
-def safe_system(cmd, *args)
-  Homebrew.system(cmd, *args) or raise(ErrorDuringExecution.new(cmd, args))
-end
+def safe_system(cmd, *args); do_system([:safe], cmd, *args); end
 
 # prints no output
-def quiet_system(cmd, *args)
-  Homebrew._system(cmd, *args) do
-    # Redirect output streams to `/dev/null` instead of closing them – some programs will fail when
-    # they can’t write to an open stream.
-    $stdout.reopen('/dev/null'); $stderr.reopen('/dev/null')
-  end
-end # quiet_system
+def quiet_system(cmd, *args); do_system([:silent], cmd, *args); end
 alias :silent_system :quiet_system
 
 # Encompasses both of the above.
 def do_system(flags, cmd, *args)
-  if flags.include?(:silent) then
-    Homebrew._system(cmd, *args){
+  (flags.include?(:silent) ? Homebrew._system(cmd, *args){
       # Redirect output streams to `/dev/null` instead of closing them – some programs will fail if
-      # they can’t write to an open stream.
+      # the stream isn’t open for writing.
       $stdout.reopen('/dev/null'); $stderr.reopen('/dev/null')
-    } or flags.include?(:safe) && raise(ErrorDuringExecution.new(cmd, args))
-  else
-    Homebrew.system(cmd, *args) or flags.include?(:safe) && raise(ErrorDuringExecution.new(cmd, args))
-  end
+    } : Homebrew.system(cmd, *args) \
+  ) or flags.include?(:safe) && raise(ErrorDuringExecution.new(cmd, args))
 end # do_system
 
 # useful for `test` blocks:
