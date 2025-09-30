@@ -1,6 +1,6 @@
-require "download_strategy"
-require "checksum"
-require "version"
+require 'download_strategy'
+require 'checksum'
+require 'version'
 
 # Resource is the fundamental representation of an external resource. The
 # primary formula download, along with other declared resources, are instances
@@ -12,8 +12,8 @@ class Resource
   attr_writer :version
   attr_accessor :checksum, :download_strategy
 
-  # Formula name must be set after the DSL, as we have no access to the
-  # formula name before initialization of the formula
+  # The formula name has to get set after the DSL is interpreted, as we have no access to it before
+  # initialization of the formula.
   attr_accessor :name, :owner
 
   class Download
@@ -39,10 +39,9 @@ class Resource
 
   def downloader; @downloader ||= download_strategy.new(download_name,Download.new(self)); end
 
-  # Removes /s from resource names; this allows go package names
-  # to be used as resource names without confusing software that
-  # interacts with download_name, e.g. github.com/foo/bar
-  def escaped_name; name.tr("/", "-"); end
+  # Removes slashes from resource names.  This allows Go package names to be used as resource names
+  # without confusing software that interacts with download_name, e.g. github.com/foo/bar.
+  def escaped_name; name.tr('/', '-'); end
 
   def download_name; name.nil? ? owner.name : "#{owner.name}--#{escaped_name}"; end
 
@@ -52,15 +51,14 @@ class Resource
 
   def stage(target = nil, &block)
     unless target or block
-      raise ArgumentError, "target directory or block is required"
+      raise ArgumentError, 'target directory or block is required'
     end
     verify_download_integrity(fetch)
     unpack(target, &block)
   end # Resource#stage
 
-  # If a target is given, unpack there; else unpack to a temp folder
-  # If block is given, yield to that block
-  # A target or a block must be given, but not both
+  # With a target, unpack there; otherwise to a temporary folder.  If a block is given, yield to it.
+  # Exactly one target or block must be given.
   def unpack(target = nil)
     mktemp(download_name) do
       downloader.stage
@@ -68,7 +66,7 @@ class Resource
         yield self
       elsif target
         target = Pathname.new(target) unless target.is_a? Pathname
-        target.install Dir["*"]
+        target.install Dir['*']
       end
     end
   end # Resource#unpack
@@ -91,12 +89,12 @@ class Resource
     if fn and fn.file?
       ohai "Verifying #{fn.basename} checksum" if VERBOSE
       fn.verify_checksum(checksum)
-      ohai "Checksum matches" if VERBOSE
+      ohai 'Checksum matches' if VERBOSE
     end
   rescue ChecksumMissingError
-    opoo "Cannot verify integrity of #{fn.basename}"
-    puts "A checksum was not provided for this resource"
-    puts "For your reference the SHA256 is: #{fn.sha256}"
+    opoo "Cannot verify integrity of #{fn.basename}", <<-_.undent.rewrap
+        A checksum was not provided for this resource.  For your reference, the SHA256 is:  #{fn.sha256}
+      _
   end # Resource#verify_download_integrity
 
   Checksum::TYPES.each do |type|
@@ -124,7 +122,7 @@ class Resource
     when String  then Version.new(val)
     when Version then val
     else
-      raise TypeError, "version '#{val.inspect}' should be a string"
+      raise TypeError, "version “#{val.inspect}” should be a string"
     end
   end # Resource#detect_version
 
@@ -137,7 +135,7 @@ class Resource
 
     def initialize(&block)
       @patch_files = []
-      super "patch", &block
+      super 'patch', &block
     end
 
     def apply(*paths)
