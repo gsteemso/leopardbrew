@@ -45,7 +45,7 @@ class Macvim < Formula
     # Set ARCHFLAGS so the Python app (with C extension) that is
     # used to create the custom icons will not try to compile in
     # PPC support (which isn't needed in Homebrew-supported systems.)
-    ENV["ARCHFLAGS"] = "-arch #{MacOS.preferred_arch}"
+    ENV["ARCHFLAGS"] = "-arch #{Target.preferred_arch}"
 
     # If building for 10.7 or up, make sure that CC is set to "clang".
     ENV.clang if MacOS.version >= :lion
@@ -53,7 +53,7 @@ class Macvim < Formula
     args = %W[
       --with-features=huge
       --enable-multibyte
-      --with-macarchs=#{MacOS.preferred_arch}
+      --with-macarchs=#{Target.preferred_arch}
       --enable-perlinterp
       --enable-rubyinterp
       --enable-tclinterp

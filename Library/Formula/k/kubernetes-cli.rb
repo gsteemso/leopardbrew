@@ -23,7 +23,7 @@ class KubernetesCli < Formula
   depends_on "go" => :build
 
   def install
-    arch = MacOS.prefer_64_bit? ? "amd64" : "x86"
+    arch = Target.prefer_64b? ? "amd64" : "x86"
 
     system "make", "all", "WHAT=cmd/*", "GOFLAGS=-v"
 

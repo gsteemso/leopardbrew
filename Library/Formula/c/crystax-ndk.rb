@@ -4,7 +4,7 @@ class CrystaxNdk < Formula
 
   version "10.2.1"
 
-  if MacOS.prefer_64_bit?
+  if Target.prefer_64b?
     url "https://www.crystax.net/download/crystax-ndk-#{version}-darwin-x86_64.7z"
     sha256 "1503eec2b883ffbe8f24bcfd2f3d47579ff1c9ce84be3612d8cfe5339aa0df40"
   else
@@ -17,7 +17,7 @@ class CrystaxNdk < Formula
   def install
     bin.mkpath
 
-    if MacOS.prefer_64_bit?
+    if Target.prefer_64b?
       arch = :x86_64
     else
       arch = :x86

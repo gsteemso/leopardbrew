@@ -6,14 +6,14 @@ class BottleTagTests < Homebrew::TestCase
     MacOS.stubs(:version).returns(MacOS::Version.new("10.4"))
     CPU.stubs(:type).returns(:powerpc)
     CPU.stubs(:model).returns(:foo)
-    MacOS.stubs(:prefer_64_bit?).returns(false)
+    Target.stubs(:prefer_64b?).returns(false)
     assert_equal :tiger_foo, bottle_tag
   end
 
   def test_tag_tiger_intel
     MacOS.stubs(:version).returns(MacOS::Version.new("10.4"))
     CPU.stubs(:type).returns(:intel)
-    MacOS.stubs(:prefer_64_bit?).returns(false)
+    Target.stubs(:prefer_64b?).returns(false)
     assert_equal :tiger, bottle_tag
   end
 
@@ -21,7 +21,7 @@ class BottleTagTests < Homebrew::TestCase
     MacOS.stubs(:version).returns(MacOS::Version.new("10.4"))
     CPU.stubs(:type).returns(:powerpc)
     CPU.stubs(:model).returns(:g5)
-    MacOS.stubs(:prefer_64_bit?).returns(true)
+    Target.stubs(:prefer_64b?).returns(true)
     assert_equal :tiger_g5_64, bottle_tag
   end
 
@@ -29,14 +29,14 @@ class BottleTagTests < Homebrew::TestCase
   def test_tag_tiger_intel_64
     MacOS.stubs(:version).returns(MacOS::Version.new("10.4"))
     CPU.stubs(:type).returns(:intel)
-    MacOS.stubs(:prefer_64_bit?).returns(true)
+    Target.stubs(:prefer_64b?).returns(true)
     assert_equal :tiger_64, bottle_tag
   end
 
   def test_tag_leopard_intel
     MacOS.stubs(:version).returns(MacOS::Version.new("10.5"))
     CPU.stubs(:type).returns(:intel)
-    MacOS.stubs(:prefer_64_bit?).returns(false)
+    Target.stubs(:prefer_64b?).returns(false)
     assert_equal :leopard, bottle_tag
   end
 
@@ -44,14 +44,14 @@ class BottleTagTests < Homebrew::TestCase
     MacOS.stubs(:version).returns(MacOS::Version.new("10.5"))
     CPU.stubs(:type).returns(:powerpc)
     CPU.stubs(:model).returns(:g5)
-    MacOS.stubs(:prefer_64_bit?).returns(true)
+    Target.stubs(:prefer_64b?).returns(true)
     assert_equal :leopard_g5_64, bottle_tag
   end
 
   def test_tag_leopard_intel_64
     MacOS.stubs(:version).returns(MacOS::Version.new("10.5"))
     CPU.stubs(:type).returns(:intel)
-    MacOS.stubs(:prefer_64_bit?).returns(true)
+    Target.stubs(:prefer_64b?).returns(true)
     assert_equal :leopard_64, bottle_tag
   end
 

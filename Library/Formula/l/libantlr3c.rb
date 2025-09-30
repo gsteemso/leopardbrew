@@ -18,7 +18,7 @@ class Libantlr3c < Formula
     args = ["--disable-dependency-tracking",
             "--disable-antlrdebug",
             "--prefix=#{prefix}"]
-    args << "--enable-64bit" if MacOS.prefer_64_bit?
+    args << "--enable-64bit" if Target.prefer_64b?
     system "./configure", *args
     if build.with? "exceptions"
       inreplace "Makefile" do |s|

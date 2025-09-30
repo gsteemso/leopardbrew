@@ -29,7 +29,7 @@ class Virtuoso < Formula
   skip_clean :la
 
   def install
-    ENV.m64 if MacOS.prefer_64_bit?
+    ENV.m64 if Target.prefer_64b?
     system "./autogen.sh" if build.head?
     system "./configure", "--disable-dependency-tracking",
                           "--prefix=#{prefix}"

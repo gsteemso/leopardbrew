@@ -28,7 +28,7 @@ class Dcmtk < Formula
   depends_on "libiconv" => :optional
 
   def install
-    ENV.m64 if MacOS.prefer_64_bit?
+    ENV.m64 if Target.prefer_64b?
 
     args = std_cmake_args
     args << "-DDCMTK_WITH_DOXYGEN=YES" if build.with? "docs"

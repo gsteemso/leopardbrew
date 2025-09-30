@@ -12,11 +12,6 @@ class Mad < Formula
   end
 
   def install
-    fpm = if Hardware::CPU.intel?
-      MacOS.prefer_64_bit? ? "64bit": "intel"
-    else
-      "ppc"
-    end
     system "./configure", "--disable-debugging", "--enable-fpm=#{fpm}", "--prefix=#{prefix}"
     system "make", "CFLAGS=#{ENV.cflags}", "LDFLAGS=#{ENV.ldflags}", "install"
     (lib+"pkgconfig/mad.pc").write pc_file
@@ -39,10 +34,10 @@ class Mad < Formula
   end
 
   def fpm
-    if Hardware.cpu_type == :intel
-      MacOS.prefer_64_bit? ? '64bit': 'intel'
-    elsif Hardware.cpu_type == :ppc
-      MacOS.prefer_64_bit? ? 'ppc64' : 'ppc'
+    if CPU.intel?
+      Target.prefer_64b? ? '64bit': 'intel'
+    elsif CPU.powerpc?
+      Target.prefer_64b? ? 'ppc64' : 'ppc'
     end
   end
 end

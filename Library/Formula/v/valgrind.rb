@@ -32,7 +32,7 @@ class Valgrind < Formula
       --disable-dependency-tracking
       --prefix=#{prefix}
     ]
-    if MacOS.prefer_64_bit?
+    if Target.prefer_64b?
       args << "--enable-only64bit" << "--build=amd64-darwin"
     else
       args << "--enable-only32bit"

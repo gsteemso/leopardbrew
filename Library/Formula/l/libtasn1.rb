@@ -16,8 +16,8 @@ class Libtasn1 < Formula
   option :universal
 
   def install
-    if build.universal?
-      archs = CPU.local_archs
+    archs = Target.archset
+    if build.fat?
       the_binaries = %w[
         bin/asn1Coding
         bin/asn1Decoding
@@ -25,12 +25,10 @@ class Libtasn1 < Formula
         lib/libtasn1.6.dylib
         lib/libtasn1.a
       ]
-    else
-      archs = [MacOS.preferred_arch]
-    end # universal?
+    end # fat build?
 
     archs.each do |arch|
-      ENV.set_build_archs(arch) if build.universal?
+      ENV.set_build_archs(arch) if build.fat?
 
       system "./configure", "--prefix=#{prefix}",
                             "--disable-dependency-tracking",
@@ -38,16 +36,16 @@ class Libtasn1 < Formula
       system "make"
       system "make", "check"
       system "make", "install"
-      if build.universal?
+      if build.fat?
         system 'make', 'distclean'
         merge_prep(:binary, arch, the_binaries)
-      end # universal?
+      end # fat build?
     end # each |arch|
 
-    if build.universal?
+    if build.fat?
       ENV.set_build_archs(archs)
       merge_binaries(archs)
-    end # universal?
+    end # fat build?
   end # install
 
   test do

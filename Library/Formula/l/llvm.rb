@@ -101,7 +101,7 @@ class Llvm < Formula
     ENV.libcxx if ENV.compiler == :clang
     if build.universal?
       ENV.permit_arch_flags
-      args << "-DCMAKE_OSX_ARCHITECTURES=#{Hardware::CPU.universal_archs.as_cmake_arch_flags}"
+      args << "-DCMAKE_OSX_ARCHITECTURES=#{Target.local_archs.as_cmake_arch_flags}"
     end
 
     if build.with? "lldb"

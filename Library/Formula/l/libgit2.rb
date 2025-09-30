@@ -26,7 +26,7 @@ class Libgit2 < Formula
 
     if build.universal?
       ENV.universal_binary
-      args << "-DCMAKE_OSX_ARCHITECTURES=#{Hardware::CPU.universal_archs.as_cmake_arch_flags}"
+      args << "-DCMAKE_OSX_ARCHITECTURES=#{Target.local_archs.as_cmake_arch_flags}"
     end
 
     mkdir "build" do

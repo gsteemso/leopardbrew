@@ -39,7 +39,7 @@ class Expect < Formula
       --with-tcl=#{tcltk.opt_lib}
     ]
 
-    args << "--enable-64bit" if MacOS.prefer_64_bit?
+    args << "--enable-64bit" if Target.prefer_64b?
 
     system "./configure", *args
     system "make"

@@ -85,7 +85,7 @@ class Libuv < Formula
   # CoreServices with its parochial duplicate definitions and archaïc vector syntax.
   patch :DATA if MacOS.version <= :leopard  # adjust this when we learn where the cutoff is
 
-  patch <<'END_OF_PATCH' if MacOS.version <= :tiger
+  patch <<'END_OF_PATCH' if MacOS.version < :leopard
 # 64-bit inodes are only available from Leopard onwards.
 --- old/Makefile.am
 +++ new/Makefile.am
@@ -126,7 +126,7 @@ END_OF_PATCH
         --disable-dependency-tracking
         --disable-silent-rules
       ]
-    args += '--enable-year2038' if ENV.building_pure_64_bit?
+    args << '--enable-year2038' if Target.pure_64b?
     system './autogen.sh'
     system './configure', *args
     system 'make'

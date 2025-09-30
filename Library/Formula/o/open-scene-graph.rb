@@ -54,12 +54,12 @@ class OpenSceneGraph < Formula
     args = std_cmake_args
     args << "-DBUILD_DOCUMENTATION=" + ((build.with? "docs") ? "ON" : "OFF")
 
-    if MacOS.prefer_64_bit?
-      args << "-DCMAKE_OSX_ARCHITECTURES=#{Hardware::CPU.arch_64_bit}"
+    if Target.prefer_64b?
+      args << "-DCMAKE_OSX_ARCHITECTURES=#{Target._64b_arch}"
       args << "-DOSG_DEFAULT_IMAGE_PLUGIN_FOR_OSX=imageio"
       args << "-DOSG_WINDOWING_SYSTEM=Cocoa"
     else
-      args << "-DCMAKE_OSX_ARCHITECTURES=#{Hardware::CPU.arch_32_bit}"
+      args << "-DCMAKE_OSX_ARCHITECTURES=#{Target._32b_arch}"
     end
 
     if build.with? "collada-dom"

@@ -46,8 +46,8 @@ class Openssl < Formula
 #    ENV.delete('PERL')
     ENV.deparallelize
 
-    if build.universal?
-      archs = CPU.local_archs
+    archs = Target.archset
+    if build.fat?
       the_binaries = %w[
         bin/openssl
         lib/libcrypto.a
@@ -60,9 +60,7 @@ class Openssl < Formula
       the_headers = %w[
         include/openssl/opensslconf.h
       ]
-    else
-      archs = [MacOS.preferred_arch]
-    end # universal?
+    end # fat build?
 
     openssldir.mkpath
 
@@ -85,25 +83,25 @@ class Openssl < Formula
     end
 
     archs.each do |arch|
-      ENV.set_build_archs(arch) if build.universal?
+      ENV.set_build_archs(arch) if build.fat?
 
       system 'perl', './Configure', *args, arg_xlate(arch)
       system 'make'
       system 'make', 'test' if build.with?('tests')
       system 'make', 'install', "MANDIR=#{man}", 'MANSUFFIX=ssl'
 
-      if build.universal?
+      if build.fat?
         system 'make', 'clean'
         merge_prep(:binary, arch, the_binaries)
         merge_prep(:header, arch, the_headers)
-      end # universal?
+      end
     end # each |arch|
 
-    if build.universal?
+    if build.fat?
       ENV.set_build_archs(archs)
       merge_binaries(archs)
       merge_c_headers(archs)
-    end # universal?
+    end
   end # install
 
   def post_install

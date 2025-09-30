@@ -85,7 +85,7 @@ class Fontforge < Formula
     ENV.append "LDFLAGS", "-lintl"
 
     # Reset ARCHFLAGS to match how we build
-    ENV["ARCHFLAGS"] = "-arch #{MacOS.preferred_arch}"
+    ENV["ARCHFLAGS"] = "-arch #{Target.preferred_arch}"
 
     # Bootstrap in every build: https://github.com/fontforge/fontforge/issues/1806
     resource("gnulib").fetch

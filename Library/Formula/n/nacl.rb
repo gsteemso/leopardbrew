@@ -25,7 +25,7 @@ class Nacl < Formula
     # It also builds both x86 and x86_64 copies if your compiler can
     # handle it. Here we only install one copy, based on if you're a
     # 64bit system or not. A --universal could come later though I guess.
-    archstr  = Hardware.is_64_bit? ? "amd64" : "x86"
+    archstr  = Target._64b? ? "amd64" : "x86"
     hoststr  = `hostname | sed 's/\\..*//' | tr -cd '[a-z][A-Z][0-9]'`.strip
 
     # Don't include cpucycles.h

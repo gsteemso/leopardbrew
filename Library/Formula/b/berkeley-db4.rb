@@ -24,8 +24,8 @@ class BerkeleyDb4 < Formula
     # BerkeleyDB dislikes parallel builds
     ENV.deparallelize
 
-    if build.universal?
-      archs = CPU.local_archs
+    archs = Target.archset
+    if build.fat?
       the_binaries = %w[
         bin/db_archive
         bin/db_checkpoint
@@ -46,9 +46,7 @@ class BerkeleyDb4 < Formula
         lib/libdb_cxx-4.8.a
         lib/libdb_cxx-4.8.dylib
       ]
-    else
-      archs = [MacOS.preferred_arch]
-    end # universal?
+    end # fat build?
 
     # “debug” is already disabled.
     # Per the package instructions, “docdir” is supposed to not have a leading “--”.
@@ -59,7 +57,7 @@ class BerkeleyDb4 < Formula
     ]
 
     archs.each do |arch|
-      ENV.set_build_archs(arch) if build.universal?
+      ENV.set_build_archs(arch) if build.fat?
 
       # BerkeleyDB requires you to build everything from a build subdirectory
       cd 'build_unix' do
@@ -67,17 +65,17 @@ class BerkeleyDb4 < Formula
         system "make"
         system "make", "install"
 
-        if build.universal?
+        if build.fat?
           system 'make', 'clean'
           merge_prep(:binary, arch, the_binaries)
-        end # universal?
+        end # fat build?
       end # cd build_unix
     end # each |arch|
 
-    if build.universal?
+    if build.fat?
       ENV.set_build_archs(archs)
       merge_binaries(archs)
-    end # universal?
+    end # fat build?
   end # install
 
   test do

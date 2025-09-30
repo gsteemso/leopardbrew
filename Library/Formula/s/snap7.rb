@@ -14,7 +14,7 @@ class Snap7 < Formula
   def install
     lib.mkpath
     system "make", "-C", "build/osx",
-                   "-f", "#{MacOS.preferred_arch}_osx.mk",
+                   "-f", "#{Target.preferred_arch}_osx.mk",
                    "install", "LibInstall=#{lib}"
     include.install "release/Wrappers/c-cpp/snap7.h"
   end

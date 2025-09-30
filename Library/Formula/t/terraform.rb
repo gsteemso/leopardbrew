@@ -124,7 +124,7 @@ class Terraform < Formula
       system "go", "test", "./..."
 
       mkdir "bin"
-      arch = MacOS.prefer_64_bit? ? "amd64" : "386"
+      arch = Target.prefer_64b? ? "amd64" : "386"
       system "gox", "-arch", arch,
         "-os", "darwin",
         "-output", "bin/terraform-{{.Dir}}",

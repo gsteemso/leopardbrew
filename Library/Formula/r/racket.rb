@@ -18,7 +18,7 @@ class Racket < Formula
               "--prefix=#{prefix}",
               "--man=#{man}"]
 
-      args << "--disable-mac64" unless MacOS.prefer_64_bit?
+      args << "--disable-mac64" unless Target.prefer_64b?
 
       system "./configure", *args
       system "make"

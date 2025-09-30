@@ -34,7 +34,7 @@ class Fftw < Formula
             "--enable-threads",
             "--disable-dependency-tracking"]
     simd_args = ["--enable-sse2"]
-    simd_args << "--enable-avx" if ENV.compiler == :clang && Hardware::CPU.avx? && !build.bottle?
+    simd_args << "--enable-avx" if ENV.compiler == :clang && CPU.avx? && !build.bottle?
 
     args << "--disable-fortran" if build.without? "fortran"
     args << "--enable-mpi" if build.with? "mpi"
@@ -44,12 +44,12 @@ class Fftw < Formula
     simd_single = []
     simd_double = []
 
-    if Hardware.cpu_type == :intel
+    if Target.intel?
       # enable-sse2 and enable-avx works for both single and double precision
       simd_single = ["--enable-sse2"]
-      simd_single << "--enable-avx" if ENV.compiler == :clang && Hardware::CPU.avx? && !build.bottle?
+      simd_single << "--enable-avx" if ENV.compiler == :clang && CPU.avx? && !build.bottle?
       simd_double = simd_single
-    elsif Hardware::CPU.altivec? && !(build.bottle? && ARGV.bottle_arch == :g3)
+    elsif CPU.altivec? and not Target.modelset.includes? :g3
       simd_single << "--enable-altivec" # altivec seems to only work with single precision
     end
 

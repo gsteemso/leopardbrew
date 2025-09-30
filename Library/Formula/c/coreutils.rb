@@ -49,7 +49,7 @@ class Coreutils < Formula
       --program-prefix=g
       --disable-silent-rules
     ]
-    args << '--disable-year2038' unless ENV.building_pure_64_bit?
+    args << '--disable-year2038' unless Target.pure_64b?
     args << '--without-gmp' if build.without? 'gmp'
     system './configure', *args
     system 'make'

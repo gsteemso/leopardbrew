@@ -73,7 +73,7 @@ class Boost < Formula
     # The context library is implemented as x86_64 ASM, so it
     # won't build on PPC or 32-bit builds
     # see https://github.com/Homebrew/homebrew/issues/17646
-    if Hardware::CPU.ppc? || Hardware::CPU.is_32_bit? || build.universal?
+    if Target.typeset != [:intel] or not Target.pure_64b?
       without_libraries << "context"
       # The coroutine library depends on the context library.
       without_libraries << "coroutine"
@@ -97,7 +97,7 @@ class Boost < Formula
 
 
     # Macports does this
-    args << "--disable-long-double" if Hardware.cpu_type == :ppc
+    args << "--disable-long-double" if Target.powerpc?
 
     if build.with? "single"
       args << "threading=multi,single"
@@ -138,7 +138,7 @@ class Boost < Formula
       EOS
     end
 
-    if Hardware::CPU.ppc? || Hardware::CPU.is_32_bit? || build.universal?
+    if Target.powerpc? || Target._32b? || build.universal?
       s += <<-EOS.undent
 
       Building of Boost.Context and Boost.Coroutine is disabled as they are

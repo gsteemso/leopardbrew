@@ -20,7 +20,7 @@ class P7zip < Formula
   option "32-bit"
 
   def install
-    if Hardware.is_32_bit? || build.build_32_bit?
+    if Target._32b? or build.build_32_bit?
       mv "makefile.macosx_32bits", "makefile.machine"
     else
       mv "makefile.macosx_64bits", "makefile.machine"

@@ -6,7 +6,7 @@ class Mkclean < Formula
 
   # Fixes compile error with XCode-4.3+, a hardcoded /Developer.  Reported as:
   # https://sourceforge.net/tracker/?func=detail&aid=3505611&group_id=68739&atid=522228
-  patch :DATA if MacOS.prefer_64_bit?
+  patch :DATA if Target.prefer_64b?
 
   def install
     ENV.deparallelize # Otherwise there are races

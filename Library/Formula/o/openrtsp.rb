@@ -14,7 +14,7 @@ class Openrtsp < Formula
   option "32-bit"
 
   def install
-    if build.build_32_bit? || !MacOS.prefer_64_bit?
+    if build.build_32_bit? || !Target.prefer_64b?
       ENV.m32
       system "./genMakefiles", "macosx-32bit"
     else

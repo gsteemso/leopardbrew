@@ -31,7 +31,7 @@ class JpegTurbo < Formula
     cp Dir["#{Formula["libtool"].opt_share}/libtool/*/config.{guess,sub}"], buildpath
     args = ["--disable-dependency-tracking", "--prefix=#{prefix}", "--with-jpeg8", "--mandir=#{man}"]
 
-    if MacOS.prefer_64_bit?
+    if Target.prefer_64b?
       resource("nasm").stage do
         system "./configure", "--prefix=#{buildpath}/nasm"
         system "make", "install"

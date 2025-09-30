@@ -27,12 +27,12 @@ class ArchRequirement < Requirement
 
   satisfy(:build_env => false) do
     case @arch.to_s.downcase
-      when %r{^arm} then CPU.arm?
-      when 'i386', 'ppc' then CPU.arch == @arch
-      when 'intel' then CPU.intel?
-      when 'powerpc' then CPU.powerpc?
-      when 'ppc64' then MacOS.prefer_64_bit? and CPU.powerpc?
-      when 'x86_64' then MacOS.prefer_64_bit? and CPU.intel?
+      when %r{^arm} then Target.arm?
+      when 'i386', 'ppc' then Target.arch == @arch
+      when 'intel' then Target.intel?
+      when 'powerpc' then Target.powerpc?
+      when 'ppc64' then Target.prefer_64b? and Target.powerpc?
+      when 'x86_64' then Target.prefer_64b? and Target.intel?
     end
   end
 

@@ -12,7 +12,7 @@ class Pylucene < Formula
 
   def install
     ENV.prepend_create_path "PYTHONPATH", lib/"python2.7/site-packages"
-    jcc = "JCC=python -m jcc --arch #{MacOS.preferred_arch}"
+    jcc = "JCC=python -m jcc --arch #{Target.preferred_arch}"
     opt = "INSTALL_OPT=--prefix #{prefix}"
     if build.with? "shared"
       jcc << " --shared"

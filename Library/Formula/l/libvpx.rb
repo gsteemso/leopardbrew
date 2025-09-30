@@ -31,11 +31,11 @@ class Libvpx < Formula
 
     # configure misdetects 32-bit 10.6
     # http://code.google.com/p/webm/issues/detail?id=401
-    if MacOS.version == "10.6" && Hardware.is_32_bit?
+    if MacOS.version == :snow_leopard and Target._32b?
       args << "--target=x86-darwin10-gcc"
     # also tries to build universal on PPC
-    elsif Hardware::CPU.ppc?
-      arch = "ppc#{Hardware::CPU.bits}"
+    elsif CPU.powerpc?
+      arch = "ppc#{CPU.bits}"
       osver = MacOS.version == :tiger ? 8 : 9
       args << "--target=#{arch}-darwin#{osver}-gcc"
     end

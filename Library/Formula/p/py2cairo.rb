@@ -35,7 +35,7 @@ class Py2cairo < Formula
     ENV.append_to_cflags `python-config --includes`
 
     # Python extensions default to universal but cairo may not be universal
-    ENV["ARCHFLAGS"] = "-arch #{MacOS.preferred_arch}" unless build.universal?
+    ENV["ARCHFLAGS"] = "-arch #{Target.preferred_arch}" unless build.universal?
 
     system "./waf", "configure", "--prefix=#{prefix}", "--nopyc", "--nopyo"
     system "./waf", "install"

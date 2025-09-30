@@ -80,23 +80,7 @@ class Qt < Formula
 
     args << "-nomake" << "docs" if build.without? "docs"
 
-    if Hardware.cpu_type != :ppc
-      if MacOS.prefer_64_bit? || build.universal?
-        args << "-arch" << "x86_64"
-      end
-
-      if !MacOS.prefer_64_bit? || build.universal?
-        args << "-arch" << "x86"
-      end
-    else
-      if MacOS.prefer_64_bit? or build.universal?
-        args << "-arch" << "ppc64"
-      end
-
-      if !MacOS.prefer_64_bit? or build.universal?
-        args << "-arch" << "ppc"
-      end
-    end
+    args += Target.archset.as_archflags.split(' ')
 
     args << "-developer-build" if build.with? "developer"
 

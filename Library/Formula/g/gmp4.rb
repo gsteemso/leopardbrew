@@ -37,7 +37,7 @@ class Gmp4 < Formula
     args = ["--prefix=#{prefix}", "--enable-cxx"]
 
     # Build 32-bit where appropriate, and help configure find 64-bit CPUs
-    if MacOS.prefer_64_bit? && !build.build_32_bit?
+    if Target.prefer_64b? && !build.build_32_bit?
       ENV.m64
       args << "--build=x86_64-apple-darwin"
     else

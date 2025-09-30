@@ -28,8 +28,7 @@ class Flac < Formula
 
   def install
     ENV.universal_binary if build.universal?
-    archs = (build.universal? ? Hardware::CPU.universal_archs : [MacOS.preferred_arch])
-    archs.extend ArchitectureListExtension
+    archs = Target.archset
 
     args = %W[
       --prefix=#{prefix}
@@ -38,8 +37,8 @@ class Flac < Formula
       --disable-silent-rules
       --enable-static
     ]
-    args << '--disable-asm-optimizations' if build.universal? || Hardware.is_32_bit?
-    args << '--disable-64-bit-words' if Hardware.is_32_bit?
+    args << '--disable-asm-optimizations' if build.universal? or Target._32b?
+    args << '--disable-64-bit-words' if Target._32b?
     args << '--without-ogg' if build.without? 'libogg'
 
     system './autogen.sh' if build.head?

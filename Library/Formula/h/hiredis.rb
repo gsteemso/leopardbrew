@@ -15,7 +15,7 @@ class Hiredis < Formula
 
   def install
     # Architecture isn't detected correctly on 32bit Snow Leopard without help
-    ENV["OBJARCH"] = "-arch #{MacOS.preferred_arch}"
+    ENV["OBJARCH"] = "-arch #{Target.preferred_arch}"
 
     system "make", "install", "PREFIX=#{prefix}"
     pkgshare.install "examples"

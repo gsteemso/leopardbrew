@@ -158,7 +158,7 @@ class Subversion < Formula
     # are too. This default behaviour is not desired when building an extension
     # for a single architecture.
     if build.with?("python") && (which "python").universal? && !build.universal?
-      ENV["ARCHFLAGS"] = "-arch #{MacOS.preferred_arch}"
+      ENV["ARCHFLAGS"] = "-arch #{Target.preferred_arch}"
     end
 
     # The system Python is built with llvm-gcc, so we override this
@@ -188,11 +188,11 @@ class Subversion < Formula
       ENV.deparallelize
       # Remove hard-coded ppc target, add appropriate ones
       if build.universal?
-        arches = Hardware::CPU.universal_archs.as_arch_flags
+        archs = Target.local_archs.as_arch_flags
       elsif MacOS.version <= :leopard
-        arches = "-arch #{Hardware::CPU.arch_32_bit}"
+        archs = "-arch #{Target._32b_arch}"
       else
-        arches = "-arch #{Hardware::CPU.arch_64_bit}"
+        archs = "-arch #{Target._64b_arch}"
       end
 
       perl_core = Pathname.new(`perl -MConfig -e 'print $Config{archlib}'`)+"CORE"
@@ -202,7 +202,7 @@ class Subversion < Formula
 
       inreplace "Makefile" do |s|
         s.change_make_var! "SWIG_PL_INCLUDES",
-          "$(SWIG_INCLUDES) #{arches} -g -pipe -fno-common -DPERL_DARWIN -fno-strict-aliasing -I/usr/local/include -I#{perl_core}"
+          "$(SWIG_INCLUDES) #{archs} -g -pipe -fno-common -DPERL_DARWIN -fno-strict-aliasing -I/usr/local/include -I#{perl_core}"
       end
       system "make", "swig-pl"
       system "make", "install-swig-pl", "DESTDIR=#{prefix}"

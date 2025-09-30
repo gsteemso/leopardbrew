@@ -31,8 +31,8 @@ class Gmp < Formula
       end
     end # cpu_lookup
 
-    if build.universal?
-      archs = CPU.local_archs
+    archs = Target.archset
+    if build.fat?
       the_binaries = %w[
         lib/libgmp.10.dylib
         lib/libgmp.a
@@ -42,9 +42,7 @@ class Gmp < Formula
       the_headers = %w[
         include/gmp.h
       ]
-    else
-      archs = [Target.arch]
-    end # universal?
+    end # fat build?
 
     build_sym = CPU.model
     tuple_tail = "apple-darwin#{`uname -r`[/^\d+/]}"
@@ -60,7 +58,7 @@ class Gmp < Formula
     args << "--host=#{found_host}-#{tuple_tail}" if found_host != found_build
 
     archs.each do |arch|
-      ENV.set_build_archs(arch) if build.universal?
+      ENV.set_build_archs(arch) if build.fat?
 
       arch_args = case arch
           when :arm64, :x86_64 then ['ABI=64']
@@ -68,25 +66,25 @@ class Gmp < Formula
           when :ppc then host_sym == :g5 ? ['ABI=mode32'] : ['ABI=32']
           when :ppc64 then ['ABI=mode64']
         end
-      arch_args << '--disable-assembly' if CPU.bit_width(arch) == 32
+      arch_args << '--disable-assembly' if Target.bits(arch) == 32
 
       system './configure', *args, *arch_args
       system 'make'
       system 'make', 'check'
       ENV.deparallelize { system 'make', 'install' }
 
-      if build.universal?
+      if build.fat?
         system 'make', 'distclean'
         merge_prep(:binary, arch, the_binaries)
         merge_prep(:header, arch, the_headers)
-      end # universal?
+      end # fat build?
     end # each |arch|
 
-    if build.universal?
+    if build.fat?
       ENV.set_build_archs(archs)
       merge_binaries(archs)
       merge_c_headers(archs)
-    end # universal?
+    end # fat build?
   end # install
 
   test do

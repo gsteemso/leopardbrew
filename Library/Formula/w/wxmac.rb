@@ -59,13 +59,13 @@ class Wxmac < Formula
       # On 64-bit, enabling mediactrl leads to wxconfig trying to pull
       # in a non-existent 64 bit QuickTime framework. This is submitted
       # upstream and will eventually be fixed, but for now...
-      MacOS.prefer_64_bit? ? "--disable-mediactrl" : "--enable-mediactrl",
+      Target.prefer_64b? ? "--disable-mediactrl" : "--enable-mediactrl",
       "--enable-graphics_ctx",
       "--enable-controls",
       "--enable-dataviewctrl",
       "--with-expat",
       "--with-macosx-version-min=#{MacOS.version}",
-      "--enable-universal_binary=#{Hardware::CPU.universal_archs.join(",")}",
+      "--enable-universal_binary=#{Target.local_archs.join(",")}",
       "--disable-precomp-headers",
       # This is the default option, but be explicit
       "--disable-monolithic"

@@ -30,7 +30,7 @@ class Uhd < Formula
 
     if build.universal?
       ENV.universal_binary
-      args << "-DCMAKE_OSX_ARCHITECTURES=#{Hardware::CPU.universal_archs.as_cmake_arch_flags}"
+      args << "-DCMAKE_OSX_ARCHITECTURES=#{Target.local_archs.as_cmake_arch_flags}"
     end
 
     ENV.prepend_create_path "PYTHONPATH", libexec/"vendor/lib/python2.7/site-packages"

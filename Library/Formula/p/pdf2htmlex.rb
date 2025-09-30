@@ -63,7 +63,7 @@ class Pdf2htmlex < Formula
       ENV.append "LDFLAGS", "-lintl"
 
       # Reset ARCHFLAGS to match how we build
-      ENV["ARCHFLAGS"] = "-arch #{MacOS.preferred_arch}"
+      ENV["ARCHFLAGS"] = "-arch #{Target.preferred_arch}"
 
       system "./autogen.sh"
       system "./configure", *args

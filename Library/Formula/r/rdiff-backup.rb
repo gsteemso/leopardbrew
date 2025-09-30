@@ -19,12 +19,7 @@ class RdiffBackup < Formula
   depends_on "librsync"
 
   def install
-    # Find the arch for the Python we are building against.
-    # We remove 'ppc' support, so we can pass Intel-optimized CFLAGS.
-    archs = archs_for_command("python")
-    archs.remove_ppc!
-    archs.delete :x86_64 if Hardware.is_32_bit?
-    ENV["ARCHFLAGS"] = archs.as_arch_flags
+    ENV["ARCHFLAGS"] = Target.archset.as_arch_flags
     system "python", "setup.py", "--librsync-dir=#{prefix}", "build"
     libexec.install Dir["build/lib.macosx*/rdiff_backup"]
     libexec.install Dir["build/scripts-*/*"]

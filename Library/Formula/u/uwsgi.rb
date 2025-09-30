@@ -50,7 +50,7 @@ class Uwsgi < Formula
   option "with-ruby", "Compile with Ruby support"
 
   def install
-    ENV.append %w[CFLAGS LDFLAGS], "-arch #{MacOS.preferred_arch}"
+    ENV.append %w[CFLAGS LDFLAGS], "-arch #{Target.preferred_arch}"
 
     json = build.with?("jansson") ? "jansson" : "yajl"
     yaml = build.with?("libyaml") ? "libyaml" : "embedded"

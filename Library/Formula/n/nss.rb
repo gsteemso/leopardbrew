@@ -30,7 +30,7 @@ class Nss < Formula
       "NSPR_INCLUDE_DIR=#{Formula["nspr"].opt_include}/nspr",
       "NSPR_LIB_DIR=#{Formula["nspr"].opt_lib}"
     ]
-    args << "USE_64=1" if MacOS.prefer_64_bit?
+    args << "USE_64=1" if Target.prefer_64b?
 
     # Remove the broken (for anyone but Firefox) install_name
     inreplace "coreconf/Darwin.mk", "-install_name @executable_path", "-install_name #{lib}"

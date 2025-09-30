@@ -65,7 +65,7 @@ END_OF_PATCH
         --disable-dependency-tracking
         --disable-silent-rules
       ]
-    args += '--enable-year2038' if ENV.building_pure_64_bit?
+    args << '--enable-year2038' if Target.pure_64b?
     system './configure', *args
     system 'make'
     system 'make', 'check' if build.with? 'tests'

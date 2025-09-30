@@ -279,7 +279,7 @@ class Gdal < Formula
     ENV.append "CFLAGS", "-I#{sqlite.opt_include}"
 
     # Reset ARCHFLAGS to match how we build.
-    ENV["ARCHFLAGS"] = "-arch #{MacOS.preferred_arch}"
+    ENV["ARCHFLAGS"] = "-arch #{Target.preferred_arch}"
 
     # Fix hardcoded mandir: http://trac.osgeo.org/gdal/ticket/5092
     inreplace "configure", %r[^mandir='\$\{prefix\}/man'$], ""
@@ -293,11 +293,7 @@ class Gdal < Formula
 
     # `python-config` may try to talk us into building bindings for more
     # architectures than we really should.
-    if MacOS.prefer_64_bit?
-      ENV.append_to_cflags "-arch #{Hardware::CPU.arch_64_bit}"
-    else
-      ENV.append_to_cflags "-arch #{Hardware::CPU.arch_32_bit}"
-    end
+    ENV.append_to_cflags "-arch #{Target.prefer_64b? ? Target._64b_arch : Target._32b_arch}"
 
     cd "swig/python" do
       system "python", "setup.py", "install", "--prefix=#{prefix}", "--record=installed.txt", "--single-version-externally-managed"

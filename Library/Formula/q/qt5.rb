@@ -119,11 +119,11 @@ class Qt5 < Formula
       args << "-dbus-linked"
     end
 
-    if MacOS.prefer_64_bit? || build.universal?
+    if Target.prefer_64b? || build.universal?
       args << "-arch" << "x86_64"
     end
 
-    if !MacOS.prefer_64_bit? || build.universal?
+    if !Target.prefer_64b? || build.universal?
       args << "-arch" << "x86"
     end
 

@@ -93,8 +93,8 @@ class Grass < Formula
       ENV.prepend_path "PYTHONPATH", python_site_packages/default_wx_path
     end
 
-    args << "--enable-64bit" if MacOS.prefer_64_bit?
-    args << "--with-macos-archs=#{MacOS.preferred_arch}"
+    args << "--enable-64bit" if Target.prefer_64b?
+    args << "--with-macos-archs=#{Target.preferred_arch}"
 
     cairo = Formula["cairo"]
     args << "--with-cairo-includes=#{cairo.include}/cairo"

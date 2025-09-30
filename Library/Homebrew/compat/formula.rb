@@ -4,7 +4,7 @@ module FormulaCompat
   end
 
   def snow_leopard_64?
-    MacOS.prefer_64_bit?
+    Target.prefer_64b?
   end
 end
 

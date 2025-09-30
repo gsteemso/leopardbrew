@@ -16,7 +16,7 @@ class Sonar < Formula
     # Delete native bin directories for other systems
     rm_rf Dir["bin/{aix,hpux,linux,solaris,windows}-*"]
 
-    if MacOS.prefer_64_bit?
+    if Target.prefer_64b?
       rm_rf "bin/macosx-universal-32"
     else
       rm_rf "bin/macosx-universal-64"
@@ -26,7 +26,7 @@ class Sonar < Formula
     rm_f Dir["war/*.bat"]
     libexec.install Dir["*"]
 
-    if MacOS.prefer_64_bit?
+    if Target.prefer_64b?
       bin.install_symlink "#{libexec}/bin/macosx-universal-64/sonar.sh" => "sonar"
     else
       bin.install_symlink "#{libexec}/bin/macosx-universal-32/sonar.sh" => "sonar"

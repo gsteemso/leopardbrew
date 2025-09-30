@@ -41,7 +41,7 @@ class Clisp < Formula
 
     # Clisp requires to select word size explicitly this way,
     # set it in CFLAGS won't work.
-    ENV["CC"] = "#{ENV.cc} -m#{MacOS.prefer_64_bit? ? 64 : 32}"
+    ENV["CC"] = "#{ENV.cc} -m#{Target.prefer_64b? ? 64 : 32}"
 
     system "./configure", "--prefix=#{prefix}",
                           "--with-readline=yes"

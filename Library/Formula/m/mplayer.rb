@@ -33,7 +33,7 @@ class Mplayer < Formula
   fails_with :clang do
     build 211
     cause "Inline asm errors during compile on 32bit Snow Leopard."
-  end unless MacOS.prefer_64_bit?
+  end unless Target.prefer_64b?
 
   # ld fails with: Unknown instruction for architecture x86_64
   fails_with :llvm

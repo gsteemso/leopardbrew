@@ -22,7 +22,7 @@ class SdlGfx < Formula
     args = %W[--disable-dependency-tracking
               --prefix=#{prefix}
               --disable-sdltest]
-    args << "--disable-mmx" unless Hardware::CPU.type == :intel
+    args << "--disable-mmx" unless Target.intel?
 
     system "./configure", *args
     system "make", "install"

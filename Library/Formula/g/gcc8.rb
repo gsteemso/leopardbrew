@@ -1,13 +1,13 @@
 class Gcc8 < Formula
   def arch
-    if Hardware::CPU.type == :intel
-      if MacOS.prefer_64_bit?
+    if CPU.intel?
+      if Target.prefer_64b?
         "x86_64"
       else
         "i686"
       end
-    elsif Hardware::CPU.type == :ppc
-      if MacOS.prefer_64_bit?
+    elsif CPU.powerpc?
+      if Target.prefer_64b?
         "powerpc64"
       else
         "powerpc"
@@ -32,7 +32,7 @@ class Gcc8 < Formula
   option "with-nls", "Build with Natural-Language Support (internationalization)"
   option "with-jit", "Build just-in-time compiler"
   # enabling multilib on a host that can't run 64-bit results in build failures
-  option "without-multilib", "Build without multilib support" if MacOS.prefer_64_bit?
+  option "without-multilib", "Build without multilib support" if Target.prefer_64b?
 
   depends_on "gmp"
   depends_on "libmpc"
@@ -76,9 +76,7 @@ class Gcc8 < Formula
 
     # Otherwise libstdc++ will be incorrectly tagged with cpusubtype 10 (G4e)
     # https://github.com/mistydemeo/tigerbrew/issues/538
-    if Hardware::CPU.family == :g3 || ARGV.bottle_arch == :g3
-      ENV.append_to_cflags "-force_cpusubtype_ALL"
-    end
+    ENV.append_to_cflags "-force_cpusubtype_ALL" if Target.model == :g3
 
     if MacOS.version < :leopard
       ENV["AS"] = ENV["AS_FOR_TARGET"] = "#{Formula["cctools"].bin}/as"
@@ -120,7 +118,7 @@ class Gcc8 < Formula
 
     args << "--disable-nls" if build.without? "nls"
 
-    if build.without?("multilib") || !MacOS.prefer_64_bit?
+    if build.without?("multilib") || !Target.prefer_64b?
       args << "--disable-multilib"
     else
       args << "--enable-multilib"

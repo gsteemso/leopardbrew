@@ -10,7 +10,7 @@ class Gcc7 < Formula
   option 'with-tests', 'Run build‐time self‐tests (depends on autogen & deja-gnu; very slow)'
   option 'without-cross-compiler', 'Don’t build the complementary compiler for building fat binaries'
   # Enabling multilib on a host that can’t run 64‐bit causes build failures.
-  option 'without-multilib', 'Build without multilib support' if MacOS.prefer_64_bit?
+  option 'without-multilib', 'Build without multilib support' if Target.prefer_64b?
 
   # Tiger’s stock as can’t handle the PowerPC assembly found in libitm.  (Don’t specify this as
   # :cctools, because it might incorrectly assume the stock version meets the requirement.)
@@ -96,7 +96,7 @@ class Gcc7 < Formula
     languages << 'jit' if build.with? 'jit'
 
     args = [
-      "--build=#{arch_word(MacOS.preferred_arch)}-apple-darwin#{osmajor}",
+      "--build=#{arch_word(Target.preferred_arch)}-apple-darwin#{osmajor}",
       "--prefix=#{prefix}",
       "--libdir=#{lib}/gcc/#{version_suffix}",
       # Version the executables to avoid conflicts.
@@ -147,7 +147,7 @@ class Gcc7 < Formula
 
 	ENV['BOOT_CFLAGS'] = '-g -Os'
 
-#    ENV.append ['BOOT_CFLAGS', 'HOMEBREW_FORCE_FLAGS'], '-mlongcall' if CPU.type == :powerpc
+#    ENV.append ['BOOT_CFLAGS', 'HOMEBREW_FORCE_FLAGS'], '-mlongcall' if CPU.powerpc?
 
 	ENV['BUILD_CONFIG'] = 'bootstrap-debug bootstrap-lto-noplugin'
 

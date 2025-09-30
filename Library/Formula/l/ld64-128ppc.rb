@@ -64,7 +64,7 @@ class Ld64128ppc < Formula
     end
 
     if build.with? 'tests'
-      runnable_archs = CPU.all_archs.select{ |a| CPU.can_run?(a) }.map(&:to_s)
+      runnable_archs = Target.local_archs.map(&:to_s)
       inreplace 'unit-tests/run-all-unit-tests', /x86_64 +i386/, runnable_archs * ' '
       if DEVELOPER
         inreplace 'unit-tests/include/common.makefile', %r{\$\(shell arch\)|"i386 x86_64 armv6"}, "\"#{runnable_archs * ' '}\""

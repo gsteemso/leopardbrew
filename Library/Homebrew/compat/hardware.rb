@@ -1,14 +1,14 @@
 class Hardware
   module CPU
     extend self;
-    def arch_32_bit;     ::CPU._32b_arch;   end
-    def arch_64_bit;     ::CPU._64b_arch;   end
-    def intel?;          ::CPU.intel?;      end
-    def is_32_bit?;      ::CPU._32b?;       end
-    def is_64_bit?;      ::CPU._64b?;       end
-    def ppc?;            ::CPU.powerpc?;    end
-    def type;            ::CPU.type;        end
-    def universal_archs; ::CPU.local_archs; end
+    def arch_32_bit;     ::Target._32b_arch;   end
+    def arch_64_bit;     ::Target._64b_arch;   end
+    def intel?;          ::CPU.intel?;         end
+    def is_32_bit?;      ::CPU._32b?;          end
+    def is_64_bit?;      ::CPU._64b?;          end
+    def ppc?;            ::CPU.powerpc?;       end
+    def type;            ::CPU.type;           end
+    def universal_archs; ::Target.local_archs; end
   end # Hardware⸬CPU
 
   class << self
@@ -32,7 +32,7 @@ class Hardware
     alias_method :intel_family, :cpu_family
     alias_method :ppc_family, :cpu_family
 
-    def oldest_cpu; ::CPU.bottle_model_for; end
+    def oldest_cpu; ::Target.oldest; end
 
     def processor_count; ::CPU.cores; end
   end # << self

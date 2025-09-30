@@ -22,7 +22,7 @@ class OsspUuid < Formula
     if build.universal?
       ENV.universal_binary
     elsif build.build_32_bit?
-      ENV.append %w[CFLAGS LDFLAGS], "-arch #{Hardware::CPU.arch_32_bit}"
+      ENV.append %w[CFLAGS LDFLAGS], "-arch #{Target._32b_arch}"
     end
 
     system "./configure", "--prefix=#{prefix}",

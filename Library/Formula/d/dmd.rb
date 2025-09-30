@@ -45,7 +45,7 @@ class Dmd < Formula
   end
 
   def install
-    make_args = ["INSTALL_DIR=#{prefix}", "MODEL=#{Hardware::CPU.bits}", "-f", "posix.mak"]
+    make_args = ["INSTALL_DIR=#{prefix}", "MODEL=#{CPU.bits}", "-f", "posix.mak"]
 
     system "make", "SYSCONFDIR=#{etc}", "TARGET_CPU=X86", "AUTO_BOOTSTRAP=1", "RELEASE=1", *make_args
 

@@ -28,7 +28,7 @@ class NewerIcu4c < Formula
     ENV.cxx11 if build.cxx11?
 
     args = ["--prefix=#{prefix}", "--disable-samples", "--enable-static"]
-    args << "--with-library-bits=64" if MacOS.prefer_64_bit?
+    args << "--with-library-bits=64" if Target.prefer_64b?
 
     ENV['CPPFLAGS'] = '-DU_CHARSET_IS_UTF8=1'
     # Could also be done in *args, but that elicits irritating and unhelpful usage warnings.

@@ -4,7 +4,7 @@ class Tuntap < Formula
 
   # 20111101 dropped support for PowerPC, but still runs on 10.4
   # 20090913 is the last release that supports PowerPC at all.
-  tag = Hardware::CPU.ppc? ? 'release_20090913' : 'release_20111101'
+  tag = Target.powerpc? ? 'release_20090913' : 'release_20111101'
   url 'git://git.code.sf.net/p/tuntaposx/code', :tag => tag
 
   bottle do
@@ -17,7 +17,8 @@ class Tuntap < Formula
   depends_on UnsignedKextRequirement => [:cask => "tuntap",
                                          :download => "http://sourceforge.net/projects/tuntaposx/files/tuntap/"]
 
-  # error: invalid conversion from 'errno_t (*)(__ifnet*, long unsigned int, void*)' to 'errno_t (*)(__ifnet*, u_int32_t, void*)'
+  # error: invalid conversion from 'errno_t (*)(__ifnet*, long unsigned int, void*)' to
+  #                                'errno_t (*)(__ifnet*, u_int32_t, void*)'
   patch :DATA
 
   def install

@@ -1,13 +1,13 @@
 class Gcc49 < Formula
   def arch
-    if Hardware::CPU.type == :intel
-      if MacOS.prefer_64_bit?
+    if CPU.intel?
+      if Target.prefer_64b?
         "x86_64"
       else
         "i686"
       end
-    elsif Hardware::CPU.type == :ppc
-      if MacOS.prefer_64_bit?
+    elsif CPU.powerpc?
+      if Target.prefer_64b?
         "powerpc64"
       else
         "powerpc"
@@ -55,7 +55,7 @@ class Gcc49 < Formula
   option "with-nls", "Build with Natural-Language Support (internationalization)"
   option "with-profiled-build", "Make use of profile guided optimization when bootstrapping GCC"
   # enabling multilib on a host that can't run 64-bit results in build failures
-  option "without-multilib", "Build without multilib support" if MacOS.prefer_64_bit?
+  option "without-multilib", "Build without multilib support" if Target.prefer_64b?
 
   deprecated_option "enable-java" => "with-java"
   deprecated_option "enable-all-languages" => "with-all-languages"
@@ -143,7 +143,7 @@ class Gcc49 < Formula
       args << "--with-ecj-jar=#{Formula["ecj"].opt_prefix}/share/java/ecj.jar"
     end
 
-    if !MacOS.prefer_64_bit? || build.without?("multilib")
+    if !Target.prefer_64b? || build.without?("multilib")
       args << "--disable-multilib"
     else
       args << "--enable-multilib"

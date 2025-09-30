@@ -24,7 +24,7 @@ class Nspr < Formula
     cd "nspr" do
       # Fixes a bug with linking against CoreFoundation, needed to work with SpiderMonkey
       # See: http://openradar.appspot.com/7209349
-      target_frameworks = (Hardware.is_32_bit? || MacOS.version <= :leopard) ? "-framework Carbon" : ""
+      target_frameworks = (Target._32b? or MacOS.version <= :leopard) ? "-framework Carbon" : ""
       inreplace "pr/src/Makefile.in", "-framework CoreServices -framework CoreFoundation", target_frameworks
 
       args = %W[
@@ -35,7 +35,7 @@ class Nspr < Formula
         --enable-ipv6
         --enable-macos-target=#{MacOS.version}
       ]
-      args << "--enable-64bit" if MacOS.prefer_64_bit?
+      args << "--enable-64bit" if Target.prefer_64b?
       system "./configure", *args
       # Remove the broken (for anyone but Firefox) install_name
       inreplace "config/autoconf.mk", "-install_name @executable_path/$@ ", "-install_name #{lib}/$@ "

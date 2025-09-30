@@ -38,7 +38,7 @@ class Ruby24 < Formula
 
     if build.universal?
       ENV.universal_binary
-      args << "--with-arch=#{Hardware::CPU.universal_archs.join(',')}"
+      args << "--with-arch=#{Target.local_archs.join(',')}"
     end
 
     args << '--disable-dtrace' unless MacOS::CLT.installed?

@@ -44,7 +44,7 @@ class GnuSmalltalk < Formula
   end
 
   def install
-    ENV.m32 unless MacOS.prefer_64_bit?
+    ENV.m32 unless Target.prefer_64b?
 
     args = %W[
       --disable-debug
@@ -59,7 +59,7 @@ class GnuSmalltalk < Formula
     end
 
     # disable generational gc in 32-bit and if libsigsegv is absent
-    if !MacOS.prefer_64_bit? || build.without?("libsigsegv")
+    if !Target.prefer_64b? || build.without?("libsigsegv")
       args << "--disable-generational-gc"
     end
 

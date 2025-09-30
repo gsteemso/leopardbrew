@@ -78,7 +78,7 @@ class Ffmpeg < Formula
     args << '--enable-libwebp' if build.with? 'webp'
 
 #    args << "--disable-asm" if MacOS.version < :leopard
-#    args << "--disable-altivec" if !Hardware::CPU.altivec? || (build.bottle? && ARGV.bottle_arch == :g3)
+#    args << "--disable-altivec" if !CPU.altivec? || (build.bottle? && ARGV.bottle_arch == :g3)
 
     # These librares are GPL-incompatible, and require ffmpeg be built with
     # the "--enable-nonfree" flag, which produces unredistributable libraries

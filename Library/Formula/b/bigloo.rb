@@ -34,7 +34,7 @@ class Bigloo < Formula
     args << "--no-gmp" if build.without? "gmp"
 
     # SRFI 27 is 32-bit only
-    args << "--disable-srfi27" if MacOS.prefer_64_bit?
+    args << "--disable-srfi27" if Target.prefer_64b?
 
     system "./configure", *args
 

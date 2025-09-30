@@ -46,7 +46,7 @@ class Mariadb < Formula
     The __sync_lock_test_and_set atomic builtin does not work as MariaDB
     expects on PowerPC.
     EOSTRING
-  end if Hardware::CPU.ppc?
+  end if CPU.powerpc?
 
   def install
     # Don't hard-code the libtool path. See:
@@ -122,7 +122,7 @@ class Mariadb < Formula
     # Make universal for binding to universal applications
     if build.universal?
       ENV.universal_binary
-      args << "-DCMAKE_OSX_ARCHITECTURES=#{Hardware::CPU.universal_archs.as_cmake_arch_flags}"
+      args << "-DCMAKE_OSX_ARCHITECTURES=#{Target.local_archs.as_cmake_arch_flags}"
     end
 
     # Build with local infile loading support

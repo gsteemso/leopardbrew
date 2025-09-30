@@ -1,13 +1,13 @@
 class Gcc44 < Formula
   def arch
-    if Hardware::CPU.type == :intel
-      if MacOS.prefer_64_bit?
+    if CPU.intel?
+      if Target.prefer_64b?
         "x86_64"
       else
         "i686"
       end
-    elsif Hardware::CPU.type == :ppc
-      if MacOS.prefer_64_bit?
+    elsif CPU.powerpc?
+      if Target.prefer_64b?
         "powerpc64"
       else
         "powerpc"

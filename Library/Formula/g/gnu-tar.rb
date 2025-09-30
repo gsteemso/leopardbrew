@@ -46,7 +46,7 @@ END_OF_PATCH
     args << "--with-libiconv-prefix=#{Formula['libiconv'].opt_prefix}" if build.with? 'libiconv'
     args << (build.with?('nls') ? "--with-libintl-prefix=#{Formula['gettext'].opt_prefix}" : '--disable-nls')
     args << '--program-prefix=g' if build.without? 'default-names'
-    args << '--disable-year2038' unless ENV.building_pure_64_bit?
+    args << '--disable-year2038' unless Target.pure_64b?
     args << "--with-bzip2=#{Formula['bzip2'].opt_bin}/bzip2" if enhanced_by? 'bzip2'
     args << "--with-lzip=#{Formula['lzip'].opt_bin}/lzip" if enhanced_by? 'lzip'
     args << "--with-lzop=#{Formula['lzop'].opt_bin}/lzop" if enhanced_by? 'lzop'

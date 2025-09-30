@@ -83,7 +83,7 @@ class Sbcl < Formula
       ascii_val =~ /[\x80-\xff]/n
     end
 
-    bootstrap = (build.build_32_bit? || !MacOS.prefer_64_bit?) ? "bootstrap32" : "bootstrap64"
+    bootstrap = (build.build_32_bit? || !Target.prefer_64b?) ? "bootstrap32" : "bootstrap64"
     resource(bootstrap).stage do
       # We only need the binaries for bootstrapping, so don't install anything:
       command = "#{Dir.pwd}/src/runtime/sbcl"

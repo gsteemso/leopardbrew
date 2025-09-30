@@ -26,7 +26,7 @@ class Texinfo < Formula
         "--with-libiconv-prefix=#{Formula['libiconv'].opt_prefix}",
       ]
     args << '--disable-nls' if build.without? 'nls'
-    args << '--enable-year2038' if ENV.building_pure_64_bit?
+    args << '--enable-year2038' if Target.pure_64b?
     ENV['PERL'] = "#{Formula['perl'].opt_bin}/perl"
     system './configure', *args
     system 'make'

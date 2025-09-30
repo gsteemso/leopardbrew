@@ -130,7 +130,7 @@ class Ffmpeg28 < Formula
     end
 
     args << "--disable-asm" if MacOS.version < :leopard
-    args << "--disable-altivec" if !Hardware::CPU.altivec? || (build.bottle? && ARGV.bottle_arch == :g3)
+    args << "--disable-altivec" if !CPU.altivec? || (build.bottle? && ARGV.bottle_arch == :g3)
 
     # These librares are GPL-incompatible, and require ffmpeg be built with
     # the "--enable-nonfree" flag, which produces unredistributable libraries
@@ -150,11 +150,11 @@ class Ffmpeg28 < Formula
 
     # For 32-bit compilation under gcc 4.2, see:
     # https://trac.macports.org/ticket/20938#comment:22
-    ENV.append_to_cflags "-mdynamic-no-pic" if Hardware.is_32_bit? && Hardware::CPU.intel? && ENV.compiler == :clang
+    ENV.append_to_cflags "-mdynamic-no-pic" if Target.intel? and not Target.pure_64b? and ENV.compiler == :clang
 
     system "./configure", *args
 
-    if MacOS.prefer_64_bit?
+    if Target.prefer_64b?
       inreplace "config.mak" do |s|
         shflags = s.get_make_var "SHFLAGS"
         if shflags.gsub!(" -Wl,-read_only_relocs,suppress", "")

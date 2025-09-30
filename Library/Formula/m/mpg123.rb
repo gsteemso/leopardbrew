@@ -21,18 +21,14 @@ class Mpg123 < Formula
     if build.universal?
       is_powerpc = false
       ENV.universal_binary
-      if ENV.build_archs.map(&:to_s).sort == ['ppc', 'ppc64']
-        args << '--with-cpu=altivec' if Hardware::CPU.altivec?
-      else # is not pure PowerPC
-        ENV.build_archs.each do |arch|
-          _cpu = case arch
-                   when :i386 then 'x86'  # include everything; could be Hackintosh or VM
-                   when :ppc, :ppc64 then 'altivec' if Hardware::CPU.altivec?
-                   when :x86_64 then 'x86-64'
-                 end
-          args << "-Xarch_#{arch.to_s}" << "--with-cpu=#{_cpu}" if _cpu
-        end # each |arch|
-      end # not pure PowerPC
+      Target.archset.each do |arch|
+        _cpu = case arch
+                 when :i386 then 'x86'  # include everything; could be Hackintosh or VM
+                 when :ppc, :ppc64 then 'altivec' if CPU.altivec?
+                 when :x86_64 then 'x86-64'
+               end
+        args << "-Xarch_#{arch.to_s}" << "--with-cpu=#{_cpu}" if _cpu
+      end # each |arch|
     end # universal?
 
     system './configure', *args

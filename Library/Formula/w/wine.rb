@@ -55,7 +55,7 @@ class Wine < Formula
   # note that all wine dependencies should declare a --universal option in their formula,
   # otherwise homebrew will not notice that they are not built universal
   def require_universal_deps?
-    MacOS.prefer_64_bit?
+    Target.prefer_64b?
   end
 
   # Wine will build both the Mac and the X11 driver by default, and you can switch
@@ -122,7 +122,7 @@ class Wine < Formula
     args << "--enable-win64" if build.with? "win64"
 
     # 64-bit builds of mpg123 are incompatible with 32-bit builds of Wine
-    args << "--without-mpg123" if Hardware.is_64_bit?
+    args << "--without-mpg123" if Target._64b?
 
     args << "--without-x" if build.without? "x11"
 

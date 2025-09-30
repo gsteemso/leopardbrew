@@ -11,8 +11,7 @@ class Perl < Formula
 
   head 'https://github.com/Perl/perl5.git', :branch => 'blead'
 
-  keg_only :provided_by_osx,
-    'Mac OS ships Perl and overriding that can cause unintended issues.'
+  keg_only :provided_by_osx, 'Mac OS ships Perl and overriding that can cause unintended issues.'
 
   devel do
     url 'https://www.cpan.org/src/5.0/perl-5.43.1.tar.xz'
@@ -20,14 +19,14 @@ class Perl < Formula
   end
 
   option :universal
-  option 'with-dtrace', 'Build with DTrace probes' if (MacOS.version >= :leopard and not MacOS.prefer_64_bit?) \
+  option 'with-dtrace', 'Build with DTrace probes' if (MacOS.version >= :leopard and not Target.prefer_64b?) \
                                                       or MacOS.version >= :lion
   option 'with-tests', 'Run the build-time unit tests (fails on 64‐bit when built with older compilers)'
 
-  enhanced_by 'curl'  # The obsolete stock curl on older Mac OSes causes
-                      # extension modules reliant on it to fail messily.
+  enhanced_by 'curl'  # The obsolete stock curl on older Mac OSes makes extension modules that rely
+                      # on it fail messily.
 
-  if (build.with?('tests') or build.bottle?) and MacOS.prefer_64_bit? and not ARGV.force?
+  if (build.with?('tests') or build.bottle?) and Target.prefer_64b? and not ARGV.force?
     fails_with [:gcc, :gcc_4_0, :llvm]
   end
 
@@ -39,7 +38,7 @@ class Perl < Formula
   def site_perl; HOMEBREW_PREFIX/'site_perl'; end
 
   def install
-    archs = build.universal? ? CPU.local_archs : [MacOS.preferred_arch]
+    archs = Target.archset
 
     args = %W[
       -des
@@ -67,27 +66,27 @@ class Perl < Formula
     args << '-Dusedtrace' if build.with? 'dtrace'
 
     archs.each do |arch|
-      ENV.set_build_archs(arch) if build.universal?
+      ENV.set_build_archs(arch) if build.fat?
 
       arch_args = ["-Dcc=#{ENV.cc}"]
-      if arch.to_s =~ %r{64} then arch_args << '-Duse64bitall'
-      elsif CPU._64b? then arch_args << '-Duse64bitint'; end
+      if Target._64b_arch?(arch) then arch_args << '-Duse64bitall'
+      elsif Target._64b? then arch_args << '-Duse64bitint'; end
 
       system './Configure', *args, *arch_args
       system 'make'
       system 'make', 'test' rescue nil if build.with?('tests') or build.bottle?
       system 'make', 'install'
 
-      if build.universal?
+      if build.fat?
         ENV.deparallelize{ system 'make', 'veryclean' }
         scour_keg(arch)
-      end # universal?
+      end
     end # each |arch|
 
-    if build.universal?
+    if build.fat?
       ENV.set_build_archs(archs)
       merge_binaries(archs)
-    end # universal?
+    end
   end # install
 
   def caveats; <<-EOS.undent

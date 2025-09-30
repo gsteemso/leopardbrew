@@ -15,14 +15,14 @@ class John < Formula
 
   def install
     ENV.deparallelize
-    arch = MacOS.prefer_64_bit? ? "64" : "sse2"
+    arch = Target.prefer_64b? ? "64" : "sse2"
     target = "macosx-x86-#{arch}"
-    if Hardware::CPU.ppc?
-      if MacOS.prefer_64_bit?
+    if CPU.powerpc?
+      if Target.prefer_64b?
         arch = 'ppc64'
       else
         arch = 'ppc32'
-        arch += '-altivec' if Hardware::CPU.altivec?
+        arch += '-altivec' if CPU.altivec?
       end
 
       target = "macos-#{arch}"

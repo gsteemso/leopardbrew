@@ -26,7 +26,7 @@ class X264 < Formula
   end
 
   # For whatever reason, GCC doesn’t like the specific builtin names used in the source.
-  patch :DATA if CPU.type == :powerpc and [:gcc, :llvm, :gcc_4_0].include? ENV.compiler
+  patch :DATA if Target.powerpc? and [:gcc, :llvm, :gcc_4_0].include? ENV.compiler
 
   def install
     ENV.universal_binary if build.universal?
@@ -39,9 +39,10 @@ class X264 < Formula
       inreplace 'configure', '-fastf', ''
     end
 
-    # on powerpc/powerpc64, the configure script hard-codes a G4 CPU
-    if CPU.type == :powerpc
-      inreplace 'configure', '-mcpu=G4', CPU.optimization_flags
+    # On powerpc/powerpc64, the configure script hard-codes a G4 CPU.  We must change it, unless of
+    # course we actually are running on a G4.
+    if Target.powerpc? and (m_for_ppc = Target.model_for_arch(:ppc)) != :g4
+      inreplace 'configure', '-mcpu=G4', Target.model_optflags(m_for_ppc)
     end
 
     args = %W[

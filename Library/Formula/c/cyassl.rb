@@ -65,18 +65,18 @@ class Cyassl < Formula
       --enable-supportedcurves
     ]
 
-    if MacOS.prefer_64_bit?
+    if Target.prefer_64b?
       args << "--enable-fastmath" << "--enable-fasthugemath"
     else
       args << "--disable-fastmath" << "--disable-fasthugemath"
     end
 
-    args << "--enable-aesni" if Hardware::CPU.aes? && !build.bottle?
+    args << "--enable-aesni" if CPU.aes? && !build.bottle?
 
     # Extra flag is stated as a needed for the Mac platform.
     # http://yassl.com/yaSSL/Docs-cyassl-manual-2-building-cyassl.html
     # Also, only applies if fastmath is enabled.
-    ENV.append_to_cflags "-mdynamic-no-pic" if MacOS.prefer_64_bit?
+    ENV.append_to_cflags "-mdynamic-no-pic" if Target.prefer_64b?
 
     system "./autogen.sh"
     system "./configure", *args

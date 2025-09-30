@@ -30,9 +30,9 @@ class Libiomp < Formula
   end
 
   def install
-    intel_arch = MacOS.prefer_64_bit? ? "mac_32e" : "mac_32"
+    intel_arch = Target.prefer_64b? ? "mac_32e" : "mac_32"
     args = std_cmake_args
-    args << (MacOS.prefer_64_bit? ? "-DLIBOMP_ARCH=32e" : "-DLIBOMP_ARCH=32")
+    args << (Target.prefer_64b? ? "-DLIBOMP_ARCH=32e" : "-DLIBOMP_ARCH=32")
     system "cmake", ".", *args
     system "make", "all"
 

@@ -27,7 +27,7 @@ class Ejabberd < Formula
     ENV["SBIN_DIR"] = sbin
 
     if build.build_32_bit?
-      ENV.append %w[CFLAGS LDFLAGS], "-arch #{Hardware::CPU.arch_32_bit}"
+      ENV.append %w[CFLAGS LDFLAGS], "-arch #{Target._32b_arch}"
     end
 
     args = ["--prefix=#{prefix}",

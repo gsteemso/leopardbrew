@@ -13,7 +13,7 @@ class Mkvalidator < Formula
 
   # see https://sourceforge.net/p/matroska/bugs/9/
   # and https://sourceforge.net/p/matroska/patches/3/
-  if MacOS.prefer_64_bit?
+  if Target.prefer_64b?
     patch do
       url "https://sourceforge.net/p/matroska/patches/_discuss/thread/8899370c/81cc/attachment/mkvalidator-0.3.7.gcc_osx_x64.build.diff"
       sha256 "c714977d5b68e90851ce59aacc789438b2455741eba43bd473a248a59932ce3c"

@@ -37,7 +37,7 @@ class Wxpython < Formula
     if build.universal?
       ENV.universal_binary
     else
-      ENV.append_to_cflags "-arch #{MacOS.preferred_arch}"
+      ENV.append_to_cflags "-arch #{Target.preferred_arch}"
     end
 
     args = [

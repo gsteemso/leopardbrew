@@ -11,7 +11,7 @@ class Brotli < Formula
   depends_on "cmake" => :build
 
   def install
-    archs = build.universal? ? CPU.universal_archs : [MacOS.preferred_arch]
+    archs = Target.archset
     mkdir 'build-dir' do
       system 'cmake', '-Wno-dev',
                       "-DCMAKE_OSX_ARCHITECTURES=#{archs.as_cmake_arch_flags}",

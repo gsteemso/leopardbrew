@@ -1,13 +1,13 @@
 class Gcc5 < Formula
   def arch
-    if Hardware::CPU.type == :intel
-      if MacOS.prefer_64_bit?
+    if CPU.intel?
+      if Target.prefer_64b?
         "x86_64"
       else
         "i686"
       end
-    elsif Hardware::CPU.type == :ppc
-      if MacOS.prefer_64_bit?
+    elsif CPU.powerpc?
+      if Target.prefer_64b?
         "powerpc64"
       else
         "powerpc"
@@ -38,7 +38,7 @@ class Gcc5 < Formula
   option "with-jit", "Build just-in-time compiler"
   option "without-fortran", "Build without the gfortran compiler"
   # enabling multilib on a host that can't run 64-bit results in build failures
-  option "without-multilib", "Build without multilib support" if MacOS.prefer_64_bit?
+  option "without-multilib", "Build without multilib support" if Target.prefer_64b?
 
   depends_on "gmp"
   depends_on "libmpc"
@@ -61,7 +61,7 @@ class Gcc5 < Formula
 
   # Fix an Intel-only build failure on 10.4.
   # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=64184
-  patch :DATA if MacOS.version < :leopard && Hardware.cpu_type == :intel
+  patch :DATA if MacOS.version < :leopard and Target.intel?
 
   # Fix an incompatibility with Make 3.80.
   # https://gcc.gnu.org/ml/gcc-patches/2015-07/msg01398.html
@@ -148,7 +148,7 @@ class Gcc5 < Formula
       args << "--with-ecj-jar=#{Formula["ecj"].opt_share}/java/ecj.jar"
     end
 
-    if build.without?("multilib") || !MacOS.prefer_64_bit?
+    if build.without?("multilib") || !Target.prefer_64b?
       args << "--disable-multilib"
     else
       args << "--enable-multilib"

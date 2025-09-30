@@ -36,7 +36,7 @@ class Botan < Formula
     args = %W[
       --prefix=#{prefix}
       --docdir=share/doc
-      --cpu=#{MacOS.preferred_arch}
+      --cpu=#{Target.preferred_arch}
       --cc=#{ENV.compiler}
       --os=darwin
       --with-openssl

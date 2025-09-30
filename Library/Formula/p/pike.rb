@@ -47,7 +47,7 @@ class Pike < Formula
   def install
     args = ["--prefix=#{prefix}", "--without-bundles"]
 
-    if MacOS.prefer_64_bit? && !build.build_32_bit?
+    if Target.prefer_64b? && !build.build_32_bit?
       ENV.append "CFLAGS", "-m64"
       args << "--with-abi=64"
     else
