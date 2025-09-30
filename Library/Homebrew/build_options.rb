@@ -19,8 +19,8 @@ class BuildOptions
     end
   end # fix_deprecation
 
-  # True if a {Formula} is being built with a specific option (one not necessarily named “with-*”
-  # or “without-*”).
+  # True if a {Formula}’s being built with a specific option, that’s not necessarily named “with-*”
+  # or “without-*”.
   # @deprecated
   def include?(val); s_args.include?("--#{val}"); end
   alias_method :includes?, :include?
@@ -66,12 +66,15 @@ class BuildOptions
   def stable?; s_args.build_stable?; end
 
   # True if a {Formula} is being built universally.
-  # e.g. on Intel Macs this means a combined i386/x86_64 binary/library.
+  # e.g. on Power Macs this means a combined ppc/ppc64 binary or library.
   # args << '--universal-binary' if build.universal?
   def universal?; s_args.build_universal? and option_defined?('universal'); end
 
   # True if a {Formula} is being built for multiple platforms.
   def cross?; s_args.build_cross? and option_defined?('cross'); end
+
+  # True if a {Formula} is being built for multiple architectures (whether cross or just universal).
+  def fat?; universal? or cross?; end
 
   # True if a {Formula} is being built in C++11 mode.
   def cxx11?; include?('c++11') and option_defined?('c++11'); end
