@@ -16,6 +16,7 @@ class Openssh < Formula
   option :universal
 
   depends_on 'pkg-config' => :build
+  depends_on 'kerberos'
   depends_on 'ldns'
   depends_on 'openssl3'
   depends_on 'zlib'
@@ -77,15 +78,12 @@ class Openssh < Formula
     (etc/'ssh').install 'com.openssh.sshd.sb' => 'org.openssh.sshd.sb'
   end # install
 
-  insinuate do |silent|
-    ensure_to_fro
-    do_system((silent ? [:silent] : []), 'sudo', TO)
-  end
+  insinuate { ensure_to_fro; system 'sudo', TO.to_s }
 
   # This command also deletes `to-*-openssh` if our rack is gone.
   uninsinuate do |silent|
     ensure_to_fro
-    do_system((silent ? [:silent] : []), 'sudo', FRO)
+    do_system((silent ? [:silent] : []), 'sudo', FRO.to_s)
   end
 
   test do

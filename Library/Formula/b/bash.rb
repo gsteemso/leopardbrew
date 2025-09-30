@@ -53,15 +53,12 @@ class Bash < Formula
     system 'make', 'install'
   end # install
 
-  insinuate do |silent|
-    ensure_to_fro
-    do_system((silent ? [:silent] : []), 'sudo', TO)
-  end
+  insinuate { ensure_to_fro; system 'sudo', TO.to_s }
 
   # This command also deletes `to-*-bash` if our rack is gone.
   uninsinuate do |silent|
     ensure_to_fro
-    do_system((silent ? [:silent] : []), 'sudo', MOVED_BASH, FRO)
+    do_system((silent ? [:silent] : []), 'sudo', MOVED_BASH.to_s, FRO.to_s)
   end
 
   def caveats; <<-EOS.undent
