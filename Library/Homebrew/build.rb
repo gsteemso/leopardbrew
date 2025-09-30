@@ -1,10 +1,9 @@
-# This script is loaded by formula/installer as a separate instance.
+# This script is loaded by formula/installer.rb as a separate instance.
 # Thrown exceptions are propagated back to the parent process over a pipe.
 
 old_trap = trap('INT') { exit! 130 }
 
 require 'global'
-require 'utils'
 require 'build_options'
 require 'cxxstdlib'
 require 'keg'
