@@ -1,4 +1,4 @@
-# stable release 2025-07-16, checked 2025-08-12
+# stable release 2025-09-10, checked 2025-09-19.
 require 'merge'
 
 class Curl < Formula
@@ -6,20 +6,21 @@ class Curl < Formula
 
   desc 'Get a file from an HTTP, HTTPS or FTP server'
   homepage 'https://curl.se/'
-  url 'https://curl.se/download/curl-8.15.0.tar.xz'
-  sha256 ''
+  url 'https://curl.se/download/curl-8.16.0.tar.xz'
+  sha256 '40c8cddbcb6cc6251c03dea423a472a6cea4037be654ba5cf5dec6eb2d22ff1d'
 
   keg_only :provided_by_osx
 
   option :universal
+
   option 'with-gnutls',        'Add GnuTLS security, independent of OpenSSL/LibreSSL'
-  option 'with-kerberos',      'Support Kerberos and SPNEGO authentication (via the MIT release)'
-  option 'with-libressl',      'Use LibreSSL security instead of OpenSSL'
   option 'with-rtmpdump',      'Support RTMP (streaming Flash)'
   option 'with-standalone',    'Omit every discretionary dependency except OpenSSL3'
   option 'with-tests',         'Run the build‐time test suite (slow and requires Python3)'
+
   option 'without-dns-extras', 'Omit asynchronous, internationalized, public‐suffix‐aware DNS'
   option 'without-gsasl',      'Omit Simple Authentication & Security Layer SCRAM authentication'
+  option 'without-kerberos',   'Support GSS-API and SPNEGO authentication (via MIT Kerberos)'
   option 'without-libssh2',    'Omit scp and sFTP access'
   option 'without-ssl',        'Omit LibreSSL/OpenSSL security (recommend adding GnuTLS)'
   option 'without-zstd',       'Omit ZStandard compression'
@@ -31,50 +32,41 @@ class Curl < Formula
   depends_on :ld64        => :build
   depends_on 'make'       => :build  # pre‐version 4 `make` can be flaky when running parallel jobs
   depends_on 'pkg-config' => :build
-  depends_on 'python3'    => :build if build.with? 'tests'
+  depends_on :python3    => :build if build.with? 'tests'
 
   depends_on 'curl-ca-bundle'
   depends_on 'libnghttp2'
   depends_on 'libuv'
-  depends_on 'openssl3' if build.with?('ssl') and build.without? 'libressl'
+  depends_on 'openssl3' if build.with?('ssl')
   depends_on 'perl'
   depends_on 'zlib'
 
   if build.without? 'standalone'
     depends_group ['dns-extras', ['c-ares', 'libidn2', 'libpsl'] => :recommended]
     depends_on     'gsasl'      => :recommended
+    depends_on     'kerberos'   => :recommended
     depends_on     'libssh2'    => :recommended
     depends_on     'zstd'       => :recommended
 
     depends_on 'gnutls'   => :optional
-    depends_on 'kerberos' => :optional
-    depends_on 'libressl' => :optional
     depends_on 'rtmpdump' => :optional
 
     enhanced_by 'brotli'
   end
 
-  # The script for fetching certificate data from Mozilla fails if HTTP redirects are not followed.
-  patch :DATA
-
   def install
-    raise RuntimeError, '“--with-libressl” and “--without-ssl” are mutually exclusive.  Pick one.' \
-      if build.with? 'libressl' and build.without? 'ssl'
     # Complain about this, but it doesn’t justify cancelling the build.
     opoo '“--with-standalone” overrides all other “--with-” options except “--with-tests”.  Ignoring them.' \
-      if build.with? 'standalone' and (build.with? 'gnutls' or build.with? 'kerberos' or \
-                                       build.with? 'libressl' or build.with? 'rtmpdump')
-    if build.universal?
-      archs = CPU.local_archs
+      if build.with? 'standalone' and (build.with? 'gnutls' or build.with? 'kerberos' or build.with? 'rtmpdump')
+    archs = Target.archset
+    if build.fat?
       the_binaries = %w[
         bin/curl
         lib/libcurl.4.dylib
         lib/libcurl.a
       ]
       script_to_fix = 'bin/curl-config'
-    else
-      archs = [MacOS.preferred_arch]
-    end # universal?
+    end # fat?
 
     # The defaults:
     #   --with-aix-soname=aix*, --enable-alt-svc,  --with-apple-idn*, --disable-ares, --enable-aws,
@@ -102,19 +94,18 @@ class Curl < Formula
     #   --enable-verbose, --disable-versioned-symbols, --disable-warnings, --enable-websockets,
     #   --disable-werror, --disable-windows-unicode, --with-winidn*, --with-zlib,
     #   --with-zsh-functions-dir, --with-zstd
-    # At least one must be selected:
-    #     --with-amissl      | --with-bearssl[=…] | --with-gnutls[=…] | --with-mbedtls[=…]
-    #   | --with-openssl[=…] | --with-rustls[=…]  | --with-schannel   | --with-secure-transport
-    #   | --with-wolfssl[=…] | --without-ssl
+    #     At least one must be selected:
+    #         --with-amissl      | --with-gnutls[=…] | --with-mbedtls[=…] | --with-openssl[=…]
+    #       | --with-rustls[=…]  | --with-schannel   | --with-wolfssl[=…] | --without-ssl
     # * These are enabled by default, but only when possible.  (See below.)
     # These disable nonbinary behaviour:
     #   --with[out]-pic (Normally both; on Mac OS 10.5, shared is with & static is without.)
     #   --with-sysroot=… (Replaces the default.)
     # Options that don't, or don’t always, work for ’brewing:
     #   --with-apple-idn :  Apple IDN is more recent than Power Macs provide.
-    #   --enable-ech :  LibreSSL doesn’t do it & OpenSSL’s isn’t released yet (and it’s been YEARS).
-    #                   This is therefore only enabled if GNUTLS is selected.
-    #   --with-openssl-quic :  Requires a specific unofficial build and is not well supported.
+    #   --enable-ech :  LibreSSL doesn’t do it, and OpenSSL’s isn’t ready yet (and it’s been YEARS).
+    #                   Therefore, this is only enabled for GnuTLS.
+    #   --with-openssl-quic :  Requires a recent‐enough OpenSSL.
     #   --with-quiche :  QUICHE is only supported on little‐endian platforms.
     #   --with-secure-transport :  Not in Tiger; many versions from Leopard onward are obsolete; &
     #                              cURL loses some features when using it instead of, e.g., OpenSSL.
@@ -133,43 +124,39 @@ class Curl < Formula
     # Options that need packages or similar support, not all of which exist:
     #   --with[out]-brotli[=…] :  A compression protocol.  Use $PKG_CONFIG_PATH instead.
     #   --with[out]-fish-functions-dir=… :  A shell‐completions directory.
-    #   --with-gssapi=… :  The GSS‐API directory root.  (Heimdal or MIT Kerberos)
+    #   --with-gssapi=… :  The GSS‐API directory root.  (Heimdal, or MIT Kerberos… which Mac OS has,
+    #                      but we can’t use, because of the order header directories get added in.)
     #     or, --with-gssapi-includes=… :  The GSS‐API headers directory.
     #         --with-gssapi-libs=… :  The GSS‐API libraries directory.
-    #   --with[out]-hyper=… :  Hyper is an HTTP library written in Rust, and therefore unavailable
+    #   --with[out]-hyper=… :  Hyper is an HTTP library written in Rust, and as such is unavailable
     #                          on Power Macs.
-    #   --with-lber-lib=… :  LBER is the Lightweight BER library (Basic Encoding Rules, an ASN.1
-    #                        thing.  Possibly associated with OpenLDAP).
+    #   --with-lber-lib=… :  LBER is the Lightweight Basic Encoding Rules library; BER is some kind
+    #                        of ASN.1 thing.  Possibly associated with OpenLDAP.
     #   --with-ldap-lib=… :  The LDAP library file.
-    #   --with[out]-libidn2=… :  The LibIDN2 file.
-    #   --with[out]-librtmp=… :  The LibRTMP file.
-    #   --with-libssh[=…] :  The LibSSH file.  Use LibSSH2 (via $PKG_CONFIG_PATH) instead.
-    #   --with-libssh2[=…] :  The LibSSH2 file.  Use $PKG_CONFIG_PATH instead.
-    #   --with[out]-libuv=… :  The LibUV file.
-    #   --with[out]-nghttp2=…* :  The LibNGHTTP2 file.
-    #   --with[out]-nghttp3=…* :  The LibNGHTTP3 file.
-    #   --with[out]-ngtcp2=…* :  the LibNGTCP2 file.
-    #     Get HTTP/3 support with --with-ngtcp2 (v1.2.0), plus --with-nghttp3 (v1.1.0), plus
-    #                                                                 (--with-gnutls
-    #                                                                 OR --with-openssl=quicktls
-    #                                                                 OR --with-wolfssl)
-    #                             OR --with-quiche (quasi‐experimental)
-    #   --with[out]-quiche=…* :  Google’s “QUIC, Http, Etc.” – HTTP/2 & /3 (QUIC).  Not available
+    #   --with[out]-libidn2=… :  The LibIDN2 directory root.
+    #   --with[out]-librtmp=… :  The LibRTMP directory root.
+    #   --with-libssh[=…] :  The LibSSH directory root.  Use LibSSH2 (via $PKG_CONFIG_PATH) instead.
+    #   --with-libssh2[=…] :  The LibSSH2 directory root.  Use $PKG_CONFIG_PATH instead.
+    #   --with[out]-libuv=… :  The LibUV directory root.
+    #   --with[out]-nghttp2=…* :  The LibNGHTTP2 directory root.
+    #   --with[out]-nghttp3=…* :  The LibNGHTTP3 directory root.
+    #   --with[out]-ngtcp2=…* :  the LibNGTCP2 directory root.
+    #   --with[out]-quiche=…* :  Google’s “QUIC, Http, Etc.” – HTTP/2 & /3 (QUIC).  No availability
     #                            for big‐endian platforms.
     #   --with-test-caddy=…* :  A test program.
-    #   --with-test-httpd=…* :  A test program (from apache – or libnghttp2, but we don’t build it
-    #                           there, for good reasons).
-    #   --with-test-nghttpx=…* :  A test program (from libnghttp2, but we don’t build it, for good
-    #                             reasons).
+    #   --with-test-httpd=…* :  A test program (from apache; or from libnghttp2, but we don’t build
+    #                           it there, for good reasons).
+    #   --with-test-nghttpx=…* :  A test program (from libnghttp2, but we don’t build it there, for
+    #                             good reasons).
     #   --with-test-vsftpd=… :  A test program.
-    #   --with-wolfssh[=…] :  The WolfSSH library file.  Use $PKG_CONFIG_PATH instead.
-    #   --with[out]-zlib[=…]* :  The ZLib library file.
+    #   --with-wolfssh[=…] :  The WolfSSH directory root.  Use $PKG_CONFIG_PATH instead.
+    #   --with[out]-zlib[=…]* :  The ZLib directory root.  Use $PKG_CONFIG_PATH instead.
     #   --with[out]-zsh-functions-dir=… :  A shell‐completions directory.
-    #   --with[out]-zstd[=…]* :  The Zstandard library file.  Use $PKG_CONFIG_PATH instead.
+    #   --with[out]-zstd[=…]* :  The Zstandard directory root.  Use $PKG_CONFIG_PATH instead.
     # Installation locations that, if specified, are preferably done via PKG_CONFIG_PATH:
     #   {brotli}, {libpsl}, {(libssh) | libssh2}, {libressl|openssl3}, {rtmpdump}, ({!wolfssh}),
-    #   {zstd}
-    # Explicitly‐described dependencies (there are others not called out on the website):
+    #   {zlib}, {zstd}
+    # Explicitly‐described dependencies (there are others not called out on the cURL website):
     #   For TLS:  any of {OpenSSL, mbed TLS, GnuTLS, NSS, WolfSSL}
     #             (NSS is Mozilla’s Network Security Services package.)
     #   For GSS‐API:  either of {Heimdal, MIT Kerberos}
@@ -181,7 +168,6 @@ class Curl < Formula
       # Old Mac OSes ship with unusably outdated certs.
       "--with-ca-bundle=#{HOMEBREW_PREFIX}/share/ca-bundle.crt",
       '--with-ca-fallback',
-      '--with-gssapi',
       '--enable-httpsrr',
       '--enable-mqtt',
       '--enable-ssls-export',
@@ -190,24 +176,19 @@ class Curl < Formula
     ]
     args << '--enable-libgcc' if ENV.compiler != :clang
 
-    # cURL now wants to find a lot of things via pkg-config instead of using “--with-xxx=”:  “When
-    # possible, set the PKG_CONFIG_PATH environment variable instead of using this option.”  Multi-
-    # SSL choice breaks without doing this.  On the other hand, the prerequisites‐assembly process
-    # sets all of them for us already, so it doesn’t much matter.
+    # cURL now prefers to find lots of things via pkg-config instead of using “--with-xxx=”:  “When
+    # possible, set the PKG_CONFIG_PATH environment variable instead of using this option.”  Choice
+    # among multiple SSLs breaks without doing this.  That said, the prerequisites‐assembly process
+    # already sets $PKG_CONFIG_PATH for us, so it doesn’t much matter.
 
-    # The documentation is ambiguous as to whether with-gnutls= should be set via ./configure
-    # argument or via pkg-config.  Can’t test it until GNUTLS compiles successfully (which needs a
-    # newer compiler).
-    args << "--with-gnutls=#{Formula['gnutls'].opt_prefix}" << '--enable-ech' if build.with? 'gnutls'
-
+    args << '--with-gnutls' << '--enable-ech' if build.with? 'gnutls'
     if build.with? 'ssl'
-      args << '--with-openssl'
-      args << '--enable-openssl-auto-load-config' if build.without? 'libressl'
+      args << '--with-openssl' << '--enable-openssl-auto-load-config'
     elsif build.without? 'gnutls'
       args << '--without-ssl'
     end
 
-    if build.with? 'more-dns'
+    if build.with? 'dns-extras'
       args << '--enable-ares'
     else
       args << '--without-libidn2' << '--without-libpsl'
@@ -220,7 +201,7 @@ class Curl < Formula
     args << '--without-zstd' if build.without? 'zstd'
 
     archs.each do |arch|
-      ENV.set_build_archs(arch) if build.universal?
+      ENV.set_build_archs(arch) if build.fat?
 
       system './configure', *args
       system 'make'
@@ -240,17 +221,17 @@ class Curl < Formula
       system 'make', 'install', '-C', 'scripts'
       libexec.install 'scripts/mk-ca-bundle.pl' if File.exists? 'scripts/mk-ca-bundle.pl'
 
-      if build.universal?
+      if build.fat?
         ENV.deparallelize { system 'make', '-ik', 'maintainer-clean' }
         merge_prep(:binary, arch, the_binaries)
-      end # universal?
+      end # fat?
     end # each |arch|
 
-    if build.universal?
+    if build.fat?
       ENV.set_build_archs(archs)
       merge_binaries(archs)
       inreplace prefix/script_to_fix, %r{-arch [0-9a-z_]+}, archs.as_arch_flags
-    end # universal?
+    end # fat?
   end # install
 
   test do
@@ -263,7 +244,6 @@ class Curl < Formula
       filename.delete
     end
 
-    # Perl is a dependency of OpenSSL3, so it will /usually/ be present
     if Formula['perl'].installed?
       ENV.prepend_path 'PATH', Formula['perl'].opt_bin
       # so mk-ca-bundle can find it
@@ -274,16 +254,3 @@ class Curl < Formula
     end # Perl?
   end # test
 end # Curl
-
-__END__
---- old/scripts/mk-ca-bundle.pl
-+++ new/scripts/mk-ca-bundle.pl
-@@ -318,7 +318,7 @@
-         report "Get certdata with curl!";
-         my $proto = !$opt_k ? "--proto =https" : "";
-         my $quiet = $opt_q ? "-s" : "";
--        my @out = `curl -w %{response_code} $proto $quiet -o "$txt" "$url"`;
-+        my @out = `curl -L -w %{response_code} $proto $quiet -o "$txt" "$url"`;
-         if(!$? && @out && $out[0] == 200) {
-           $fetched = 1;
-           report "Downloaded $txt";
