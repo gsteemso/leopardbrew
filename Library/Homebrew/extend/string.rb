@@ -36,7 +36,7 @@ class String
     lines * "\n"
   end # String#rewrap
 
-  # String.chomp, but if result is empty: returns nil instead.
+  # String.chomp, but if result is empty, returns nil instead.
   # Allows `choke || foo` short-circuits.
   def choke; s = chomp; s unless s.empty?; end
 
