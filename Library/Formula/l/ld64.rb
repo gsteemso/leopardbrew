@@ -2,7 +2,7 @@ class Ld64 < Formula
   desc "Updated version of the ld shipped by Apple"
   homepage "https://github.com/apple-oss-distributions/ld64/tree/ld64-97.17"
   # The latest version available that nominally builds for PPC is 127.2, which won’t build on Tiger,
-  # at least not without some patching.
+  # at least not without extensive patching.
   # Leopard users:  If you like, add a 127.2 option, or fix the build on Tiger.
   url "https://github.com/apple-oss-distributions/ld64/archive/refs/tags/ld64-97.17.tar.gz"
   sha256 "dc609d295365f8f5853b45e8dbcb44ca85e7dbc7a530e6fb5342f81d3c042db5"
@@ -29,6 +29,7 @@ class Ld64 < Formula
 
   fails_with :gcc_4_0 do
     build 5370
+    cause 'It incorrectly gets hung up on “protected” status in the C++ code.'
   end
 
   # Fix the smurfed‐up PowerPC maximum‐displacement constants, incorporating MacPorts’ un‐botching
