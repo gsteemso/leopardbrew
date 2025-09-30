@@ -927,7 +927,7 @@ class ResourceAuditor
     end
 
     if version.to_s =~ /_\d+$/
-      problem "version #{version} should not end with an underline and a number"
+      problem "version #{version} should not end with an underscore and a number"
     end
   end # ResourceAuditor#audit_version
 
