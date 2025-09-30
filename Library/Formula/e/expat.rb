@@ -7,7 +7,7 @@ class Expat < Formula
 
   head 'https://github.com/libexpat/libexpat.git'
 
-  keg_only :provided_by_osx, 'Mac OS includes Expat 1.5.' if MacOS.version > :tiger
+  keg_only :provided_by_osx, 'Mac OS includes Expat 1.5' if MacOS.version > :tiger
 
   option :universal
 
@@ -20,7 +20,7 @@ class Expat < Formula
       --disable-dependency-tracking
       --disable-silent-rules
     ]
-    args << '--without-tests' unless ENV.supports_cxx11?
+    args << '--without-tests' unless ENV.supports? :cxx11
 
     system './configure', *args
     system 'make', 'install'
