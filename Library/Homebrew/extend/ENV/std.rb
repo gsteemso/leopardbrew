@@ -15,10 +15,10 @@ module Stdenv
   end
 
   # @private
-  def setup_build_environment(formula = nil, archset = CPU.default_archset)
+  def setup_build_environment(formula = nil, archset = Target.archset)
     super
 
-    if MacOS.version >= '10.8'
+    if MacOS.version >= :mountain_lion
       # Mountain Lion's sed errors out on files with mixed character sets
       delete("LC_ALL")
       self["LC_CTYPE"]="C"
@@ -58,17 +58,16 @@ module Stdenv
     end
 
     # Add lib and include etc. from the current macosxsdk to compiler flags:
-    macosxsdk MacOS.version
+    macosxsdk
 
     append_path "PATH", "#{MacOS::Xcode.prefix}/usr/bin:#{MacOS::Xcode.toolchain_path}/usr/bin" \
       if MacOS::Xcode.without_clt?
 
-    # Leopard's ld needs some convincing that it's building 64-bit
-    # See: https://github.com/mistydemeo/tigerbrew/issues/59
-    if MacOS.version == '10.5' and MacOS.prefer_64_bit? and archset.detect{ |a| a.to_s.ends_with? '64' }
+    # Older ld needs some convincing to build 64‐bit.  See ⟨https://github.com/mistydemeo/tigerbrew/issues/59⟩.
+    if MacOS.version < :snow_leopard and Target.prefer_64b? and archset.detect{ |a| a.to_s.ends_with? '64' }
       append 'LDFLAGS', archset.as_arch_flags
-      # Many, many builds are broken by Leopard’s buggy ld.  Our ld64 fixes
-      # many of them, though obviously we can’t depend on it to build itself.
+      # Many, many builds are broken by a buggy old stock ld.  Our ld64 fixes a lot of them, though
+      # obviously we can’t depend on it to build itself.
       ld64 if Formula['ld64'].installed?
     end
   end # setup_build_environment
@@ -114,39 +113,15 @@ module Stdenv
 
   def clang
     super
-    replace_in_cflags(/-Xarch_#{CPU._32b_arch} (-march=\S*)/, '\1')
+    replace_in_cflags(/-Xarch_#{Target._32b_arch} (-march=\S*)/, '\1')
     # Clang mistakenly enables AES-NI on plain Nehalem
-    map = CPU.opt_flags_as_map(compiler_version)
+    map = Target.opt_flags_as_map(compiler_version)
     map = map.merge(:nehalem => "-march=native -Xclang -target-feature -Xclang -aes")
     set_cpu_cflags "-march=native", map
   end # clang
 
-  def remove_macosxsdk(version = MacOS.version)
-    # Clear all lib and include dirs from CFLAGS, CPPFLAGS, LDFLAGS that were
-    # previously added by macosxsdk
-    version = version.to_s
-    remove_from_cflags(/ ?-mmacosx-version-min=10\.\d/)
-    delete("MACOSX_DEPLOYMENT_TARGET")
-    delete("CPATH")
-    remove "LDFLAGS", "-L#{HOMEBREW_PREFIX}/lib"
-
-    if (sdk = MacOS.sdk_path(version)) and not MacOS::CLT.installed?
-      delete("SDKROOT")
-      remove_from_cflags "-isysroot #{sdk}"
-      remove "CPPFLAGS", "-isysroot #{sdk}"
-      remove "LDFLAGS", "-isysroot #{sdk}"
-      if HOMEBREW_PREFIX.to_s == "/usr/local"
-        delete("CMAKE_PREFIX_PATH")
-      else
-        # It was set in setup_build_environment, so we have to restore it here.
-        self["CMAKE_PREFIX_PATH"] = HOMEBREW_PREFIX.to_s
-      end
-      remove "CMAKE_FRAMEWORK_PATH", "#{sdk}/System/Library/Frameworks"
-    end
-  end # remove_macosxsdk
-
   def macosxsdk(version = MacOS.version)
-    # Sets all needed lib and include dirs to CFLAGS, CPPFLAGS, LDFLAGS.
+    # Add all needed lib and include dirs to CFLAGS, CPPFLAGS, LDFLAGS.
     remove_macosxsdk
     version = version.to_s
     append_to_cflags("-mmacosx-version-min=#{version}")
@@ -169,6 +144,29 @@ module Stdenv
       append_path "CMAKE_FRAMEWORK_PATH", "#{sdk}/System/Library/Frameworks"
     end
   end # macosxsdk
+
+  def remove_macosxsdk(version = MacOS.version)
+    # Clear all lib and include dirs previously added by macosxsdk from CFLAGS, CPPFLAGS, LDFLAGS.
+    version = version.to_s
+    remove_from_cflags(/ ?-mmacosx-version-min=\S+/)
+    delete("MACOSX_DEPLOYMENT_TARGET")
+    delete("CPATH")
+    remove "LDFLAGS", "-L#{HOMEBREW_PREFIX}/lib"
+
+    if (sdk = MacOS.sdk_path(version)) and not MacOS::CLT.installed?
+      delete("SDKROOT")
+      remove_from_cflags "-isysroot #{sdk}"
+      remove "CPPFLAGS", "-isysroot #{sdk}"
+      remove "LDFLAGS", "-isysroot #{sdk}"
+      if HOMEBREW_PREFIX.to_s == "/usr/local"
+        delete("CMAKE_PREFIX_PATH")
+      else
+        # It was set in setup_build_environment, so we have to restore it here.
+        self["CMAKE_PREFIX_PATH"] = HOMEBREW_PREFIX.to_s
+      end
+      remove "CMAKE_FRAMEWORK_PATH", "#{sdk}/System/Library/Frameworks"
+    end
+  end # remove_macosxsdk
 
   def minimal_optimization
     set_cflags "-Os #{SAFE_CFLAGS_FLAGS}"
@@ -211,9 +209,9 @@ module Stdenv
 
   def set_build_archs(archset)
     archset = super
-    CPU.all_archs.each { |arch| remove_from_cflags "-arch #{arch}" }
+    Target.all_archs.each { |arch| remove_from_cflags "-arch #{arch}" }
     append_to_cflags archset.as_arch_flags
-    append "LDFLAGS", archset.as_arch_flags
+    append 'LDFLAGS', archset.as_arch_flags
     self['CMAKE_OSX_ARCHITECTURES'] = archset.as_cmake_arch_flags
     # GCC won’t mix “-march” for a 32-bit CPU with “-arch x86_64”
     replace_in_cflags(/-march=\S*/, '-Xarch_i386 \0') if compiler != :clang and archset.includes? :x86_64
@@ -233,7 +231,7 @@ module Stdenv
     if compiler == :clang
       append "CXX", "-std=c++11 -stdlib=libc++"
     elsif compiler =~ GNU_CXX11_REGEXP then append "CXX", "-std=c++11"
-    else raise "The selected compiler doesn't support C++11: #{compiler}"; end
+    else raise "The selected compiler doesn't support C++11:  #{compiler}"; end
   end # cxx11
 
   def libcxx; append "CXX", "-stdlib=libc++" if compiler == :clang; end
@@ -251,8 +249,8 @@ module Stdenv
   # Sets architecture-specific flags for every environment variable
   # given in the list `flags`.
   # @private
-  def set_cpu_flags(flags, default = DEFAULT_FLAGS, map = CPU.opt_flags_as_map(compiler_version))
-    cflags =~ /(-Xarch_#{CPU._32b_arch} )-march=/
+  def set_cpu_flags(flags, default = DEFAULT_FLAGS, map = Target.model_optflag_map)
+    cflags =~ /(-Xarch_#{Target._32b_arch} )-march=/
     xarch = $1 || ''
     remove flags, /(#{xarch})?-march=\S*/
     remove flags, /( -Xclang \S+)+/
@@ -261,13 +259,13 @@ module Stdenv
     append flags, xarch unless xarch.empty?
     append flags, map.fetch(Target.model, default)
     # Work around a buggy system header on Tiger
-    append flags, "-faltivec" if MacOS.version == '10.4' and CPU.powerpc? and target_model != :g3
+    append flags, "-faltivec" if MacOS.version == :tiger and Target.powerpc? and Target.model != :g3
     # not really a 'CPU' cflag, but is only used with clang
     remove flags, '-Qunused-arguments'
   end # set_cpu_flags
 
   # @private
-  def set_cpu_cflags(default = DEFAULT_FLAGS, map = CPU.opt_flags_as_map(compiler_version))
+  def set_cpu_cflags(default = DEFAULT_FLAGS, map = Target.model_optflag_map)
     set_cpu_flags CC_FLAG_VARS, default, map
   end
 

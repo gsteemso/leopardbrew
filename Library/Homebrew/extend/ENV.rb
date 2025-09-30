@@ -1,4 +1,4 @@
-require 'cpu'
+require 'target'
 require 'extend/ENV/shared'
 require 'extend/ENV/std'
 require 'extend/ENV/super'

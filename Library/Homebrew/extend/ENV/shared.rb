@@ -1,6 +1,5 @@
 require 'compilers'
 require 'formula'
-require 'target'  # pulls in macos for us, which pulls in cpu
 
 # Homebrew extends Ruby's `ENV` to make our code more readable.  Implemented in
 # {SharedEnvExtension} and either {Superenv} or {Stdenv}, per the build mode.
@@ -35,7 +34,7 @@ module SharedEnvExtension
     @formula = formula
     @formula_name = formula.full_name if formula
     reset
-    @build_archs = archset || homebrew_build_archs || MacOS.preferred_arch_as_list
+    @build_archs = archset || homebrew_build_archs || Target.preferred_arch_as_list
     set_build_archs(build_archs)
     self['MAKEFLAGS'] ||= "-j#{make_jobs}"
   end # setup_build_environment
@@ -156,7 +155,18 @@ module SharedEnvExtension
       else MacOS.default_compiler; end
   end # compiler
 
-  def compiler_version; CompilerSelector.compiler_version(compiler); end
+  def compiler_version; @compiler_version ||= CompilerSelector.compiler_version(compiler); end
+
+  def compiler_path
+    @compiler_path ||= \
+      if compiler.to_s =~ GNU_GCC_REGEXP
+        Formula[compiler.gsub(/[-.]/, '')].opt_bin/compiler
+      elsif compiler == :gcc
+        if (gccpath = Pathname.new '/usr/bin/gcc-4.2').exists?
+          gccpath
+        else Formula['apple-gcc42'].opt_bin/'gcc-4.2'; end
+      else Pathname.new("/usr/bin/#{COMPILER_SYMBOL_MAP.invert[compiler]}"); end
+  end # compiler_path
 
   # @private
   def determine_cc; COMPILER_SYMBOL_MAP.invert.fetch(compiler, compiler); end
@@ -173,33 +183,25 @@ module SharedEnvExtension
     end
   end # define a method for each |compiler| in COMPILERS, for use exactly once during setup
 
-  def default_c_version(comp = compiler)
-    case comp
-      when GNU_C11_DEFAULT_REGEXP then :c11
-#     when :clang then ???
-      else :c89
+  def default_language_version(lang = :c)
+    if compiler != :clang and
+      ary = COMPILER_DEFAULT[:gcc][lang] and
+      i = ary.find_index{ |h| h.keys.first > compiler_version }
+        ary[i - 1].values.first
+    else
+      case lang
+        when :c   then   :c89
+        when :cxx then :cxx98
+      end
     end
   end # default_c_version
 
-  def default_cxx_version(comp = compiler)
-    case comp
-      when GNU_CXX14_DEFAULT_REGEXP then :cxx14
-#     when :clang then ???
-      else :cxx98
-    end
-  end # default_cxx_version
-
 # TODO:  Fix this to check the correct _version_ of clang
-  def supports_c11?; cc =~ GNU_C11_REGEXP or cc =~ /clang/; end
-
-  def supports_cxx11?
-    cc =~ GNU_CXX11_REGEXP or (cc =~ /clang/ and MacOS.clang_version.to_f >= CLANG_CXX11_MIN.to_f)
+  def supports?(revision = :c11)
+    lang = revision.to_s.match(%r{^([^0-9]+)})[1].to_sym
+    (hsh = COMPILER_SUPPORT[compiler == :clang ? :clang : :gcc][lang]) and
+      (min_version = hsh[:revision]) and (compiler_version >= min_version)
   end
-
-# TODO:  Fix this to check the correct _version_ of clang
-  def supports_cxx14?; cc =~ GNU_CXX14_REGEXP or cc =~ /clang/; end
-
-  def building_pure_64_bit?; build_archs.all?{ |a| a.to_s =~ /64/ }; end
 
   # Snow Leopard defines an NCURSES value the opposite of most distros.
   # See: https://bugs.python.org/issue6848
@@ -209,7 +211,7 @@ module SharedEnvExtension
   def make_jobs
     self['HOMEBREW_MAKE_JOBS'].nope \
       || (self['MAKEFLAGS'] =~ %r{-\w*j(\d+)})[1].nope \
-      || 2 * CPU.cores
+      || 4 * CPU.cores
   end
 
   # Edits $MAKEFLAGS, restricting Make to a single job.  This is useful for makefiles with race
@@ -309,9 +311,9 @@ module SharedEnvExtension
     end # no opt/ prefix
   end # warn_about_non_apple_gcc
 
-  def cross_binary; set_build_archs(CPU.cross_archs); end
+  def cross_binary; set_build_archs(Target.cross_archs); end
 
-  def universal_binary; set_build_archs(CPU.local_archs); end
+  def universal_binary; set_build_archs(Target.local_archs); end
 
   def set_build_archs(archset)
     archset = Array(archset).extend ArchitectureListExtension unless archset.responds_to?(:fat?)
@@ -340,7 +342,7 @@ module SharedEnvExtension
   end # without_archflags
 
   def clear_compiler_archflags
-    CPU.all_archs.each{ |arch| remove COMPILER_VARS, "-arch #{arch}" }
+    Target.all_archs.each{ |arch| remove COMPILER_VARS, "-arch #{arch}" }
   end
 
   def set_compiler_archflags(flagstring = build_archs.as_arch_flags)
@@ -352,7 +354,7 @@ module SharedEnvExtension
       set_compiler_archflags '-m32'
     else
       @build_arch_stash ||= build_archs
-      set_build_archs CPU.select_32b_archs(@build_arch_stash)
+      set_build_archs Target.select_32b_archs(@build_arch_stash)
     end
   end # m32
 
@@ -361,7 +363,7 @@ module SharedEnvExtension
       set_compiler_archflags '-m64'
     else
       @build_arch_stash ||= build_archs
-      set_build_archs CPU.select_64b_archs(@build_arch_stash)
+      set_build_archs Target.select_64b_archs(@build_arch_stash)
     end
   end # m64
 

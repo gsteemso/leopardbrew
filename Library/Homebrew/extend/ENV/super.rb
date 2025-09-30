@@ -32,7 +32,7 @@ module Superenv
   def reset; super; delete('as_nl'); end
 
   # @private
-  def setup_build_environment(formula = nil, archset = CPU.default_archset)
+  def setup_build_environment(formula = nil, archset = Target.archset)
     super
 
     send(compiler)
@@ -144,7 +144,7 @@ module Superenv
   end
 
   def determine_optflags(archset)
-    compiler == :clang ? "-march=native" : CPU.optimization_flags(archset, compiler_version)
+    compiler == :clang ? "-march=native" : Target.optimization_flagset(archset)
   end # determine_optflags
 
   def determine_archflags(archset)
@@ -215,11 +215,7 @@ module Superenv
   def set_build_archs(archset)
     archset = super
     self['HOMEBREW_ARCHFLAGS'] = archset.as_arch_flags
-    self['HOMEBREW_OPTFLAGS'] = ''
-    archset.each{ |a|
-      CPU.optimization_flags(CPU.archmap(a), compiler_version).split(' ').each{ |fl|
-        append 'HOMEBREW_OPTFLAGS', "-Xarch_#{a} #{fl}"
-    } }
+    self['HOMEBREW_OPTFLAGS'] = Target.optimization_flagset(archset)
   end # set_build_archs
 
   # Super filters the build archs to the 32‐bit ones via set_build_archs.

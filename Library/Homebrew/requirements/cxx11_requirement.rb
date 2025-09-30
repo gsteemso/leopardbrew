@@ -13,5 +13,5 @@ class Cxx11Requirement < Requirement
     _
   end
 
-  satisfy { ENV.supports_cxx11? }
+  satisfy { ENV.supports? :cxx11 }
 end
