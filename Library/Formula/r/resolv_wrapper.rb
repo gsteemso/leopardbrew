@@ -17,9 +17,5 @@ class ResolvWrapper < Formula
     system 'make'
     system 'make', 'test'
     system 'make', 'install'
-  end
-
-  test do
-    system 'false'
-  end
-end
+  end # install
+end # ResolvWrapper
