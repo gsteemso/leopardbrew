@@ -2,33 +2,192 @@ require 'macos'  # pulls in cpu for us
 
 class Target
   class << self
-    # What CPU model are we building for?  Either explicitly passed via --bottle-arch=, or native.
+    # What architecture are we building for?  Either one given explicitly via --bottle-arch= or the
+    # preferred variant for our native hardware.  We do not care if a bottle will be built, only if
+    # an architecture for one was supplied.
+    # This routine assumes that only the specified/preferred architecture will be built.  To handle
+    # multiple architectures, use Target⸬archset().
+    def arch; @@arch ||= (ARGV.bottle_arch ? CPU.arch_of(ARGV.bottle_arch) : preferred_arch); end
+
+    # What set of architectures are we building for?  By default, a declared bottle architecture or
+    # else a preferred native architecture.  A universal build includes every runnable architecture
+    # (with less‐capable duplicates, such as bare x86_64 on a Haswell machine, removed).  A “cross”
+    # build includes every buildable architecture (with, again, less‐capable duplicates removed).
+    def archset
+      @@archset ||= (ARGV.build_universal? ? local_archs \
+                    : ARGV.build_cross? ? cross_archs \
+                    : (a = ARGV.bottle_arch) ? [oldest(a)].extend(ArchitectureListExtension) \
+                    : preferred_arch_as_list)
+    end # Target⸬archset
+
+    # What CPU type are we building for?  Either one corresponding to a value explicitly passed via
+    # --bottle-arch=, or our native one.  We do not care if a bottle will be built, only whether an
+    # architecture for one was supplied.
+    # This routine assumes only the specified/preferred CPU type will be built for.  To accommodate
+    # multiple CPU types, use Target⸬typeset() with specific architectures and/or models.
+    def type; @@type ||= (ARGV.bottle_arch ? CPU.type_of(ARGV.bottle_arch) : CPU.type); end
+
+    def typeset(as = archset); as.map(&CPU.type_of).uniq; end
+
+    def model_for_arch(a); (CPU.type_of(a) == CPU.type) ? CPU.model : oldest(a); end
+
+    def modelset(as = archset); as.map(&:model_for_arch).uniq; end
+
+    # What CPU model are we building for?  Either one passed with --bottle-arch=, or the native one.
+    # We don’t care if a bottle will be built, only if an architecture for one was supplied.
+    # This routine assumes only the specified/preferred CPU model will be built for.  Accommodation
+    # of multiple CPU models implies multiple architectures, and the use of Target⸬model_for_arch().
     def model
-      @model ||= ((ARGV.build_bottle? and ba = ARGV.bottle_arch) ? CPU.bottle_model_for(ba) \
-                   # On an x86 CPU without SSE4, neither -march=native nor -march=#{model} can be
-                   #   trusted, because we might be running in a VM or on a Hackintosh.
-                   : ((CPU.intel? and not CPU.sse4?) ? CPU.bottle_model_for(CPU.arch) \
-                   : CPU.model))
+      # On an x86 CPU without SSE4, neither “-march=native” nor “-march=#{model}” can be trusted as
+      # we might be running in a VM or on a Hackintosh.
+      @@model ||= (ARGV.bottle_arch ? oldest(ARGV.bottle_arch) \
+                  : (CPU.intel? and not CPU.sse4?) ? oldest(CPU.model) \
+                  : CPU.model)
     end # Target⸬model
 
-    def arch
-      @arch ||= ((ARGV.build_bottle? and ba = ARGV.bottle_arch) ? CPU.arch(ba) : MacOS.preferred_arch)
+    # Get the least‐common‐denominator (i.e, the oldest) CPU model that shares characteristics with
+    # the parameter – a specific CPU model, an architecture, a CPU type, or a bottle‐supporting tag.
+    def oldest(obj = (CPU._64b? ? _64b_arch : _32b_arch))
+      CPU.known_models.include?(obj) ? CPU.model_data(obj)[:oldest] \
+        : CPU.known_archs.include?(obj) ? CPU.arch_data(obj)[:oldest] \
+        : CPU.known_types.include?(obj) ? CPU.arch_data(CPU.type_data(obj).first)[:oldest] \
+        : case obj
+            when :altivec  then :g4
+            when :g5_64    then :g5
+            when :intel_32 then :core
+            when :intel_64 then :core2
+          end  # Return nil for any other input.
+    end # Target⸬oldest
+
+    def model_optflags(m = model)
+      ( if CPU.model_data(m)
+          if ENV.compiler != :clang # assume is some variant of GCC
+            if (vers = CPU.which_gcc_knows_about(m))
+              (ENV.compiler_version >= vers ? CPU.model_data(m)[:gcc][:flags] \
+                                            : CPU.gcc_flags_for_post_(gcc_version, CPU.type_of(m)))
+            end
+          end
+        end
+      ) || (
+        case CPU.type_of(m)
+#         when :arm     then ???
+          when :intel   then (bits(m) == 64 ? '-march=nocona'   : '-march=i386')
+          when :powerpc then (bits(m) == 64 ? '-mcpu=powerpc64' : '-mcpu=powerpc')
+          else ''
+        end
+      )
+    end # Target⸬model_optflags
+
+    def model_optflag_map; h = {}; CPU.known_models.each{ |m| h[m] = model_optflags(m) }; h; end
+
+    # This gets the optimization flags for every model being built for, and makes them architecture-
+    # specific using -Xarch_<arch>.  This only works with :gcc, :llvm, or :clang, though work is in
+    # progress to enable it for the FSF GCCs as well.
+    def optimization_flagset(as = archset)
+      if as.length > 1 and ENV.compiler != :gcc_4_0
+        fs = []
+        as.each{ |a| fs << model_optflags(model_for_arch(a)).split(' ').map{ |f| "-Xarch_#{a} #{f}" } }
+        fs * ' '
+      else
+        model_optflags(model_for_arch(as.first))
+      end
     end
 
-    def type
-      @type ||= ((ARGV.build_bottle? and ba = ARGV.bottle_arch) ? CPU.hw_type_of(ba) : CPU.type)
+    def prefer_64b?
+      @@_64b_checked ||= nil
+      unless @@_64b_checked
+        @@_64b_checked = true
+        @@prefer_64b ||= (CPU._64b? and (MacOS.version >= :snow_leopard or
+          (MacOS.version >= :leopard and envflag = ENV['HOMEBREW_PREFER_64_BIT'].choke) or
+          (MacOS.version >= :tiger and envflag and envflag.downcase == 'force')))
+      end
+      @@prefer_64b
+    end # Target⸬prefer_64b?
+
+    def preferred_arch; @@preferred_arch ||= (prefer_64b? ? _64b_arch : _32b_arch); end
+
+    # Utility functions:  Refine their sole parameter in a relevant manner.
+
+    def preferred_arch_as_list; [preferred_arch].extend(ArchitectureListExtension); end
+
+    def select_32b_archs(as); as.select{ |a| _32b_arch?(a) }.extend ArchitectureListExtension; end
+
+    def select_64b_archs(as); as.select{ |a| _64b_arch?(a) }.extend ArchitectureListExtension; end
+
+    # Utility functions:  Return either true or some relevant value, based on their sole parameter.
+
+    def _32b?; bits == 32; end
+
+    def _64b?; bits == 64; end
+
+    def _32b_arch(t = CPU.type)
+      case t
+        when :intel   then :i386
+        when :powerpc then :ppc
+      end  # Return nil for any other input.
+    end # Target⸬_32b_arch
+
+    def _64b_arch(t = CPU.type)
+      case t
+        when :arm     then (CPU.arm? and oldest(CPU.model) == :m1) ? :arm64e : :arm64
+        when :intel   then (CPU.intel? and oldest(CPU.model) == :haswell) ? :x86_64h : :x86_64
+        when :powerpc then :ppc64
+      end  # Return nil for any other input.
+    end # Target⸬_64b_arch
+
+    def _32b_arch?(a); a == :i386 or a == :ppc; end
+
+    def _64b_arch?(a); not _32b_arch?(a); end
+
+    def bits(obj = model)
+      case obj
+        when *CPU.known_archs  then CPU.arch_data(obj)[:bits]
+        when *CPU.known_models then CPU.model_data(obj)[:bits]
+      end  # Return nil for any other input.
+    end # Target⸬bits
+
+    def pure_64b?; archset.map(&:to_s).all?{ |a| a =~ %r{64} }; end
+
+    CPU.known_types().each{ |t| define_method("#{t}?") { archset.find{ |a| CPU.type_of(a) == t } } }
+
+    # These return arrays extended via ArchitectureListExtension (see “mach.rb”), with helpers like
+    # #as_arch_flags and #as_cmake_arch_flags.  Note that building for 64-bit is only just possible
+    # on Tiger and unevenly supported on Leopard.  Don’t even try unless 64‐bit builds are enabled;
+    # they generally aren’t, prior to Leopard, although the issue can be forced on Tiger by setting
+    # the environment variable $HOMEBREW_PREFER_64_BIT to “FORCE” (case‐insensitively).
+    # Weirdly, builds for Haswell-architecture :x86_64h and Apple‐silicon :arm64e seem to be absent
+    # from the latest Mac OS releases – with unclear implications.
+    def all_archs; CPU.known_archs.extend ArchitectureListExtension; end
+    def all_our_archs
+      o = oldest(CPU.model)
+      all_archs.reject{ |a|
+          # Filter out architecture variants our model has a better alternative for (e.g., if we’re
+          # on Apple silicon, we can run :arm64e; on Haswell or ARM, we can run :x86_64h).
+          (a == :arm64 and o == :m1) or (a == :x86_64 and [:haswell, :a12z, :m1].include? o)
+        }.extend(ArchitectureListExtension)
+    end # Target⸬all_our_archs
+
+    def cross_archs
+      (MacOS.version   >= :big_sur)  ? universal_archs_2 \
+      : (MacOS.version >= :catalina) ? [_64b_arch(:intel)].extend(ArchitectureListExtension) \
+      : (MacOS.version >= :lion)     ? [:i386, _64b_arch(:intel)].extend(ArchitectureListExtension) \
+      : (MacOS.version >= :tiger)    ? (prefer_64b? ? (ENV.compiler == :clang ? triple_fat_archs : quad_fat_archs) \
+                                                    : universal_archs_1)
+      : [:ppc].extend(ArchitectureListExtension)
+    end # Target⸬cross_archs
+
+    def local_archs
+      @@local_archs ||= all_our_archs.select{ |a|
+          CPU.can_run?(a) and (MacOS.version < :lion or _64b_arch?(a))
+        }.extend(ArchitectureListExtension)
     end
 
-    def bits
-      CPU.bit_width(arch)
-    end
+    def quad_fat_archs; [:i386, :ppc, :ppc64, :x86_64].extend(ArchitectureListExtension); end
 
-    CPU.known_types.each { |t| define_method("#{t}?") { type == t } }
+    def triple_fat_archs; [:i386, :ppc, :x86_64].extend(ArchitectureListExtension); end
 
-    def universal
-      archmap = {}
-      CPU.type_archs(type).each{ |a| archmap[a] = CPU.archmap(a) }
-      archmap
-    end
+    def universal_archs_1; [:i386, :ppc].extend(ArchitectureListExtension); end
+
+    def universal_archs_2; [_64b_arch(:arm), _64b_arch(:intel)].extend(ArchitectureListExtension); end
   end # << self
 end # Target

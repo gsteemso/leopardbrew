@@ -1,5 +1,4 @@
-# This file is loaded before `global.rb`, so must eschew most Homebrew‐isms at
-# eval time.
+# This file is loaded before `global.rb`, so must eschew most Homebrew‐isms at eval time.
 
 require 'cpu'
 require "macos/version"
@@ -43,7 +42,7 @@ module MacOS
 
   def active_developer_dir
     # xcode-select was introduced in Xcode 3 on Leopard
-    @active_developer_dir ||= (MacOS.version < :leopard \
+    @active_developer_dir ||= Pathname.new(MacOS.version < :leopard \
         ? '/Developer' \
         : Utils.popen_read('/usr/bin/xcode-select', '-print-path').strip
       )
@@ -57,7 +56,7 @@ module MacOS
       # Xcode.prefix is pretty smart, so let’s look inside to find the sdk
       opts << "#{Xcode.prefix}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX#{v}.sdk"
       # Xcode < 4.3 style
-      opts << "/Developer/SDKs/MacOSX#{v}.sdk"
+      opts << Dir["/Developer/SDKs/MacOSX#{v}*.sdk"].first  # catches “MacOSX10.4u.sdk”
       @sdk_path[key] = opts.map{ |a| Pathname.new(a) }.detect(&:directory?)
     end
   end # sdk_path
@@ -151,35 +150,6 @@ module MacOS
     paths.uniq
   end # macports_or_fink
 
-  def prefer_64_bit?
-    CPU._64b? and version >= :snow_leopard or ENV['HOMEBREW_PREFER_64_BIT'] and version >= :leopard
-  end
-
-  def preferred_arch; prefer_64_bit? ? CPU._64b_arch : CPU._32b_arch; end
-
-  def preferred_arch_as_list; [preferred_arch].extend(ArchitectureListExtension); end
-
-  def counterpart_arch(main_arch = preferred_arch)
-    case main_arch
-      when :altivec, :ppc    then :i386
-      when :arm64, :arm64e   then :x86_64h
-      when :g5_64, :ppc64    then :x86_64
-      when :i386             then :ppc
-      when :x86_64, :x86_64h then (version >= :big_sur ? :arm64 : :ppc64)
-      else :dunno
-    end
-  end # counterpart_arch
-
-  def counterpart_arch_as_list; [counterpart_arch].extend(ArchitectureListExtension); end
-
-  def counterpart_type(main_type = CPU.type)
-    case main_type
-      when :arm, :powerpc then :intel
-      when :intel then (version >= :big_sur ? :arm : :powerpc)
-      else :dunno
-    end
-  end # counterpart_type
-
   STANDARD_COMPILERS = {
     "2.0"   => { :gcc_40_build => 4061 },
     "2.5"   => { :gcc_40_build => 5370 },
@@ -242,6 +212,8 @@ module MacOS
     path = mdfind(*ids).first
     Pathname.new(path) unless path.nil? || path.empty?
   end
+
+  def iPhone_SDK_present?; (active_developer_dir/'Platforms/iPhoneOS.platform').directory?; end
 
   def mdfind(*ids)
     (@mdfind ||= {}).fetch(ids) do
