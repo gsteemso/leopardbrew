@@ -7,10 +7,9 @@ class Readline < Formula
   version '8.3.1'
   sha256 'fe5383204467828cd495ee8d1d3c037a7eba1389c22bc6a041f627976f9061cc'
 
-  keg_only :shadowed_by_osx, <<-EOS.undent
-    OS X provides the BSD libedit library, which shadows libreadline.
-    In order to prevent conflicts when programs look for libreadline we are
-    defaulting this GNU Readline installation to keg-only.
+  keg_only :shadowed_by_osx, <<-EOS.undent.rewrap
+    Mac OS provides the BSD libedit library, which shadows libreadline.  To prevent conflicts when
+    programs look for libreadline, we have made this GNU Readline installation keg-only.
   EOS
 
   patch :p0 do
@@ -21,6 +20,13 @@ class Readline < Formula
 
   def install
     ENV.universal_binary
+    # If $MACOSX_DEPLOYMENT_TARGET is allowed to default to an especially early value (like “10.1”),
+    # the linker flag “-undefined dynamic_lookup” gets rejected.  This could only happen for a :ppc
+    # build, as everything else requires at least 10.4.
+    # Unfortunately, the $MACOSX_DEPLOYMENT_TARGET environment variable has not been in current use
+    # since Mac OS Leopard.  Should it turn out to actually cause trouble for modern builds instead
+    # of just getting ignored, we will have to revise this.
+    ENV['MACOSX_DEPLOYMENT_TARGET'] = MacOS.version.to_s
     system './configure', "--prefix=#{prefix}", '--enable-multibyte'
     system 'make', 'install'
   end
@@ -39,6 +45,8 @@ class Readline < Formula
     EOS
     ENV.universal_binary
     system ENV.cc, 'test.c', '-lreadline', '-o', 'test'
-    assert_equal 'Hello, World!', pipe_output('./test', "Hello, World!\n").strip
+    for_archs('./test') do |_, cmd_array|
+      assert_equal 'Hello, World!', pipe_output(*cmd_array, "Hello, World!\n").strip
+    end
   end
 end
