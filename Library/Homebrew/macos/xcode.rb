@@ -1,5 +1,4 @@
-# This file is loaded before `global.rb`, so must eschew many Homebrew‐isms at
-# eval time.
+# This file is loaded before `global.rb`, so must eschew many brew‐isms at eval time.
 
 module MacOS
   module Xcode
@@ -36,28 +35,24 @@ module MacOS
 
     def prefix
       dir = MacOS.active_developer_dir
-      @prefix ||= if dir.empty? or dir == CLT::MAVERICKS_PKG_PATH or not File.directory?(dir)
-          path = bundle_path
-          path.join("Contents", "Developer") if path
-        else
-          Pathname.new(dir)
-        end
+      @prefix ||= if dir.nil? or dir.to_s == CLT::MAVERICKS_PKG_PATH or not dir.directory?
+          if (path = bundle_path) then path/'Contents/Developer'; end
+        else dir; end
     end # prefix
 
     def toolchain_path
       Pathname.new("#{prefix}/Toolchains/XcodeDefault.xctoolchain") if installed? and version >= "4.3"
     end
 
-    # Ask Spotlight where Xcode is. If the user didn't install the
-    # helper tools and installed Xcode in a non-conventional place, this
-    # is our only option. See: https://superuser.com/questions/390757
+    # Ask Spotlight where Xcode is.  If the user didn’t install the helper tools, & put Xcode in an
+    # unconventional place, this is our only option.  See:  https://superuser.com/questions/390757
     def bundle_path; MacOS.app_with_bundle_id(V4_BUNDLE_ID, V3_BUNDLE_ID); end
 
     def installed?; not prefix.nil?; end
 
+    # This may return nil or a version string that’s guessed based on the compiler, so don’t use it
+    # to check if Xcode is installed.
     def version; @version ||= uncached_version; end
-    # may return a version string that is guessed based on the compiler, so do not
-    # use it in order to check if Xcode is installed.
 
     def uncached_version
       # This is a separate function as you can't cache the value out of a block
