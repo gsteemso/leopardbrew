@@ -3,27 +3,27 @@
 # reason a fat build tries to also call it from 32‐bit slices.
 require 'merge'
 
+# Stable release 2025-08-20; checked 2025-09-24.
+# Won’t build through `make check` on Tiger due to Heisenbugs.
 class Kerberos < Formula
   include Merge
 
   desc 'MIT’s implementation of Kerberos version 5 authentication'
   homepage 'https://kerberos.org/'
-  url 'https://kerberos.org/dist/krb5/1.21/krb5-1.21.3.tar.gz'
-  version '1.21.3'
-  sha256 'b7a4cd5ead67fb08b980b21abd150ff7217e85ea320c9ed0c6dadd304840ad35'
+  url 'http://web.mit.edu/kerberos/dist/krb5/1.22/krb5-1.22.1.tar.gz'
+  sha256 '1a8832b8cad923ebbf1394f67e2efcf41e3a49f460285a66e35adec8fa0053af'
 
   keg_only :provided_by_osx
 
   option :universal
-  option 'without-test-dns', 'Don’t pull in resolv-wrapper for the build-time unit tests'
+  option 'with-test-dns', 'Allow use of resolv-wrapper for the build-time unit tests'
 
-#  depends_on :ld64
-  depends_on 'pkg-config'       => :build
-  depends_on :python            => :build  # used during unit testing
-  if build.with? 'test-dns'
-    depends_on 'resolv_wrapper' => :build
-  end
+  depends_on :ld64
+  depends_on 'pkg-config'     => :build
+  depends_on :python3         => :build  # used during unit testing
+  depends_on 'resolv_wrapper' => :build if build.with? 'test-dns'
   depends_on 'openssl3'
+  depends_on 'readline'
   depends_on :nls => :recommended
 
   patch :DATA
@@ -31,11 +31,11 @@ class Kerberos < Formula
   resource 'macos_extras_tiger_snowleopard' do
     url 'http://web.mit.edu/macdev/Download/Mac_OS_X_10.4_10.6_Kerberos_Extras.dmg'
     sha256 'ed2ee956ceab45dfcbdf06afcaae7f78afbb2afece536e41b1fc991b4407ae9e'
-  end if MacOS.version <= :snow_leopard
+  end if MacOS.version >= :tiger and MacOS.version <= :snow_leopard
 
   def install
-    if build.universal?
-      archs = CPU.local_archs
+    archs = Target.archset
+    if build.fat?
       the_binaries = %w[
           bin/gss-client
           bin/kadmin
@@ -78,43 +78,45 @@ class Kerberos < Formula
           sbin/sserver
           sbin/uuserver
         ]
-    else
-      archs = [MacOS.preferred_arch]
-    end # universal?
+    end # fat?
 
-	# Not even stock pkg-config knows about stock libedit, so we have to describe it by hand.
-    ENV['LIBEDIT_CFLAGS'] = '-I/usr/include/editline'
-    ENV['LIBEDIT_LIBS'] = '-ledit'
+    (buildpath/'src/lib/krb5/ccache').install_symlink_to ENV.compiler_path => 'cc'
 
+    # Note that, at least on older Mac OSes, configure can’t recognize the system’s libedit because
+    # it’s so outdated.  There could plausibly be some OS‐version threshold after which using stock
+    # libedit would reliably work, but it’s easier to just use Readline regardless.
+    args = %W[
+        --prefix=#{prefix}
+        --with-crypto-impl=openssl
+        --enable-dns-for-realm
+        --with-readline
+      ]
+    args << '--disable-nls' if build.without? 'nls'
+    args << '--disable-thread-support' if MacOS.version < :leopard  # Host‐lookup functions are not
+                                                                    # reëntrant prior to Leopard.
     cd 'src' do
-	  archs.each do |arch|
-		ENV.set_build_archs(arch) if build.universal?
+      archs.each do |arch|
+        ENV.set_build_archs(arch) if build.fat?
 
-		system './configure', "--prefix=#{prefix}",
-							  '--with-crypto-impl=openssl',
-							  '--with-libedit'
-		system 'make'
-		system 'make', 'check'
-		system 'make', 'install'
+        system './configure', *args
+        system 'make'
+        system 'make', 'check' if MacOS.version > :tiger  # fails on Tiger with bizarre Heisenbugs
+        system 'make', 'install'
 
-		if build.universal?
-		  ENV.deparallelize { system 'make', 'distclean' }
-		  merge_prep(:binary, arch, the_binaries)
-		end # universal?
-	  end # each |arch|
+        if build.fat?
+          ENV.deparallelize { system 'make', 'distclean' }
+          merge_prep(:binary, arch, the_binaries)
+        end # fat?
+      end # each |arch|
     end # cd src
 
-    if build.universal?
+    if build.fat?
       ENV.set_build_archs(archs)
       merge_binaries(archs)
-    end # universal?
+    end # fat?
 
     pkgshare.install resource('macos_extras_tiger_snowleopard') if MacOS.version <= :snow_leopard
   end # install
-
-  test do
-    system 'false'
-  end
 end # Kerberos
 
 __END__
@@ -142,25 +144,24 @@ __END__
  #define KRB5_PLUGIN_BUNDLE_DIR       "/System/Library/KerberosPlugins/KerberosFrameworkPlugins"
  #define KDB5_PLUGIN_BUNDLE_DIR       "/System/Library/KerberosPlugins/KerberosDatabasePlugins"
  #define KRB5_AUTHDATA_PLUGIN_BUNDLE_DIR  "/System/Library/KerberosPlugins/KerberosAuthDataPlugins"
-# $(RUN_TEST) has the slight problem that no configuration file yet exists!
---- old/src/lib/krb5/os/Makefile.in
-+++ new/src/lib/krb5/os/Makefile.in
-@@ -8,6 +8,9 @@
- RUN_TEST_LOCAL_CONF=$(RUN_SETUP) KRB5_CONFIG=$(srcdir)/td_krb5.conf LC_ALL=C \
- 	$(VALGRIND)
+# set_msg_from_ipv{n}() are accidentally defined with too many parameters, in the unsupported cases.
+--- old/src/lib/apputils/udppktinfo.c
++++ new/src/lib/apputils/udppktinfo.c
+@@ -363,7 +363,7 @@
+ }
  
-+RUN_TEST_W_CONF=$(RUN_SETUP) KRB5_CONFIG=$(top_srcdir)/config-files/krb5.conf \
-+	LC_ALL=C $(VALGRIND)
-+
- ##DOS##BUILDTOP = ..\..\..
- ##DOS##PREFIXDIR=os
- ##DOS##OBJFILE=..\$(OUTPRE)$(PREFIXDIR).lst
-@@ -222,7 +225,7 @@
- 	if [ "$(OFFLINE)" = no ]; then \
- 	    if $(DIG) $(SRVNAME) srv | grep -i $(DIGPAT) || \
- 		$(NSLOOKUP) -q=srv $(SRVNAME) | grep -i $(NSPAT); then \
--		$(RUN_TEST) ./t_locate_kdc $(LOCREALM); \
-+		$(RUN_TEST_W_CONF) ./t_locate_kdc $(LOCREALM); \
- 	    else \
- 		echo '*** WARNING: skipped t_locate_kdc test: known DNS name not found'; \
- 		echo 'Skipped t_locate_kdc test: known DNS name not found' >> $(SKIPTESTS); \
+ #else /* HAVE_IP_PKTINFO || IP_SENDSRCADDR */
+-#define set_msg_from_ipv4(m, c, f, l, a) EINVAL
++#define set_msg_from_ipv4(m, c, f, a) EINVAL
+ #endif /* HAVE_IP_PKTINFO || IP_SENDSRCADDR */
+ 
+ #ifdef HAVE_IPV6_PKTINFO
+@@ -398,7 +398,7 @@
+ }
+ 
+ #else /* HAVE_IPV6_PKTINFO */
+-#define set_msg_from_ipv6(m, c, f, l, a) EINVAL
++#define set_msg_from_ipv6(m, c, f, a) EINVAL
+ #endif /* HAVE_IPV6_PKTINFO */
+ 
+ static krb5_error_code
