@@ -1,33 +1,30 @@
-# This file is loaded before `global.rb`, so must eschew many Homebrew‐isms at
-# eval time.
+# This file is loaded before `global.rb`, so must eschew many brew‐isms at eval time.
 
-POWERPC_ARCHS = [:ppc, :ppc64].freeze;
+module ArchitectureConstants
+  POWERPC_ARCHS = [:ppc, :ppc64].freeze;
 
-INTEL_ARCHS = [:i386, :x86_64, :x86_64h].freeze;
+  INTEL_ARCHS = [:i386, :x86_64, :x86_64h].freeze;
 
-INTEL_ARCHS_64 = [:x86_64, :x86_64h].freeze;
+  INTEL_ARCHS_64 = [:x86_64, :x86_64h].freeze;
 
-ARM_ARCHS = [:arm64, :arm64e].freeze
+  ARM_ARCHS = [:arm64, :arm64e].freeze
+end # ArchitectureConstants
 
 module ArchitectureListExtension  # applicable to arrays of architecture symbols
-  # @private
+  include ArchitectureConstants
+
   def fat?; length > 1; end
   alias_method :universal?, :fat?
 
-  # @private
   def fat_intel?; includes? :i386 and intersects? INTEL_ARCHS_64; end
   def fat_powerpc?; includes? :ppc and includes? :ppc64; end
 
-  # @private
-  # Universal Binaries, original flavour:  Usually old-style 32-bit PowerPC/
-  # Intel, e.g. ppc + i386, but can also be Leopard‐style quad fat binaries, or
-  # in some cases triple fat binaries with no ppc64 slice.  (Other combinations
-  # are not generally found in the wild.)
-  def universal_1?; intersects_all?(POWERPC_ARCHS, INTEL_ARCHS_64); end
+  # Universal Binaries, original flavour:  Usually old-style 32-bit PowerPC/Intel, e.g. ppc + i386,
+  # but can also be Leopard‐style quad fat binaries, or Snow‐Leopard‐style triple fat binaries with
+  # no ppc64 slice.  (Other combinations are not generally found in the wild.)
+  def universal_1?; includes? :i386 and includes? :ppc; end
   def universal_2?; intersects_all?(INTEL_ARCHS_64, ARM_ARCHS); end
-  def cross_universal?; universal_1? or universal_2?; end
 
-  # @private
   def powerpc?; intersects? POWERPC_ARCHS; end
   def intel?; intersects? INTEL_ARCHS; end
   def arm?; intersects? ARM_ARCHS; end
@@ -45,8 +42,7 @@ module ArchitectureListExtension  # applicable to arrays of architecture symbols
   def intersects_all?(*asets); asets.all?{ |aset| intersects? aset }; end
 end # ArchitectureListExtension
 
-# only useable when included in Pathname
-module MachO
+module MachO  # only useable when included in Pathname
   # @private
   AR_MAGIC = "!<arch>\n".freeze
   AR_MEMBER_HDR_SIZE = 60.freeze
