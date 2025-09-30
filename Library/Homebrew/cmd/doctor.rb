@@ -545,7 +545,7 @@ class Checks
   end # check_xcode_prefix_exists
 
   def check_xcode_select_path
-    if not MacOS::CLT.installed? and not File.file?("#{MacOS.active_developer_dir}/usr/bin/xcodebuild")
+    if not MacOS::CLT.installed? and not (MacOS.active_developer_dir/'usr/bin/xcodebuild').file?
       path = MacOS::Xcode.bundle_path
       path = "/Developer" if path.nil? or not path.directory?
       <<-EOS.undent
