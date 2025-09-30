@@ -31,22 +31,23 @@ class Libiconv < Formula
                           '--enable-extra-encodings',
                           '--enable-static',
                           "--docdir=#{doc}"
-    system 'make', '-f', 'Makefile.devel', "CFLAGS=#{ENV.cflags}", "CC=#{ENV.cc}"
+    system 'make'
     system 'make', 'check'
     system 'make', 'install'
   end
 
   def caveats; <<-_.undent
-    GNU Libiconv and GNU Gettext are circularly dependent on one another.  This
-    formula explicitly depends on the `gettext` formula, which means gettext will
-    be brewed for you (if it wasn’t already) when you brew libiconv.  The reverse
-    cannot be done at the same time because of the circular dependency.  To ensure
-    the full functionality of both packages, you should `brew reinstall gettext`
-    after you have brewed libiconv.
+      GNU Libiconv and GNU Gettext are circularly dependent on one another.  This
+      formula explicitly depends on {gettext} – meaning that {gettext} will be brewed
+      for you, if it wasn’t already, when you brew {libiconv}.  The reverse
+      cannot be done at the same time because of the circular dependency.
 
-    They should be brewed in this order because Mac OS includes an outdated iconv
-    that is enough to get by with, but does not include gettext at all.
-  _
+      In brief:  To make sure both packages work properly, once {libiconv} has been
+      brewed you should `brew reinstall gettext`.
+
+      (They should be brewed in this order because Mac OS includes an outdated iconv,
+      but has never included gettext.)
+    _
   end
 
   test do
