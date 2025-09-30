@@ -31,8 +31,8 @@ class Pcre2 < Formula
       --enable-pcre2test-libedit
     ]
     # PPC64 JIT is explicitly supported in the package’s source code, but for reasons yet to be
-    # determined, fails to build properly under Mac OS 10.5.
-    args << '--enable-jit' unless CPU.powerpc? and MacOS.prefer_64_bit?
+    # determined, fails to build properly under Mac OS 10.5.  It probably requires a newer GCC.
+    args << '--enable-jit' unless [:gcc_4_0, :gcc, :llvm].include? ENV.compiler
 
     system './configure', *args
     system 'make'
