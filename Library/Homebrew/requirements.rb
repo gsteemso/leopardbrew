@@ -1,8 +1,6 @@
 require "requirement"
 require "requirements/apr_requirement"
-require "requirements/c11_requirement"
 require "requirements/cctools_requirement"
-require "requirements/cxx11_requirement"
 require "requirements/emacs_requirement"
 require "requirements/fortran_requirement"
 require "requirements/java_requirement"

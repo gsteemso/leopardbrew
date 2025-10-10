@@ -14,7 +14,7 @@ class Libusb < Formula
 
   option :universal
 
-  depends_on C11Requirement.new
+  needs :c11
 
   def install
     ENV.universal_binary if build.universal?
