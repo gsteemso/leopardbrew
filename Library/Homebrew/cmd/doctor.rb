@@ -213,12 +213,12 @@ class Checks
     unless ponk.empty?
       <<-EOS.undent
         You have MacPorts or Fink installed:
-          #{ponk.join(", ")}
+            #{ponk.join(", ")}
 
-        This can cause trouble. You don’t have to uninstall them, but you may want to
+        This can cause trouble.  You don’t have to uninstall them, but you may want to
         temporarily move them out of the way, e.g.
 
-          sudo mv /opt/local ~/macports
+            sudo mv /opt/local ~/macports
       EOS
     end
   end # check_for_other_package_managers
@@ -255,7 +255,7 @@ class Checks
       unless MacOS::Xcode.installed? or MacOS::CLT.installed? then <<-EOS.undent
           No developer tools installed.
           Install the Command Line Tools:
-            xcode-select --install
+              xcode-select --install
         EOS
       end
     end # check_for_installed_developer_tools, OS ≥ 10.9
@@ -283,7 +283,7 @@ class Checks
           No developer tools installed.
           You should install the Command Line Tools.
           The standalone package can be obtained from
-            https://developer.apple.com/downloads
+              https://developer.apple.com/downloads
           or it can be installed via Xcode’s preferences.
         EOS
       end
@@ -294,7 +294,7 @@ class Checks
       Your Xcode (#{MacOS::Xcode.version}) is outdated
       Please update to Xcode #{MacOS::Xcode.latest_version}.
       Xcode can be updated from
-        https://developer.apple.com/xcode/downloads/
+          https://developer.apple.com/xcode/downloads/
       EOS
       end
     end # check_xcode_up_to_date, OS 10.7 / 10.8
@@ -303,7 +303,7 @@ class Checks
       if MacOS::CLT.installed? and MacOS::CLT.outdated? then <<-EOS.undent
           A newer Command Line Tools release is available.
           The standalone package can be obtained from
-            https://developer.apple.com/downloads
+              https://developer.apple.com/downloads
           or it can be installed via Xcode’s preferences.
         EOS
       end
@@ -311,9 +311,9 @@ class Checks
   else
     def check_for_installed_developer_tools
       unless MacOS::Xcode.installed? then <<-EOS.undent
-      Xcode is not installed. Most formulae need Xcode to build.
+      Xcode is not installed.  Most formulae need Xcode to build.
       It can be installed from
-        https://developer.apple.com/xcode/downloads/
+          https://developer.apple.com/xcode/downloads/
       EOS
       end
     end # check_for_installed_developer_tools, OS ≤ 10.6
@@ -323,7 +323,7 @@ class Checks
           Your Xcode (#{MacOS::Xcode.version}) is outdated
           Please update to Xcode #{MacOS::Xcode.latest_version}.
           Xcode can be updated from
-            https://developer.apple.com/xcode/downloads/
+              https://developer.apple.com/xcode/downloads/
         EOS
       end
     end # check_xcode_up_to_date, OS ≤ 10.6
@@ -334,7 +334,7 @@ class Checks
         MacOS.clang_version == "2.1"
       message = <<-EOS.undent
         You seem to have osx-gcc-installer installed.
-        Leopardbrew doesn’t support osx-gcc-installer. It causes many builds to fail
+        Leopardbrew doesn’t support osx-gcc-installer.  It causes many builds to fail
         and is an unlicensed distribution of really old Xcode files.
       EOS
       if MacOS.version >= :mavericks
@@ -398,7 +398,7 @@ class Checks
     inject_file_list cant_read.sort, <<-EOS.undent
       Some directories in #{target} aren't writable.
       This can happen if you "sudo make install" software that isn’t managed
-      by Leopardbrew. If a brew tries to add locale information to one of these
+      by Leopardbrew.  If a brew tries to add locale information to one of these
       directories, then the install will fail during the link step.
       You should probably `chown` them:
     EOS
@@ -427,7 +427,7 @@ class Checks
 
         You should probably change the ownership and permissions of /usr/local
         back to your user account.
-          sudo chown -R $(whoami):admin /usr/local
+            sudo chown -R $(whoami):admin /usr/local
       EOS
     end
   end # check_access_usr_local
@@ -448,7 +448,7 @@ class Checks
           #{dir} isn't writable.
 
           This can happen if you "sudo make install" software that isn’t managed by
-          by Leopardbrew. If a formula tries to write a file to this directory, the
+          by Leopardbrew.  If a formula tries to write a file to this directory, the
           install will fail during the link step.
 
           You should probably `chown #{dir}`.
@@ -462,7 +462,7 @@ class Checks
       <<-EOS.undent
         #{Language::Python.homebrew_site_packages} isn't writable.
         This can happen if you "sudo pip install" software that isn’t managed
-        by Leopardbrew. If you install a formula with Python modules, the install
+        by Leopardbrew.  If you install a formula with Python modules, the install
         will fail during the link step.
 
         You should probably `chown #{Language::Python.homebrew_site_packages}`.
@@ -473,7 +473,7 @@ class Checks
   def check_access_logs
     if HOMEBREW_LOGS.exists? and not HOMEBREW_LOGS.writable_real?
       <<-EOS.undent
-        #{HOMEBREW_LOGS} isn't writable.
+        #{HOMEBREW_LOGS} isn’t writable.
         Leopardbrew writes debugging logs to this location.
 
         You should probably `chown #{HOMEBREW_LOGS}`.
@@ -561,9 +561,9 @@ class Checks
   def check_sdk_path_not_nil_yosemite
     if MacOS.version == :yosemite and not(MacOS::CLT.installed?) and MacOS::Xcode.installed? and MacOS.sdk_path.nil?
       <<-EOS.undent
-        Xcode 7 lacks the 10.10 SDK which can cause some builds to fail.
+        Xcode 7 lacks the 10.10 SDK, which can cause some builds to fail.
         We recommend installing the Command Line Tools with:
-          xcode-select --install
+            xcode-select --install
         to resolve this issue.
       EOS
     end
@@ -585,7 +585,7 @@ class Checks
               out = inject_file_list conflicts, <<-EOS.undent
                 /usr/bin occurs before #{HOMEBREW_PREFIX}/bin
                 This means that system-provided programs will be used instead of those
-                provided by Leopardbrew. The following tools exist at both paths:
+                provided by Leopardbrew.  The following tools exist at both paths:
               EOS
               out += <<-EOS.undent
 
@@ -673,10 +673,10 @@ class Checks
         You have a non-Leopardbrew 'pkg-config' in your PATH:
             /usr/bin/pkg-config => #{mono_config.realpath}
 
-        This was most likely created by the Mono installer. `./configure` may
+        This was most likely created by the Mono installer.  `./configure` may
         have problems finding brew-installed packages using this other pkg-config.
 
-        Mono no longer installs this file as of 3.0.4. You should
+        Mono no longer installs this file as of 3.0.4.  You should
         `sudo rm /usr/bin/pkg-config` and upgrade to the latest version of Mono.
       EOS
     elsif binary.to_s != "#{HOMEBREW_PREFIX}/bin/pkg-config" then <<-EOS.undent
@@ -823,7 +823,7 @@ class Checks
       # Of course, on a case-insensitive fs, both exist because the os reports so.
       # In the rare situation when the user has indeed a downcased and an upcased
       # dir (e.g. /TMP and /tmp) this check falsely thinks it is case-insensitive
-      # but we don't care beacuse: 1. there is more than one dir checked, 2. the
+      # but we don't care because:  1. there is more than one dir checked, 2. the
       # check is not vital and 3. we would have to touch files otherwise.
       upcased = Pathname.new(dir.to_s.upcase)
       downcased = Pathname.new(dir.to_s.downcase)
@@ -832,7 +832,8 @@ class Checks
     return if case_sensitive_vols.empty?
     <<-EOS.undent
       The filesystem on #{case_sensitive_vols.join(",")} appears to be case-sensitive.
-      The default OS X filesystem is case-insensitive. Please report any apparent problems.
+      The default Mac OS filesystem is case-insensitive.  Please report any apparent
+      problems.
     EOS
   end # check_filesystem_case_sensitive
 
@@ -890,15 +891,15 @@ class Checks
         Missing git origin remote.
 
         Without a correctly configured origin, Leopardbrew won’t update
-        properly. You can solve this by adding the Leopardbrew remote:
-          cd #{HOMEBREW_REPOSITORY}
-          git add remote origin https://github.com/gsteemso/leopardbrew.git
+        properly.  You can solve this by adding the Leopardbrew remote:
+            cd #{HOMEBREW_REPOSITORY}
+            git add remote origin https://github.com/gsteemso/leopardbrew.git
       EOS
     elsif origin !~ /gsteemso\/leopardbrew(\.git)?$/ then <<-EOS.undent
         Suspicious git origin remote found.
 
         With a non-standard origin, Leopardbrew won’t pull updates from
-        the main repository. The current git origin is:
+        the main repository.  The current git origin is:
             #{origin}
 
         Unless you have compelling reasons, consider setting the
@@ -946,7 +947,7 @@ class Checks
       Some keg-only formula are linked into the Cellar.
       Linking a keg-only formula, such as gettext, into the cellar with
       `brew link <formula>` will cause other formulae to detect them during
-      the `./configure` step. This may cause problems when compiling those
+      the `./configure` step.  This may cause problems when compiling those
       other formulae.
 
       Binaries provided by keg-only formulae may override system binaries
@@ -965,7 +966,7 @@ class Checks
         <<-EOS.undent
           #{frmwrk} detected
           This can be picked up by CMake’s build system and likely cause the build to
-          fail. You may need to move this file out of the way to compile CMake.
+          fail.  You may need to move this file out of the way to compile CMake.
         EOS
       end.join
   end # check_for_other_frameworks
@@ -1021,7 +1022,7 @@ class Checks
       Python is installed at /Library/Frameworks/Python.framework
 
       Leopardbrew only supports building against the System-provided Python or a
-      brewed Python. In particular, Pythons installed to /Library can interfere
+      brewed Python.  In particular, Pythons installed to /Library can interfere
       with other software installs.
     EOS
   end # check_for_library_python
@@ -1072,9 +1073,9 @@ class Checks
   def check_for_pydistutils_cfg_in_home
     if File.exists? "#{ENV["HOME"]}/.pydistutils.cfg" then <<-EOS.undent
     A .pydistutils.cfg file was found in $HOME, which may cause Python
-    builds to fail. See:
-      https://bugs.python.org/issue6138
-      https://bugs.python.org/issue4655
+    builds to fail.  See:
+        https://bugs.python.org/issue6138
+        https://bugs.python.org/issue4655
     EOS
     end
   end
@@ -1120,7 +1121,7 @@ class Checks
     inject_file_list unlinked, <<-EOS.undent
       You have unlinked kegs in your Cellar
       Leaving kegs unlinked can lead to build-trouble and cause brews that depend on
-      those kegs to fail to run properly once built. Run `brew link` on these:
+      those kegs to fail to run properly once built.  Run `brew link` on these:
     EOS
   end # check_for_unlinked_but_not_keg_only
 
@@ -1129,7 +1130,7 @@ class Checks
     # license or no "xc*" tool will work.
     if `/usr/bin/xcrun clang 2>&1` =~ /license/ and not $?.success? then <<-EOS.undent
       You have not agreed to the Xcode license.
-      Builds will fail! Agree to the license by opening Xcode.app or running:
+      Builds will fail!  Agree to the license by opening Xcode.app or running:
           sudo xcodebuild -license
       EOS
     end
@@ -1147,7 +1148,7 @@ class Checks
     <<-EOS.undent
       Your XQuartz (#{installed_version}) is outdated
       Please install XQuartz #{latest_version}:
-        https://xquartz.macosforge.org/
+          https://xquartz.macosforge.org/
     EOS
   end # check_for_latest_xquartz
 
@@ -1169,10 +1170,10 @@ class Checks
     user_site_packages = Language::Python.user_site_packages "python"
     <<-EOS.undent
       Your default Python does not recognize the Leopardbrew site-packages
-      directory as a special site-packages directory, which means that .pth
-      files will not be followed. This means you will not be able to import
-      some modules after installing them with Leopardbrew, like wxpython. To fix
-      this for the current user, you can run:
+      directory as a special site-packages directory, which means that .pth files
+      will not be followed.  This means you will not be able to import some modules
+      after installing them with Leopardbrew, like wxpython.  To fix this for the
+      current user, you can run:
 
           mkdir -p #{user_site_packages}
           echo 'import site; site.addsitedir("#{homebrew_site_packages}")' >> #{user_site_packages}/homebrew.pth
