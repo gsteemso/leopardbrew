@@ -128,7 +128,7 @@ module Homebrew
       safe_system "git", "config", "remote.origin.url", HOME_REPO
       safe_system "git", "config", "remote.origin.fetch", "+refs/heads/*:refs/remotes/origin/*"
       safe_system "git", "fetch", "origin"
-      safe_system "git", "reset", "--hard", "origin/master"
+      safe_system "git", "reset", "--hard", "origin/combined"
     rescue Exception
       FileUtils.rm_rf ".git"
       raise
