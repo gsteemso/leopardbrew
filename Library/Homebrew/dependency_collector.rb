@@ -4,21 +4,15 @@ require "requirement"
 require "requirements"
 require "set"
 
-## A dependency is a formula that another formula needs to install.
-## A requirement is something other than a formula that another formula
-## needs to be present. This includes external language modules,
-## command-line tools in the path, or any arbitrary predicate.
-##
-## The `depends_on` method in the formula DSL is used to declare
-## dependencies and requirements.
+## A dependency is another formula that the current formula must have preïnstalled.  A requirement is anything other than a formula
+## that the current formula needs to have present.  This includes external language modules, command-line tools in the path, or any
+## other arbitrary predicate.
+## The `depends_on` method in the formula DSL is used to declare dependencies and requirements.
 
-# This class is used by `depends_on` in the formula DSL to turn dependency
-# specifications into the proper kinds of dependencies and requirements.
+# This class is used by Formula⸬depends_on to turn dependency specifications into the proper kinds of dependencies and requirements.
 class DependencyCollector
   # Define the languages that we can handle as external dependencies.
-  LANGUAGE_MODULES = Set[
-    :chicken, :jruby, :lua, :node, :ocaml, :perl, :python, :python3, :rbx, :ruby
-  ].freeze
+  LANGUAGE_MODULES = Set[ :chicken, :jruby, :lua, :node, :ocaml, :perl, :python, :python3, :rbx, :ruby ].freeze
 
   CACHE = {}
 
@@ -111,7 +105,6 @@ class DependencyCollector
         autotools_dep(spec, tags)
       when :cairo, :fontconfig, :freetype, :libpng, :pixman # deprecated
         Dependency.new(spec.to_s, tags)
-      when :clt # deprecated
       when :libltdl # deprecated
         tags << :run
         Dependency.new("libtool", tags)
