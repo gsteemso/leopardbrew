@@ -107,7 +107,8 @@ module MachO  # only useable when included in Pathname
                        when 0x00000012 then :ppc
                        when 0x01000007
                          cpu_subtype & 0x00ffffff == 8 ? :x86_64h : :x86_64
-                       when 0x0100000c then :arm64e
+                       when 0x0100000c
+                         cpu_subtype & 0x00ffffff == 2 ? :arm64e : :arm64
                        when 0x01000012 then :ppc64
                        else :dunno
                      end
@@ -161,7 +162,7 @@ module MachO  # only useable when included in Pathname
   # unlikely to be a real fat binary; Java files, for example, will produce a figure well in excess
   # of 60 thousand.  Assume up to 30 architectures, allowing for ARM binaries (some system‐library
   # stubs contain one slice for each of the possible iPhone architectures!) and slots for future
-  # expansion.  At present we only expect:  ppc, i386, ppc64, x86_64, x86_64h, arm64e.
+  # expansion.  At present we only expect:  ppc, i386, ppc64, x86_64, x86_64h, arm64, arm64e.
   def mach_o_signature_at?(offset)
     sig = FILE_SIGNATURES[binread(4, offset).unpack('N').first] if file? and size >= (offset + 4)
     sig if sig and sig != :FAT_MAGIC or (fct = fat_count_at(offset) and fct <= 30)
