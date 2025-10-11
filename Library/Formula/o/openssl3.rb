@@ -13,15 +13,15 @@ class Openssl3 < Formula
   keg_only :provided_by_osx
 
   option :universal
-  option 'without-tests', 'Skip the build‐time unit tests (not recommended on the first install)'
+  option 'with-tests', 'Run the build-time unit tests (strongly recommended for the first install, but slow)'
 
   depends_on :macos => :tiger  # Panther doesn’t declare the right “timezone” in <time.h>.
 
   depends_on 'curl-ca-bundle'
   depends_on 'perl'
 
-  # These are loaded dynamically by OpenSSL at runtime, so don’t be alarmed that they do not appear
-  # in the libraries’ linkage lists even when enhancement has been performed.
+  # These are loaded dynamically by OpenSSL at runtime, so don’t be alarmed that they do not appear in the libraries’ linkage lists
+  # even when enhancement has been performed.
   enhanced_by 'brotli'
   enhanced_by 'zlib'
   enhanced_by 'zstd'
@@ -37,15 +37,8 @@ class Openssl3 < Formula
   end
 
   def install
-    # This could interfere with how we expect OpenSSL to build.
-    ENV.delete('OPENSSL_LOCAL_CONFIG_DIR')
-    # Ensure that, where Homebrew’s Perl is needed, its Cellar path is not hardcoded into OpenSSL’s
-    # scripts, breaking them every Perl update.  Our variable does point to opt_bin, but by default
-    # OpenSSL resolves the symlink.
-    ENV['HASHBANGPERL'] = Formula['perl'].opt_bin/'perl'
-
-    archs = Target.archset
-    if build.fat?
+    if build.universal?
+      ENV.allow_universal_binary
       the_binaries = %w[
         bin/openssl
         lib/engines-3/capi.dylib
@@ -59,7 +52,14 @@ class Openssl3 < Formula
       the_headers = %w[
         include/openssl/configuration.h
       ]
-    end # build fat?
+    end # build universal?
+    archs = Target.archset
+
+    # This could interfere with how we expect OpenSSL to build.
+    ENV.delete('OPENSSL_LOCAL_CONFIG_DIR')
+    # Ensure that brewed Perl’s Cellar path is not hardcoded into OpenSSL’s scripts, breaking them every Perl update.  Our variable
+    # does point to opt_bin, but by default OpenSSL resolves the symlink.
+    ENV['HASHBANGPERL'] = Formula['perl'].opt_bin/'perl'
 
     openssldir.mkpath
 
@@ -73,10 +73,10 @@ class Openssl3 < Formula
     ]
     if MacOS.version < :leopard
       args += ['no-async',          # There’s no {get,make,set}context support pre‐Leopard.
-               'disable-pie',        # ld only has this from Leopard on (no earlier OS supports PIE).
+               'disable-pie',       # ld only has this from Leopard on (no earlier OS supports PIE).
                '-DOPENSSL_NO_APPLE_CRYPTO_RANDOM',  # Nor the crypto framework.
-               '-D__DARWIN_UNIX03'  # If this is not set, 'timezone' is a pointer to characters
-        ]                           # instead of a longint, making a mess in crypto/asn1/a_time.c.
+               '-D__DARWIN_UNIX03'  # If this is not set, 'timezone' is a pointer to characters instead of a longint, making a mess
+        ]                           # in crypto/asn1/a_time.c.
     else
       args << 'enable-pie'  # ld only has this from Leopard on (no earlier OS supports PIE).
     end
@@ -104,33 +104,36 @@ class Openssl3 < Formula
     end
 
     archs.each do |arch|
-      ENV.set_build_archs(arch) if build.fat?
+      ENV.set_build_archs(arch) if build.universal?
 
       arch_args = [
         arg_format(arch),
       ]
       arch_args << '-D__ILP32__' if Target._32b_arch?(arch)  # Apple never needed to define this.
+      arch_args << '-DOPENSSL_USE_USLEEP' if CPU.type_of(arch) == :powerpc  # For some reason nanosleep() on a G5 Dual Core doesn’t
+                                                                            # last as long as is requested.  Using usleep() instead,
+                                                                            # that being implemented using nanosleep(), adds enough
+                                                                            # latency to hide the problem.
 
-      # “perl Configure”, instead of “./Configure”, because the Configure script’s shebang line may
-      # well name the wrong Perl binary.  (If we have an outdated stock Perl, we really do not want
-      # to use that when we meant to use brewed Perl.)
+      # “perl Configure”, instead of “./Configure”, because the Configure script’s shebang line may well name the wrong Perl binary.
+      # (If we have an outdated stock Perl, we really do not want to use that when we meant to use brewed Perl.)
       system 'perl', 'Configure', *args, *arch_args
       system 'make'
-      system 'make', 'test' if build.with? 'tests'
+      system 'make', 'test' if build.with? 'tests' or build.bottle?
       system 'make', 'install'
 
-      if build.fat?
+      if build.universal?
         system 'make', 'clean'
         merge_prep(:binary, arch, the_binaries)
         merge_prep(:header, arch, the_headers)
-      end # build fat?
+      end
     end # each |arch|
 
-    if build.fat?
+    if build.universal?
       ENV.set_build_archs(archs)
       merge_binaries(archs)
       merge_c_headers(archs)
-    end # build fat?
+    end
   end # install
 
   def openssldir

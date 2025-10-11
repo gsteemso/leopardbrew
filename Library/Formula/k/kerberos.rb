@@ -1,10 +1,9 @@
-# This won’t build fat under a stock compiler because, while only the 64‐bit slices of
-# libgcc_s.1.dylib contain a “___multi3” function (which operates on 64‐bit registers), for some
-# reason a fat build tries to also call it from 32‐bit slices.
+# This won’t build fat under Apple GCC because, while only the 64‐bit slices of libgcc_s.1.dylib contain a “___multi3” function
+# (which operates on 64‐bit registers), for some reason a fat build tries to also call it from 32‐bit slices.
 require 'merge'
 
 # Stable release 2025-08-20; checked 2025-09-24.
-# Won’t build through `make check` on Tiger due to Heisenbugs.
+# Won’t build through `make check` on Tiger, or sometimes on Leopard either, due to Heisenbugs.
 class Kerberos < Formula
   include Merge
 
@@ -16,12 +15,17 @@ class Kerberos < Formula
   keg_only :provided_by_osx
 
   option :universal
+  option 'with-tests',    'Carry out the build‐time unit tests'
   option 'with-test-dns', 'Allow use of resolv-wrapper for the build-time unit tests'
+
+  @do_unit_tests = build.with?('tests') || build.with?('test-dns')
 
   depends_on :ld64
   depends_on 'pkg-config'     => :build
-  depends_on :python3         => :build  # used during unit testing
-  depends_on 'resolv_wrapper' => :build if build.with? 'test-dns'
+  if @do_unit_tests
+    depends_on :python3         => :build  # Only used during unit testing.
+    depends_on 'resolv_wrapper' => :build if build.with? 'test-dns'
+  end
   depends_on 'openssl3'
   depends_on 'readline'
   depends_on :nls => :recommended
@@ -34,8 +38,8 @@ class Kerberos < Formula
   end if MacOS.version >= :tiger and MacOS.version <= :snow_leopard
 
   def install
-    archs = Target.archset
-    if build.fat?
+    if build.universal?
+      ENV.allow_universal_binary
       the_binaries = %w[
           bin/gss-client
           bin/kadmin
@@ -78,13 +82,13 @@ class Kerberos < Formula
           sbin/sserver
           sbin/uuserver
         ]
-    end # fat?
+    end # universal?
+    archs = Target.archset
 
     (buildpath/'src/lib/krb5/ccache').install_symlink_to ENV.compiler_path => 'cc'
 
-    # Note that, at least on older Mac OSes, configure can’t recognize the system’s libedit because
-    # it’s so outdated.  There could plausibly be some OS‐version threshold after which using stock
-    # libedit would reliably work, but it’s easier to just use Readline regardless.
+    # Note:  At least on older Mac OSes, configure can’t recognize system libedit because it’s so outdated.  There may plausibly be
+    # some OS‐version threshold after which using libedit would reliably work, but it’s easier to just use Readline regardless.
     args = %W[
         --prefix=#{prefix}
         --with-crypto-impl=openssl
@@ -92,36 +96,34 @@ class Kerberos < Formula
         --with-readline
       ]
     args << '--disable-nls' if build.without? 'nls'
-    args << '--disable-thread-support' if MacOS.version < :leopard  # Host‐lookup functions are not
-                                                                    # reëntrant prior to Leopard.
+    args << '--disable-thread-support' if MacOS.version < :leopard  # Host‐lookup functions are not reëntrant prior to Leopard.
     cd 'src' do
       archs.each do |arch|
-        ENV.set_build_archs(arch) if build.fat?
+        ENV.set_build_archs(arch) if build.universal?
 
         system './configure', *args
         system 'make'
-        system 'make', 'check' if MacOS.version > :tiger  # fails on Tiger with bizarre Heisenbugs
+        system 'make', 'check' if @do_unit_tests
         system 'make', 'install'
 
-        if build.fat?
+        if build.universal?
           ENV.deparallelize { system 'make', 'distclean' }
           merge_prep(:binary, arch, the_binaries)
-        end # fat?
+        end # universal?
       end # each |arch|
     end # cd src
 
-    if build.fat?
+    if build.universal?
       ENV.set_build_archs(archs)
       merge_binaries(archs)
-    end # fat?
+    end # universal?
 
     pkgshare.install resource('macos_extras_tiger_snowleopard') if MacOS.version <= :snow_leopard
   end # install
 end # Kerberos
 
 __END__
-# The kdc line is needed for when DNS is not available (i.e. during unit testing, if resolv_wrapper
-# is unavailable).
+# The kdc line is needed for when DNS is not available (i.e. during unit testing, if resolv_wrapper is unavailable).
 --- old/src/config-files/krb5.conf
 +++ new/src/config-files/krb5.conf
 @@ -5,6 +5,7 @@

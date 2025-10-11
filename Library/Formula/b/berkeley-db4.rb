@@ -21,11 +21,8 @@ class BerkeleyDb4 < Formula
   patch :DATA
 
   def install
-    # BerkeleyDB dislikes parallel builds
-    ENV.deparallelize
-
-    archs = Target.archset
-    if build.fat?
+    if build.universal?
+      ENV.allow_universal_binary
       the_binaries = %w[
         bin/db_archive
         bin/db_checkpoint
@@ -46,7 +43,11 @@ class BerkeleyDb4 < Formula
         lib/libdb_cxx-4.8.a
         lib/libdb_cxx-4.8.dylib
       ]
-    end # fat build?
+    end # universal build?
+    archs = Target.archset
+
+    # BerkeleyDB dislikes parallel builds
+    ENV.deparallelize
 
     # “debug” is already disabled.
     # Per the package instructions, “docdir” is supposed to not have a leading “--”.
@@ -57,7 +58,7 @@ class BerkeleyDb4 < Formula
     ]
 
     archs.each do |arch|
-      ENV.set_build_archs(arch) if build.fat?
+      ENV.set_build_archs(arch) if build.universal?
 
       # BerkeleyDB requires you to build everything from a build subdirectory
       cd 'build_unix' do
@@ -65,17 +66,17 @@ class BerkeleyDb4 < Formula
         system "make"
         system "make", "install"
 
-        if build.fat?
+        if build.universal?
           system 'make', 'clean'
           merge_prep(:binary, arch, the_binaries)
-        end # fat build?
+        end # universal build?
       end # cd build_unix
     end # each |arch|
 
-    if build.fat?
+    if build.universal?
       ENV.set_build_archs(archs)
       merge_binaries(archs)
-    end # fat build?
+    end # universal build?
   end # install
 
   test do

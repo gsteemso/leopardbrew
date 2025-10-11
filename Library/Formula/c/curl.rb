@@ -55,18 +55,20 @@ class Curl < Formula
   end
 
   def install
-    # Complain about this, but it doesn’t justify cancelling the build.
-    opoo '“--with-standalone” overrides all other “--with-” options except “--with-tests”.  Ignoring them.' \
-      if build.with? 'standalone' and (build.with? 'gnutls' or build.with? 'kerberos' or build.with? 'rtmpdump')
-    archs = Target.archset
-    if build.fat?
+    if build.universal?
+      ENV.allow_universal_binary
       the_binaries = %w[
         bin/curl
         lib/libcurl.4.dylib
         lib/libcurl.a
       ]
       script_to_fix = 'bin/curl-config'
-    end # fat?
+    end # universal?
+    archs = Target.archset
+
+    # Complain about this, but it doesn’t justify cancelling the build.
+    opoo '“--with-standalone” overrides all other “--with-” options except “--with-tests”.  Ignoring them.' \
+      if build.with? 'standalone' and (build.with? 'gnutls' or build.with? 'rtmpdump')
 
     # The defaults:
     #   --with-aix-soname=aix*, --enable-alt-svc,  --with-apple-idn*, --disable-ares, --enable-aws,
@@ -201,7 +203,7 @@ class Curl < Formula
     args << '--without-zstd' if build.without? 'zstd'
 
     archs.each do |arch|
-      ENV.set_build_archs(arch) if build.fat?
+      ENV.set_build_archs(arch) if build.universal?
 
       system './configure', *args
       system 'make'
@@ -221,17 +223,17 @@ class Curl < Formula
       system 'make', 'install', '-C', 'scripts'
       libexec.install 'scripts/mk-ca-bundle.pl' if File.exists? 'scripts/mk-ca-bundle.pl'
 
-      if build.fat?
+      if build.universal?
         ENV.deparallelize { system 'make', '-ik', 'maintainer-clean' }
         merge_prep(:binary, arch, the_binaries)
-      end # fat?
+      end # universal?
     end # each |arch|
 
-    if build.fat?
+    if build.universal?
       ENV.set_build_archs(archs)
       merge_binaries(archs)
       inreplace prefix/script_to_fix, %r{-arch [0-9a-z_]+}, archs.as_arch_flags
-    end # fat?
+    end # universal?
   end # install
 
   test do

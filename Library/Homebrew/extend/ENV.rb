@@ -8,6 +8,10 @@ def superenv?
 end
 
 module EnvActivation
+  @formula_can_be_universal = false
+
+  def formula_can_be_universal?; not not @formula_can_be_universal; end
+
   def activate_extensions!
     if superenv?
       extend(Superenv)

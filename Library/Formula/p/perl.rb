@@ -38,6 +38,7 @@ class Perl < Formula
   def site_perl; HOMEBREW_PREFIX/'site_perl'; end
 
   def install
+    ENV.allow_universal_binary if build.universal?
     archs = Target.archset
 
     args = %W[
@@ -66,7 +67,7 @@ class Perl < Formula
     args << '-Dusedtrace' if build.with? 'dtrace'
 
     archs.each do |arch|
-      ENV.set_build_archs(arch) if build.fat?
+      ENV.set_build_archs(arch) if build.universal?
 
       arch_args = ["-Dcc=#{ENV.cc}"]
       if Target._64b_arch?(arch) then arch_args << '-Duse64bitall'
@@ -77,13 +78,13 @@ class Perl < Formula
       system 'make', 'test' rescue nil if build.with?('tests') or build.bottle?
       system 'make', 'install'
 
-      if build.fat?
+      if build.universal?
         ENV.deparallelize{ system 'make', 'veryclean' }
         scour_keg(arch)
       end
     end # each |arch|
 
-    if build.fat?
+    if build.universal?
       ENV.set_build_archs(archs)
       merge_binaries(archs)
     end

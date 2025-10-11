@@ -32,7 +32,7 @@ module Superenv
   def reset; super; delete('as_nl'); end
 
   # @private
-  def setup_build_environment(formula = nil, archset = Target.archset)
+  def setup_build_environment(formula = nil, archset = nil)
     super
 
     send(compiler)
@@ -53,8 +53,8 @@ module Superenv
     self['HOMEBREW_OPTIMIZATION_LEVEL'] = 'Os'
     self['HOMEBREW_TEMP']          = HOMEBREW_TEMP.to_s
     self['HOMEBREW_SDKROOT']       = effective_sysroot
-    self['HOMEBREW_OPTFLAGS']      = determine_optflags(archset)
-    self['HOMEBREW_ARCHFLAGS']     = determine_archflags(archset)
+    self['HOMEBREW_OPTFLAGS']      = determine_optflags(build_archs)
+    self['HOMEBREW_ARCHFLAGS']     = determine_archflags(build_archs)
     self['CMAKE_PREFIX_PATH']      = determine_cmake_prefix_path
     self['CMAKE_FRAMEWORK_PATH']   = determine_cmake_frameworks_path
     self['CMAKE_INCLUDE_PATH']     = determine_cmake_include_path
@@ -150,7 +150,7 @@ module Superenv
   def determine_archflags(archset)
     if archset then archset.as_arch_flags
     elsif @build_archs then @build_archs.as_arch_flags
-    elsif homebrew_build_archs then homebrew_build_archs.as_arch_flags
+    elsif homebrew_built_archs then homebrew_built_archs.as_arch_flags
     else self['HOMEBREW_ARCHFLAGS'] || ''; end
   end # determine_archflags
 

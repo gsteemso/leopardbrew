@@ -15,6 +15,7 @@ class Gmp < Formula
   end
 
   option :universal
+  option 'with-tests', 'Run the build-time unit tests (strongly recommended for the first install, but a bit slow)'
 
   def install
     # Map Leopardbrew’s CPU‐model symbols to those for configuring a GMP build.
@@ -29,10 +30,10 @@ class Gmp < Formula
         when :arrandale   then 'westmere'
         else cpu_sym.to_s  # sandybridge, ivybridge, haswell, broadwell
       end
-    end # cpu_lookup
+    end # lookup
 
-    archs = Target.archset
-    if build.fat?
+    if build.universal?
+      ENV.allow_universal_binary
       the_binaries = %w[
         lib/libgmp.10.dylib
         lib/libgmp.a
@@ -42,7 +43,8 @@ class Gmp < Formula
       the_headers = %w[
         include/gmp.h
       ]
-    end # fat build?
+    end # universal build?
+    archs = Target.archset
 
     build_sym = CPU.model
     tuple_tail = "apple-darwin#{`uname -r`[/^\d+/]}"
@@ -58,7 +60,7 @@ class Gmp < Formula
     args << "--host=#{found_host}-#{tuple_tail}" if found_host != found_build
 
     archs.each do |arch|
-      ENV.set_build_archs(arch) if build.fat?
+      ENV.set_build_archs(arch) if build.universal?
 
       arch_args = case arch
           when :arm64, :x86_64 then ['ABI=64']
@@ -70,21 +72,21 @@ class Gmp < Formula
 
       system './configure', *args, *arch_args
       system 'make'
-      system 'make', 'check'
+      system 'make', 'check' if build.with? 'tests'
       ENV.deparallelize { system 'make', 'install' }
 
-      if build.fat?
+      if build.universal?
         system 'make', 'distclean'
         merge_prep(:binary, arch, the_binaries)
         merge_prep(:header, arch, the_headers)
-      end # fat build?
+      end # universal build?
     end # each |arch|
 
-    if build.fat?
+    if build.universal?
       ENV.set_build_archs(archs)
       merge_binaries(archs)
       merge_c_headers(archs)
-    end # fat build?
+    end # universal build?
   end # install
 
   test do

@@ -1,11 +1,9 @@
 require 'compilers'
 require 'formula'
 
-# Homebrew extends Ruby's `ENV` to make our code more readable.  Implemented in
-# {SharedEnvExtension} and either {Superenv} or {Stdenv}, per the build mode.
-# @see Superenv
-# @see Stdenv
-# @see Ruby's ENV API
+# Homebrew extends Ruby's `ENV` to make our code more readable.  Implemented in {SharedEnvExtension} and either {Superenv} or
+# {Stdenv}, per the build mode.
+# @see Superenv, Stdenv, Ruby's ENV API
 module SharedEnvExtension
   include CompilerConstants
 
@@ -34,8 +32,8 @@ module SharedEnvExtension
     @formula = formula
     @formula_name = formula.full_name if formula
     reset
-    @build_archs = archset || homebrew_build_archs || Target.preferred_arch_as_list
-    set_build_archs(build_archs)
+    set_build_archs(@build_archs = archset || Target.archset)
+    if archset then @formula_can_be_universal = archset.fat?; end
     self['MAKEFLAGS'] ||= "-j#{make_jobs}"
   end # setup_build_environment
 
@@ -128,8 +126,8 @@ module SharedEnvExtension
 
   def fcflags; self['FCFLAGS']; end
 
-  def homebrew_build_archs
-    if (hba = self['HOMEBREW_BUILD_ARCHS'].choke)
+  def homebrew_built_archs
+    if (hba = self['HOMEBREW_BUILT_ARCHS'].choke)
       hba.split(' ').extend ArchitectureListExtension
     end
   end
@@ -277,11 +275,7 @@ module SharedEnvExtension
 
   # ld64 is a newer linker provided for Xcode 2.5 (and 3.1)
   # @private
-  def ld64
-    ld64 = Formulary.factory('ld64')
-    self['LD'] = "#{ld64.bin}/ld"
-    append 'LDFLAGS', "-B#{ld64.bin}/"
-  end
+  def ld64; ld64 = Formulary.factory('ld64'); self['LD'] = "#{ld64.bin}/ld"; append 'LDFLAGS', "-B#{ld64.bin}/"; end
 
   # @private
   def gcc_version_formula(name)
@@ -311,16 +305,19 @@ module SharedEnvExtension
     end # no opt/ prefix
   end # warn_about_non_apple_gcc
 
-  def cross_binary; set_build_archs(Target.cross_archs); end
+  def allow_universal_binary; @formula_can_be_universal = true; end
+  def no_universal_binary; @formula_can_be_universal = false; end
 
-  def universal_binary; set_build_archs(Target.local_archs); end
+  def universal_binary; allow_universal_binary; set_build_archs(Target.archset); end
 
   def set_build_archs(archset)
     archset = Array(archset).extend ArchitectureListExtension unless archset.responds_to?(:fat?)
     clear_compiler_archflags
     if @without_archflags then @without_archflags = false; end
     @build_archs = archset
-    self['HOMEBREW_BUILD_ARCHS'] = archset.as_build_archs
+    hba = homebrew_built_archs
+    archset.each{ |a| hba << a unless hba.includes?(a) }
+    self['HOMEBREW_BUILT_ARCHS'] = hba.as_build_archs
     self['CMAKE_OSX_ARCHITECTURES'] = archset.as_cmake_arch_flags
     set_compiler_archflags archset.as_arch_flags
     archset

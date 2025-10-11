@@ -15,7 +15,7 @@ module Stdenv
   end
 
   # @private
-  def setup_build_environment(formula = nil, archset = Target.archset)
+  def setup_build_environment(formula = nil, archset = nil)
     super
 
     if MacOS.version >= :mountain_lion
@@ -64,10 +64,10 @@ module Stdenv
       if MacOS::Xcode.without_clt?
 
     # Older ld needs some convincing to build 64‐bit.  See ⟨https://github.com/mistydemeo/tigerbrew/issues/59⟩.
-    if MacOS.version < :snow_leopard and Target.prefer_64b? and archset.detect{ |a| a.to_s.ends_with? '64' }
-      append 'LDFLAGS', archset.as_arch_flags
-      # Many, many builds are broken by a buggy old stock ld.  Our ld64 fixes a lot of them, though
-      # obviously we can’t depend on it to build itself.
+    if MacOS.version < :snow_leopard and Target.prefer_64b? and build_archs.detect{ |a| a.to_s.ends_with? '64' }
+      append 'LDFLAGS', build_archs.as_arch_flags
+      # Many, many builds are broken by a buggy old stock ld.  Our ld64 fixes a lot of them, though obviously we can’t depend on it
+      # to build itself.
       ld64 if Formula['ld64'].installed?
     end
   end # setup_build_environment
@@ -228,8 +228,7 @@ module Stdenv
   def un_m64; super; remove_from_cflags '-m64'; end
 
   def cxx11
-    if compiler == :clang
-      append "CXX", "-std=c++11 -stdlib=libc++"
+    if compiler == :clang then append "CXX", "-std=c++11 -stdlib=libc++"
     elsif compiler =~ GNU_CXX11_REGEXP then append "CXX", "-std=c++11"
     else raise "The selected compiler doesn't support C++11:  #{compiler}"; end
   end # cxx11
@@ -246,8 +245,7 @@ module Stdenv
   # Convenience method to set all C compiler flags in one shot.
   def set_cflags(val); CC_FLAG_VARS.each { |key| self[key] = val }; end
 
-  # Sets architecture-specific flags for every environment variable
-  # given in the list `flags`.
+  # Sets architecture-specific flags for every environment variable given in the list `flags`.
   # @private
   def set_cpu_flags(flags, default = DEFAULT_FLAGS, map = Target.model_optflag_map)
     cflags =~ /(-Xarch_#{Target._32b_arch} )-march=/

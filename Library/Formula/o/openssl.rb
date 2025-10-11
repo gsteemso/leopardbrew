@@ -35,19 +35,8 @@ class Openssl < Formula
   end
 
   def install
-    # Build breaks passing -w
-    ENV.enable_warnings if ENV.compiler == :gcc_4_0
-    # This ensures where Homebrew's Perl is needed the Cellar path isn't
-    # hardcoded into OpenSSL's scripts, breaking them every Perl update.  Our
-    # env does point to opt_bin, but by default OpenSSL resolves the symlink.
-    ENV['PERL'] = Formula['perl'].opt_bin/'perl'
-#    # OpenSSL will prefer the PERL environment variable if set over $PATH
-#    # which can cause some odd edge cases & isn't intended. Unset for safety.
-#    ENV.delete('PERL')
-    ENV.deparallelize
-
-    archs = Target.archset
-    if build.fat?
+    if build.universal?
+      ENV.allow_universal_binary
       the_binaries = %w[
         bin/openssl
         lib/libcrypto.a
@@ -60,13 +49,19 @@ class Openssl < Formula
       the_headers = %w[
         include/openssl/opensslconf.h
       ]
-    end # fat build?
+    end # universal build?
+    archs = Target.archset
+
+    # Ensure that brewed Perl’s Cellar path is not hardcoded into OpenSSL’s scripts, breaking them every Perl update.  Our variable
+    # does point to opt_bin, but by default OpenSSL resolves the symlink.
+    ENV['PERL'] = Formula['perl'].opt_bin/'perl'
+    ENV.deparallelize
 
     openssldir.mkpath
 
     # SSLv2 died with 1.1.0, so no-ssl2 is no longer required.
-    # SSLv3 & zlib are off by default since 1.1.0 but this may not be obvious to everyone,
-    # so explicitly state it for now to help debug inevitable breakage.
+    # SSLv3 & zlib are off by default since 1.1.0 but this may not be obvious, so make it explicit for now to help debug inevitable
+    # breakage.
     args = %W[
       --prefix=#{prefix}
       --openssldir=#{openssldir}
@@ -83,21 +78,21 @@ class Openssl < Formula
     end
 
     archs.each do |arch|
-      ENV.set_build_archs(arch) if build.fat?
+      ENV.set_build_archs(arch) if build.universal?
 
       system 'perl', './Configure', *args, arg_xlate(arch)
       system 'make'
       system 'make', 'test' if build.with?('tests')
       system 'make', 'install', "MANDIR=#{man}", 'MANSUFFIX=ssl'
 
-      if build.fat?
+      if build.universal?
         system 'make', 'clean'
         merge_prep(:binary, arch, the_binaries)
         merge_prep(:header, arch, the_headers)
       end
     end # each |arch|
 
-    if build.fat?
+    if build.universal?
       ENV.set_build_archs(archs)
       merge_binaries(archs)
       merge_c_headers(archs)
