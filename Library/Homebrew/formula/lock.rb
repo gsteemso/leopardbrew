@@ -35,7 +35,7 @@ class FormulaLock
     unlock
   end # with_lock
 
-  def delete; @path.delete if @path.file?; end
+  def delete; @path.unlink if @path.file?; end
 
   private
 
