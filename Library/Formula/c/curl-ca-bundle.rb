@@ -12,6 +12,9 @@ class CurlCaBundle < Formula
 
   def install
     share.install "cacert-#{version}.pem" => 'ca-bundle.crt'
+    vendor_cert_bundle = HOMEBREW_RUBY_LIBRARY/'vendor/portable-curl/current/share/cacert.pem'
+    rm_f vendor_cert_bundle if vendor_cert_bundle.exists?
+    cp share/'ca-bundle.crt', vendor_cert_bundle, :preserve => true
   end
 
   test { :does_not_apply }
