@@ -1,14 +1,12 @@
-# The four substantive C revisions are [:c89, :c99, :c11, :c23].
-#   (GCC support for C99 was so laid‐back that the default went from :c89 in GCC 4.9 to :c11 in GCC
-#   5, and C17 didn’t really change much that was noticeable.)
-# The six substantive C++ revisions are [:cxx98, :cxx11, :cxx14, :cxx17, :cxx20, :cxx23].
-#   (GCC’s C++11 support took so long that the default implementation went from C++98 in GCC 6.0 to
-#   C++14 in GCC 6.1.)  Preliminary support for the expected C++26 standard exists, but will not be
-#   ABI‐stable any time soon.
-# According to the GCC Fortran wiki, revisions of that language date all the way back to 1956 – but
-#   GNU Fortran only supports a selection from the middle of that range.  The nine most‐substantive
-#   revisions are probably [:f57, :f66, :f77, :f90, :f95, :f2003, :f2008, :f2018, :f2023].  Support
-#   in LLVM for Fortran is via the third‐party “Flang”, which is its own bizarre beast.
+# The four substantive C revisions are [ :c89, :c99, :c11, :c23 ].
+#   (GCC support for C99 was so laid‐back that the default went from :c89 in GCC 4.9 to :c11 in GCC 5, and C17 didn’t really change
+#   much that was noticeable.)
+# The six substantive C++ revisions are [ :cxx98, :cxx11, :cxx14, :cxx17, :cxx20, :cxx23 ].
+#   (GCC’s C++11 support took so long that the default implementation went from C++98 in GCC 6.0 to C++14 in GCC 6.1.)  Preliminary
+#   support for the expected C++26 standard exists, but will not be ABI‐stable any time soon.
+# According to the GCC Fortran wiki, revisions of that language date all the way back to 1956 – but GNU Fortran only supports a few
+#   from the middle of that range.  The nine most‐substantive revisions are probably [ :f57, :f66, :f77, :f90, :f95, :f2003, :f2008,
+#   :f2018, :f2023 ].  Support in LLVM for Fortran is via the third‐party “Flang”, which is its own bizarre beast.
 # Other nominal revisions of each language exist, but are largely redundant.
 
 # @private
@@ -69,11 +67,10 @@ class CompilerFailure
   attr_reader :name
   attr_rw :version
 
-  # Allows Apple compiler `fails_with` statements to keep using `build`
-  # even though `build` and `version` are the same internally
+  # Allow Apple compiler `fails_with` statements to keep using `build` even though `build` and `version` are the same internally.
   alias_method :build, :version
 
-  # The cause is no longer used so we need not hold a reference to the string
+  # The cause is no longer used, so we need not hold a reference to the string.
   def cause(_); end
 
   def self.for_standard(std)
