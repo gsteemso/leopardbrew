@@ -139,8 +139,7 @@ class Build
   end # install
 
   def get_archs
-    if (hba = ENV['HOMEBREW_BUILD_ARCHS'].choke) then hba.split(' ')
-    else raise RuntimeError, '$HOMEBREW_BUILD_ARCHS is empty!  WTF did we just build?'; end
+    ENV.homebrew_built_archs or raise RuntimeError, '$HOMEBREW_BUILT_ARCHS is empty!  WTF did we just build?'
   end
 
   def detect_stdlibs(compiler)
