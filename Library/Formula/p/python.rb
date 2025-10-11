@@ -32,9 +32,8 @@ class Python < Formula
   depends_on 'sqlite' => :recommended
   depends_on 'berkeley-db4' => :optional
 
-  enhanced_by ':nls'        # Useful if available, but not worth actually depending on.
-  enhanced_by 'zlib'        # Sometimes it will pick this up even when not made explicit, but we
-                            # don’t _need_ it.
+  enhanced_by :nls    # Useful if available, but not worth actually depending on.
+  enhanced_by 'zlib'  # Sometimes it will pick this up even when not made explicit, but we don’t _need_ it.
 
   skip_clean 'bin/pip', 'bin/pip-2.7'
   skip_clean 'bin/easy_install', 'bin/easy_install-2.7'
@@ -108,18 +107,20 @@ END_OF_PATCH
       s.gsub! '/usr/local/ssl', Formula['openssl3'].opt_prefix
       s.gsub! '/usr/include/db4', Formula['berkeley-db4'].opt_include if build.with? 'berkeley-db4'
       if build.with? 'gdbm'
+        f = Formula['gdbm']
         s.gsub! 'if find_file("ndbm.h", inc_dirs,',
-                "if find_file('ndbm.h', ['#{Formula['gdbm'].opt_include}'],"
+                "if find_file('ndbm.h', ['#{f.opt_include}'],"
         s.gsub! %r{if self\.compiler\.find_library_file\(lib_dirs,[ \t\n]+'gdbm_compat'},
-                  "if self.compiler.find_library_file(['#{Formula['gdbm'].opt_lib}'], 'gdbm_compat'"
+                  "if self.compiler.find_library_file(['#{f.opt_lib}'], 'gdbm_compat'"
         s.gsub! "self.compiler.find_library_file(lib_dirs, 'gdbm')",
-                "self.compiler.find_library_file(['#{Formula['gdbm'].opt_lib}'], 'gdbm')"
+                "self.compiler.find_library_file(['#{f.opt_lib}'], 'gdbm')"
       end
       if build.with? 'readline'
+        f = Formula['readline']
         s.gsub! 'do_readline = self.compiler.find_library_file(lib_dirs,',
-                "do_readline = self.compiler.find_library_file(['#{Formula['readline'].opt_lib}'],"
+                "do_readline = self.compiler.find_library_file(['#{f.opt_lib}'],"
         s.gsub! "find_file('readline/rlconf.h', inc_dirs,",
-                "find_file('readline/rlconf.h', ['#{Formula['readline'].opt_include}'],"
+                "find_file('readline/rlconf.h', ['#{f.opt_include}'],"
       end
       if build.with? 'sqlite'
         s.gsub! 'sqlite_setup_debug = False', 'sqlite_setup_debug = True'
@@ -139,14 +140,17 @@ END_OF_PATCH
       s.gsub! 'DEFAULT_FRAMEWORK_FALLBACK = [', "DEFAULT_FRAMEWORK_FALLBACK = [ '#{HOMEBREW_PREFIX}/Frameworks',"
     end
 
+    # :arm builds are not supported; just build for Intel and hope it keeps working
     args = %W[
       --prefix=#{prefix}
-      --enable-ipv6
       --datarootdir=#{share}
       --datadir=#{share}
-      --enable-framework=#{frameworks}
       --without-ensurepip
+      --enable-framework=#{frameworks}
+      --enable-ipv6
       MACOSX_DEPLOYMENT_TARGET=#{MacOS.version}
+      --with-universal-archs=#{Target.type}#{build.universal? ? '' : "-#{Target.bits(Target.arch)}"}
+      --enable-universalsdk=/
     ]
     # Coreutils ginstall now treats a destination file which already exists as a bad directory name,
     # instead of simply overwriting the file – even when passed “-f”.  This causes a failure during
@@ -155,10 +159,6 @@ END_OF_PATCH
     # Avoid linking to libgcc (see https://code.activestate.com/lists/python-dev/112195/)
     # Enable LLVM optimizations.
     args << '--without-gcc' << '--enable-optimizations' if ENV.compiler == :clang
-
-    args << '--enable-universalsdk=/'
-    # :arm builds are not supported; just build for Intel and hope it keeps working
-    args << "--with-universal-archs=#{Target.type}#{build.universal? ? '' : "-#{Target.bits(Target.arch)}"}"
 
     cflags   = []
     ldflags  = []
@@ -175,8 +175,9 @@ END_OF_PATCH
     # G5 build under Tiger failed to recognize “vector” keyword in system header
     cflags << '-mpim-altivec' if MacOS.version == :tiger and CPU.altivec? \
                                  and [:gcc, :gcc_4_0, :llvm].include? ENV.compiler
-    cppflags << "-I#{Formula['tcl-tk'].opt_include}"
-    ldflags  << "-L#{Formula['tcl-tk'].opt_lib}"
+
+    cppflags << "-I#{f_tcltk.opt_include}"
+    ldflags  << "-L#{f_tcltk.opt_lib}"
 
     args << "CPPFLAGS=#{cppflags.join(' ')}"
     args << "CFLAGS=#{cflags.join(' ')}" unless cflags.empty?
@@ -268,12 +269,15 @@ END_OF_PATCH
     end
 
     # Help distutils find brewed stuff when building extensions
-    include_dirs = [HOMEBREW_PREFIX/'include', Formula['openssl3'].opt_include, Formula['tcl-tk'].opt_include]
-    library_dirs = [HOMEBREW_PREFIX/'lib', Formula['openssl3'].opt_lib, Formula['tcl-tk'].opt_lib]
+    f_ossl  = Formula['openssl3']
+    f_tcltk = Formula['tcl-tk']
+    include_dirs = [HOMEBREW_PREFIX/'include', f_ossl.opt_include, f_tcltk.opt_include]
+    library_dirs = [HOMEBREW_PREFIX/'lib', f_ossl.opt_lib, f_tcltk.opt_lib]
 
     if build.with? 'sqlite'
-      include_dirs << Formula['sqlite'].opt_include
-      library_dirs << Formula['sqlite'].opt_lib
+      f = Formula['sqlite']
+      include_dirs << f.opt_include
+      library_dirs << f.opt_lib
     end
 
     (cellar_framework/'lib/python2.7/distutils/distutils.cfg').atomic_write <<-EOS.undent
@@ -394,6 +398,15 @@ __END__
              3-way)
                 UNIVERSAL_ARCH_FLAGS="-arch i386 -arch ppc -arch x86_64"
                 LIPO_32BIT_FLAGS="-extract ppc7400 -extract i386"
+# For some reason, they have never bothered to use the correct shared‐library filename extension.
+@@ -9705,6 +9720,7 @@
+ 		esac
+ 		;;
+ 	CYGWIN*)   SHLIB_SUFFIX=.dll;;
++	Darwin*)   SHLIB_SUFFIX=.dylib;;
+ 	*)	   SHLIB_SUFFIX=.so;;
+ 	esac
+ fi
 --- old/Lib/_osx_support.py	2020-04-19 14:13:39 -0700
 +++ new/Lib/_osx_support.py	2024-09-24 22:33:49 -0700
 @@ -472,6 +472,8 @@
