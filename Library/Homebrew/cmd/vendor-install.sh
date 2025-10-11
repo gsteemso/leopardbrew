@@ -1,10 +1,10 @@
-#:
 #:Install the vendor version of Homebrew dependencies.
 #:
 #:  Usage:  brew vendor-install /target/
 #:
-#:Currently, /target/ must be exactly one of “curl” or “ruby”.
-#:
+#:Currently, /target/ must be exactly one of “curl” or “ruby”.  Note:  This will
+#:fail if your system curl is too old and the Leopardbrew vendor curl is not yet
+#:installed.
 
 # Hide shellcheck complaint:
 # shellcheck source=/dev/null
@@ -13,25 +13,18 @@ source "$HOMEBREW_RUBY_LIBRARY/utils/lock.sh"
 VENDOR_DIR="$HOMEBREW_RUBY_LIBRARY/vendor"
 
 # Built from https://github.com/Homebrew/homebrew-portable.
-# PPC-only 10.4 build
-if [ "$HOMEBREW_PROCESSOR" != "Intel" ]; then
-  ruby_URL="http://archive.org/download/tigerbrew/portable-ruby-2.3.3.tiger_g3.bottle.tar.gz"
-  ruby_SHA="162bed8c95fb30d4580ebc7dfadbb9d699171edbd7b60d8259de7f4cfc55cc32"
-# Intel-only 10.4 build
-else
-  ruby_URL="http://archive.org/download/tigerbrew/portable-ruby-2.3.3.tiger_i386.bottle.tar.gz"
-  ruby_SHA="7f4f13348d583bc9e8594d2b094c6b0140ce0a32a226a145b8b7f9993fca8c28"
-fi
-
-# Curl used on older Mac OSes to download software
-# PPC-only 10.4 build
-if [ "$HOMEBREW_PROCESSOR" != "Intel" ]; then
+if [ "$HOMEBREW_PROCESSOR_TYPE" = "powerpc" ]; then
+  # PPC-only 10.4 build
   curl_URL="http://archive.org/download/tigerbrew/portable-curl-7.58.0-1.tiger_g3.bottle.tar.gz"
   curl_SHA="93f18319a239905f5e8b5443825548bc870a639d8019b9e2d0c84c33d84794fe"
-# Intel-only 10.4 build
+  ruby_URL="http://archive.org/download/tigerbrew/portable-ruby-2.3.3.tiger_g3.bottle.tar.gz"
+  ruby_SHA="162bed8c95fb30d4580ebc7dfadbb9d699171edbd7b60d8259de7f4cfc55cc32"
 else
+  # Intel-only 10.4 build
   curl_URL="http://archive.org/download/tigerbrew/portable-curl-7.58.0-1.tiger_i386.bottle.tar.gz"
   curl_SHA="0dbcffe698aa47189bb1d5d3b0ef284e2255b75f10284d57927091c9846e7d43"
+  ruby_URL="http://archive.org/download/tigerbrew/portable-ruby-2.3.3.tiger_i386.bottle.tar.gz"
+  ruby_SHA="7f4f13348d583bc9e8594d2b094c6b0140ce0a32a226a145b8b7f9993fca8c28"
 fi
 
 _fetch() {
@@ -46,12 +39,6 @@ _fetch() {
 
   if [ -n "$HOMEBREW_QUIET" ]; then curl_args["${#curl_args[*]}"]='--silent'
   elif [ -z "$HOMEBREW_VERBOSE" ]; then curl_args["${#curl_args[*]}"]='--progress-bar'
-  fi
-
-  # Certs are too old to recognize most modern websites; count on the
-  # sha256 hashes to ensure we're fetching the right thing.
-  if [ ! "$HOMEBREW_CURL_PATH" != '/usr/bin/curl' -a "$HOMEBREW_OS_VERSION_DIGITS" -lt '100900' ]; then
-    curl_args["${#curl_args[*]}"]='--insecure'
   fi
 
   temporary_path="${CACHED_LOCATION}.incomplete"
@@ -79,16 +66,16 @@ _fetch() {
     trap - SIGINT
   fi
 
-  if [ "$(sysctl -n hw.cputype)" != "18" ]
-  then cpu_family="$(sysctl -n hw.cpufamily)"
-  else cpu_family="$(sysctl -n hw.cpusubtype)"; fi
+  if [ "$(sysctl -n hw.cputype)" != "18" ]  # not powerpc:  arm or intel
+  then cpu_model="$(sysctl -n hw.cpufamily)"
+  else cpu_model="$(sysctl -n hw.cpusubtype)"; fi
 
   if [ -x "$(which shasum)" ]; then
     sha="$(shasum -a 256 "$CACHED_LOCATION" | cut -d' ' -f1)"
   elif [ -x "$(which sha256sum)" ]; then
     sha="$(sha256sum "$CACHED_LOCATION" | cut -d' ' -f1)"
   # Ruby 1.8.2's vendored Ruby has broken SHA256 calculation on several PowerPC CPUs
-  elif [ -x "$(which ruby)" -a "$cpu_family" != 9 -a "$cpu_family" != 10 -a "$cpu_family" != 11 ]; then
+  elif [ -x "$(which ruby)" -a "$cpu_model" != 9 -a "$cpu_model" != 10 -a "$cpu_model" != 11 ]; then
     sha="$(ruby -e "require 'digest/sha2'; digest = Digest::SHA256.new; File.open('$CACHED_LOCATION', 'rb') { |f| digest.update(f.read) }; puts digest.hexdigest")"
   else
     # Pure Perl SHA256 implementation
@@ -150,17 +137,16 @@ homebrew-vendor-install() {
 
   for option in "$@"; do
     case "$option" in
-      -\?|-h|--help|--usage) brew help vendor-install; exit $? ;;
-      --verbose) HOMEBREW_VERBOSE=1 ;;
-      --quiet) HOMEBREW_QUIET=1 ;;
-      --debug) HOMEBREW_DEBUG=1 ;;
+      -\?|-h|--help|--usage) brew help vendor-install; exit $?;;
+      --verbose) HOMEBREW_VERBOSE=1;;
+      --quiet) HOMEBREW_QUIET=1;;
+      --debug) HOMEBREW_DEBUG=1;;
       --*) ;;
-      -*v*) HOMEBREW_VERBOSE=1 ;;&
-      -*q*) HOMEBREW_QUIET=1 ;;&
-      -*d*) HOMEBREW_DEBUG=1 ;;
+      -*) case "$option" in (-*v*) HOMEBREW_VERBOSE=1;; esac
+          case "$option" in (-*q*) HOMEBREW_QUIET=1  ;; esac
+          case "$option" in (-*d*) HOMEBREW_DEBUG=1  ;; esac;;
       *) [ -n "$VENDOR_NAME" ] && odie 'This command does not take multiple vendor targets.'
-         VENDOR_NAME="$option"
-        ;;
+         VENDOR_NAME="$option";;
     esac
   done
 

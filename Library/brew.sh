@@ -1,6 +1,6 @@
 #!/bin/sh
 
-LEOPARDBREW_VERSION='0.5'
+LEOPARDBREW_VERSION='0.5.1'
 
 ###### Convenience functions ######
 
@@ -104,12 +104,12 @@ EOS
 
 ###### Identity stuff ######
 
-HOMEBREW_PROCESSOR="$(uname -p)"
+HOMEBREW_PROCESSOR_TYPE="$(uname -p)"
 # This is i386 even on x86_64 machines
-[ "$HOMEBREW_PROCESSOR" = 'i386' ] && HOMEBREW_PROCESSOR='Intel'
+[ "$HOMEBREW_PROCESSOR_TYPE" = 'i386' ] && HOMEBREW_PROCESSOR_TYPE='Intel'
 HOMEBREW_OS_VERSION="$(/usr/bin/sw_vers -productVersion)"
 HOMEBREW_OS_VERSION_DIGITS="$(version_string "$HOMEBREW_OS_VERSION")"
-HOMEBREW_USER_AGENT="Leopardbrew/$LEOPARDBREW_VERSION (Macintosh; $HOMEBREW_PROCESSOR Mac OS $HOMEBREW_OS_VERSION)"
+HOMEBREW_USER_AGENT="Leopardbrew/$LEOPARDBREW_VERSION (Macintosh; $HOMEBREW_PROCESSOR_TYPE Mac OS $HOMEBREW_OS_VERSION)"
 
 ###### More sanity checks ######
 
@@ -169,6 +169,7 @@ export HOMEBREW_RUBY_PATH
 export HOMEBREW_CACHE
 export HOMEBREW_CELLAR
 export HOMEBREW_CURL_PATH
+export HOMEBREW_PROCESSOR_TYPE
 export HOMEBREW_RUBY_LIBRARY
 export HOMEBREW_OS_VERSION
 export HOMEBREW_USER_AGENT
