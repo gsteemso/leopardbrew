@@ -3,15 +3,16 @@
 require 'pathname'
 
 CURL_VERSION     = '7.58.0-1'
-CURL_STASH_URL   = "https://archive.org/download/tigerbrew/"
-FILE_PPC_NAME    = "portable-curl-#{CURL_VERSION}.tiger_g3.bottle.tar.gz"
-FILE_PPC_SHA1    = '4ffee9895f2172ff05ba085ce929add46dddc15b'
-FILE_INTEL_NAME  = "portable-curl-#{CURL_VERSION}.tiger_i386.bottle.tar.gz"
-FILE_INTEL_SHA1  = '6e6e7989adb20856c0473aedecd623f443a6ac55'
+VENDOR_STASH_URL = 'https://archive.org/download/tigerbrew/'
+CFILE_PPC_NAME   = "portable-curl-#{CURL_VERSION}.tiger_g3.bottle.tar.gz"
+CFILE_PPC_SHA1   = '4ffee9895f2172ff05ba085ce929add46dddc15b'
+CFILE_INTEL_NAME = "portable-curl-#{CURL_VERSION}.tiger_i386.bottle.tar.gz"
+CFILE_INTEL_SHA1 = '6e6e7989adb20856c0473aedecd623f443a6ac55'
 DEFAULT_PREFIX   = ENV['HOMEBREW_PREFIX'] || '/usr/local'
 DEFAULT_REPO     = ENV['HOMEBREW_REPOSITORY'] || '/Users/Shared/Brewery'
 DOWNLOADS_DIR    = "#{ENV['HOME']}/Downloads/"
-UNPACKED_CURL    = "/tmp/#{CURL_VERSION}/bin/curl"
+TEMP_CURL_DIR    = '/tmp/portable-curl'
+UNPACKED_CURL    = "#{TEMP_CURL_DIR}/#{CURL_VERSION}/bin/curl"
 GITHUB_REPO      = 'https://github.com/gsteemso/leopardbrew'
 GITHUB_BRANCH    = 'combined'
 GIT_FETCH_ORIGIN = "#{GITHUB_BRANCH}:refs/remotes/origin/#{GITHUB_BRANCH}"
@@ -72,9 +73,9 @@ end
 
 def fetch_vendor_curl!
   if `uname -m`.chomp == "Power Macintosh"
-    fname = FILE_PPC_NAME;   sha = FILE_PPC_SHA1
+    fname = CFILE_PPC_NAME;   sha = CFILE_PPC_SHA1
   else
-    fname = FILE_INTEL_NAME; sha = FILE_INTEL_SHA1
+    fname = CFILE_INTEL_NAME; sha = CFILE_INTEL_SHA1
   end
   downloaded_curl = "#{DOWNLOADS_DIR}#{fname}"
   begin
@@ -88,7 +89,7 @@ downloading, you will need to make sure it is in your Downloads folder with
 the correct name before installation can proceed.
     _
     wait_for_user
-    system %W[open #{CURL_STASH_URL}#{fname}], true
+    system %W[open #{VENDOR_STASH_URL}#{fname}], true
     puts <<-_
 
 As described above, use the Finder to make certain that the file has ended up
@@ -110,7 +111,7 @@ but the expected hash is “#{sha}”.
     _
   end
   Dir.chdir('/tmp') do
-    system %w[/usr/bin/tar -xzf curl.tar.gz --strip 1] unless File.file?(UNPACKED_CURL)
+    system %w[/usr/bin/tar -xzf curl.tar.gz] unless File.file?(UNPACKED_CURL)
     system %w[rm curl.tar.gz]
     s = IO.read(UNPACKED_CURL).sub('#!/bin/sh', '#!/bin/bash')
     system %W[/bin/chmod +w #{UNPACKED_CURL}]
@@ -119,7 +120,7 @@ but the expected hash is “#{sha}”.
     f.close
     system %W[/bin/chmod -w #{UNPACKED_CURL}]
   end
-end # fetch_vendor_curl
+end # fetch_vendor_curl!
 
 def getc
   system %w[/bin/stty raw -echo]
@@ -198,7 +199,8 @@ ohai 'Welcome to the Leopardbrew installer!', <<_
 
 You must choose two important locations in order to proceed:  a /prefix/, and
 a /repository/.  (In the ancestor ’brew projects, Homebrew and Tigerbrew, both
-were “/usr/local” by default.)
+were “/usr/local” by default.)  Neither is allowed to be at the root level of
+your filesystem.
  • The prefix is where the software you install will be put.  Unless you have
    unusual requirements, “/usr/local” is still the best choice.
  • The repository holds the inner workings of Leopardbrew.  We hold that the
@@ -217,11 +219,9 @@ end while pfx =~ %r{^/[^/]*$}
 
 pfx = Pathname.new(pfx)
 
-unless pfx.directory?
-  sudo '/bin/mkdir', '-p', pfx.to_s
-  sudo '/bin/chmod', 'g+rwx', pfx.to_s
-  sudo '/usr/bin/chgrp', 'admin', pfx.to_s  # /usr/local defaults to group “wheel” for some reason
-end
+sudo '/bin/mkdir', '-p', pfx.to_s unless pfx.directory?
+sudo '/bin/chmod', 'g+rwx', pfx.to_s
+sudo '/usr/bin/chgrp', 'admin', pfx.to_s  # /usr/local defaults to group “wheel” for some reason
 
 puts "Using “#{pfx}” for the prefix.\n\n"
 
@@ -232,11 +232,10 @@ end while repo =~ %r{^/[^/]*$}
 
 repo = Pathname.new(repo)
 
-unless repo.directory?
-  sudo '/bin/mkdir', '-p', repo.to_s
-  sudo '/bin/chmod', 'g+rwx', repo.to_s
-  sudo '/usr/bin/chgrp', 'admin', repo.to_s  # the group may have an odd default
-end
+
+sudo '/bin/mkdir', '-p', repo.to_s unless repo.directory?
+sudo '/bin/chmod', 'g+rwx', repo.to_s
+sudo '/usr/bin/chown', "#{Process.uid}:admin", repo.to_s  # the user and/or group may have odd defaults
 
 puts "Using “#{repo}” for the repository.\n\n"
 
@@ -250,10 +249,10 @@ EOABORT
 
 abort <<-EOABORT unless Dir["#{repo}/.git/*"].empty?
 It appears some variety of ’brew is already installed.  If your intent is to
-reinstall, you should do the following before running this installer again:
+reinstall, you should do the following before running this installer again –
+but even more importantly, before that, make sure you are not running in a
+brewed shell!
     #{_wht}rm -rf #{repo}/Cellar #{repo}/.git && brew cleanup#{_rst}
-Even more importantly, before that, make sure you are not running in a brewed
-shell!
 EOABORT
 
 # Tests will fail if the prefix exists, but we don't have execution
@@ -357,6 +356,10 @@ Dir.chdir repo do
       end
     end
   end # repo ≠ pfx
+
+  recursive_mv(TEMP_CURL_DIR, '/tmp', "#{repo}/Library/Homebrew/vendor")
+  system %W[ln -s #{CURL_VERSION} #{repo}/Library/Homebrew/vendor/portable-curl/current]
+  system %W[echo #{CURL_VERSION} >|#{repo}/Library/Homebrew/vendor/portable-curl-version]
 end # chdir repo
 
 warn "#{pfx}/bin is not in your PATH." unless ENV['PATH'].split(':').include? "#{pfx}/bin"
