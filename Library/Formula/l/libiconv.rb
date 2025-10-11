@@ -9,6 +9,7 @@ class Libiconv < Formula
   keg_only :provided_by_osx
 
   option :universal
+  option 'with-tests', 'Run the build-time unit tests (strongly recommended for the first install, but a bit slow)'
 
   depends_on 'autoconf' => :build
   depends_on 'automake' => :build
@@ -32,7 +33,7 @@ class Libiconv < Formula
                           '--enable-static',
                           "--docdir=#{doc}"
     system 'make'
-    system 'make', 'check'
+    system 'make', 'check' if build.with? 'tests'
     system 'make', 'install'
   end
 
