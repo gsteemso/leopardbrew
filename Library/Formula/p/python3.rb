@@ -93,18 +93,20 @@ END_OF_PATCH
       s.gsub! 'for d_ in self.inc_dirs + sqlite_inc_paths:',
               "for d_ in ['#{Formula['sqlite'].opt_include}']:"
       if build.with? 'gdbm'
+        f = Formula['gdbm']
         s.gsub! 'if find_file("ndbm.h", self.inc_dirs,',
-                "if find_file('ndbm.h', ['#{Formula['gdbm'].opt_include}'],"
+                "if find_file('ndbm.h', ['#{f.opt_include}'],"
         s.gsub! %r{if self\.compiler\.find_library_file\(self\.lib_dirs,[ \t\n]+'gdbm_compat'},
-                  "if self.compiler.find_library_file(['#{Formula['gdbm'].opt_lib}'], 'gdbm_compat'"
+                  "if self.compiler.find_library_file(['#{f.opt_lib}'], 'gdbm_compat'"
         s.gsub! "self.compiler.find_library_file(self.lib_dirs, 'gdbm')",
-                "self.compiler.find_library_file(['#{Formula['gdbm'].opt_lib}'], 'gdbm')"
+                "self.compiler.find_library_file(['#{f.opt_lib}'], 'gdbm')"
       end
       if build.with? 'readline'
+        f = Formula['readline']
         s.gsub! 'do_readline = self.compiler.find_library_file(self.lib_dirs,',
-                "do_readline = self.compiler.find_library_file(['#{Formula['readline'].opt_lib}'],"
+                "do_readline = self.compiler.find_library_file(['#{f.opt_lib}'],"
         s.gsub! "find_file('readline/rlconf.h', self.inc_dirs,",
-                "find_file('readline/rlconf.h', ['#{Formula['readline'].opt_include}'],"
+                "find_file('readline/rlconf.h', ['#{f.opt_include}'],"
       end
     end
 
@@ -120,38 +122,45 @@ END_OF_PATCH
 
     args = %W[
       --prefix=#{prefix}
-      --enable-ipv6
       --datarootdir=#{share}
       --datadir=#{share}
       --enable-framework=#{frameworks}
+      --enable-ipv6
       --enable-loadable-sqlite-extensions
-      --with-openssl=#{Formula['openssl3'].opt_prefix}
       MACOSX_DEPLOYMENT_TARGET=#{MacOS.version}
+      --with-openssl=#{Formula['openssl3'].opt_prefix}
+      --with-universal-archs=#{Target.type}#{build.universal? ? '' : "-#{Target.bits(Target.arch)}"}
+      --enable-universalsdk=/
     ]
     # Avoid linking to libgcc.  See http://code.activestate.com/lists/python-dev/112195/
     # Enable LLVM optimizations.
     args << '--without-gcc' << '--enable-optimizations' if ENV.compiler == :clang
 
-    args << '--enable-universalsdk=/'
-    args << "--with-universal-archs=#{Target.type}#{build.universal? ? '' : "-#{Target.bits(Target.arch)}"}"
-
+    cppflags = []
     cflags   = []
     ldflags  = []
-    cppflags = []
 
     unless MacOS::CLT.installed?
       # Help Python's build system (setuptools/pip) to build things on Xcode-only systems
       # The setup.py looks at “-isysroot” to get the sysroot (and not at --sysroot)
-      cflags   << "-isysroot #{MacOS.sdk_path}"
-      ldflags  << "-isysroot #{MacOS.sdk_path}"
-      cppflags << "-I#{MacOS.sdk_path}/usr/include" # find zlib
+      p = MacOS.sdk_path
+      cppflags << "-I#{p}/usr/include" # find zlib
+      cflags   << "-isysroot #{p}"
+      ldflags  << "-isysroot #{p}"
     end
 
     # G5 build under Tiger failed to recognize “vector” keyword in system header
     cflags << '-mpim-altivec' if MacOS.version == :tiger and CPU.altivec? \
                                  and [:gcc, :gcc_4_0, :llvm].include? ENV.compiler
-    cppflags << "-I#{Formula['tcl-tk'].opt_include}"
-    ldflags  << "-L#{Formula['tcl-tk'].opt_lib}"
+
+    f = Formula['tcl-tk']
+    cppflags << "-I#{f.opt_include}"
+    ldflags  << "-L#{f.opt_lib}" << "-L#{Formula['bzip2'].opt_lib}"
+
+    if (f = Formula['gettext']).installed?
+      cppflags << "-I#{f.opt_include}"
+      ldflags  << "-L#{f.opt_lib}"
+    end
 
     args << "CPPFLAGS=#{cppflags.join(' ')}"
     args << "CFLAGS=#{cflags.join(' ')}" unless cflags.empty?
@@ -225,10 +234,12 @@ END_OF_PATCH
     end
 
     # Help distutils find brewed stuff when building extensions
-    include_dirs = [HOMEBREW_PREFIX/'include', Formula['openssl3'].opt_include,
-                    Formula['sqlite'].opt_include, Formula['tcl-tk'].opt_include]
-    library_dirs = [HOMEBREW_PREFIX/'lib', Formula['openssl3'].opt_lib,
-                    Formula['sqlite'].opt_lib, Formula['tcl-tk'].opt_lib]
+    f_ossl   = Formula['openssl3']
+    f_sqlite = Formula['sqlite']
+    f_tcltk  = Formula['tcl-tk']
+    include_dirs = [HOMEBREW_PREFIX/'include', f_ossl.opt_include, f_sqlite.opt_include,
+                    f_tcltk.opt_include]
+    library_dirs = [HOMEBREW_PREFIX/'lib', f_ossl.opt_lib, f_sqlite.opt_lib, f_tcltk.opt_lib]
 
     cfg = cellar_framework/"lib/python#{xy}/distutils/distutils.cfg"
     cfg.atomic_write <<-EOS.undent
@@ -374,6 +385,16 @@ __END__
                 ;;
              esac
  
+# For some reason, they have never bothered to use the correct shared‐library filename extension.
+@@ -9705,6 +9720,7 @@
+ 		esac
+ 		;;
+ 	CYGWIN*)   SHLIB_SUFFIX=.dll;;
++	Darwin*)   SHLIB_SUFFIX=.dylib;;
+ 	*)	   SHLIB_SUFFIX=.so;;
+ 	esac
+ fi
+# Enable PPC‐only universal builds.
 --- old/Lib/_osx_support.py	2024-09-06 17:20:06 -0700
 +++ new/Lib/_osx_support.py	2024-09-27 21:27:57 -0700
 @@ -544,6 +544,8 @@
@@ -385,6 +406,33 @@ __END__
              elif archs == ('i386', 'x86_64'):
                  machine = 'intel'
              elif archs == ('i386', 'ppc', 'x86_64'):
+# For some reason, they have never bothered to use the correct shared‐library filename extension.
+--- old/Python/dynload_shlib.c
++++ new/Python/dynload_shlib.c
+@@ -38,12 +38,17 @@
+ #ifdef __CYGWIN__
+     ".dll",
+ #else  /* !__CYGWIN__ */
+-    "." SOABI ".so",
+-#ifdef ALT_SOABI
+-    "." ALT_SOABI ".so",
+-#endif
+-    ".abi" PYTHON_ABI_STRING ".so",
+-    ".so",
++# ifdef __APPLE__
++#  define SOEXT ".dylib"
++# else  /* !__APPLE__ */
++#  define SOEXT ".so"
++# endif  /* __APPLE__ */
++    "." SOABI SOEXT,
++# ifdef ALT_SOABI
++    "." ALT_SOABI SOEXT,
++# endif
++    ".abi" PYTHON_ABI_STRING SOEXT,
++    SOEXT,
+ #endif  /* __CYGWIN__ */
+     NULL,
+ };
 # Don’t search for frameworks; our Tk is a standard Unix build.
 --- old/setup.py
 +++ new/setup.py
@@ -404,6 +452,28 @@ __END__
 # Add support for Mac OS before 10.6.
 # From macports/lang/python310/files/patch-threadid-older-systems.diff
 # and macports/lang/python310/files/patch-no-copyfile-on-Tiger.diff
+--- old/Lib/test/test_shutil.py
++++ new/Lib/test/test_shutil.py
+@@ -2601,7 +2601,7 @@ class TestZeroCopySendfile(_ZeroCopyFileTest, unittest.TestCase):
+             shutil._USE_CP_SENDFILE = True
+ 
+ 
+-@unittest.skipIf(not MACOS, 'macOS only')
++@unittest.skipIf(not MACOS or not hasattr(posix, "_fcopyfile"), 'macOS with posix._fcopyfile only')
+ class TestZeroCopyMACOS(_ZeroCopyFileTest, unittest.TestCase):
+     PATCHPOINT = "posix._fcopyfile"
+ 
+--- old/Modules/clinic/posixmodule.c.h
++++ new/Modules/clinic/posixmodule.c.h
+@@ -5270,7 +5270,7 @@ exit:
+ 
+ #endif /* defined(HAVE_SENDFILE) && !defined(__APPLE__) && !(defined(__FreeBSD__) || defined(__DragonFly__)) */
+ 
+-#if defined(__APPLE__)
++#if defined(__APPLE__) && MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
+ 
+ PyDoc_STRVAR(os__fcopyfile__doc__,
+ "_fcopyfile($module, in_fd, out_fd, flags, /)\n"
 --- old/Modules/posixmodule.c
 +++ new/Modules/posixmodule.c
 @@ -72,6 +72,8 @@
@@ -442,17 +512,6 @@ __END__
      if (PyModule_AddIntConstant(m, "_COPYFILE_DATA", COPYFILE_DATA)) return -1;
  #endif
  
---- old/Modules/clinic/posixmodule.c.h
-+++ new/Modules/clinic/posixmodule.c.h
-@@ -5270,7 +5270,7 @@ exit:
- 
- #endif /* defined(HAVE_SENDFILE) && !defined(__APPLE__) && !(defined(__FreeBSD__) || defined(__DragonFly__)) */
- 
--#if defined(__APPLE__)
-+#if defined(__APPLE__) && MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
- 
- PyDoc_STRVAR(os__fcopyfile__doc__,
- "_fcopyfile($module, in_fd, out_fd, flags, /)\n"
 --- old/Modules/pyexpat.c
 +++ new/Modules/pyexpat.c
 @@ -1233,7 +1233,8 @@ newxmlparseobject(pyexpat_state *state, 
@@ -501,14 +560,3 @@ __END__
  #elif defined(__linux__)
      pid_t native_id;
      native_id = syscall(SYS_gettid);
---- old/Lib/test/test_shutil.py
-+++ new/Lib/test/test_shutil.py
-@@ -2601,7 +2601,7 @@ class TestZeroCopySendfile(_ZeroCopyFileTest, unittest.TestCase):
-             shutil._USE_CP_SENDFILE = True
- 
- 
--@unittest.skipIf(not MACOS, 'macOS only')
-+@unittest.skipIf(not MACOS or not hasattr(posix, "_fcopyfile"), 'macOS with posix._fcopyfile only')
- class TestZeroCopyMACOS(_ZeroCopyFileTest, unittest.TestCase):
-     PATCHPOINT = "posix._fcopyfile"
- 
