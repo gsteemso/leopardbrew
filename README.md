@@ -3,7 +3,7 @@ Leopardbrew
 
 Leopardbrew is a fork of [Tigerbrew][tigerbrew], itself a fork of [Homebrew][homebrew], focussing
 on 64‐bit and universal builds.  (Originally, it was also going to properly support pure Darwin –
-i.e., non‐Mac‐OS – installations; but Apple have not released one of those since the noughties and
+i.e., non‐Mac‐OS – installations; but Apple have not released one of those since the noughties, and
 their proprietary additions mean it is no longer possible to construct one, so that’s no longer the
 case.)
 
@@ -40,17 +40,17 @@ On the computer you’re reading this on, control‐ or secondary‐click this l
 The option will be something like “Save Link As” or “Download Linked File”, depending on your
 browser:
 
-<https://raw.github.com/gsteemso/leopardbrew/go_to/install>
+<https://raw.githubusercontent.com/gsteemso/leopardbrew/combined/go_to/install>
 
-(It used to be possible to use TenFourFox directly from the target machine, but that software is no
-longer maintained, and cannot handle most pages on Github.)
+(It used to be, and at times still is, possible to use TenFourFox directly from the target machine;
+but that software is no longer maintained, and cannot handle most pages on Github.)
 
 Transfer the saved file to your Tiger or Leopard machine.  On that machine, type `ruby` followed by
 a space into your Terminal prompt, then drag and drop the `install` file onto the same Terminal
 window, and press return.
 
-You’ll also want to make sure that /usr/local/bin and /usr/local/sbin are in your PATH.  (Unlike
-later Mac OS versions, neither is in the default PATH.)  If you use bash as your shell, add this
+You’ll also want to make sure that /usr/local/bin and /usr/local/sbin are in your $PATH.  (In
+earlier Mac OS versions, neither is in the default PATH.)  If you use bash as your shell, add this
 line to your ~/.bash_profile:
 
 ```sh
@@ -77,19 +77,20 @@ FAQ
 Run these commands from your terminal.  You must have git installed.  That’s a non-trivial ask, but
 unavoidable.
 
-```
+```sh
 cd `brew --repository`
 git remote set-url origin https://github.com/gsteemso/leopardbrew.git
 git fetch origin
-git reset --hard origin/master
+git reset --hard origin/combined
 ```
 
 ### Something broke!
 
-Some of the formulae in the repository have been tested, but there are still vast numbers that
-haven’t; and several that were updated to work have since been rendered inoperative by changes in
-the offered functionality.  If something doesn’t work (highly probable), [report a bug][issues] –
-or submit a [pull request][prs] – and I’ll try to get it working.
+Some of the formulæ in the repository have been tested, but there are still vast numbers that have
+not; and several that were initially updated to work in Leopardbrew have since been rendered
+inoperative again by changes in the offered functionality.  If something doesn’t work (highly
+probable), [report a bug][issues] – or submit a [pull request][prs] – and I’ll try to get it
+working.
 
 Credits
 -------
