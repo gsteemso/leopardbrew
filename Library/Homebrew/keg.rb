@@ -333,6 +333,19 @@ class Keg
 
   def delete_pyc_files!; find { |pn| pn.delete if pn.extname == '.pyc' }; end
 
+  def reconstruct_build_mode
+    built_sets = {}
+    path.find do |pn|
+      if pn.tracked_mach_o?
+        archset = pn.archs.sort
+        if built_sets[archset] then built_sets[archset] += 1; else built_sets[archset] = 1; end
+      end
+    end
+    max_count = built_sets.values.max
+    built_set = built_sets.select{ |_, ct| ct == max_count }.keys.flatten.uniq
+    built_set.length > 1 ? (built_set.all?{ |a| CPU.can_run? a } ? 'u' : 'x') : '1'
+  end # reconstruct_build_mode
+
   private
 
   def resolve_any_conflicts(lnk, linkage_type, mode)

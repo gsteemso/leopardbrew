@@ -4,17 +4,16 @@ require 'cxxstdlib'
 require 'options'
 require 'utils/json'
 
-# Inherit from OpenStruct to gain a generic initialization method that takes a
-# hash and creates an attribute for each key and value. `Tab.new` probably
-# should not be called directly; instead use one of the class methods like
-# `Tab.create`.
+# Inherit from OpenStruct to gain a generic initialization method that takes a hash and creates an attribute for each key and value.
+#`Tab.new` probably should not be called directly; instead use one of the class methods like `Tab.create`.
 class Tab < OpenStruct
   FILENAME = 'INSTALL_RECEIPT.json'
 
   class << self
-    def create(formula, compiler, stdlib, build_opts, archs)
+    def create(formula, compiler, stdlib, build_opts, archs, mode)
       attributes = {
         'active_aids'        => formula.active_enhancements,
+        'build_mode'         => mode,
         'built_archs'        => archs,
         'built_as_bottle'    => build_opts.bottle?,
         'compiler'           => compiler,
@@ -37,6 +36,7 @@ class Tab < OpenStruct
     def empty
       attributes = {
         'active_aids'        => [],
+        'build_mode'         => '1',
         'built_archs'        => [],
         'built_as_bottle'    => false,
         'compiler'           => nil,
@@ -94,6 +94,7 @@ class Tab < OpenStruct
       attrs = Utils::JSON.load(content)
       attrs['active_aids'] ||= (attrs['active_aid_sets'] ? attrs['active_aid_sets'].flatten(1) : [])
       attrs['active_aids'].map!{ |fa| Formulary.from_keg(HOMEBREW_CELLAR/fa[0]/fa[1]) }  # can be nil if missing
+      attrs['build_mode'] ||= Keg.for(path).reconstruct_build_mode
       attrs['built_archs'] ||= []
       attrs['source'] ||= {}
       pn = Pathname.new(attrs['source']['path'])
@@ -120,10 +121,13 @@ class Tab < OpenStruct
     includes?("with-#{name}") or unused_options.include?("without-#{name}")
   end
 
-  def without?(name); not with? name; end
+  def without?(val)
+    name = val.responds_to?(:name) ? val.name : val
+    includes?("without-#{name}") or unused_options.include?("with-#{name}")
+  end
 
-  def include?(opt); used_options.include? opt; end
-  alias_method :includes?, :include?
+  def includes?(opt); used_options.include? opt; end
+  alias_method :include?, :includes?
 
   def build_32_bit?; includes?('32-bit'); end
 
@@ -166,6 +170,7 @@ class Tab < OpenStruct
   def to_json
     attributes = {
       'active_aids'        => active_aids.map{ |f| [f.full_name, f.pkg_version.to_s] },
+      'build_mode'         => build_mode,
       'built_archs'        => built_archs.map(&:to_s),
       'built_as_bottle'    => built_as_bottle,
       'compiler'           => (compiler.to_s if compiler),

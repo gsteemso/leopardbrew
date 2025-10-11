@@ -10,14 +10,11 @@ require 'extend/pathname'  # also pulls in extend/fileutils, mach, metafiles, & 
 require 'osay'
 require 'utils'
 
-# ENV['HOMEBREW_DEBUG_RUBY'] is set if we’re debugging [our interaction with] the ruby interpreter
-# that we’re running on.  This is not imported as a variable, because why would we?
-
 if ENV['HOMEBREW_BREW_FILE'].choke
   # Path to main executable ($HOMEBREW_PREFIX/bin/brew):
   HOMEBREW_BREW_FILE = Pathname.new(ENV['HOMEBREW_BREW_FILE'])
 else
-  odie '$HOMEBREW_BREW_FILE was not exported!  Please call bin/brew directly!'
+  odie '$HOMEBREW_BREW_FILE was not exported!  Please brew via bin/brew!'
 end
 
 RbConfig = Config if RUBY_VERSION < '1.8.6'  # different module name on Tiger
@@ -43,18 +40,16 @@ HOMEBREW_RUBY_LIBRARY   = Pathname.new(ENV['HOMEBREW_RUBY_LIBRARY']) # Homebrew�
   HOMEBREW_CMDS         =   HOMEBREW_RUBY_LIBRARY/'cmd'
   HOMEBREW_DEV_CMDS     =   HOMEBREW_RUBY_LIBRARY/'dev-cmd'
   HOMEBREW_LOAD_PATH    =   HOMEBREW_RUBY_LIBRARY
-                            # The path to our libraries /when invoking Ruby/.  Is sometimes set to
-                            # a custom value during unit testing of Homebrew itself.
-  HOMEBREW_LIBRARY_TEST =   HOMEBREW_RUBY_LIBRARY/'test'
-    TEST_FIXTURES       =     HOMEBREW_LIBRARY_TEST/'fixtures'
+                            # The path to our libraries /when invoking Ruby/.  May be set to a custom value during unit testing of
+                            # Homebrew itself.
+  TEST_FIXTURES         =   HOMEBREW_RUBY_LIBRARY/'test/fixtures'
 HOMEBREW_PREFIX         = Pathname.new(ENV['HOMEBREW_PREFIX'])      # Where we link under
   OPTDIR                =   HOMEBREW_PREFIX/'opt'                   # Where we are always available
 HOMEBREW_REPOSITORY     = Pathname.new(ENV['HOMEBREW_REPOSITORY'])  # Where .git is found
 HOMEBREW_RUBY_PATH      = Pathname.new(ENV['HOMEBREW_RUBY_PATH'])   # Our internal Ruby binary
 OPEN_PATH               = Pathname.new('/usr/bin/open')
 SYSTEM_RUBY_PATH        = Pathname.new('/usr/bin/ruby')             # The system Ruby binary
-gtar = OPTDIR/'gnu-tar/bin/gtar'
-TAR_PATH                = Pathname.new(gtar.executable? ? gtar : '/usr/bin/tar')
+TAR_PATH                = begin (gtar = OPTDIR/'gnu-tar/bin/gtar').executable? ? gtar : Pathname.new('/usr/bin/tar'); end
 
 # Predefined regular expressions:
 # CompilerConstants::GNU_CXX11_REGEXP # see `compilers.rb`
@@ -74,13 +69,13 @@ HOMEBREW_TAP_FORMULA_REGEX        = %r{^([\w-]+)/([\w-]+)/([\w+-.@]+)$}
                                     # Match taps’ formulæ, e.g. someuser/sometap/someformula
 # OPTION_RX                         # see `options.rb`
 # Pathname::BOTTLE_EXTNAME_RX       # see `extend/pathname.rb`
-VERSIONED_NAME_REGEX              = %r{^([^=]+)=([^=]+)$}
+VERSIONED_NAME_REGEX              = %r{^([^-=][^=]*)=([^=]+)$}
                                     # matches a formula‐name‐including‐version specification
 
 # Other predefined values:
 # CompilerConstants::CLANG_CXX11_MIN # see `compilers.rb`
 # CompilerConstants::COMPILERS       #
-HOMEBREW_CURL_ARGS          = '-f#LA'
+HOMEBREW_CURL_ARGS       = '-f#LA'
 HOMEBREW_INTERNAL_COMMAND_ALIASES = { 'ls'          => 'list',
                                       'homepage'    => 'home',
                                       '-S'          => 'search',
@@ -96,19 +91,18 @@ HOMEBREW_INTERNAL_COMMAND_ALIASES = { 'ls'          => 'list',
                                       'environment' => '--env',
                                       '--config'    => 'config'
                                     }
-HOMEBREW_OUTDATED_LIMIT     = 1209600 # 60 s * 60 min * 24 h * 14 days:  two weeks
-HOMEBREW_USER_AGENT         = ENV['HOMEBREW_USER_AGENT']
-HOMEBREW_USER_AGENT_CURL    = ENV['HOMEBREW_USER_AGENT_CURL']
-ruby_version = "#{RUBY_VERSION}#{"-p#{RUBY_PATCHLEVEL}" if defined? RUBY_PATCHLEVEL}"
-HOMEBREW_USER_AGENT_RUBY    = "#{HOMEBREW_USER_AGENT} ruby/#{ruby_version}"
-HOMEBREW_WWW                = 'https://github.com/gsteemso/leopardbrew'
-    ISSUES_URL              =   HOMEBREW_WWW
-LEOPARDBREW_VERSION         = ENV['LEOPARDBREW_VERSION']
-MACOS_FULL_VERSION          = ENV['HOMEBREW_OS_VERSION'].chomp
-  MACOS_VERSION             =   MACOS_FULL_VERSION[/\d\d\.\d+/]
-    MACOS_VERSION           =     MACOS_VERSION.slice(0, 2) if MACOS_VERSION.to_f >= 11
+HOMEBREW_OUTDATED_LIMIT  = 1209600 # 60 s * 60 min * 24 h * 14 days:  two weeks
+HOMEBREW_USER_AGENT      = ENV['HOMEBREW_USER_AGENT']
+HOMEBREW_USER_AGENT_CURL = ENV['HOMEBREW_USER_AGENT_CURL']
+HOMEBREW_USER_AGENT_RUBY = "#{HOMEBREW_USER_AGENT} ruby/#{RUBY_VERSION}#{defined?(RUBY_PATCHLEVEL) ? "-p#{RUBY_PATCHLEVEL}" : ''}"
+HOMEBREW_WWW             = 'https://github.com/gsteemso/leopardbrew'
+    ISSUES_URL           =   HOMEBREW_WWW
+LEOPARDBREW_VERSION      = ENV['LEOPARDBREW_VERSION']
+MACOS_FULL_VERSION       = ENV['HOMEBREW_OS_VERSION'].chomp
+  MACOS_VERSION          =   MACOS_FULL_VERSION[/\d\d\.\d+/]
+    MACOS_VERSION        =     MACOS_VERSION.slice(0, 2) if MACOS_VERSION.to_f >= 11
 # MacOS::MAX_SUPPORTED_VERSION # see `macos/version.rb`
-# Tab::FILENAME             # see `tab.rb`
+# Tab::FILENAME                # see `tab.rb`
 
 # Optionally user‐defined values:
 BREW_NICE_LEVEL = ENV['HOMEBREW_NICE_LEVEL']  # Do we `nice` our build process?
@@ -137,15 +131,15 @@ require 'compat' unless ENV['HOMEBREW_NO_COMPAT'] or ARGV.include?('--no-compat'
 # Customizeable environment variables:
 # $HOMEBREW_BUILD_BOTTLE         # Always build a bottle instead of a normal installation (see `extend/ARGV.rb`)
 # $HOMEBREW_BUILD_FROM_SOURCE    # Force building from source even when there is a bottle (see `extend/ARGV.rb`)
-# $HOMEBREW_BUILD_UNIVERSAL      # If there’s a :universal option, always use it (see `extend/ARGV.rb`)
-# $HOMEBREW_CROSS_COMPILE        # If there’s a :cross option, always use it (see `extend/ARGV.rb`)
 # $HOMEBREW_CURL_VERBOSE         # Checked by ::curl() in `utils.rb`; deleted by CurlApacheMirrorDownloadStrategy
+# $HOMEBREW_DEBUG_RUBY           # Set if we’re debugging our interaction with the Ruby that we’re running on
 # $HOMEBREW_FAIL_LOG_LINES       # How many lines of system output to log on failure (see `formula.rb`)
 # $HOMEBREW_MAKE_JOBS            # Used in $MAKEFLAGS, prefixed by “-j”
 # $HOMEBREW_NO_GITHUB_API        # Used by GitHub.open & GitHub.print_pull_requests_matching in `utils.rb`
 # $HOMEBREW_NO_INSECURE_REDIRECT # Tested in CurlDownloadStrategy#fetch if an https → http redirect is encountered.
 # $HOMEBREW_PREFER_64_BIT        # Build 64‐bit by default (req’d for Leopard :universal; see `macos.rb`)
 # $HOMEBREW_SANDBOX              # hells if I know (see `extend/ARGV.rb`)
+# $HOMEBREW_UNIVERSAL_MODE       # “local” | “cross”; if there’s a :universal option, use it this way (see `extend/ARGV.rb`)
 # $HOMEBREW_VERBOSE_USING_DOTS   # Print heartbeat dots during long system calls (see `formula.rb`)
 
 # Superenv environment variables:
@@ -154,20 +148,21 @@ require 'compat' unless ENV['HOMEBREW_NO_COMPAT'] or ARGV.include?('--no-compat'
 # $HOMEBREW_CCCFG              # A set of flags governing things like argument refurbishment
 # $HOMEBREW_DISABLE__W         # Enable warnings by not inserting “-w”
 # $HOMEBREW_FORCE_FLAGS        # Always inserted during argument refurbishment
-# $HOMEBREW_INCLUDE_PATHS      # These are how -I flags reach ENV/*/cc
-# $HOMEBREW_ISYSTEM_PATHS      # These are how -isystem flags reach ENV/*/cc
-# $HOMEBREW_LIBRARY_PATHS      # These are how -L flags reach ENV/*/cc
+# $HOMEBREW_INCLUDE_PATHS      # These are how -I flags reach ENV/super/cc
+# $HOMEBREW_ISYSTEM_PATHS      # These are how -isystem flags reach ENV/super/cc
+# $HOMEBREW_LIBRARY_PATHS      # These are how -L flags reach ENV/super/cc
 # $HOMEBREW_OPTFLAGS           # Set to the compiler optimization flags suiting HOMEBREW_BUILD_ARCHS
-# $HOMEBREW_OPTIMIZATION_LEVEL # This is how an -O flag reaches ENV/*/cc
+# $HOMEBREW_OPTIMIZATION_LEVEL # This is how an -O flag reaches ENV/super/cc
 # $HOMEBREW_SDKROOT            # Set to MacOS.sdk_path iff we have Xcode without command‐line tools
 
 # Other environment variables used in brewing:
 # $CC/$CXX/$FC/$OBJC/$OBJCXX # These combine $HOMEBREW_CC et al with ENV.build_archs.as_archflags
-# $HOMEBREW_BUILD_ARCHS    # Tracks the architectures being built for
-# $HOMEBREW_CC             # Tracks the selected compiler (see `extend/ENV/*.rb`)
-# $HOMEBREW_CC_LOG_PATH    # This is set by `formula.rb` whenever it executes a Superenv build tool
-# $HOMEBREW_MACH_O_FILE    # Briefly exists during `otool -L` parsing; see `mach.rb`
-# $HOMEBREW_PROCESSOR      # Set by `brew.sh` and used by `cmd/vendor-install.sh`
+# $HOMEBREW_BUILD_ARCHS      # Tracks the architectures being built for
+# $HOMEBREW_BUILD_MODE       # Tracks the type of build:  “1”/“u”/“x” → single-arch / local‐machine universal / cross‐compiled
+# $HOMEBREW_CC               # Tracks the selected compiler (see `extend/ENV/*.rb`)
+# $HOMEBREW_CC_LOG_PATH      # This is set by `formula.rb` whenever it executes a Superenv build tool
+# $HOMEBREW_MACH_O_FILE      # Briefly exists during `otool -L` parsing; see `mach.rb`
+# $HOMEBREW_PROCESSOR_TYPE   # Set by `brew.sh` and used by `cmd/vendor-install.sh`
 
 module Homebrew
   include FileUtils

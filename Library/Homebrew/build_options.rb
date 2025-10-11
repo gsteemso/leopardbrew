@@ -71,10 +71,10 @@ class BuildOptions
   def universal?; s_args.build_universal? and option_defined?('universal'); end
 
   # True if a {Formula} is being built for multiple platforms.
-  def cross?; s_args.build_cross? and option_defined?('cross'); end
+  def cross?; universal? and ENV['HOMEBREW_BUILD_MODE'] == 'x'; end
 
   # True if a {Formula} is being built for multiple architectures (whether cross or just universal).
-  def fat?; universal? or cross?; end
+  def local_fat?; universal? and ENV['HOMEBREW_BUILD_MODE'] == 'u'; end
 
   # True if a {Formula} is being built in C++11 mode.
   def cxx11?; include?('c++11') and option_defined?('c++11'); end

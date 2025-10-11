@@ -15,10 +15,10 @@ class SoftwareSpec
   extend Forwardable
 
   PREDEFINED_OPTIONS = {
-    :universal => Option.new('universal', 'Build a universal binary for all the target architectures this computer can run'),
-    :cross     => Option.new('cross', 'Build a universal binary for every possible target architecture'),
-    :cxx11     => Option.new('c++11', 'Build using C++11 mode'),
-    '32-bit'   => Option.new('32-bit', 'Build 32-bit only')
+    :universal => [Option.new('universal', 'Build a universal binary for all the target architectures this computer can run'),
+                   Option.new('cross', 'Build a universal binary for every possible target architecture')],
+    :cxx11     => [Option.new('c++11', 'Build using C++11 mode')],
+    '32-bit'   => [Option.new('32-bit', 'Build 32-bit only')]
   }
 
   attr_reader :name, :full_name, :owner
@@ -99,7 +99,7 @@ class SoftwareSpec
   def option_defined?(opt); options.include?(opt); end
 
   def option(name, description = '')
-    opt = PREDEFINED_OPTIONS.fetch(name) do
+    opts = PREDEFINED_OPTIONS.fetch(name) do
         if Symbol === name
           opoo "Passing arbitrary symbols to `option` is deprecated:  #{name.inspect}"
           puts 'Symbols are reserved for future use, please pass a string instead'
@@ -108,9 +108,9 @@ class SoftwareSpec
         raise ArgumentError, 'option name is required' if name.empty?
         raise ArgumentError, 'option name must be longer than one character' unless name.length > 1
         raise ArgumentError, 'option name must not start with dashes' if name.starts_with?('-')
-        Option.new(name, description)
+        [Option.new(name, description)]
       end
-    @options << opt
+    @options += opts
   end # SoftwareSpec#option
 
   def deprecated_option(hash)
@@ -174,7 +174,7 @@ class SoftwareSpec
     # enhancements are therefore stored as one large array of small, usually single-element, arrays
     # of formulæ.  The active enhancements are just a flat array of formulæ.  All of these are kept
     # sorted for convenience.
-    aids = Array(aid).map{ |name| if name == :nls then name = 'gettext'; end; Formula[name] rescue nil }.compact
+    aids = Array(aid).map{ |name| Formula[name == :nls ? 'gettext' : name] rescue nil }.compact
     unless aids.empty?
       @named_enhancements << aids.sort{ |a, b| a.full_name <=> b.full_name }
       @named_enhancements = named_enhancements.sort{ |a, b| sort_named_enhancements(a, b) }
@@ -346,12 +346,12 @@ class BottleSpecification
   def checksums
     checksums = {}
     os_versions = collector.keys
-    os_versions.map! { |osx| MacOS::Version.from_encumbered_symbol osx rescue nil }.compact!
+    os_versions.map! { |vrsn| MacOS::Version.from_encumbered_symbol vrsn rescue nil }.compact!
     os_versions.sort.reverse_each do |os_version|
-      osx = os_version.to_sym
-      checksum = collector[osx]
+      vrsn = os_version.to_sym
+      checksum = collector[vrsn]
       checksums[checksum.hash_type] ||= []
-      checksums[checksum.hash_type] << { checksum => osx }
+      checksums[checksum.hash_type] << { checksum => vrsn }
     end
     checksums
   end # BottleSpecification#checksums
