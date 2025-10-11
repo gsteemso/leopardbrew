@@ -15,7 +15,7 @@ setup-curl-path() {
       fi
     else
       HOMEBREW_CURL_PATH="/usr/bin/curl"
-      if [ "$HOMEBREW_OS_VERSION_DIGITS" -lt "101500" -o ! -x "$HOMEBREW_CURL_PATH" ]; then
+      if [ "$HOMEBREW_OS_VERSION_DIGITS" -lt "101500" -o \! -x "$HOMEBREW_CURL_PATH" ]; then
         brew vendor-install curl
         [ -x "$vendor_curl_path" ] || odie 'Failed to install vendor Curl.'
         HOMEBREW_CURL_PATH="$vendor_curl_path"
