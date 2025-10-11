@@ -7,6 +7,7 @@ module MacOS
 
   class Version < ::Version
     SYMBOLS = {       # Mac OS    Darwin
+      :tahoe         => '26',     # 26
       :sequoia       => '15',     # 24
       :sonoma        => '14',     # 23
       :ventura       => '13',     # 22
