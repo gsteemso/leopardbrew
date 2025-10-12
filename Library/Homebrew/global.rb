@@ -123,7 +123,7 @@ QUIETER         = ARGV.quieter?               # Give less-verbose feedback when 
 VERBOSE         = ARGV.verbose?               # Give lots of feedback (checks all of “-v”,
                                               #   “--verbose”, $HOMEBREW_VERBOSE, & $VERBOSE)
 
-require 'extend/ENV'; ENV.activate_extensions!  # also pulls in target, macos, and cpu, then compilers (and version) and formula
+require 'extend/ENV'; ENV.activate_extensions!  # pulls in target (thence macos, & cpu) and formula (thence almost two dozen more)
 
 # include backwards‐compatibility cruft?
 require 'compat' unless ENV['HOMEBREW_NO_COMPAT'] or ARGV.include?('--no-compat')
