@@ -36,6 +36,8 @@ fi
 if [ -d "$HOMEBREW_PREFIX/Cellar" ]; then HOMEBREW_CELLAR="$HOMEBREW_PREFIX/Cellar"
 else HOMEBREW_CELLAR="$HOMEBREW_REPOSITORY/Cellar"; fi
 
+if ! [ -d "$HOMEBREW_CELLAR" ]; then mkdir "$HOMEBREW_CELLAR"; fi
+
 case "$*" in
   --prefix) echo "$HOMEBREW_PREFIX"; exit 0 ;;
   --cellar) echo "$HOMEBREW_CELLAR"; exit 0 ;;
