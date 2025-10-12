@@ -11,8 +11,9 @@ module HomebrewArgvExtension
                   sandbox?
                   verbose?  ].freeze
 
-  ENV_FLAG_HASH = { 'build_cross?'     => 'x',
-                    'build_universal?' => 'u' }.freeze
+  ENV_FLAG_HASH = { 'build_universal?' => 'u',
+                    'build_cross?'     => 'x',
+                  }.freeze
 
   SWITCHES = { '1' => '--1', # (“do not recurse” – only used by the `deps` command)
              # 'd' => '--debug', (already handled as an environment flag)
@@ -67,7 +68,7 @@ module HomebrewArgvExtension
                     flags << '--universal' unless flags.include?('--universal')
                     ENV['HOMEBREW_BUILD_MODE'] = switch
                   end
-                end
+                end unless ENV['HOMEBREW_BUILD_MODE'].choke
                 ENV['HOMEBREW_BUILD_MODE'] = '1' unless ENV['HOMEBREW_BUILD_MODE'].choke
                 SWITCHES.each{ |s, flag| flags << flag if (switch?(s) and not include? flag) }
                 flags
@@ -85,7 +86,7 @@ module HomebrewArgvExtension
                      flags << '--universal' unless flags.include?('--universal')
                      ENV['HOMEBREW_BUILD_MODE'] = switch
                    end
-                 end
+                 end unless ENV['HOMEBREW_BUILD_MODE'].choke
                  ENV['HOMEBREW_BUILD_MODE'] = '1' unless ENV['HOMEBREW_BUILD_MODE'].choke
                  flags - BREW_SYSTEM_FLAGS - SWITCHES.values - ENV_FLAGS.map{ |ef| "--#{ef.gsub('_', '-').chop}" }
                end
@@ -194,7 +195,7 @@ module HomebrewArgvExtension
 
   def build_cross?; include? '--cross' or switch? 'x' or ENV['HOMEBREW_UNIVERSAL_MODE'].to_s.downcase == 'cross'; end
 
-  def build_universal?; flag? '--universal' or ENV['HOMEBREW_UNIVERSAL_MODE'].to_s.downcase == 'local'; end
+  def build_universal?; ENV['HOMEBREW_UNIVERSAL_MODE'].to_s.downcase == 'local' or flag? '--universal'; end
 
   def build_fat?; build_universal? or build_cross?; end
 
