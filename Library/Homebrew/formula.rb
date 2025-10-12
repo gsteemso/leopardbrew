@@ -1,18 +1,15 @@
-require "formula/support"
-require "formula/lock"
-require "formula/pin"
-require "bottles"
-require "build_environment"
+require "bottles"            # pulls in tab (thence ostruct, cxxstdlib, options, utils/json); repeats macos + extend/ARGV
+require "build_environment"  # pulls in set
 require "build_options"
-require 'cpu'
-require "formulary"
-require "software_spec"
+require "formula/support"
+require "formula/lock"       # pulls in fcntl
+require "formula/pin"        # pulls in keg
+require "formulary"          # pulls in vendor/backports/enumerable, digest/md5, formula/renames
 require "install_renamed"
-require "pkg_version"
-require 'tab'
-require "tap"
-require "formula/renames"
-require "keg"
+require "pkg_version"        # pulls in version
+require "software_spec"      # pulls in forwardable, build_options, checksum, compilers, dependency_collector, patch;
+                             # repeats bottles + options + resource + version
+require "tap"                # repeats utils/json
 
 # A formula provides instructions and metadata for Homebrew to install a piece of software.  Every
 # Homebrew formula is a {Formula}.  All subclasses of {Formula} (and all Ruby classes) have to be
