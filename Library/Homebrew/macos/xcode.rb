@@ -20,7 +20,7 @@ module MacOS
     }.freeze
 
     def latest_version
-      if (found = XCODE_RELEASE[MacOS.version])
+      if (found = XCODE_RELEASE[MacOS.codename])
         found
       elsif MacOS.version > :el_capitan
         '7.0'
