@@ -132,8 +132,8 @@ class Build
   end # install
 
   def get_archs
-    raise RuntimeError, '$HOMEBREW_BUILT_ARCHS is empty!  What did we just build?' if ENV.homebrew_built_archs.empty?
-    ENV.homebrew_built_archs
+    raise RuntimeError, '$HOMEBREW_BUILT_ARCHS is empty!  What did we just build?' if (hba = ENV.homebrew_built_archs).empty?
+    hba
   end
 
   def detect_stdlibs(compiler)
