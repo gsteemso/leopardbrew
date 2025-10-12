@@ -304,7 +304,7 @@ def paths
       begin
         File.expand_path(p).chomp('/')
       rescue ArgumentError
-        onoe "The following PATH component is invalid: #{p}"
+        onoe "The following $PATH component is invalid:  #{p}"
       end
     end.uniq.compact
 end # paths
