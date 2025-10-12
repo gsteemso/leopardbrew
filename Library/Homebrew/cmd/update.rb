@@ -36,6 +36,7 @@ module Homebrew
 
     cd HOMEBREW_REPOSITORY
     git_init_if_necessary
+    git_overwrite_config
 
     # migrate to new directories based tap structure
     migrate_taps
@@ -133,6 +134,7 @@ module Homebrew
       if (timestamp = get_install_time) then stash_modified_files(timestamp); end
       safe_system 'git', '-c', 'advice.defaultBranchName=false', '-c', 'init.defaultBranch=combined', 'init'
       safe_system 'git', 'config', 'set', 'core.autocrlf', 'false'
+      safe_system 'git', 'config', 'set', 'push.autoSetupRemote', 'true'
       safe_system 'git', 'config', 'set', 'remote.origin.url', HOME_REPO
       safe_system 'git', 'config', 'set', 'remote.origin.fetch', '+refs/heads/*:refs/remotes/origin/*'
       safe_system 'git', 'fetch', 'origin'
@@ -151,6 +153,15 @@ module Homebrew
       safe_system 'git', 'remote', 'set-url', '--delete', 'origin', '^.*leopardbrew.*'
     end
   end # git_init_if_necessary
+
+  def git_overwrite_config
+    safe_system 'git', 'config', 'set', 'branch.combined.remote', 'origin'
+    safe_system 'git', 'config', 'set', 'branch.combined.merge', 'refs/heads/combined'
+    safe_system 'git', 'config', 'set', 'branch.upstream.remote', 'origin'
+    safe_system 'git', 'config', 'set', 'branch.upstream.merge', 'refs/heads/upstream'
+    safe_system 'git', 'config', 'set', 'push.default', 'current'
+    safe_system 'git', 'config', 'set', 'remote.pushDefault', 'origin'
+  end # git_overwrite_config
 
   def load_formula_renames
     load 'formula/renames.rb'
