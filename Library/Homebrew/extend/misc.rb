@@ -35,6 +35,10 @@ class Module
   end # attr_rw
 end # Module
 
+class Numeric
+  def nope; self unless self == 0; end  # return self, but nil when zero
+end
+
 class Object
   alias_method :responds_to?, :respond_to? unless method_defined? :responds_to?
 end
