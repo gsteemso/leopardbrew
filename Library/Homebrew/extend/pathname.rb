@@ -1,5 +1,4 @@
-# This file is loaded before 'global.rb', so must eschew many Homebrew‐isms at
-# eval time.
+# This file is loaded before 'global.rb', so must eschew many Homebrew‐isms at eval time.
 require "open3"
 require "pathname"
 require 'extend/fileutils'
@@ -8,7 +7,7 @@ require "metafiles"
 require "resource"
 
 # Homebrew extends Ruby's `Pathname` to make our code more readable.
-# @see http://ruby-doc.org/stdlib-1.8.7/libdoc/pathname/rdoc/Pathname.html  Ruby's Pathname API
+# @see http://ruby-doc.org/stdlib-1.8.7/libdoc/pathname/rdoc/Pathname.html  Ruby’s Pathname API
 class Pathname
   include MachO
   include FileUtils
@@ -19,7 +18,7 @@ class Pathname
   alias_method :exists?, :exist? unless method_defined? :exists?
   alias_method :to_str, :to_s unless method_defined? :to_str  # we don’t wanna, but Ruby 1.8.x doesn’t care
 
-  # Moves a file from the original location to the {Pathname}'s.
+  # Moves a file from the original location to the {Pathname}’s.
   def install(*sources)
     sources.each do |src|
       case src
@@ -42,11 +41,9 @@ class Pathname
     dst = join(new_basename)
     dst = yield(src, dst) if block_given?
     mkpath
-    # Use FileUtils.mv over File.rename to handle filesystem boundaries. If src
-    # is a symlink, and its target is moved first, FileUtils.mv will fail:
-    #   https://bugs.ruby-lang.org/issues/7707
-    # In that case, use the system "mv" command.
-    if src.symlink? then raise unless Kernel.system "mv", src, dst
+    # Use FileUtils.mv rather than File.rename, to handle crossing filesystems.  However, if src is a symlink & its target is moved
+    # first, FileUtils.mv will fail:  (https://bugs.ruby-lang.org/issues/7707)  In that case, use the system `mv` command.
+    if src.symlink? then raise unless Kernel.system 'mv', src, dst
     else FileUtils.mv src, dst; end
   end # install_p
   private :install_p
@@ -73,21 +70,20 @@ class Pathname
 
   # @private
   alias_method :old_write, :write if method_defined?(:write)
-  # we assume this pathname object is a file obviously
   def write(content, *open_args)
     raise "Will not overwrite #{self}" if exists?
     dirname.mkpath
     open("w", *open_args) { |f| f.write(content) }
   end
 
-  # this function does not exist in Leopard stock Ruby 1.8.6
+  # This function does not exist in Leopard stock Ruby 1.8.6.
   def binwrite(datum, offset = 0)
     dirname.mkpath
     # Use read/write mode so seeking always works.
     open(O_BINARY|O_CREAT|O_RDWR) { |f| f.pos = offset; f.write(datum) }
   end unless method_defined?(:binwrite)
 
-  # this function does not exist in Leopard stock Ruby 1.8.6
+  # This function does not exist in Leopard stock Ruby 1.8.6.
   def binread(length = self.size, offset = 0)
     open(O_BINARY|O_RDONLY) { |f| f.pos = offset; f.read(length) }
   end unless method_defined?(:binread)
@@ -160,9 +156,8 @@ class Pathname
   # for filetypes we support, basename without extension
   def stem; File.basename((path = to_s), extname(path)); end
 
-  # I don't trust the children.length == 0 check particularly, not to mention
-  # it is slow to enumerate the whole directory just to see if it is empty,
-  # instead rely on good ol' libc and the filesystem
+  # Checking children.length == 0 is slow, enumerating the whole directory just to see if it is empty; instead rely on libc and the
+  # filesystem.
   # @private
   def rmdir_if_possible
     rmdir; true
@@ -186,9 +181,8 @@ class Pathname
       when ".jar", ".war" then return  # Don't treat jars or wars as compressed
       when ".lha", ".lzh" then return :lha
     end # case extname
-    # Get enough of the file to detect common file types.  Magic numbers
-    #   stolen from /usr/share/file/magic, except for the Zstd number which
-    #   comes from RFC 8878.  Modern tar magic has a 257 byte offset.
+    # Get enough of the file to detect common file types.  Magic numbers stolen from /usr/share/file/magic, except for the Zstd one
+    # which comes from RFC 8878.  Modern tar magic has a 257 byte offset.
     case binread(262)
       when /^\x1F\x8B/n           then :gzip
       when /^\x1F\x9D/n           then :compress
@@ -203,8 +197,7 @@ class Pathname
       when /^\xFD7zXZ\0/n         then :xz
       when /ustar$/n              then :tar
       else
-        # This code so that bad tarballs and archives produce good error
-        #   messages when they don't unarchive properly.
+        # This code so that bad tarballs and archives produce good error messages when they don’t unarchive properly.
         case extname
           when %r{^\.tar(\..+)?}, '.tbz', '.tgz', '.tlz' then :tar
           when %r{^\.lz4?}    then :lzip
@@ -267,7 +260,7 @@ class Pathname
   def /(other)
     unless other.responds_to?(:to_s) or other.responds_to?(:to_path)
       opoo "Pathname#/ called on #{inspect} with #{other.inspect} as an argument"
-      puts "This behavior is deprecated, please pass either a String or a Pathname"
+      puts 'This behavior is deprecated, please pass either a String or a Pathname'
     end
     self + other.to_s
   end unless method_defined?(:/)
@@ -345,9 +338,8 @@ class Pathname
       next unless Metafiles.copy?(p.basename.to_s)
       # Some software symlinks these files (see help2man.rb)
       filename = p.resolved_path
-      # Some software links metafiles together, so by the time we iterate
-      # to one of them we may have already moved it.  libxml2's COPYING and
-      # Copyright are affected by this.
+      # Some packages hardlink metafiles, so by the time we iterate to one of them we may have already moved it.  libxml2’s COPYING
+      # and Copyright are an example.
       next unless filename.exist?
       filename.chmod 0644
       install(filename)
@@ -365,9 +357,8 @@ class Pathname
     out
   end # abv
 
-  # We redefine these private methods in order to add the /o modifier to
-  # the Regexp literals, which forces string interpolation to happen only
-  # once instead of each time the method is called. This is fixed in 1.9+.
+  # We redefine these private methods in order to add the /o modifier to Regexp literals, so string interpolation happens only once
+  # instead of each time the method is called. This is fixed in 1.9+.
   if RUBY_VERSION <= "1.8.7" && RUBY_VERSION > "1.8.2"
     # @private
     alias_method :old_chop_basename, :chop_basename
@@ -396,14 +387,10 @@ class Pathname
     prepend Module.new { def inspect; super.force_encoding(@path.encoding); end }
   end
 
-  # This seems absolutely insane. Tiger's ruby (1.8.2) deals with
-  # symlinked directores in nonsense ways.
-  # Pathname#unlink checks whether the target is a file or a directory,
-  # and calls the appropriate File or Dir method as appropriate.
-  # So far so good.
-  # On the other hand, if the target is a) a directory, and b) a
-  # symlink, then Pathname will redirect to Dir.unlink, which will
-  # then treat the symlink as a *file* and raise Errno::EISDIR.
+  # This seems absolutely insane.  Tiger’s ruby (1.8.2) deals with symlinked directores in nonsense ways.
+  # Pathname#unlink checks whether the target is a file or a directory, and calls the appropriate File or Dir method as appropriate.
+  # So far so good.  However, if the target is both directory & symlink, then Pathname will redirect to Dir.unlink, which will then
+  # treat the symlink as a *file* and raise Errno::EISDIR.
   if RUBY_VERSION <= "1.8.2"
     alias :oldunlink :unlink
     def unlink; symlink? ? File.unlink(to_s) : oldunlink; end
@@ -413,15 +400,15 @@ class Pathname
   # Not defined in Ruby 1.8.2. Definition taken from 1.8.7.
   def sub(pattern, *rest, &block)
     if block then path = @path.sub(pattern, *rest) { |*args|
-                    begin
-                      old = Thread.current[:pathname_sub_matchdata]
-                      Thread.current[:pathname_sub_matchdata] = $~
-                      eval("$~ = Thread.current[:pathname_sub_matchdata]", block.binding)
-                    ensure
-                      Thread.current[:pathname_sub_matchdata] = old
-                    end
-                    yield(*args)
-                  }
+                      begin
+                        old = Thread.current[:pathname_sub_matchdata]
+                        Thread.current[:pathname_sub_matchdata] = $~
+                        eval("$~ = Thread.current[:pathname_sub_matchdata]", block.binding)
+                      ensure
+                        Thread.current[:pathname_sub_matchdata] = old
+                      end
+                      yield(*args)
+                    }
     else path = @path.sub(pattern, *rest); end
     self.class.new(path)
   end unless method_defined?(:sub)
