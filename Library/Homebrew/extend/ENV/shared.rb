@@ -1,5 +1,4 @@
-require 'compilers'
-require 'formula'
+require 'formula'  # pulls in almost two dozen other library files
 
 # Homebrew extends Ruby's `ENV` to make our code more readable.  Implemented in {SharedEnvExtension} and either {Superenv} or
 # {Stdenv}, per the build mode.
@@ -126,11 +125,11 @@ module SharedEnvExtension
 
   def fcflags; self['FCFLAGS']; end
 
-  def homebrew_built_archs
-    if (hba = self['HOMEBREW_BUILT_ARCHS'].choke)
-      hba.split(' ').extend ArchitectureListExtension
-    end
+  def build_mode
+    ENV['HOMEBREW_BUILD_MODE'].choke || (ARGV.build_cross? ? 'x' : (ARGV.build_universal? ? 'u' : '1'))
   end
+
+  def homebrew_built_archs; self['HOMEBREW_BUILT_ARCHS'].to_s.split(' ').extend ArchitectureListExtension; end
 
   # Outputs the current compiler.
   # @return [Symbol]

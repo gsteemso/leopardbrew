@@ -3,13 +3,8 @@
 
 old_trap = trap('INT') { exit! 130 }
 
-require 'global'
-require 'build_options'
-require 'cxxstdlib'
-require 'keg'
-require 'extend/ENV'
+require 'global'  # pulls in most other Homebrew libraries
 require 'debrew'
-require 'fcntl'
 
 class Build
   attr_reader :formula, :deps, :reqs, :aids
@@ -75,12 +70,10 @@ class Build
     keg_only_deps = _deps.select(&:keg_only?)
     _deps.each { |dep| fixopt(dep) unless dep.opt_prefix.directory? }
 
-    ENV.activate_extensions!
-
     if superenv?
       ENV.keg_only_deps = keg_only_deps
       ENV.deps = _deps
-      ENV.x11 = reqs.any? { |rq| rq.is_a?(X11Requirement) }
+      ENV.x11 = reqs.any? { |rq| rq.is_a? X11Requirement }
     end
 
     ENV.setup_build_environment(formula)
@@ -130,7 +123,7 @@ class Build
       raise RuntimeError, 'Empty installation; aborting' if formula.prefix.children.empty?
 
       stdlibs = detect_stdlibs(ENV.compiler)
-      Tab.create(formula, ENV.compiler, stdlibs.first, formula.build, get_archs).write
+      Tab.create(formula, ENV.compiler, stdlibs.first, formula.build, get_archs, ENV.build_mode).write
 
       # Find and link metafiles
       formula.prefix.install_metafiles Pathname.pwd
@@ -139,7 +132,8 @@ class Build
   end # install
 
   def get_archs
-    ENV.homebrew_built_archs or raise RuntimeError, '$HOMEBREW_BUILT_ARCHS is empty!  WTF did we just build?'
+    raise RuntimeError, '$HOMEBREW_BUILT_ARCHS is empty!  What did we just build?' if ENV.homebrew_built_archs.empty?
+    ENV.homebrew_built_archs
   end
 
   def detect_stdlibs(compiler)
