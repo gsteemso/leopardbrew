@@ -36,7 +36,7 @@ class Tab < OpenStruct
     def empty
       attributes = {
         'active_aids'        => [],
-        'build_mode'         => '1',
+        'build_mode'         => ENV.build_mode,
         'built_archs'        => [],
         'built_as_bottle'    => false,
         'compiler'           => nil,
@@ -94,7 +94,6 @@ class Tab < OpenStruct
       attrs = Utils::JSON.load(content)
       attrs['active_aids'] ||= (attrs['active_aid_sets'] ? attrs['active_aid_sets'].flatten(1) : [])
       attrs['active_aids'].map!{ |fa| Formulary.from_keg(HOMEBREW_CELLAR/fa[0]/fa[1]) }  # can be nil if missing
-      attrs['build_mode'] ||= Keg.for(path).reconstruct_build_mode
       attrs['built_archs'] ||= []
       attrs['source'] ||= {}
       pn = Pathname.new(attrs['source']['path'])
@@ -144,6 +143,9 @@ class Tab < OpenStruct
 
   # Older tabs won’t have this field, so supply an empty list.
   def active_aids; aa = super; aa.nil? ? [] : aa; end
+
+  # Older tabs won’t have this field, so compute the most probable value.
+  def build_mode; super || Keg.for(path).reconstruct_build_mode; end
 
   def built_archs
     # Older tabs won’t have this field, so compute a plausible default.
