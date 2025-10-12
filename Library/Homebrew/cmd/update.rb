@@ -1,12 +1,14 @@
-require "cmd/tap"
-require "cmd/doctor"
-require "formula/versions"
-require "migrator"
-require "formulary"
-require "descriptions"
+require 'cmd/tap'
+require 'cmd/doctor'
+require 'formula/versions'
+require 'migrator'
+require 'formulary'
+require 'descriptions'
 
 module Homebrew
   HOME_REPO = 'https://github.com/gsteemso/leopardbrew.git'
+  STASHDIR = HOMEBREW_REPOSITORY/'git_init_stash'
+  TIMESTAMP_FILE = HOMEBREW_REPOSITORY/'install-time-marker'
 
   def update
     unless ARGV.named.empty?
@@ -30,7 +32,7 @@ module Homebrew
     Utils.ensure_git_installed!
 
     # ensure GIT_CONFIG is unset as we need to operate on .git/config
-    ENV.delete("GIT_CONFIG")
+    ENV.delete('GIT_CONFIG')
 
     cd HOMEBREW_REPOSITORY
     git_init_if_necessary
@@ -72,11 +74,11 @@ module Homebrew
       next unless (dir = HOMEBREW_CELLAR/f).exist?
       migration = TAP_MIGRATIONS[f]
       next unless migration
-      tap_user, tap_repo = migration.split "/"
+      tap_user, tap_repo = migration.split '/'
       install_tap tap_user, tap_repo
       # update tap for each Tab
       tabs = dir.subdirs.map { |d| Tab.for_keg(Keg.new(d)) }
-      next if tabs.first.tap != "Homebrew/homebrew"
+      next if tabs.first.tap != 'Homebrew/homebrew'
       tabs.each { |tab| tab.tap = "#{tap_user}/homebrew-#{tap_repo}" }
       tabs.each(&:write)
     end if load_tap_migrations
@@ -86,12 +88,12 @@ module Homebrew
 
     # Migrate installed renamed formulae from core and taps.
     report.select_formula(:R).each do |oldname, newname|
-      if oldname.include?("/")
-        user, repo, oldname = oldname.split("/", 3)
-        newname = newname.split("/", 3).last
+      if oldname.include?('/')
+        user, repo, oldname = oldname.split('/', 3)
+        newname = newname.split('/', 3).last
       else
-        user = "homebrew"
-        repo = "homebrew"
+        user = 'homebrew'
+        repo = 'homebrew'
       end
 
       next unless (dir = HOMEBREW_CELLAR/oldname).directory? && !dir.subdirs.empty?
@@ -111,7 +113,7 @@ module Homebrew
     end
 
     if report.empty?
-      puts "Already up-to-date."
+      puts 'Already up-to-date.'
     else
       puts "Updated Leopardbrew from #{master_updater.initial_revision[0, 8]} to #{master_updater.current_revision[0, 8]}."
       report.dump
@@ -121,43 +123,65 @@ module Homebrew
 
   private
 
+  def get_install_time
+    TIMESTAMP_FILE.mtime if TIMESTAMP_FILE.exists?
+  end
+
   def git_init_if_necessary
     begin
-      safe_system "git", "init"
-      safe_system "git", "config", "core.autocrlf", "false"
-      safe_system "git", "config", "remote.origin.url", HOME_REPO
-      safe_system "git", "config", "remote.origin.fetch", "+refs/heads/*:refs/remotes/origin/*"
-      safe_system "git", "fetch", "origin"
-      safe_system "git", "reset", "--hard", "origin/combined"
+      mkdir STASHDIR
+      if (timestamp = get_install_time) then stash_modified_files(timestamp); end
+      safe_system 'git', '-c', 'advice.defaultBranchName=false', '-c', 'init.defaultBranch=combined', 'init'
+      safe_system 'git', 'config', 'set', 'core.autocrlf', 'false'
+      safe_system 'git', 'config', 'set', 'remote.origin.url', HOME_REPO
+      safe_system 'git', 'config', 'set', 'remote.origin.fetch', '+refs/heads/*:refs/remotes/origin/*'
+      safe_system 'git', 'fetch', 'origin'
+      safe_system 'git', 'reset', '--hard', 'origin/combined'
+      unstash_modified_files
+      TIMESTAMP_FILE.unlink if TIMESTAMP_FILE.exists?
     rescue Exception
-      FileUtils.rm_rf ".git"
+      FileUtils.rm_rf '.git'
       raise
-    end if Dir[".git/*"].empty?
+    ensure
+      FileUtils.rm_rf STASHDIR
+    end if Dir['.git/*'].empty?
 
     if `git remote show -n origin | fgrep 'Fetch URL:'` !~ %r{leopardbrew}
-      safe_system "git", "remote", "set-url", "origin", HOME_REPO
-      safe_system "git", "remote", "set-url", "--delete", "origin", '^.*leopardbrew.*'
+      safe_system 'git', 'remote', 'set-url', 'origin', HOME_REPO
+      safe_system 'git', 'remote', 'set-url', '--delete', 'origin', '^.*leopardbrew.*'
     end
   end # git_init_if_necessary
+
+  def load_formula_renames
+    load 'formula/renames.rb'
+  rescue LoadError
+    false
+  end
+
+  def load_tap_migrations
+    load 'tap_migrations.rb'
+  rescue LoadError
+    false
+  end
 
   def rename_taps_dir_if_necessary
     Dir.glob("#{HOMEBREW_LIBRARY}/Taps/*/") do |tapd|
       begin
-        if File.directory?(tapd + "/.git")
+        if File.directory?(tapd + '/.git')
           tapd_basename = File.basename(tapd)
-          if tapd_basename.include?("-")
+          if tapd_basename.include?('-')
             # only replace the *last* dash: yes, tap filenames suck
-            user, repo = tapd_basename.reverse.sub("-", "/").reverse.split("/")
+            user, repo = tapd_basename.reverse.sub('-', '/').reverse.split('/')
 
             FileUtils.mkdir_p("#{HOMEBREW_LIBRARY}/Taps/#{user.downcase}")
             FileUtils.mv(tapd, "#{HOMEBREW_LIBRARY}/Taps/#{user.downcase}/homebrew-#{repo.downcase}")
 
-            if tapd_basename.count("-") >= 2
-              opoo "Leopardbrew’s predecessor, Tigerbrew, changed the structure of Taps to <someuser>/<sometap>.  "\
+            if tapd_basename.count('-') >= 2
+              opoo 'Leopardbrew’s predecessor, Tigerbrew, changed the structure of Taps to <someuser>/<sometap>.  '\
                 + "You may need to rename #{HOMEBREW_LIBRARY}/Taps/#{user.downcase}/homebrew-#{repo.downcase} manually."
             end
           else
-            opoo "Leopardbrew’s predecessor, Tigerbrew, changed the structure of Taps to <someuser>/<sometap>.  "\
+            opoo 'Leopardbrew’s predecessor, Tigerbrew, changed the structure of Taps to <someuser>/<sometap>.  '\
               "#{tapd} is incorrect name format.  You may need to manually rename it as <someuser>/<sometap>."
           end
         end
@@ -168,17 +192,24 @@ module Homebrew
     end
   end # rename_taps_dir_if_necessary
 
-  def load_tap_migrations
-    load "tap_migrations.rb"
-  rescue LoadError
-    false
-  end
+  def stash_modified_files(install_time)
+    HOMEBREW_REPOSITORY.find{ |pn|
+      next if pn == HOMEBREW_REPOSITORY or pn.symlink?
+      relative_path = pn.to_s.sub(%r{^#{HOMEBREW_REPOSITORY}/}, '')
+      if relative_path == 'Cellar' or relative_path == 'Library/Homebrew/vendor' or pn == STASHDIR then Find.prune; next; end
+      destination = STASHDIR/relative_path
+      if pn.directory? then destination.mkdir
+      elsif pn.mtime > install_time then system 'cp', '-p', pn.to_s, destination.to_s
+      end
+    }
+  end # stash_modified_files
 
-  def load_formula_renames
-    load "formula/renames.rb"
-  rescue LoadError
-    false
-  end
+  def unstash_modified_files
+    STASHDIR.find{ |pn|
+      next if pn.symlink? or not pn.file?
+      system 'mv', '-f', pn.to_s, pn.sub(%r{^#{STASHDIR}}, HOMEBREW_REPOSITORY).to_s
+    }
+  end # unstash_modified_files
 end # Homebrew
 
 class Updater
@@ -191,63 +222,62 @@ class Updater
 
   def pull!(options = {})
     quiet = []
-    quiet << "--quiet" unless VERBOSE
+    quiet << '--quiet' unless VERBOSE
 
-    unless system "git", "diff", "--quiet"
+    unless system 'git', 'diff', '--quiet'
       unless options[:silent]
-        puts "Stashing your changes:"
-        system "git", "status", "--short", "--untracked-files"
+        puts 'Stashing your changes:'
+        system 'git', 'status', '--short', '--untracked-files'
       end
-      safe_system "git", "stash", "save", "--include-untracked", *quiet
+      safe_system 'git', 'stash', 'save', '--include-untracked', *quiet
       @stashed = true
     end
 
-    # The upstream repository's default branch may not be master;
-    # check refs/remotes/origin/HEAD to see what the default
-    # origin branch name is, and use that. If not set, fall back to "master".
+    # The upstream repository’s default branch may not be master; check refs/remotes/origin/HEAD to see what the default origin
+    # branch name is, and use that.  If not set, fall back to “master”.
     begin
       @upstream_branch = `git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null`
       @upstream_branch = @upstream_branch.chomp.sub('refs/remotes/origin/', '')
     rescue ErrorDuringExecution
-      @upstream_branch = "master"
+      @upstream_branch = 'master'
     end
 
     begin
       @initial_branch = `git symbolic-ref --short HEAD 2>/dev/null`.chomp
     rescue ErrorDuringExecution
-      @initial_branch = ""
+      @initial_branch = ''
     end
 
     if @initial_branch != @upstream_branch && !@initial_branch.empty?
-      safe_system "git", "checkout", @upstream_branch, *quiet
+      safe_system 'git', 'checkout', @upstream_branch, *quiet
     end
 
     @initial_revision = read_current_revision
 
     # ensure we don't munge line endings on checkout
-    safe_system "git", "config", "core.autocrlf", "false"
+    safe_system 'git', 'config', 'core.autocrlf', 'false'
 
-    args = ["pull"]
-    args << "--ff"
-    args << ((ARGV.include? "--rebase") ? "--rebase" : "--no-rebase")
+    args = ['pull']
+    args << '--ff'
+    args << ((ARGV.include? '--rebase') ? '--rebase' : '--no-rebase')
     args += quiet
-    args << "origin"
+    args << 'origin'
     # the refspec ensures that the default upstream branch gets updated
     args << "refs/heads/#{@upstream_branch}:refs/remotes/origin/#{@upstream_branch}"
 
-    reset_on_interrupt { safe_system "git", *args }
+    reset_on_interrupt { safe_system 'git', *args }
 
     @current_revision = read_current_revision
 
-    if @initial_branch != "master" && !@initial_branch.empty?
-      safe_system "git", "checkout", @initial_branch, *quiet
+    if @initial_branch != 'master' && !@initial_branch.empty?
+      safe_system 'git', 'checkout', @initial_branch, *quiet
     end
 
     if @stashed
-      safe_system "git", "stash", "pop", *quiet
+      safe_system 'git', 'stash', 'pop', *quiet
       unless options[:silent]
-        puts "Restored your changes:"
-        system "git", "status", "--short", "--untracked-files"
+        puts 'Restored your changes:'
+        system 'git', 'status', '--short', '--untracked-files'
       end
       @stashed = false
     end # @stashed?
@@ -257,9 +287,9 @@ class Updater
     ignore_interrupts { yield }
   ensure
     if $?.signaled? && $?.termsig == 2 # SIGINT
-      safe_system "git", "checkout", @initial_branch unless @initial_branch.empty?
-      safe_system "git", "reset", "--hard", @initial_revision
-      safe_system "git", "stash", "pop" if @stashed
+      safe_system 'git', 'checkout', @initial_branch unless @initial_branch.empty?
+      safe_system 'git', 'reset', '--hard', @initial_revision
+      safe_system 'git', 'stash', 'pop' if @stashed
     end
   end # Updater#reset_on_interrupt
 
@@ -274,13 +304,13 @@ class Updater
         src = paths.first
         dst = paths.last
 
-        next unless File.extname(dst) == ".rb"
+        next unless File.extname(dst) == '.rb'
         next unless paths.any? { |p| File.dirname(p) == formula_directory }
 
         case status
-          when "A", "D"
+          when 'A', 'D'
             map[status.to_sym] << repository.join(src)
-          when "M"
+          when 'M'
             file = repository.join(src)
             begin
               formula = Formulary.factory(file)
@@ -309,13 +339,13 @@ class Updater
 
   def formula_directory
     if repository == HOMEBREW_REPOSITORY
-      "Library/Formula"
-    elsif repository.join("Formula").directory?
-      "Formula"
-    elsif repository.join("HomebrewFormula").directory?
-      "HomebrewFormula"
+      'Library/Formula'
+    elsif repository.join('Formula').directory?
+      'Formula'
+    elsif repository.join('HomebrewFormula').directory?
+      'HomebrewFormula'
     else
-      "."
+      '.'
     end
   end # Updater#formula_directory
 
@@ -325,8 +355,8 @@ class Updater
 
   def diff
     Utils.popen_read(
-      "git", "diff-tree", "-r", "--name-status", "--diff-filter=AMDR",
-      "-M85%", initial_revision, current_revision
+      'git', 'diff-tree', '-r', '--name-status', '--diff-filter=AMDR',
+      '-M85%', initial_revision, current_revision
     )
   end # Updater#diff
 
@@ -353,10 +383,10 @@ class Report
   def dump
     # Key Legend: Added (A), Copied (C), Deleted (D), Modified (M), Renamed (R)
 
-    dump_formula_report :A, "New Formulae"
-    dump_formula_report :M, "Updated Formulae"
-    dump_formula_report :R, "Renamed Formulae"
-    dump_formula_report :D, "Deleted Formulae"
+    dump_formula_report :A, 'New Formulæ'
+    dump_formula_report :M, 'Updated Formulæ'
+    dump_formula_report :R, 'Renamed Formulæ'
+    dump_formula_report :D, 'Deleted Formulæ'
   end # Report#dump
 
   def update_renamed
@@ -366,11 +396,11 @@ class Report
       case path.to_s
       when HOMEBREW_TAP_PATH_REGEX
         user = $1
-        repo = $2.sub("homebrew-", "")
-        oldname = path.basename(".rb").to_s
+        repo = $2.sub('homebrew-', '')
+        oldname = path.basename('.rb').to_s
         next unless newname = Tap.fetch(user, repo).formula_renames[oldname]
       else
-        oldname = path.basename(".rb").to_s
+        oldname = path.basename('.rb').to_s
         next unless newname = FORMULA_RENAMES[oldname]
       end
 
@@ -389,16 +419,16 @@ class Report
   def select_formula(key)
     fetch(key, []).map do |path, newpath|
       if path.to_s =~ HOMEBREW_TAP_PATH_REGEX
-        tap = "#{$1}/#{$2.sub("homebrew-", "")}"
+        tap = "#{$1}/#{$2.sub('homebrew-', '')}"
         if newpath
-          ["#{tap}/#{path.basename(".rb")}", "#{tap}/#{newpath.basename(".rb")}"]
+          ["#{tap}/#{path.basename('.rb')}", "#{tap}/#{newpath.basename('.rb')}"]
         else
-          "#{tap}/#{path.basename(".rb")}"
+          "#{tap}/#{path.basename('.rb')}"
         end
       elsif newpath
-        ["#{path.basename(".rb")}", "#{newpath.basename(".rb")}"]
+        ["#{path.basename('.rb')}", "#{newpath.basename('.rb')}"]
       else
-        path.basename(".rb").to_s
+        path.basename('.rb').to_s
       end
     end.sort
   end # Report#select_formula
