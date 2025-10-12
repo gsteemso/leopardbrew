@@ -160,6 +160,8 @@ def which cmd
 end
 
 def recursive_mv(src_pn, src_root, dst_root)
+  src_pn = Pathname.new(src_pn) unless src_pn.is_a? Pathname
+  dst_root = Pathname.new(dst_root) unless dst_root.is_a? Pathname
   relative = src_pn.to_s.sub(%r{^#{src_root}/}, '')
   dst_pn = dst_root/relative
   if dst_pn.exist? and not dst_pn.symlink?
@@ -174,14 +176,14 @@ def recursive_mv(src_pn, src_root, dst_root)
         # do nothing, assume the new version is correct
       else # neither source nor destination are directories, or at least not real ones
         if src_pn.lstat.mtime > dst_pn.lstat.mtime
-          system ['mv', '-f', src_pn.to_s, dst_pn.to_s]
+          system 'mv', '-f', src_pn.to_s, dst_pn.to_s
         else
           # the local version is newer, assume it is correct and do nothing
         end
       end
     end
   else
-    system ['mv', '-f', src_pn, dst_pn]
+    system 'mv', '-f', src_pn, dst_pn
   end
 end
 
@@ -235,7 +237,7 @@ repo = Pathname.new(repo)
 
 sudo '/bin/mkdir', '-p', repo.to_s unless repo.directory?
 sudo '/bin/chmod', 'g+rwx', repo.to_s
-sudo '/usr/bin/chown', "#{Process.uid}:admin", repo.to_s  # the user and/or group may have odd defaults
+sudo '/usr/sbin/chown', "#{Process.uid}:admin", repo.to_s  # the user and/or group may have odd defaults
 
 puts "Using “#{repo}” for the repository.\n\n"
 
@@ -360,6 +362,8 @@ Dir.chdir repo do
   recursive_mv(TEMP_CURL_DIR, '/tmp', "#{repo}/Library/Homebrew/vendor")
   system %W[ln -s #{CURL_VERSION} #{repo}/Library/Homebrew/vendor/portable-curl/current]
   system %W[echo #{CURL_VERSION} >|#{repo}/Library/Homebrew/vendor/portable-curl-version]
+
+  system %w[touch ./install-time-marker]
 end # chdir repo
 
 warn "#{pfx}/bin is not in your PATH." unless ENV['PATH'].split(':').include? "#{pfx}/bin"
