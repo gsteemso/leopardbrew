@@ -1,4 +1,4 @@
-# Stable release 2025-08-18; checked 2025-09-25.
+# Stable release 2025-08-18; checked 2025-10-11.
 class Git < Formula
   desc 'Distributed revision control system'
   homepage 'https://git-scm.com'
@@ -19,7 +19,8 @@ class Git < Formula
 
   option 'with-brewed-svn',       'Use brewed Subversion'
   option 'with-pcre2',            'Build with support for Perl‐compatible regular expressions'
-  option 'with-persistent-https', 'Build contributed git-remote-persistent-https feature (needs Go, so not for PowerPC)'
+  option 'with-persistent-https', 'Build contributed git-remote-persistent-https feature (requires Go)' unless CPU.powerpc?
+  option 'with-tests',            'Perform build-time unit tests (might not succeed)'
   option 'without-tcl-tk',        'Disable graphical user interface'
 
   depends_on 'gnu-tar' => :build if MacOS.version < :leopard # stock tar has odd permissions errors
@@ -31,13 +32,13 @@ class Git < Formula
   depends_on 'curl'
   depends_on 'gettext'
   depends_on 'libiconv'
-#  depends_on 'openssh'
+  depends_on 'openssh'  # Without this, you can’t log into Github on older Macs because the encryption schemes are so outdated.
   depends_on 'openssl3'
   # depends on Perl >= v5.26.0; Tiger includes v5.8.6, Leopard v5.8.8
   depends_on 'perl'
-  if build.with? 'brewed-svn'               # Trigger installation of {swig} before {subversion};
-    depends_on 'swig'                       # otherwise {swig} doesn’t get pulled in at all (see
-    depends_on 'subversion' => 'with-perl'  # https://github.com/Homebrew/homebrew/issues/34554)
+  if build.with? 'brewed-svn'
+    depends_on 'swig'                       # Trigger installation of {swig} before {subversion}; otherwise {swig} is not pulled in
+    depends_on 'subversion' => 'with-perl'  # at all (see https://github.com/Homebrew/homebrew/issues/34554)
   end
 
   enhanced_by 'expat'  # Used for locking over DAV.
@@ -73,7 +74,7 @@ class Git < Formula
     else
       ENV['NO_TCLTK'] = '1'
     end
-    ENV['DEFAULT_EDITOR'] = ENV['EDITOR'] || 'vi'  # default to the original default value
+    ENV['DEFAULT_EDITOR'] = ENV['EDITOR'].choke || 'vi'  # default to the original default value
     ENV['DEFAULT_HELP_FORMAT'] = 'man'
     ENV['CHARSET_LIB'] = '-lcharset'
     ENV['EXPATDIR'] = (f = Formula['expat']).installed? ? f.opt_prefix \
@@ -115,11 +116,10 @@ class Git < Formula
     dir_args = %W[
         prefix=#{prefix}
         sysconfdir=#{etc}
-      ]    # “sysconfdir” is weirdly missing from the Makefile, even though it’s very obviously
-           # assumed to be present.
+      ]  # “sysconfdir” is weirdly absent from the Makefile, even though it’s very obviously assumed to be present.
 
     make *dir_args
-    # `make test` does not completely succeed, so don’t bother
+    make 'test', *dir_args if build.with? 'tests'
     make 'install', *dir_args
 
     # Install the OS X keychain credential helper
