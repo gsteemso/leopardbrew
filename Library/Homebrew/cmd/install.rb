@@ -124,7 +124,7 @@ module Homebrew
 
         # If they haven't updated in a while, that might explain the error
         master = HOMEBREW_REPOSITORY/'.git/refs/heads/master'
-        if master.exists? and (Time.now.to_i - File.mtime(master).to_i) > HOMEBREW_OUTDATED_LIMIT
+        if master.exists? and (Time.now.to_i - master.mtime.to_i) > HOMEBREW_OUTDATED_LIMIT
           ohai 'You haven’t updated Leopardbrew in a while.', <<-EOS.undent
             A formula for #{e.name} might have been added recently.
             Run “brew update” to get the latest Leopardbrew updates!
