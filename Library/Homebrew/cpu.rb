@@ -1,11 +1,10 @@
 # This file is loaded before `global.rb`, so must eschew many brew‐isms at eval time.
-
 require 'mach'
 
 class CPU
   module Sysctl
-    # All of the following use data extracted via sysctl.  See <sys/sysctl.h> for sysctl keys along
-    # with some related constants, and <mach/machine.h> for Mach‐O CPU‐encoding constants.
+    # All of the following use data extracted via sysctl.  See <sys/sysctl.h> for sysctl keys, as well as some related constants, &
+    # <mach/machine.h> for Mach‐O CPU‐encoding constants.
 
     module_function
 
@@ -26,7 +25,7 @@ class CPU
               when 0x07d34b9f then :a12z        # arm    0. (Aruba?) developer‐transition Minis (Vortex & Tempest cores)
               when 0x0f817246 then :kabylake    # intel 10. Kaby Lake
               when 0x10b282dc then :haswell     # intel  7. Haswell
-              when 0x1b588bb3 then :m1          # arm    1. A14/M1, all variants (Firestorm & Icestorm cores)
+              when 0x1b588bb3 then :m1          # arm    1. A14/M1, most variants (Firestorm & Icestorm cores)
               when 0x1cf8a03e then :cometlake   # intel 12. Comet Lake
               when 0x1f65e835 then :ivybridge   # intel  6. Ivy Bridge
               when 0x37fc219f then :skylake     # intel  9. Sky Lake
@@ -41,7 +40,7 @@ class CPU
               when 0x72015832 then :m3          # arm    5. Palma (M3 Max:  Everest & Sawtooth cores)
               when 0x73d67300 then :core        # intel  0. Yonah et al:  Core Solo/Duo  (T1200, T2x00, L2400)
               when 0x78ea4fbc then :penryn      # intel  2. Penryn  (E8x35, P7x50, P8x00, SL9x00, SU9x00, T8x00, T9x00, T9550)
-              when 0xda33d83d then :m2          # arm    2. A15/M2, all variants (Avalanche & Blizzard cores)
+              when 0xda33d83d then :m2          # arm    2. A15/M2, most variants (Avalanche & Blizzard cores)
               when 0xfa33415e then :m3          # arm    3. Ibiza (base M3:  Everest & Sawtooth cores)
               else type == :arm ? :m1 : :core
             end
