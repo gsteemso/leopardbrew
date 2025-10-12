@@ -293,7 +293,7 @@ class FormulaInstaller
     f = dep.to_formula
     u = Option.new('universal')
     if not dep.build? and f.option_defined?(u)
-      if f.option_defined?(x = Option.new('cross')) and ARGV.build_cross? or formula.require_universal_deps?)
+      if f.option_defined?(x = Option.new('cross')) and (ARGV.build_cross? or formula.require_universal_deps?)
         inherited_opts << x
       elsif (options.include?(u) or ARGV.build_universal? or formula.require_universal_deps?)
         inherited_opts << u
