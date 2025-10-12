@@ -1,15 +1,15 @@
 # Ruby library:
 require 'forwardable'
 # Homebrew libraries:
-require 'resource'
-require 'checksum'
-require 'version'
-require 'options'
+require 'bottles'        # pulls in tab (thence ostruct, cxxstdlib, options, utils/json), macos (thence cpu), extend/ARGV
 require 'build_options'
-require 'dependency_collector'
-require 'bottles'
-require 'patch'
+require 'checksum'
 require 'compilers'
+require 'dependency_collector'
+require 'options'
+require 'patch'
+require 'resource'
+require 'version'
 
 class SoftwareSpec
   extend Forwardable
