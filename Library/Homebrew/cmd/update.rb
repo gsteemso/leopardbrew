@@ -6,7 +6,8 @@ require 'formulary'
 require 'descriptions'
 
 module Homebrew
-  HOME_REPO = 'https://github.com/gsteemso/leopardbrew.git'
+  HOME_REPO_GIT = 'git@github.com:gsteemso/leopardbrew.git'
+  HOME_REPO_HTTPS = 'https://github.com/gsteemso/leopardbrew.git'
   STASHDIR = HOMEBREW_REPOSITORY/'git_init_stash'
   TIMESTAMP_FILE = HOMEBREW_REPOSITORY/'install-time-marker'
 
@@ -36,7 +37,7 @@ module Homebrew
 
     cd HOMEBREW_REPOSITORY
     git_init_if_necessary
-    git_overwrite_config
+    git_verify_config
 
     # migrate to new directories based tap structure
     migrate_taps
@@ -129,13 +130,23 @@ module Homebrew
   end
 
   def git_init_if_necessary
+    if HOMEBREW_GITHUB_API_TOKEN
+      home_repo = HOME_REPO_GIT
+      raise RuntimeError, <<-_.undent unless GitHub.ssh_agent_running?
+          You have a Leopardbrew GitHub access token, but your SSH agent is not running.
+          If Leopardbrew tries to access GitHub like this, it will get hung up waiting for
+          a message exchange that never happens.
+        _
+    else
+      home_repo = HOME_REPO_HTTPS
+    end
     begin
       mkdir STASHDIR
       if (timestamp = get_install_time) then stash_modified_files(timestamp); end
       safe_system 'git', '-c', 'advice.defaultBranchName=false', '-c', 'init.defaultBranch=combined', 'init'
       safe_system 'git', 'config', 'set', 'core.autocrlf', 'false'
       safe_system 'git', 'config', 'set', 'push.autoSetupRemote', 'true'
-      safe_system 'git', 'config', 'set', 'remote.origin.url', HOME_REPO
+      safe_system 'git', 'config', 'set', 'remote.origin.url', home_repo
       safe_system 'git', 'config', 'set', 'remote.origin.fetch', '+refs/heads/*:refs/remotes/origin/*'
       safe_system 'git', 'fetch', 'origin'
       safe_system 'git', 'reset', '--hard', 'origin/combined'
@@ -149,19 +160,25 @@ module Homebrew
     end if Dir['.git/*'].empty?
 
     if `git remote show -n origin | fgrep 'Fetch URL:'` !~ %r{leopardbrew}
-      safe_system 'git', 'remote', 'set-url', 'origin', HOME_REPO
+      safe_system 'git', 'remote', 'set-url', 'origin', home_repo
       safe_system 'git', 'remote', 'set-url', '--delete', 'origin', '^.*leopardbrew.*'
     end
   end # git_init_if_necessary
 
-  def git_overwrite_config
-    safe_system 'git', 'config', 'set', 'branch.combined.remote', 'origin'
-    safe_system 'git', 'config', 'set', 'branch.combined.merge', 'refs/heads/combined'
-    safe_system 'git', 'config', 'set', 'branch.upstream.remote', 'origin'
-    safe_system 'git', 'config', 'set', 'branch.upstream.merge', 'refs/heads/upstream'
-    safe_system 'git', 'config', 'set', 'push.default', 'current'
-    safe_system 'git', 'config', 'set', 'remote.pushDefault', 'origin'
-  end # git_overwrite_config
+  def git_verify_config
+    safe_system 'git', 'config', 'set', 'branch.combined.remote', 'origin' \
+      unless `git config get branch.combined.remote`.chomp == 'origin'
+    safe_system 'git', 'config', 'set', 'branch.combined.merge', 'refs/heads/combined' \
+      unless `git config get branch.combined.merge`.chomp == 'refs/heads/combined'
+    safe_system 'git', 'config', 'set', 'branch.upstream.remote', 'origin' \
+      unless `git config get branch.upstream.remote`.chomp == 'origin'
+    safe_system 'git', 'config', 'set', 'branch.upstream.merge', 'refs/heads/upstream' \
+      unless `git config get branch.upstream.merge`.chomp == 'refs/heads/upstream'
+    safe_system 'git', 'config', 'set', 'push.default', 'current' \
+      unless `git config get push.default`.chomp == 'current'
+    safe_system 'git', 'config', 'set', 'remote.pushDefault', 'origin' \
+      unless `git config get remote.pushDefault`.chomp == 'origin'
+  end # git_verify_config
 
   def load_formula_renames
     load 'formula/renames.rb'
