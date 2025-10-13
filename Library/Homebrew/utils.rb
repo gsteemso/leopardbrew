@@ -359,6 +359,8 @@ module GitHub
     end # pretty_ratelimit_reset
   end # RateLimitExceeded < Error
 
+  def ssh_agent_running?; `ps -x | fgrep ssh-agent`.choke; end
+
   def open(url, &_block)
     # This is a no-op if the user is opting out of using the GitHub API.
     # Also disabled for older Ruby versions, which will either
