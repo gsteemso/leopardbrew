@@ -99,8 +99,9 @@ class VCSDownloadStrategy < AbstractDownloadStrategy
 
   def fetch
     ohai "Cloning #{@url}"
-    if cached_location.exist? and repo_valid? then puts "Updating #{cached_location}"; update
-    elsif cached_location.exist? then puts 'Removing invalid repository from cache'; clear_cache; clone_repo
+    if cached_location.exists?
+      if repo_valid? then puts "Updating #{cached_location}"; update
+      else puts 'Removing invalid repository from cache'; clear_cache; clone_repo; end
     else clone_repo; end
     if @ref_type == :tag and @revision and current_revision and current_revision != @revision
       raise <<-EOS.undent
@@ -472,13 +473,9 @@ class GitDownloadStrategy < VCSDownloadStrategy
 
   def git_dir; cached_location.join('.git'); end
 
-  def has_ref?
-    quiet_system 'git', '--git-dir', git_dir, 'rev-parse', '-q', '--verify', "#{@ref}^{commit}"
-  end
+  def has_ref?; quiet_system 'git', '--git-dir', git_dir, 'rev-parse', '-q', '--verify', "#{@ref}^{commit}"; end
 
-  def current_revision
-    Utils.popen_read('git', '--git-dir', git_dir, 'rev-parse', '-q', '--verify', 'HEAD').strip
-  end
+  def current_revision; Utils.popen_read('git', '--git-dir', git_dir, 'rev-parse', '-q', '--verify', 'HEAD').strip; end
 
   def repo_valid?; quiet_system 'git', '--git-dir', git_dir, 'status', '-s'; end
 
