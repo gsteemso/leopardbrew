@@ -6,16 +6,15 @@ class Option
   attr_reader :name, :description, :flag
   attr_accessor :value
 
-  def initialize(name, description = '')
-    @name = name
-    @flag = "--#{name}"
-    @description = description
-    @value = ''
+  def initialize(nm, desc = '')
+    @description = desc
+    @name, @value = (Array === nm ? nm : [nm, ''])
+    @flag = "--#{@name}"
   end
 
   def to_s; value && value != '' ? "#{flag}=#{value}" : flag; end
 
-  def <=>(o); return unless Option === o; (name == o.name) ? value <=> o.value : name <=> o.name; end
+  def <=>(o); return unless Option === o; (name <=> o.name).nope || value <=> o.value; end
 
   def ==(o); instance_of?(o.class) and name == o.name and value = o.value; end
   alias_method :eql?, :==
@@ -44,14 +43,7 @@ end # DeprecatedOption
 class Options
   include Enumerable
 
-  def self.create(array)
-    creation = new array.map{ |e| Option === e ? e : Option.new(e[OPTION_RX, 1] || e) }
-    creation.each do |o|
-      candidate = array.to_a.reverse.find{ |e| not Option === e and e.to_s.starts_with? o.flag }
-      if candidate =~ OPTION_RX and $2 then o.value = $2; end
-    end
-    creation
-  end # Options⸬create
+  def self.create(opts); new Array(opts).map{ |o| Option === o ? o : Option.new(o =~ OPTION_RX ? ($2 ? [$1, $2] : $1) : o) }; end
 
   def initialize(*args); @options = Set.new(*args); end
 
