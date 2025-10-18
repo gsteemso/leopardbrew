@@ -133,12 +133,11 @@ def quiet_system(cmd, *args); do_system([:silent], cmd, *args); end
 alias :silent_system :quiet_system
 
 # Encompasses both of the above.
-def do_system(flags, cmd, *args)
-  (flags.include?(:silent) ? Homebrew._system(cmd, *args){
-      # Redirect output streams to `/dev/null` instead of closing them – some programs will fail if
-      # the stream isn’t open for writing.
-      $stdout.reopen('/dev/null'); $stderr.reopen('/dev/null')
-    } : Homebrew.system(cmd, *args) \
+def do_system(flags, cmd, *args, &block)
+  # Redirect output streams to `/dev/null` instead of closing them – some programs fail if the stream isn’t open for writing.
+  (flags.include?(:silent) \
+     ? Homebrew._system(cmd, *args){ $stdout.reopen('/dev/null'); $stderr.reopen('/dev/null'); yield if block_given? } \
+     : Homebrew.system(cmd, *args, &block)
   ) or flags.include?(:safe) && raise(ErrorDuringExecution.new(cmd, args))
 end # do_system
 
@@ -147,10 +146,10 @@ end # do_system
 # repeats cmd for each of its runnable fat‐binary architectures
 def arch_system(cmd, *args); for_archs(cmd) { |_, cmd_array| system *cmd_array, *args }; end
 
-# Repeats {block} for each of {cmd}’s fat‐binary architectures, passing it the architecture symbol
-# and an array containing the arch-qualified command string’s constituent parts.  Be aware that if
-# the `arch` command can’t or shouldn’t be executed, the architecture symbol will be nil.
-#   for_archs cmd do |arch, cmd_array|
+# Repeats {block} for each of {cmd}’s fat‐binary architectures, passing it the architecture symbol and an array containing the arch-
+# qualified command string’s component parts.  Realize that if the arch(1) command can’t or shouldn’t be executed, the architecture
+# symbol will be nil.
+#   for_archs(cmd) do |arch, cmd_array|
 #     system *cmd_array, args ...
 #   end
 def for_archs (cmd, &block)
