@@ -15,8 +15,10 @@ class SoftwareSpec
   extend Forwardable
 
   PREDEFINED_OPTIONS = {
-    :universal => [Option.new('universal', 'Build a universal binary for all the target architectures this computer can run'),
-                   Option.new('cross', 'Build a universal binary for every possible target architecture')],
+    :universal => Target.prefer_64b? \
+                    ? [Option.new('universal', 'Build a universal binary for all the target architectures this computer can run'),
+                       Option.new('cross', 'Build a universal binary for every possible target architecture')] \
+                    : [],
     :cxx11     => [Option.new('c++11', 'Build using C++11 mode')],
     '32-bit'   => [Option.new('32-bit', 'Build 32-bit only')]
   }
@@ -110,7 +112,7 @@ class SoftwareSpec
         raise ArgumentError, 'option name must not start with dashes' if name.starts_with?('-')
         [Option.new(name, description)]
       end
-    @options += opts
+    @options += opts unless opts.empty?
   end # SoftwareSpec#option
 
   def deprecated_option(hash)
