@@ -123,7 +123,7 @@ class Build
       raise RuntimeError, 'Empty installation; aborting' if formula.prefix.children.empty?
 
       stdlibs = detect_stdlibs(ENV.compiler)
-      Tab.create(formula, ENV.compiler, stdlibs.first, formula.build, get_archs, ENV.build_mode).write
+      Tab.create(formula, ENV.compiler, stdlibs.first, formula.build, get_archs).write
 
       # Find and link metafiles
       formula.prefix.install_metafiles Pathname.pwd

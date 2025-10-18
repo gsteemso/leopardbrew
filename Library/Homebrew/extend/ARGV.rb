@@ -11,10 +11,6 @@ module HomebrewArgvExtension
                   sandbox?
                   verbose?  ].freeze
 
-  ENV_FLAG_HASH = { 'build_universal?' => 'u',
-                    'build_cross?'     => 'x',
-                  }.freeze
-
   SWITCHES = { '1' => '--1', # (“do not recurse” – only used by the `deps` command)
              # 'd' => '--debug', (already handled as an environment flag)
                'f' => '--force',
@@ -55,21 +51,16 @@ module HomebrewArgvExtension
   # Constructs a list of all the flags which would have needed to be passed to convey every datum which either really was passed as
   # a flag, or was actually passed as a switch or through an environment variable.  There is a special case here, in that cross and
   # universal builds are both conveyed by a “--universal” flag; those parts of the brewing infrastructure which need to distinguish
-  # them do so via the $HOMEBREW_BUILD_MODE environment variable.
+  # them do so via the presence or absence of “--cross”.
   def effective_flags
     @effl ||= begin
-                flags = flags_only - ['--cross']
-                ENV_FLAGS.each do |a|
-                  flag = "--#{a.gsub('_', '-').chop}"
-                  flags << flag if (not(include? flag) and send a.to_sym)
+                flags = flags_only - ['--cross', '--universal']
+                ENV_FLAGS.each do |s|
+                  flag = "--#{s.gsub('_', '-').chop}"
+                  flags << flag if (not include?(flag) and send s.to_sym)
                 end
-                ENV_FLAG_HASH.each do |method, switch|
-                  if send method.to_sym
-                    flags << '--universal' unless flags.include?('--universal')
-                    ENV['HOMEBREW_BUILD_MODE'] = switch
-                  end
-                end unless ENV['HOMEBREW_BUILD_MODE'].choke
-                ENV['HOMEBREW_BUILD_MODE'] = '1' unless ENV['HOMEBREW_BUILD_MODE'].choke
+                flags << '--universal' if build_fat?
+                flags << '--cross' if build_cross?
                 SWITCHES.each{ |s, flag| flags << flag if (switch?(s) and not include? flag) }
                 flags
               end
@@ -80,14 +71,9 @@ module HomebrewArgvExtension
   # by switch or by environment variable, and in either case are indicated by a “--universal” flag from the Formula’s point of view.
   def effective_formula_flags
     @efffl ||= begin
-                 flags = flags_only.reject{ |flag| BREW_SYSTEM_EQS.any?{ |eq| flag =~ /^#{eq}/ }} - ['--cross']
-                 ENV_FLAG_HASH.each do |method, switch|
-                   if send method.to_sym
-                     flags << '--universal' unless flags.include?('--universal')
-                     ENV['HOMEBREW_BUILD_MODE'] = switch
-                   end
-                 end unless ENV['HOMEBREW_BUILD_MODE'].choke
-                 ENV['HOMEBREW_BUILD_MODE'] = '1' unless ENV['HOMEBREW_BUILD_MODE'].choke
+                 flags = flags_only.reject{ |flag| BREW_SYSTEM_EQS.any?{ |eq| flag =~ /^#{eq}/ }} - ['--cross', '--universal']
+                 flags << '--universal' if build_fat?
+                 flags << '--cross' if build_cross?
                  flags - BREW_SYSTEM_FLAGS - SWITCHES.values - ENV_FLAGS.map{ |ef| "--#{ef.gsub('_', '-').chop}" }
                end
   end # effective_formula_flags
@@ -198,6 +184,8 @@ module HomebrewArgvExtension
   def build_universal?; ENV['HOMEBREW_UNIVERSAL_MODE'].to_s.downcase == 'local' or flag? '--universal'; end
 
   def build_fat?; build_universal? or build_cross?; end
+
+  def build_mode; build_cross? ? :cross : build_universal? ? :local : :plain; end
 
   # Request a 32-bit only build.  Needed for some use-cases.  Building Universal is preferable.
   def build_32_bit?; include? '--32-bit'; end

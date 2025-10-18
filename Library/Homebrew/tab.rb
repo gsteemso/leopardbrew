@@ -10,10 +10,10 @@ class Tab < OpenStruct
   FILENAME = 'INSTALL_RECEIPT.json'
 
   class << self
-    def create(formula, compiler, stdlib, build_opts, archs, mode)
+    def create(formula, compiler, stdlib, build_opts, archs)
       attributes = {
         'active_aids'        => formula.active_enhancements,
-        'build_mode'         => mode,
+        'build_mode'         => ARGV.build_mode.to_s,
         'built_archs'        => archs,
         'built_as_bottle'    => build_opts.bottle?,
         'compiler'           => compiler,
@@ -36,7 +36,7 @@ class Tab < OpenStruct
     def empty
       attributes = {
         'active_aids'        => [],
-        'build_mode'         => ENV.build_mode,
+        'build_mode'         => ARGV.build_mode.to_s,
         'built_archs'        => [],
         'built_as_bottle'    => false,
         'compiler'           => nil,
@@ -142,10 +142,10 @@ class Tab < OpenStruct
   def build_bottle?; built_as_bottle and not poured_from_bottle; end
 
   # Older tabs won’t have this field, so supply an empty list.
-  def active_aids; aa = super; aa.nil? ? [] : aa; end
+  def active_aids; super || []; end
 
   # Older tabs won’t have this field, so compute the most probable value.
-  def build_mode; super || Keg.for(path).reconstruct_build_mode; end
+  def build_mode; super || (tabfile && tabfile.exists? ? Keg.for(tabfile).reconstruct_build_mode.to_s : ''); end
 
   def built_archs
     # Older tabs won’t have this field, so compute a plausible default.
@@ -158,7 +158,7 @@ class Tab < OpenStruct
   def compiler; super or MacOS.default_compiler; end
 
   def cxxstdlib
-    # Older tabs won't have these values, so provide sensible defaults
+    # Older tabs won’t have these values, so provide sensible defaults.
     lib = stdlib.to_sym if stdlib
     CxxStdlib.create(lib, compiler.to_sym)
   end
@@ -194,7 +194,12 @@ class Tab < OpenStruct
            when false then 'Built from source'
            else 'Installed'
          end
-    s << "(for #{built_archs.map(&:to_s).list})"
+    bm = case build_mode
+           when 'local' then ' [local build mode]'
+           when 'cross' then ' [cross-build mode]'
+           else ''
+         end
+    s << "(for #{built_archs.map(&:to_s).list}#{bm})"
     s << 'with: ' << used_options.to_a.sort.list unless used_options.empty?
     s << "\nEnhanced by:  #{active_aids.compact.map(&:full_name).list}" if active_aids.choke
     s * ' '

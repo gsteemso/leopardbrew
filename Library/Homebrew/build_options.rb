@@ -65,16 +65,16 @@ class BuildOptions
   # args << '--some-beta' if build.devel?
   def stable?; s_args.build_stable?; end
 
-  # True if a {Formula} is being built universally.
-  # e.g. on Power Macs this means a combined ppc/ppc64 binary or library.
-  # args << '--universal-binary' if build.universal?
+  # True if a {Formula} is being built as a universal binary, whether locally‐oriented or cross‐compiled.
+  # ENV.universal_binary if build.universal?
   def universal?; s_args.build_universal? and option_defined?('universal'); end
 
   # True if a {Formula} is being built for multiple platforms.
-  def cross?; universal? and ENV['HOMEBREW_BUILD_MODE'] == 'x'; end
+  def cross?; universal? and ARGV.build_mode == :cross; end
 
-  # True if a {Formula} is being built for multiple architectures (whether cross or just universal).
-  def local_fat?; universal? and ENV['HOMEBREW_BUILD_MODE'] == 'u'; end
+  # True if a {Formula} is being built for multiple local architectures.
+  # e.g. on Power Macs this means a combined ppc/ppc64 binary or library.
+  def local_fat?; universal? and ARGV.build_mode == :local; end
 
   # True if a {Formula} is being built in C++11 mode.
   def cxx11?; include?('c++11') and option_defined?('c++11'); end

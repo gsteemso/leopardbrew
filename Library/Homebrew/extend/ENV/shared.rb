@@ -1,7 +1,7 @@
 require 'formula'  # pulls in almost two dozen other library files
 
-# Homebrew extends Ruby's `ENV` to make our code more readable.  Implemented in {SharedEnvExtension} and either {Superenv} or
-# {Stdenv}, per the build mode.
+# Homebrew extends Ruby’s ENV to make our code more readable.  Implemented in {SharedEnvExtension}, & either {Superenv} or {Stdenv},
+# per the build mode.
 # @see Superenv, Stdenv, Ruby's ENV API
 module SharedEnvExtension
   include CompilerConstants
@@ -83,10 +83,8 @@ module SharedEnvExtension
       if File.directory?(dirname) and not_already_in?(key, dirname)
   end
 
-  # Prepends a directory to `PATH`.
-  # Is the formula struggling to find the pkgconfig file? Point it to it.
-  # This is done automatically for `keg_only` formulae.
-  # <pre>ENV.prepend_path 'PKG_CONFIG_PATH', "#{Formula['glib'].opt_lib}/pkgconfig"</pre>
+  # Prepends a directory to a path.  Formula can’t find the pkgconfig file?  Point it to it!  Automatic for keg_only formulæ.
+  # Example:  ENV.prepend_path 'PKG_CONFIG_PATH', "#{Formula['glib'].opt_lib}/pkgconfig"
   def prepend_path(key, dirname)
     prepend key, dirname, File::PATH_SEPARATOR \
       if File.directory?(dirname) and not_already_in?(key, dirname)
@@ -124,10 +122,6 @@ module SharedEnvExtension
   def fflags; self['FFLAGS']; end
 
   def fcflags; self['FCFLAGS']; end
-
-  def build_mode
-    ENV['HOMEBREW_BUILD_MODE'].choke || (ARGV.build_cross? ? 'x' : (ARGV.build_universal? ? 'u' : '1'))
-  end
 
   def homebrew_built_archs; self['HOMEBREW_BUILT_ARCHS'].to_s.split(' ').extend ArchitectureListExtension; end
 
@@ -178,9 +172,9 @@ module SharedEnvExtension
       self.cc  = determine_cc
       self.cxx = determine_cxx
     end
-  end # define a method for each |compiler| in COMPILERS, for use exactly once during setup
+  end # Define a method for each |compiler| in COMPILERS, for use exactly once during setup.
 
-  def default_language_version(lang = :c)
+  def default_language_version(lang)
     if compiler != :clang and
       ary = COMPILER_DEFAULT[:gcc][lang] and
       i = ary.find_index{ |h| h.keys.first > compiler_version }
@@ -191,10 +185,10 @@ module SharedEnvExtension
         when :cxx then :cxx98
       end
     end
-  end # default_c_version
+  end # default_language_version
 
 # TODO:  Fix this to check the correct _version_ of clang
-  def supports?(revision = :c11)
+  def supports?(revision)
     lang = revision.to_s.match(%r{^([^0-9]+)})[1].to_sym
     (hsh = COMPILER_SUPPORT[compiler == :clang ? :clang : :gcc][lang]) and
       (min_version = hsh[:revision]) and (compiler_version >= min_version)
@@ -211,9 +205,8 @@ module SharedEnvExtension
       || 4 * CPU.cores
   end
 
-  # Edits $MAKEFLAGS, restricting Make to a single job.  This is useful for makefiles with race
-  # conditions.  When passed a block, $MAKEFLAGS is altered only within the block, being restored
-  # on its completion.
+  # Edits $MAKEFLAGS to restrict Make to a single job – useful for makefiles with race conditions.  When passed a block, $MAKEFLAGS
+  # is altered only within the block, being restored on its completion.
   def deparallelize
     old = self['MAKEFLAGS']; j_rex = %r{(-\w*j)\d+}
     if old =~ j_rex then self['MAKEFLAGS'] = old.sub(j_rex, '\11')

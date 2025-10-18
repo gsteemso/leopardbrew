@@ -67,8 +67,7 @@ class Keg
   PRUNEABLE_DIRECTORIES = %w[Frameworks bin etc include lib sbin share].map { |d| HOMEBREW_PREFIX/d }
   PRUNEABLE_DIRECTORIES << LINKDIR
 
-  # These paths relative to the keg's share directory (including man/*) should
-  # always be real directories in the prefix, never symlinks.
+  # These subpaths in the keg’s share directory (including man/*) should always be real directories in the prefix, never symlinks.
   SHARE_PATHS = %w[
     aclocal doc info locale
     applications gnome gnome/help
@@ -77,10 +76,9 @@ class Keg
   MAN_RX = %r{^man(/(cat|man)\d?[^/]{0,5})?$}
   MANPAGE_RX = %r{^man(/(cat|man)\d?[^/]{0,5})?}
 
-  # During reïnstallations, the old keg must remain in service or reïnstalling anything used during
-  # brewing becomes impossible.  We achieve this by temporarily renaming it (which is much easier &
-  # less fragile than installing the replacement to a temporary location, then permanently renaming
-  # that instead).
+  # During reïnstallations, the old keg must remain in service.  Otherwise, reïnstalling anything used during brewing – such as the
+  # compiler! – becomes impossible.  We do this by temporarily renaming it, which is much easier & less fragile than installing the
+  # replacement to a temporary location, then permanently renaming that instead.
   REINSTALL_SUFFIX = '.being_reinstalled'
 
   # If path leads to a file in a keg, this will return the containing Keg object.
@@ -263,16 +261,10 @@ class Keg
 
   def link(mode = OpenStruct.new)
     raise AlreadyLinkedError.new(self) if linked_keg_record.directory?
-
     ObserverPathnameExtension.reset_counts!
-
-    # you have to force anything you need in the main tree into these dirs
-    # REMEMBER that *NOT* everything needs to be in the main tree
-
     link_dir('Frameworks', mode) do |relative_path|
-        # Frameworks contain symlinks pointing into a subdir, so we have to use :link.  However, for
-        # Foo.framework and Foo.framework/Versions we have to use :mkpath so that multiple formula
-        # versions can link into it and still have `brew [un]link` work.
+        # Frameworks have symlinks pointing into a subdir, so we must use :link; but for Foo.framework & Foo.framework/Versions, we
+        # must use :mkpath so that multiple formula versions can link into it and still have `brew [un]link` work.
         (relative_path.to_s =~ %r{[^/]*\.framework(/Versions)?$}) \
                                             ? :mkdir \
                                             : :link
@@ -307,7 +299,6 @@ class Keg
                                          else :link
         end
       end # link_dir share
-
     make_relative_symlink(linked_keg_record, path, mode) unless mode.dry_run
   rescue LinkError
     unlink
@@ -343,16 +334,17 @@ class Keg
     end
     max_count = built_sets.values.max
     built_set = built_sets.select{ |_, ct| ct == max_count }.keys.flatten.uniq
-    built_set.length > 1 ? (built_set.all?{ |a| CPU.can_run? a } ? 'u' : 'x') : '1'
+    built_set.length > 1 ? (built_set.all?{ |a| CPU.can_run? a } ? :local : :cross) : :plain
   end # reconstruct_build_mode
 
   private
 
   def resolve_any_conflicts(lnk, linkage_type, mode)
+    return true if lnk.directory? and not lnk.symlink?  # I.e., a conflict has _already been_ resolved and we need to skip over it.
     return false unless lnk.symlink?
     tgt = lnk.resolved_path
-    # Check lstat to ensure we have a directory, and not a symlink pointing at one (which would
-    # need to be treated as a file).  In other words, only resolve one symlink.
+    # Check lstat to be sure we have a directory, and not a symlink pointing at one (which would need to be treated as a file).  In
+    # other words, only resolve one symlink.
     begin
       stat = tgt.lstat
     rescue Errno::ENOENT  # lnk is a broken symlink, so remove it.
@@ -414,8 +406,7 @@ class Keg
       if tgt.symlink? or tgt.file?
         next if tgt.basename == '.DS_Store' or
                 tgt.realpath == lnk         or
-                # Don't link pyc files because Python overwrites these cached object
-                # files and next time brew wants to link, the pyc file is in the way.
+                # Don’t link pyc files because Python overwrites them and the next time brew wants to link, they’re in the way.
                (tgt.extname == '.pyc' and tgt.to_s =~ %r{site-packages})
         case yielded
           when :info
@@ -428,8 +419,7 @@ class Keg
           else raise LinkError.new(self, tgt, lnk, unknown_linkage_msg)
         end
       else # directory
-        # no need to put .app bundles in the path, the user can just use
-        # spotlight, or the open command and actual mac apps use an equivalent
+        # .app bundles needn’t be in the path.  A user can just use Spotlight or “open”, & real Mac apps use an equivalent.
         Find.prune if tgt.extname == '.app'
         case yielded
           when :info

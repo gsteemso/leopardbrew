@@ -295,7 +295,7 @@ class FormulaInstaller
     if not dep.build? and f.option_defined?(u)
       if f.option_defined?(x = Option.new('cross')) and (ARGV.build_cross? or formula.require_universal_deps?)
         inherited_opts << x
-      elsif (options.include?(u) or ARGV.build_universal? or formula.require_universal_deps?)
+      elsif (options.include?(u) or ARGV.build_fat? or formula.require_universal_deps?)
         inherited_opts << u
       end
     end
@@ -314,10 +314,8 @@ class FormulaInstaller
     @show_install_heading = true unless deps.empty?
   end # install_dependencies
 
-  # Installs the relocation tools (as provided by the cctools formula) as a hard
-  # dependency for every formula installed from a bottle when the user has no
-  # developer tools. Invoked unless the formula explicitly sets
-  # :any_skip_relocation in its bottle DSL.
+  # Installs the relocation tools (as provided by the cctools formula) as a hard dependency for any formula installed from a bottle
+  # when the user has no developer tools.  Invoked unless the formula explicitly sets :any_skip_relocation in its bottle DSL.
   def install_relocation_tools
     return if MacOS.version >= :ventura  # cctools stopped being supported somewhere around here.
     cctools = CctoolsRequirement.new
@@ -331,7 +329,7 @@ class FormulaInstaller
 
   def install_dependency(dep, inherited_options)
     df = dep.to_formula
-    tab = Tab.for_formula(df)  # not necessarily a current version
+    tab = Tab.for_formula(df)  # Not necessarily a current version.
     # Correctly unlink things even if a different version is linked:
     previously_linked = nil
     if df.linked_keg.directory?
@@ -449,7 +447,7 @@ class FormulaInstaller
 
     if ARGV.env
       args << "--env=#{ARGV.env}"
-    elsif formula.env.std? or formula.recursive_dependencies.any? { |d| d.name == "scons" }
+    elsif formula.env.std?
       args << "--env=std"
     end
 
@@ -474,8 +472,8 @@ class FormulaInstaller
     FileUtils.rm_rf(formula.logs)
     @start_time = Time.now
 
-    # Formulæ can modify ENV, so we must ensure that each installation has a pristine ENV when it
-    # starts.  Forking now is the easiest way to do this.
+    # Formulæ can modify ENV, so we must ensure that each installation starts with a pristine copy.  Forking now is the easiest way
+    # to do this.
     read, write = IO.pipe
     # I'm guessing this is not a good way to do this, but I'm no UNIX guru
     ENV['HOMEBREW_ERROR_PIPE'] = write.to_i.to_s
@@ -491,9 +489,8 @@ class FormulaInstaller
     ]).concat(build_argv)
     args.unshift('nice', BREW_NICE_LEVEL) if BREW_NICE_LEVEL
 
-    # Ruby 2.0+ sets close-on-exec on all file descriptors except for
-    # 0, 1, and 2 by default, so we have to specify that we want the pipe
-    # to remain open in the child process.
+    # Ruby 2.0+ sets close-on-exec by default on all file descriptors except 0, 1, & 2, so we must tell it we want the pipe to stay
+    # open in the child process.
     args << { write => write } if RUBY_VERSION >= "2.0"
 
     pid = fork do
@@ -618,7 +615,7 @@ class FormulaInstaller
   rescue Exception => e
     onoe "Failed to fix install names"
     puts "The formula built, but you may encounter issues using it or linking other"
-    puts "formula against it."
+    puts "formulæ against it."
     ohai e, e.backtrace if debug?
     Homebrew.failed = true
     @show_summary_heading = true
