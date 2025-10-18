@@ -4,16 +4,20 @@ class Gettext < Formula
   homepage 'https://www.gnu.org/software/gettext/'
   url 'http://ftpmirror.gnu.org/gettext/gettext-0.26.tar.lz'
   mirror 'https://ftp.gnu.org/gnu/gettext/gettext-0.26.tar.lz'
-  # Fetching the LZIPped version of this package, rather than the XZ-compressed
-  # one, allows {xz} to use NLS (internationalization) without forming a
-  # dependency loop.  It’s also much smaller.
+  # Fetching the LZIPped version of this package, rather than the XZ-compressed one, lets {xz} use NLS without forming a dependency
+  # loop.  It’s also much smaller.
   sha256 'a0151088dad8942374dc038e461b228352581defd7055e79297f156268b8d508'
 
-  # Neither gettext nor libintl are included with any version of Mac OS!  Why
-  # did the Homebrew and Tigerbrew teams think this needed to be keg‐only?
+  # Neither gettext nor libintl have ever been present on any version of Mac OS.  The Homebrew and Tigerbrew maintainers presumably
+  # only made this package keg‐only because Mac OS does include its counterpart, libiconv; but the quantity & magnitude of problems
+  # caused by {gettext}’s invisibility to other packages warrant reversing that decision for Leopardbrew.  The brew mechanisms that
+  # make keg‐only packages work are meant for library linkage, and can’t make up for the concealment of directly‐executable files –
+  # in other words, as using gettext requires that its bin/ be visible, by extension, it must be linked.
 
   option :universal
-  # former option to leave out the examples is no longer available in `configure`
+  # The unit tests can no longer be disentangled from Gnulib.  Trying to run them is now futile on older systems.
+  option 'with-tests', 'Run the build-time unit tests (fails on older systems)'
+  # The former option to leave out the examples is no longer available in `configure`.
 
   enhanced_by 'libiconv'
 
@@ -37,21 +41,20 @@ class Gettext < Formula
     args << '--enable-year2038' if Target.pure_64b?
     system './configure', *args
     system 'make'
-    # `make check` can no longer be disentangled from Gnulib.  Trying to run the tests is now
-    # futile on older systems.
+    system 'make', 'check' if build.with? 'tests'
     system 'make', 'install'
   end # install
 
   def caveats; <<-_.undent
-      GNU Gettext and GNU Libiconv are circularly dependent on one another.
-      {libiconv} explicitly depends on this formula – meaning that {gettext} will be
-      brewed for you, if it wasn’t already, when you brew {libiconv}.  The reverse
-      cannot be done at the same time because of the circular dependency.
+      GNU Gettext and GNU Libiconv are circularly interdependent.  {libiconv} depends
+      explicitly on {gettext} – which means that {gettext} will be brewed for you, if
+      it wasn’t already, when you brew {libiconv}.  The reverse can’t be done because
+      of the circular dependency.
 
-      In brief:  To make sure both packages work properly, once {libiconv} has been
-      brewed you should `brew reinstall gettext`.
+      TL,DR:  To ensure both packages work correctly, once {libiconv} has been brewed,
+      you should `brew reinstall gettext`.
 
-      (They should be brewed in this order because Mac OS includes an outdated iconv,
+      (They should be brewed in this order because Mac OS includes a bare‐bones iconv,
       but has never included gettext.)
     _
   end # caveats

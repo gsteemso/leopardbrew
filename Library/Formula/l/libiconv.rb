@@ -38,15 +38,15 @@ class Libiconv < Formula
   end
 
   def caveats; <<-_.undent
-      GNU Libiconv and GNU Gettext are circularly dependent on one another.  This
-      formula explicitly depends on {gettext} – meaning that {gettext} will be brewed
-      for you, if it wasn’t already, when you brew {libiconv}.  The reverse
-      cannot be done at the same time because of the circular dependency.
+      GNU Libiconv and GNU Gettext are circularly interdependent.  {libiconv} depends
+      explicitly on {gettext} – which means that {gettext} will be brewed for you, if
+      it wasn’t already, when you brew {libiconv}.  The reverse can’t be done because
+      of the circular dependency.
 
-      In brief:  To make sure both packages work properly, once {libiconv} has been
-      brewed you should `brew reinstall gettext`.
+      TL,DR:  To ensure both packages work correctly, once {libiconv} has been brewed,
+      you should `brew reinstall gettext`.
 
-      (They should be brewed in this order because Mac OS includes an outdated iconv,
+      (They should be brewed in this order because Mac OS includes a bare‐bones iconv,
       but has never included gettext.)
     _
   end
