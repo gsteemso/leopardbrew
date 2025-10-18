@@ -98,8 +98,8 @@ fi
       odie <<EOS
 Refusing to “sudo brew $HOMEBREW_COMMAND”.
 You can use brew with sudo, but only if the brew executable is owned by root.
-However, this is both not recommended and completely unsupported so do so at
-your own risk.
+However, this is neither supported in any way nor recommended; do so at your
+own risk.
 EOS
       ;;
   esac

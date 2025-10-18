@@ -37,4 +37,4 @@ end
 path = "/Applications/Xcode.app/Contents/Developer/usr/bin/#{F}"
 exec path, *ARGV if File.executable? path
 
-abort "You must: brew install #{F}"
+abort "You must:  brew install #{F}"
