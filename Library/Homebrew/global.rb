@@ -148,17 +148,18 @@ require 'compat' unless ENV['HOMEBREW_NO_COMPAT'] or ARGV.include?('--no-compat'
 # $HOMEBREW_CCCFG              # A set of flags governing things like argument refurbishment
 # $HOMEBREW_DISABLE__W         # Enable warnings by not inserting “-w”
 # $HOMEBREW_FORCE_FLAGS        # Always inserted during argument refurbishment
+ENV['HOMEBREW_GIT'] = "#{OPTDIR}/git/bin/git" if (OPTDIR/'git/bin/git').executable?  # see `ENV/scm/git`
 # $HOMEBREW_INCLUDE_PATHS      # These are how -I flags reach ENV/super/cc
 # $HOMEBREW_ISYSTEM_PATHS      # These are how -isystem flags reach ENV/super/cc
 # $HOMEBREW_LIBRARY_PATHS      # These are how -L flags reach ENV/super/cc
 # $HOMEBREW_OPTFLAGS           # Set to the compiler optimization flags suiting HOMEBREW_BUILD_ARCHS
 # $HOMEBREW_OPTIMIZATION_LEVEL # This is how an -O flag reaches ENV/super/cc
 # $HOMEBREW_SDKROOT            # Set to MacOS.sdk_path iff we have Xcode without command‐line tools
+ENV['HOMEBREW_SVN'] = "#{OPTDIR}/subversion/bin/svn" if (OPTDIR/'subversion/bin/svn').executable?  # see `ENV/scm/git`
 
 # Other environment variables used in brewing:
 # $CC/$CXX/$FC/$OBJC/$OBJCXX # These combine $HOMEBREW_CC et al with ENV.build_archs.as_archflags
 # $HOMEBREW_BUILD_ARCHS      # Tracks the architectures being built for
-# $HOMEBREW_BUILD_MODE       # Tracks the type of build:  “1”/“u”/“x” → single-arch / local‐machine universal / cross‐compiled
 # $HOMEBREW_CC               # Tracks the selected compiler (see `extend/ENV/*.rb`)
 # $HOMEBREW_CC_LOG_PATH      # This is set by `formula.rb` whenever it executes a Superenv build tool
 # $HOMEBREW_MACH_O_FILE      # Briefly exists during `otool -L` parsing; see `mach.rb`
