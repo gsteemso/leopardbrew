@@ -1,4 +1,4 @@
-# stable release 2024-12-23; checked 2025-08-02
+# stable release 2024-12-23; checked 2025-10-15
 class Texinfo < Formula
   desc 'Official documentation format of the GNU project'
   homepage 'https://www.gnu.org/software/texinfo/'
@@ -16,7 +16,7 @@ class Texinfo < Formula
   patch :DATA  # This patch is not correct, but does lead to a successful build.
 
   def install
-    ENV['HOMEBREW_FORCE_FLAGS'] = '-std=gnu99' if ENV.default_c_version == :c89
+    ENV['HOMEBREW_FORCE_FLAGS'] = '-std=gnu99' if ENV.default_language_version(:c) == :c89
     ENV.deparallelize
     args = [
         "--prefix=#{prefix}",
