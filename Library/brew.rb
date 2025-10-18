@@ -7,8 +7,7 @@ std_trap = trap('INT') { exit! 130 } # no backtrace thanks
 $:.unshift(ENV['HOMEBREW_RUBY_LIBRARY'])
 
 # Homebrew libraries:
-require 'global'  # Imports or defines all our infrastructure, such as reading specific environment
-                  # variables into global constants.
+require 'global'  # Imports or defines all our infrastructure, such as reading specific environment variables into global constants.
 
 if ['-V', '--version'].include? ARGV.first
   puts Homebrew.homebrew_version_string
@@ -28,6 +27,24 @@ begin
   else
     trap('INT', std_trap) # restore default CTRL-C handler
   end
+
+  if MacOS.version <= :leopard
+    numprocs = `sysctl -n kern.maxproc`.to_i * 2 / 3
+    if numprocs > `sysctl -n kern.maxprocperuid`.to_i
+      opoo <<-_.undent
+        Your ancient version of Mac OS has a very low limit on the number of concurrent
+        processes you are allowed to run.  ’Brewing without raising this limit will not
+        always work properly, and the resulting failures will seem nonsensical.  Please
+        enter your sudo password at the prompt so Leopardbrew can raise the limit.  (It
+        will stay raised, systemwide, until you reboot).
+
+        To be more specific, sysctl(8) will raise “kern.maxprocperuid” to a saner value
+        – two‐thirds of the system maximum, “kern.maxproc”.  Your system is so outdated,
+        that maximum is itself a bit low, but there’s nothing we can do about that.
+      _
+      system 'sudo', 'sysctl', '-w', "kern.maxprocperuid=#{numprocs}"
+    end # kern.maxprocperuid check
+  end # Leopard or older?
 
   empty_argv = ARGV.empty?
   help_regex = %r{-h$|--help$|--usage$|-\?$|^help$}
