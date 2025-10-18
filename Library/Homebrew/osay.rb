@@ -2,17 +2,21 @@
 
 class TTY
   class << self
-    def blue;   bold 34; end
-    def gray;   bold 30; end  # bold black gets you an implementation-dependent shade of grey
+    def bold;    bold nil; end
+    def default; bold  39; end
+    def cyan;    bold  36; end
+    def blue;    bold  34; end
+    def gray;    bold  30; end  # bold black usually gets you an implementation-dependent shade of grey
     alias_method :grey, :gray
-    def green;  bold 32; end
-    def red;    bold 31; end
-    def white;  bold 39; end
-    def yellow; bold 33; end
+    def green;   bold  32; end
+    def magenta; bold  35; end
+    def red;     bold  31; end
+    def white;   bold  37; end
+    def yellow;  bold  33; end
 
-    def em;        underline 39; end  # 39 is the default colour
-    def ul_red;    underline 31; end
-    def ul_yellow; underline 33; end
+    def em;        underline nil; end
+    def ul_red;    underline  31; end
+    def ul_yellow; underline  33; end
 
     def reset; escape 0; end
 
@@ -21,41 +25,29 @@ class TTY
 
     private
 
-    def bold(n); escape "1;#{n}"; end
-    def underline(n); escape "4;#{n}"; end
+    def bold(n); escape(n ? "1;#{n}" : '1'); end
+    def underline(n); escape(n ? "4;#{n}" : '4'); end
 
     def escape(n); "\033[#{n}m" if $stdout.tty?; end
-  end
-end
+  end # << self
+end # TTY
 
 def oh1(title)
   title = TTY.truncate(title) if $stdout.tty? && !VERBOSE
-  puts "#{TTY.green}==>#{TTY.white} #{title}#{TTY.reset}"
+  puts "#{TTY.green}==>#{TTY.default} #{title}#{TTY.reset}"
 end
 
 def ohai(title, *sput)
   title = TTY.truncate(title) if $stdout.tty? && !VERBOSE
-  puts "#{TTY.blue}==>#{TTY.white} #{title}#{TTY.reset}"
+  puts "#{TTY.cyan}==>#{TTY.default} #{title}#{TTY.reset}"
   puts sput
 end
 
 # Print a warning (do this rarely)
-def opoo(warning, *sput)
-  $stderr.puts "#{TTY.ul_yellow}Warning#{TTY.reset}: #{warning}"
-  $stderr.puts sput
-end
+def opoo(warning, *sput); $stderr.puts "#{TTY.ul_yellow}Warning#{TTY.reset}: #{warning}\n", sput; end
 
-def onoe(error, *sput)
-  $stderr.puts "#{TTY.ul_red}Error#{TTY.reset}: #{error}"
-  $stderr.puts sput
-end
+def onoe(error, *sput); $stderr.puts "#{TTY.ul_red}Error#{TTY.reset}: #{error}\n", sput; end
 
-def ofail(error, *sput)
-  onoe error, sput
-  Homebrew.failed = true
-end
+def ofail(error, *sput); onoe error, sput; Homebrew.failed = true; end
 
-def odie(error, *sput)
-  onoe error, sput
-  exit 1
-end
+def odie(error, *sput); onoe error, sput; exit 1; end
