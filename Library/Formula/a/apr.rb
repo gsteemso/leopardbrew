@@ -1,4 +1,4 @@
-# stable release 2025-05-16; checked 2025-08-17
+# stable release 2025-05-16; checked 2025-10-15
 class Apr < Formula
   desc 'Apache Portable Runtime library'
   homepage 'https://apr.apache.org/'
@@ -7,31 +7,44 @@ class Apr < Formula
 
   keg_only :provided_by_osx, 'Apple’s CLT package contains apr.'
 
+  option :tests
   option :universal
 
-  # On older Darwins, POSIX.1 shared memory and SysV semaphores are broken in various ways both
-  # subtle and overt.  Prevent the former from being selected as the basis of named shared memory
-  # implementation, and the latter from being selected as the preferred lock implementation.
+  depends_on 'ten4sendfile' => :recommended if MacOS.version <= :tiger
+
+  # On older Darwins, POSIX.1 shared memory and SysV semaphores are broken in various ways both subtle & overt.  Prevent the former
+  # from being selected as the basis of named shared memory implementation and the latter from being selected as the preferred lock
+  # implementation.
   patch :DATA if MacOS.version <= :snow_leopard
 
   def install
     ENV.universal_binary if build.universal?
     ENV.deparallelize
-    ENV.append 'CPPFLAGS', '-D_DARWIN_USE_64_BIT_INODE' if MacOS.version >= :leopard
-    ENV.append 'CPPFLAGS', '-DDARWIN_10' if build.universal? and MacOS.version >= :tiger and MacOS.version <= :lion
+    ENV.append 'CPPFLAGS', '-DDARWIN_10'
 
-    system './configure', "--prefix=#{prefix}"
+    args = %W[
+        --prefix=#{prefix}
+        --with-sendfile
+      ]
+
+    if MacOS.version >= :leopard
+      ENV.append 'CPPFLAGS', '-D_DARWIN_USE_64_BIT_INODE'
+    else
+      f = Formula['ten4sendfile']
+      ENV.append 'CPPFLAGS', "-isystem #{f.opt_include}"
+      ENV.append 'LDFLAGS', "-L#{f.opt_lib} -lsendfile"
+      ENV['ac_cv_header_sys_socket_h'] = 'yes'
+    end
+
+    system './configure', *args
     system 'make'
-    # “make check” fails, inexplicably.  It doesn’t (the same way) when using the broken system
-    # primitives we patched it to not use!  Graah.
+    system 'make', 'check' if build.with? 'tests'
     system 'make', 'install'
     (lib/'apr.exp').unlink  # Delete this stray .exp file.
-  end
+  end # install
 
-  test do
-    system "#{bin}/apr-1-config", '--link-libtool', '--libs'
-  end
-end
+  test { system "#{bin}/apr-1-config", '--link-libtool', '--libs' }
+end # Apr
 
 __END__
 --- old/configure
