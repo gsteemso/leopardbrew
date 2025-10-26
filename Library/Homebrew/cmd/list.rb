@@ -46,7 +46,7 @@ module Homebrew
     lib/gdk-pixbuf-2.0/*
     lib/gio/*
     lib/node_modules/*
-    lib/python[23].[0-9]/*
+    lib/python[23].{,1}[0-9]/*
     lib/pypy/*
     lib/pypy3/*
     share/pypy/*
