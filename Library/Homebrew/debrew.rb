@@ -43,8 +43,7 @@ module Debrew
         print menu.prompt unless menu.prompt.nil?
         input = $stdin.gets || exit
         input.chomp!
-        i = input.to_i
-        if i > 0
+        if (i = input.nope)
           choice = menu.entries[i-1]
         else
           possible = menu.entries.find_all { |e| e.name.start_with?(input) }
