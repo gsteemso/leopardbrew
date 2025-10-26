@@ -14,7 +14,7 @@ class String
 
   def indent(columns = 8); gsub(%r{^}, ' ' * columns); end
 
-  def rewrap(width = min(80, TTY.width))
+  def rewrap(width = [80, TTY.width].min)
     lines = []
     paras = split("\n\n")
     paras.each do |p|
