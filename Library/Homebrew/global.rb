@@ -114,7 +114,7 @@ HOMEBREW_INSTALL_BADGE = ENV['HOMEBREW_INSTALL_BADGE'] || "\xf0\x9f\x8d\xba"
                                               # Default is the beer emoji (see `formula/installer.rb`)
 HOMEBREW_LOGS   = Pathname.new(ENV.fetch 'HOMEBREW_LOGS', '~/Library/Logs/Homebrew/').expand_path
                   # Where build, postinstall, and test logs of formulæ are written to
-HOMEBREW_TEMP   = Pathname.new(ENV.fetch 'HOMEBREW_TEMP', '/tmp')
+HOMEBREW_TEMP   = Pathname.new(ENV.fetch 'HOMEBREW_TEMP', '/tmp').realpath
                   # Where temporary folders for building and testing formulæ are created
 NO_EMOJI        = ENV['HOMEBREW_NO_EMOJI']    # Don’t show badges at all (see `formula/installer.rb` and `cmd/info.rb`)
 ORIGINAL_PATHS  = ENV['PATH'].split(File::PATH_SEPARATOR).map{ |p| Pathname.new(p).expand_path rescue nil }.compact.freeze
