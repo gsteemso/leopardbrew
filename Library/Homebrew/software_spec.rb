@@ -15,10 +15,13 @@ class SoftwareSpec
   extend Forwardable
 
   PREDEFINED_OPTIONS = {
-    :universal => Target.prefer_64b? \
-                    ? [Option.new('universal', 'Build a universal binary for all the target architectures this computer can run'),
+    :universal => (Target.archset.length > 1 \
+                    ? [Option.new('universal', 'Build a universal binary for every target architecture this computer can run'),
                        Option.new('cross', 'Build a universal binary for every possible target architecture')] \
-                    : [],
+                    : []),
+    :tests     => [Option.new('with-tests', 'Run the build-time unit tests (can be slow)')],
+    :head      => [Option.new('HEAD', 'Build the version from the head of the development queue')],
+    :devel     => [Option.new('devel', 'Build the development version')],
     :cxx11     => [Option.new('c++11', 'Build using C++11 mode')],
     '32-bit'   => [Option.new('32-bit', 'Build 32-bit only')]
   }
@@ -63,7 +66,7 @@ class SoftwareSpec
   end # SoftwareSpec#owner=
 
   def url(val = nil, specs = {})
-    return @resource.url if val.nil?
+    return @resource.url unless val
     @resource.url(val, specs)
     dependency_collector.add(@resource)
   end
@@ -106,6 +109,8 @@ class SoftwareSpec
           opoo "Passing arbitrary symbols to `option` is deprecated:  #{name.inspect}"
           puts 'Symbols are reserved for future use, please pass a string instead'
           name = name.to_s
+        elsif not String === name
+          raise ArgumentError, 'option name in Formula (as passed to SoftwareSpec) is not a String'
         end
         raise ArgumentError, 'option name is required' if name.empty?
         raise ArgumentError, 'option name must be longer than one character' unless name.length > 1

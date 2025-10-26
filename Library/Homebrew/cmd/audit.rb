@@ -343,7 +343,7 @@ class FormulaAuditor
       next unless @strict
       problem "Options should begin with with/without. Migrate “--#{o.name}” with “deprecated_option”." \
         if o.name !~ %r{with(out)?-} \
-          and not ['32-bit', 'c++11', 'cross', 'universal'].any?{ |opt| o.name == opt }
+          and not ['32-bit', 'HEAD', 'c++11', 'cross', 'devel', 'universal'].any?{ |opt| o.name == opt }
     end
   end # FormulaAuditor#audit_options
 

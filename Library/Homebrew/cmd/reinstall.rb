@@ -6,9 +6,7 @@
 #:
 #:If multiple current versions are installed (the extreme case being all three of
 #:of stable, devel, and HEAD), clarify which one to reïnstall by using or leaving
-#:out the usual options and/or the special option “--stable”.  Should you specify
-#:a current version that ISN’T already installed, the others will be removed upon
-#:success.
+#:out the usual options and/or the special option “--stable”.
 #:
 #:Active options may be cancelled by specifying their opposite.  A formula brewed
 #:--with-A may be reïnstalled --without-A to cancel it; while one --without-B may
@@ -20,15 +18,10 @@ require 'formula/installer'
 module Homebrew
   def reinstall
     raise FormulaUnspecifiedError if ARGV.named.empty?
-    raise 'Specify “--HEAD” in uppercase to build from the latest source code.' \
-                                                                           if ARGV.include? '--head'
-    raise '--ignore-dependencies and --only-dependencies are mutually exclusive.' \
-                                                           if ARGV.ignore_deps? and ARGV.only_deps?
+    raise 'Specify “--HEAD” in uppercase to build from the latest source code.' if ARGV.include? '--head'
+    raise '--ignore-dependencies and --only-dependencies are mutually exclusive.' if ARGV.ignore_deps? and ARGV.only_deps?
     FormulaInstaller.prevent_build_flags unless MacOS.has_apple_developer_tools?
-    named_spec = (ARGV.build_head? ? :head :
-                   (ARGV.build_devel? ? :devel :
-                     (ARGV.include?('--stable') ? :stable :
-                       nil) ) )
+    named_spec = (ARGV.build_head? ? :head : (ARGV.build_devel? ? :devel : (ARGV.includes?('--stable') ? :stable : nil)))
     puts "Named spec = #{named_spec or '[none]'}" if DEBUG
 
     ARGV.resolved_formulae.each do |f|
@@ -47,34 +40,29 @@ module Homebrew
   def reinstall_formula(f, s)
     existing_prefixes = f.installed_current_prefixes.values
     puts 'installed current prefixes:', existing_prefixes * ' ' if DEBUG
+    f.set_active_spec s if s  # Otherwise, use the default.
+    tab = Tab.for_formula(f)  # This gets the tab for the correct installed keg.
+    options = tab.used_options
+    puts "Original spec = #{tab.spec.to_s.choke or '[none]'}" if DEBUG
+    case tab.spec
+      when :head then options += Option.new('HEAD'); s ||= :head
+      when :devel then options += Option.new('devel'); s ||= :devel
+      when :stable then s ||= :stable
+    end
     case s
       when nil, :stable
         if f.stable.nil?
-          if f.devel.nil?
-            raise "#{f.full_name} is a head‐only formula, please specify --HEAD"
-          elsif f.head.nil?
-            raise "#{f.full_name} is a development‐only formula, please specify --devel"
-          else
-            raise "#{f.full_name} has no stable download, please choose --devel or --HEAD"
-          end
+          if f.devel.nil? then raise "#{f.full_name} is a head‐only formula, please specify --HEAD"
+          elsif f.head.nil? then raise "#{f.full_name} is a development‐only formula, please specify --devel"
+          else raise "#{f.full_name} has no stable download, please choose --devel or --HEAD"; end
         end
       when :head then raise "No head is defined for #{f.full_name}" if f.head.nil?
-      when :devel then raise "No devel block is defined for #{f.full_name}" if f.devel.nil?
-    end
-    f.set_active_spec s if s  # otherwise use the default
-    tab = Tab.for_formula(f) # this gets the tab for the correct installed keg
-    options = tab.used_options
-    puts "Original spec = #{tab.spec.to_s or '[none]'}" if DEBUG
-    case tab.spec
-      when :head then options += Option.new('HEAD')
-      when :devel then options += Option.new('devel')
+      when :devel then raise "No development version is defined for #{f.full_name}" if f.devel.nil?
     end
     options = blenderize_options(options, f)
     new_spec = (options.include?('HEAD') ? :head : (options.include?('devel') ? :devel : :stable) )
     puts "New spec = #{new_spec}" if DEBUG
     f.set_active_spec new_spec # now install to this spec; we don’t care about the Tab any more
-    keep_other_current_kegs = existing_prefixes.include?(f.prefix)
-    puts "Remove other current kegs?  #{keep_other_current_kegs ? 'NO' : 'YES'}" if DEBUG
 
     notice  = "Reinstalling #{f.full_name}"
     notice += " with #{options * ', '}" unless options.empty?
@@ -107,7 +95,7 @@ module Homebrew
     # next
   rescue Exception
     # leave no trace of the failed installation
-    if f.prefix != previously_installed.path
+    if previously_installed and f.prefix != previously_installed.path
       if f.prefix.exists?
         oh1 "Cleaning up the failed installation #{f.prefix}" if DEBUG
         ignore_interrupts { f.prefix.rmtree }
@@ -142,8 +130,7 @@ module Homebrew
     end
     ARGV.effective_formula_flags.each do |flag|
       flag =~ OPTION_RX
-      o = Option.new($1)
-      o.value = $2
+      o = Option.new([$1, $2])
       unrecognized = false
       if formula.option_defined?(o)
         use_opts << o
@@ -177,8 +164,7 @@ module Homebrew
             anti_opts << Option.new('devel')
           when /^--un-([^=]+=?)(.+)?$/, /^--no-([^=]+=?)(.+)?$/
             anti_opts << Option.new($1) if formula.option_defined?($1) or use_opts.include? $1
-            ENV.delete 'HOMEBREW_BUILD_UNIVERSAL' if $1 == 'universal'
-            ENV.delete 'HOMEBREW_CROSS_COMPILE'   if $1 == 'cross'
+            ENV.delete 'HOMEBREW_UNIVERSAL_MODE' if $1 == 'universal' or $1 == 'cross'
           else
             unrecognized = true
         end # case

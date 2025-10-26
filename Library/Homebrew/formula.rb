@@ -1256,6 +1256,7 @@ class Formula
     #     end
     def devel(&block)
       @devel ||= SoftwareSpec.new
+      @devel.option :devel
       block_given? ? @devel.instance_eval(&block) : @devel
     end
 
@@ -1273,6 +1274,7 @@ class Formula
     #     head 'https://hg.is.awesome.but.git.has.won.example.com/', :using => :hg
     def head(val = nil, specs = {}, &block)
       @head ||= HeadSoftwareSpec.new
+      @head.option :head
       block_given? ? @head.instance_eval(&block) \
         : val ? @head.url(val, specs) \
         : @head
