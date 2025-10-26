@@ -405,9 +405,9 @@ class Keg
       unknown_linkage_msg = "Unknown linkage type “:#{yielded.to_s}” specified for #{relative_dir}/#{relpath}"
       if tgt.symlink? or tgt.file?
         next if tgt.basename == '.DS_Store' or
-                tgt.realpath == lnk         or
+                (tgt.exists? and tgt.realpath == lnk) or
                 # Don’t link pyc files because Python overwrites them and the next time brew wants to link, they’re in the way.
-               (tgt.extname == '.pyc' and tgt.to_s =~ %r{site-packages})
+                (tgt.extname == '.pyc' and tgt.to_s =~ %r{site-packages})
         case yielded
           when :info
             next if tgt.basename == 'dir'  # skip historical local 'dir' files
