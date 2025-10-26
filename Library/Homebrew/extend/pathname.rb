@@ -52,7 +52,7 @@ class Pathname
   def install_symlink(*targets)
     targets.each do |tgt|
       case tgt
-        when Array then tgt.each { |t| install_symlink_p(t, File.basename(t)) }
+        when Array then tgt.each { |t| install_symlink(t) }  # Allow passing, e.g., a mixed array of filenames and hashes.
         when Hash then tgt.each { |t, new_basename| install_symlink_p(t, new_basename) }
         else install_symlink_p(tgt, File.basename(tgt))
       end
@@ -61,7 +61,8 @@ class Pathname
   alias_method :install_symlink_to, :install_symlink
 
   def install_symlink_p(tgt, new_basename)
-    tgt = Pathname(tgt).expand_path(self)
+    tgt = Pathname.new(tgt) unless Pathname === tgt
+    tgt = tgt.expand_path(self)
     lnk = join(new_basename)
     mkpath
     ln_sf(tgt.relative_path_from(lnk.parent), lnk)
