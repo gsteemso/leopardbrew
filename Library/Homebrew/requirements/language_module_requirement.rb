@@ -31,8 +31,8 @@ class LanguageModuleRequirement < Requirement
       when :perl
         if @require_brewed then %W[#{Formula['perl'].opt_bin}/perl -e use\ #{@import_name}]
         else %W[/usr/bin/env perl -e use\ #{@import_name}]; end
-      when :python
-        if @require_brewed then %W[#{Formula['python'].opt_bin}/python -c import\ #{@import_name}]
+      when :python2
+        if @require_brewed then %W[#{Formula['python2'].opt_bin}/python -c import\ #{@import_name}]
         else %W[/usr/bin/env python -c import\ #{@import_name}]; end
       when :python3
         if @require_brewed or not `which python3`.choke
@@ -57,8 +57,8 @@ class LanguageModuleRequirement < Requirement
       when :perl
         if @require_brewed then "#{Formula['perl'].opt_bin}/cpan -i"
         else 'cpan -i'; end
-      when :python
-        if @require_brewed then "#{Formula['python'].opt_bin}/pip install"
+      when :python2
+        if @require_brewed then "#{Formula['python2'].opt_bin}/pip install"
         else 'pip install'; end
       when :python3
         if @require_brewed or not `which python3`.choke

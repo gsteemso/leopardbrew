@@ -1,18 +1,13 @@
 # stable release 2020-04-20; discontinued
-class Python < Formula
-  desc 'Interpreted, interactive, object-oriented programming language'
+class Python2 < Formula
+  desc 'Interpreted, interactive, object-oriented programming language (historical version)'
   homepage 'https://www.python.org'
   url 'https://www.python.org/ftp/python/2.7.18/Python-2.7.18.tar.xz'
   sha256 'b62c0e7937551d0cc02b8fd5cb0f544f9405bafc9a54d3808ed4594812edef43'
   # As Python 2 reached EOL in 2020, the :HEAD version is no longer available.
-  revision 1
+  revision 2
 
-  bottle do
-    sha256 '2e35834cc056418aef2471eddb7b75a83fd3336b8c832bb0bbf13f140bb68dcc' => :tiger_altivec
-  end
-
-  # Please don't add a wide/ucs4 option, as it won't be accepted.
-  # More details in:  https://github.com/Homebrew/homebrew/pull/32368
+  # Please don't add a wide/ucs4 option, as it won't be accepted.  See:  https://github.com/Homebrew/homebrew/pull/32368
 
   option :universal
   if Formula['python3'].installed?
@@ -42,6 +37,8 @@ class Python < Formula
 
   # On Snow Leopard or greater, don’t link to LibX11, because our Tk uses Aqua.
   patch <<END_OF_PATCH if MacOS.version >= :snow_leopard
+--- old/setup.py
++++ new/setup.py
 @@ -1973,21 +1973,6 @@ class PyBuildExt(build_ext):
              if dir not in include_dirs:
                  include_dirs.append(dir)
@@ -152,12 +149,10 @@ END_OF_PATCH
       --with-universal-archs=#{Target.type}#{build.universal? ? '' : "-#{Target.bits(Target.arch)}"}
       --enable-universalsdk=/
     ]
-    # Coreutils ginstall now treats a destination file which already exists as a bad directory name,
-    # instead of simply overwriting the file – even when passed “-f”.  This causes a failure during
-    # installation of `pythonw`.
+    # Infuriatingly, Coreutils ginstall now treats a destination file which already exists as a bad directory name, instead of just
+    # overwriting the file – even when passed “-f”.  This causes a failure during installation of `pythonw`.
     args << 'INSTALL=/usr/bin/install' if Formula['coreutils'].any_version_installed?
-    # Avoid linking to libgcc (see https://code.activestate.com/lists/python-dev/112195/)
-    # Enable LLVM optimizations.
+    # Avoid linking to libgcc (see https://code.activestate.com/lists/python-dev/112195/).  Enable LLVM optimizations.
     args << '--without-gcc' << '--enable-optimizations' if ENV.compiler == :clang
 
     cflags   = []
@@ -176,8 +171,9 @@ END_OF_PATCH
     cflags << '-mpim-altivec' if MacOS.version == :tiger and CPU.altivec? \
                                  and [:gcc, :gcc_4_0, :llvm].include? ENV.compiler
 
-    cppflags << "-I#{f_tcltk.opt_include}"
-    ldflags  << "-L#{f_tcltk.opt_lib}"
+    f = Formula['tcl-tk']
+    cppflags << "-I#{f.opt_include}"
+    ldflags  << "-L#{f.opt_lib}"
 
     args << "CPPFLAGS=#{cppflags.join(' ')}"
     args << "CFLAGS=#{cflags.join(' ')}" unless cflags.empty?
@@ -189,6 +185,10 @@ END_OF_PATCH
       # Tell Python not to install into /Applications
       system 'make', 'install', "PYTHONAPPSDIR=#{prefix}"
       system 'make', 'frameworkinstallextras', "PYTHONAPPSDIR=#{pkgshare}"
+    end
+    # Remove 2to3 because Python 3 also installs it, as well as unversioned symlinks
+    %w[2to3 idle pydoc python python-config pythonw smtpd.py].each do |link|
+      rm "#{cellar_framework}/bin/#{link}"
     end
 
     # Fixes setting Python build flags for certain software
@@ -208,71 +208,54 @@ END_OF_PATCH
     # A fix, because python and python3 both want to install Python.framework
     # and therefore we can't link both into HOMEBREW_PREFIX/Frameworks
     # https://github.com/Homebrew/homebrew/issues/15943
-    # After 2020, Python 3 is the norm; thus, remove these from Python rather than from Python3
-    ['Headers', 'Python', 'Resources', 'Versions/Current'].each { |f| rm frameworks/"Python.framework/#{f}" }
+    # After 2020, Python 3 is the norm; thus, remove these from Python2 rather than from Python3
+    ['Headers', 'Python', 'Resources', 'Versions/Current'].each{ |ln| rm frameworks/"Python.framework/#{ln}" }
 
-    # Symlink the pkgconfig files into HOMEBREW_PREFIX so they're accessible.
+    # Any .app get a “ 2” inserted, so it does not conflict with python 3.x.
+    Dir.glob(prefix/'*.app') { |app| mv app, app.sub('.app', ' 2.app') }
+
+    # Ensure the pkgconfig files get linked into HOMEBREW_PREFIX so they’re accessible.
     (lib/'pkgconfig').install_symlink Dir[cellar_framework/'lib/pkgconfig/*']
-
-    # Remove 2to3 because Python 3 also installs it
-    rm bin/'2to3'
-
-    # Remove the site-packages that Python created in its Cellar.
-    cellar_site_packages.rmtree
 
     cd 'Doc' do
       system 'make', 'html'
       doc.install Dir['build/html/*']
     end if build.with?('html-docs')
-  end # install
 
-  def post_install
-    # Avoid conflicts with lingering unversioned files from Python 3
-    rm_f %W[
-      #{HOMEBREW_PREFIX}/bin/easy_install
-      #{HOMEBREW_PREFIX}/bin/pip
-      #{HOMEBREW_PREFIX}/bin/wheel
-    ]
-
-    # Fix up the site-packages so that user-installed Python software survives
-    # minor updates, such as going from 2.7.0 to 2.7.1:
-
-    # Symlink the prefix site-packages into the cellar.
-    cellar_site_packages.unlink if cellar_site_packages.exists?
-    cellar_site_packages.parent.install_symlink_to site_packages
-
+    # Fix up the site-packages so that user-installed Python software survives minor updates, such as going from 2.7.0 to 2.7.1:
     site_packages.mkpath
+    cellar_site_packages.rmtree
+    cellar_site_packages.parent.install_symlink_to site_packages
 
     # Write our sitecustomize.py
     rm_rf Dir["#{site_packages}/sitecustomize.py[co]"]
     (site_packages/'sitecustomize.py').atomic_write(sitecustomize)
 
-    # Remove old setuptools installations that may still fly around and be
-    # listed in the easy_install.pth. This can break setuptools build with
-    # zipimport.ZipImportError: bad local file header
-    # setuptools-0.9.5-py3.3.egg
+    # Remove old setuptools installations that may still fly around and be listed in the easy_install.pth.  It can break setuptools
+    # builds with, e.g., “zipimport.ZipImportError: bad local file header setuptools-0.9.5-py3.3.egg”.
     rm_rf Dir["#{site_packages}/setuptools*"]
     rm_rf Dir["#{site_packages}/distribute*"]
-    rm_rf Dir["#{site_packages}/pip[-_.][0-9]*", "#{site_packages}/pip"]
+    rm_rf Dir["#{site_packages}/pip{,[-_.][0-9]*}"]
 
-    # (Re‐)install pip (and setuptools) and wheel, which will have gotten smurfed up by the site‐
-    # packages shenanigans above
-    system bin/'python', '-m', 'ensurepip', '--upgrade'
-    ['pip', 'setuptools'].each do |pkg|
-      system cellar_framework/'bin/pip', 'install', '--force-reinstall', '--upgrade', '--no-warn-script-location', pkg
+    # (Re‐)install pip, setuptools, & wheel, which will have been smurfed up by the site‐packages shenanigans above (not to mention
+    # being out of date) if they were already present.
+    system bin/'python2', '-m', 'ensurepip', '--upgrade'
+    %w[pip setuptools wheel].each do |pkg|
+      system cellar_framework/'bin/pip2', 'install', '--force-reinstall', '--upgrade', '--no-warn-script-location', pkg
     end
-
-    # When building from source, these symlinks will not exist, since
-    # post_install happens after linking.
-    %w[pip pip2 pip2.7 easy_install easy_install-2.7 wheel].each do |e|
-      (HOMEBREW_PREFIX/'bin').install_symlink_to bin/e if (bin/e).exists?
+    # Give wheel a versioned name:
+    mv "#{cellar_framework}/bin/wheel", "#{cellar_framework}/bin/wheel2.7"
+    # Clean up “extra files” (by our definition here):
+    %w[easy_install pip pip2].each{ |junk| rm "#{cellar_framework}/bin/#{junk}" }
+    # Put symlinks where needed:
+    %w[easy_install- pip wheel].each do |pfx|
+      (cellar_framework/'bin').install_symlink "#{pfx}2.7" => "#{pfx}2", "#{pfx}2.7" => pfx.chomp('-')
     end
 
     # Help distutils find brewed stuff when building extensions
-    f_ossl  = Formula['openssl3']
-    f_tcltk = Formula['tcl-tk']
+    f_ossl = Formula['openssl3'];  f_tcltk = Formula['tcl-tk']
     include_dirs = [HOMEBREW_PREFIX/'include', f_ossl.opt_include, f_tcltk.opt_include]
-    library_dirs = [HOMEBREW_PREFIX/'lib', f_ossl.opt_lib, f_tcltk.opt_lib]
+    library_dirs = [HOMEBREW_PREFIX/'lib',     f_ossl.opt_lib,     f_tcltk.opt_lib]
 
     if build.with? 'sqlite'
       f = Formula['sqlite']
@@ -281,16 +264,24 @@ END_OF_PATCH
     end
 
     (cellar_framework/'lib/python2.7/distutils/distutils.cfg').atomic_write <<-EOS.undent
-      [install]
-      prefix=#{HOMEBREW_PREFIX}
+        [install]
+        prefix=#{HOMEBREW_PREFIX}
 
-      [build_ext]
-      include_dirs=#{include_dirs.join ':'}
-      library_dirs=#{library_dirs.join ':'}
-    EOS
-  end # post_install
+        [build_ext]
+        include_dirs=#{include_dirs.join ':'}
+        library_dirs=#{library_dirs.join ':'}
+      EOS
 
-  def cellar_framework; frameworks/'Python.framework/Versions/2.7/'; end
+    (cellar_framework/'pip.conf').atomic_write <<-_.undent
+        [install]
+        prefix = #{HOMEBREW_PREFIX}
+
+        [install]
+        no-warn-script-location = true
+      _
+  end # install
+
+  def cellar_framework; frameworks/'Python.framework/Versions/2.7'; end
 
   def cellar_site_packages; cellar_framework/relative_site_packages; end
 
@@ -307,20 +298,17 @@ END_OF_PATCH
       import sys
 
       if sys.version_info[0] != 2:
-          # This can only happen if the user has set the PYTHONPATH for 3.x and run Python 2.x or
-          # vice versa.  Every Python looks at the PYTHONPATH variable and we can't fix it here in
-          # sitecustomize.py, because the PYTHONPATH is evaluated after the sitecustomize.py.  Many
-          # modules (e.g. PyQt4) are built only for a specific version of Python and will fail with
-          # cryptic error messages.  In the end this means:  Don't set the PYTHONPATH permanently
-          # if you use different Python versions.
+          # This can only happen if the user has set the PYTHONPATH for 3.x and run Python 2.x or vice versa.  Every Python looks
+          # at the PYTHONPATH variable and we can't fix it here in sitecustomize.py, because the PYTHONPATH is evaluated after the
+          # sitecustomize.py.  Many modules (e.g. PyQt4) are built only for a specific version of Python and will fail with cryptic
+          # error messages.  In the end this means:  Don't set the PYTHONPATH permanently if you use different Python versions.
           exit('Your PYTHONPATH points to a site-packages dir for Python 2.x but you are running Python ' +
                str(sys.version_info[0]) + '.x!\\n     PYTHONPATH is currently: "' +
                str(os.environ['PYTHONPATH']) + '"\\n' + '     You should `unset PYTHONPATH` to fix this.')
 
       # Only do this for a brewed python:
       if os.path.realpath(sys.executable).startswith('#{rack}'):
-          # Shuffle /Library site-packages to the end of sys.path and reject
-          # paths in /System pre-emptively (#14712)
+          # Shuffle /Library site-packages to the end of sys.path and reject paths in /System pre-emptively (#14712)
           library_site = '/Library/Python/2.7/site-packages'
           library_packages = [p for p in sys.path if p.startswith(library_site)]
           sys.path = [p for p in sys.path if not p.startswith(library_site) and
@@ -328,15 +316,12 @@ END_OF_PATCH
           # .pth files have already been processed so don't use addsitedir
           sys.path.extend(library_packages)
 
-          # the Cellar site-packages is a symlink to the HOMEBREW_PREFIX
-          # site_packages; prefer the shorter paths
+          # the Cellar site-packages is a symlink to the HOMEBREW_PREFIX site_packages; prefer the shorter paths
           long_prefix = re.compile(r'#{rack}/[0-9\._abrc]+/Frameworks/Python\.framework/Versions/2\.7/lib/python2\.7/site-packages')
           sys.path = [long_prefix.sub('#{site_packages}', p) for p in sys.path]
 
-          # LINKFORSHARED (and python-config --ldflags) return the
-          # full path to the lib (yes, "Python" is actually the lib, not a
-          # dir) so that third-party software does not need to add the
-          # -F/#{HOMEBREW_PREFIX}/Frameworks switch.
+          # LINKFORSHARED (and python-config --ldflags) return the full path to the lib (yes, "Python" is actually the lib, not a
+          # dir) so that third-party software does not need to add the -F/#{HOMEBREW_PREFIX}/Frameworks switch.
           try:
               from _sysconfigdata import build_time_vars
               build_time_vars['LINKFORSHARED'] = '-u _PyMac_Error #{opt_frameworks}/Python.framework/Versions/2.7/Python'
@@ -349,11 +334,15 @@ END_OF_PATCH
   end # sitecustomize
 
   def caveats; <<-EOS.undent
-      Pip and setuptools are installed. To update them
-          pip install --upgrade pip setuptools
+      The interpreter binary is named “python2”, not just plain “python” (Python 2 is
+      now so obsolete that “python” generally means “python3”, assuming you have it
+      installed).
 
-      You can install Python packages with
-          pip install <package>
+      Pip and setuptools are installed. To update them
+          pip2 install --upgrade pip setuptools
+
+      You can install Python2 packages with
+          pip2 install <package>
 
       They will install into the site-package directory
           #{site_packages}
@@ -368,9 +357,9 @@ END_OF_PATCH
     arch_system cellar_framework/'bin/python2.7', '-c', "'import sqlite3'"
     # Check if some other modules import. Then the linked libs are working.
     arch_system cellar_framework/'bin/python2.7', '-c', "'import Tkinter; root = Tkinter.Tk()'"
-    system cellar_framework/'bin/pip', 'list', '--format=columns'  # pip is not a binary
+    system cellar_framework/'bin/pip2', 'list', '--format=columns'  # pip is not a binary
   end # test
-end # Python
+end # Python2
 
 __END__
 # Enable PowerPC-only universal builds.
@@ -399,14 +388,15 @@ __END__
                 UNIVERSAL_ARCH_FLAGS="-arch i386 -arch ppc -arch x86_64"
                 LIPO_32BIT_FLAGS="-extract ppc7400 -extract i386"
 # For some reason, they have never bothered to use the correct shared‐library filename extension.
-@@ -9705,6 +9720,7 @@
+@@ -8544,6 +8559,7 @@
  		esac
  		;;
- 	CYGWIN*)   SHLIB_SUFFIX=.dll;;
-+	Darwin*)   SHLIB_SUFFIX=.dylib;;
- 	*)	   SHLIB_SUFFIX=.so;;
+ 	CYGWIN*)   SO=.dll;;
++	Darwin*)   SO=.dylib;;
+ 	*)	   SO=.so;;
  	esac
- fi
+ else
+# Enable PowerPC-only universal builds.
 --- old/Lib/_osx_support.py	2020-04-19 14:13:39 -0700
 +++ new/Lib/_osx_support.py	2024-09-24 22:33:49 -0700
 @@ -472,6 +472,8 @@
@@ -418,6 +408,23 @@ __END__
              elif archs == ('i386', 'x86_64'):
                  machine = 'intel'
              elif archs == ('i386', 'ppc', 'x86_64'):
+# For some reason, they have never bothered to use the correct shared‐library filename extension.
+--- old/Python/dynload_shlib.c
++++ new/Python/dynload_shlib.c
+@@ -46,8 +46,13 @@
+     {"module.exe", "rb", C_EXTENSION},
+     {"MODULE.EXE", "rb", C_EXTENSION},
+ #else
++#if defined(__APPLE__)
++    {".dylib", "rb", C_EXTENSION},
++    {"module.dylib", "rb", C_EXTENSION},
++#else
+     {".so", "rb", C_EXTENSION},
+     {"module.so", "rb", C_EXTENSION},
++#endif
+ #endif
+ #endif
+ #endif
 # Don’t search for a Tk framework – our Tk is a pure Unix build.
 # from https://raw.githubusercontent.com/Homebrew/patches/42fcf22/python/brewed-tk-patch.diff
 --- old/setup.py

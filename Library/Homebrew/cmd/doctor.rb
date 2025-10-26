@@ -1050,7 +1050,7 @@ class Checks
     `python -V 2>&1` =~ /Python (\d+)\./
     # This won't be the right warning if we matched nothing at all
     return if $1.nil?
-    <<-EOS.undent unless $1 == "2"
+    <<-EOS.undent unless $1 == "3"
       python is symlinked to python#{$1}
       This will confuse build scripts and in general lead to subtle breakage.
     EOS
@@ -1165,11 +1165,11 @@ class Checks
   def check_for_pth_support
     homebrew_site_packages = Language::Python.homebrew_site_packages
     return unless homebrew_site_packages.directory?
-    return if Language::Python.reads_brewed_pth_files?("python") != false
-    return unless Language::Python.in_sys_path?("python", homebrew_site_packages)
-    user_site_packages = Language::Python.user_site_packages "python"
+    return if Language::Python.reads_brewed_pth_files?("python2") != false
+    return unless Language::Python.in_sys_path?("python2", homebrew_site_packages)
+    user_site_packages = Language::Python.user_site_packages "python2"
     <<-EOS.undent
-      Your default Python does not recognize the Leopardbrew site-packages
+      Your default Python 2 does not recognize the Leopardbrew site-packages
       directory as a special site-packages directory, which means that .pth files
       will not be followed.  This means you will not be able to import some modules
       after installing them with Leopardbrew, like wxpython.  To fix this for the

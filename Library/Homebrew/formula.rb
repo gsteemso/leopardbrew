@@ -541,7 +541,7 @@ class Formula
   # A stable path for this formula, when installed. Contains the formula name but no version number.
   # Only the active version will be linked here if multiple versions are installed.
   #
-  # This is the prefered way to refer to a formula in plists or from another formula, as the path
+  # This is the preferred way to refer to a formula in plists or from another formula, as the path
   # is stable even when the software is updated.
   #     args << "--with-readline=#{Formula["readline"].opt_prefix}" if build.with? "readline"
   def opt_prefix; OPTDIR/name; end
@@ -942,7 +942,7 @@ class Formula
 
   def setup_test_home(home)
     # Keep Homebrew’s site-packages in sys.path when testing with system Python.
-    # TODO:  Make this also work with older stock Python 2 and newer stock Python 3.
+    # TODO:  Make this also work with older stock Python 2 and newer stock/brewed Python 3.
     user_site_packages = home/'Library/Python/2.7/lib/python/site-packages'
     user_site_packages.mkpath
     (user_site_packages/'homebrew.pth').write <<-EOS.undent
@@ -1058,7 +1058,7 @@ class Formula
     ENV.remove_cc_etc if cmd.starts_with? 'xcodebuild'
     # Turn on argument filtering in the superenv compiler wrapper.
     # We should probably have a better mechanism for this than adding special cases to this method.
-    if cmd == 'python'
+    if cmd == 'python2'
       setup_py_in_args = %w[setup.py build.py].include?(args.first)
       setuptools_shim_in_args = args.any?{ |a| a.to_s.starts_with? 'import setuptools' }
       if setup_py_in_args or setuptools_shim_in_args then ENV.refurbish_args; end
@@ -1210,8 +1210,6 @@ class Formula
     # your platform and you haven’t passed or previously used any options on this formula.  If you
     # maintain your own repository, you can add your own bottle links.
     # @see https://github.com/Homebrew/homebrew/blob/master/share/doc/homebrew/Bottles.md
-    # You can ignore this block entirely if submitting to Homebrew/Homebrew, it’ll be handled for
-    # you by the Brew Test Bot.
     #     bottle do
     #       root_url 'http://example.com' # Optional root to calculate bottle URLs
     #       prefix '/opt/homebrew' # Optional HOMEBREW_PREFIX in which the bottles were built.
@@ -1332,9 +1330,9 @@ class Formula
     #     depends_on :postgresql if build.without? 'sqlite'
     #     depends_on :hg # Mercurial (external or brewed) is needed
     # If any Python >= 2.7 < 3.x is okay (either from OS X or brewed):
-    #     depends_on :python
+    #     depends_on :python2
     # to depend on Python >= 2.7 but use system Python where possible
-    #     depends_on :python if MacOS.version <= :snow_leopard
+    #     depends_on :python2 if MacOS.version <= :snow_leopard
     # Python 3.x if the `--with-python3` is given to `brew install example`
     #     depends_on :python3 => :optional
     # `depends_on` also accepts an array of operands.  Internally, it converts such an array to a

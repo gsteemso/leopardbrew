@@ -159,7 +159,7 @@ class Caveats
     return unless keg.python2_site_packages_installed?
     s = nil
     homebrew_py2_site_packages = Language::Python.homebrew_site_packages
-    py2_user_site_packages = Language::Python.user_site_packages 'python'
+    py2_user_site_packages = Language::Python.user_site_packages 'python2'
     pth_file = py2_user_site_packages/'homebrew.pth'
     instructions = <<-EOS.undent.gsub(/^/, '    ')
         mkdir -p #{py2_user_site_packages}
@@ -167,17 +167,17 @@ class Caveats
       EOS
     if f.keg_only?
       keg_py2_site_packages = f.opt_prefix/'lib/python2.7/site-packages'
-      unless Language::Python.in_sys_path?('python', keg_py2_site_packages)
+      unless Language::Python.in_sys_path?('python2', keg_py2_site_packages)
         s = <<-EOS.undent
             If you need Python 2 to find bindings for this keg-only formula, run:
                 echo #{keg_py2_site_packages} >> #{homebrew_py2_site_packages/f.name}.pth
           EOS
-        s += instructions unless Language::Python.reads_brewed_pth_files?('python')
+        s += instructions unless Language::Python.reads_brewed_pth_files?('python2')
       end
       return s
     end
-    return if Language::Python.reads_brewed_pth_files?('python')
-    if not Language::Python.in_sys_path?('python', homebrew_py2_site_packages)
+    return if Language::Python.reads_brewed_pth_files?('python2')
+    if not Language::Python.in_sys_path?('python2', homebrew_py2_site_packages)
       s = <<-EOS.undent
           Python 2 modules are installed and Leopardbrew’s site-packages is not in your
           Python 2 sys.path, so you will not be able to import the modules this formula

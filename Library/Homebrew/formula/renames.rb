@@ -11,6 +11,7 @@ FORMULA_RENAMES = {
   'kerberos-v5'         => 'kerberos',
   "mpich2"              => "mpich",
   "objective-caml"      => "ocaml",
+  "python"              => "python2",
   "plt-racket"          => "racket",
 }
 

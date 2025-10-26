@@ -5,6 +5,7 @@ class Python3 < Formula
   homepage 'https://www.python.org/'
   url 'https://www.python.org/ftp/python/3.10.18/Python-3.10.18.tar.xz'
   sha256 'ae665bc678abd9ab6a6e1573d2481625a53719bc517e9a634ed2b9fefae3817f'
+  revision 1
 
   XY = '3.10'.freeze
 
@@ -12,6 +13,7 @@ class Python3 < Formula
 
   depends_on 'pkg-config' => :build
   depends_on 'bzip2'
+  depends_on 'libffi'
   depends_on 'openssl3'
   depends_on 'sqlite'
   depends_on 'tcl-tk'
@@ -19,7 +21,6 @@ class Python3 < Formula
   depends_on 'readline' => :recommended
   depends_on 'xz'       => :recommended # for the lzma module added in 3.3
 
-  enhanced_by 'libffi'
   enhanced_by :nls
   enhanced_by 'zlib'
 
@@ -67,20 +68,19 @@ class Python3 < Formula
          #       -DWITH_PIL -I../Extensions/Imaging/libImaging  tkImaging.c \\
 END_OF_PATCH
 
-  # setuptools remembers the build flags python is built with and uses them to
-  # build packages later.  Xcode-only systems need different flags.
+  # setuptools remembers what flags python is built with, and uses them to build packages later.  Xcode-only systems need different
+  # flags.
   def pour_bottle?; MacOS::CLT.installed?; end
 
   def install
     ENV.universal_binary if build.universal?
     ENV.without_archflags;  # the installation manages these itself.
 
-    ENV['PYTHONHOME'] = nil  # Unset these so that installing pip puts it where we want
-    ENV['PYTHONPATH'] = nil  # and not into some other Python the user has installed.
+    # Delete these so that installing pip puts it where we want, not into some other Python on the system.
+    ENV['PYTHONHOME'] = nil; ENV['PYTHONPATH'] = nil
 
-    # There’s no simple way to extract a “ppc” slice from a universal file.  We have to specify the
-    # exact sub‐architecture we actually put in there in the first place.  Of course, if it already
-    # was :g4, we don’t need to do anything.
+    # There’s no simple way to extract a “ppc” slice from a universal file.  We must specify the exact sub‐architecture we actually
+    # put in there in the first place.  Of course, if it already was :g4, we don’t need to do anything.
     if Target.powerpc? and (m_for_ppc = Target.model_for_arch(:ppc)) != :g4
       our_ppc_flavour = Target.model_optflags(m_for_ppc)[/^-mcpu=(\d+)/, 1]
       inreplace 'configure' do |s| s.gsub! '-extract ppc7400', "-extract ppc#{our_ppc_flavour}" end
@@ -110,9 +110,8 @@ END_OF_PATCH
       end
     end
 
-    # Allow python modules to use ctypes.find_library to find Leopardbrew’s stuff even if the
-    # brewed package is not a /usr/local/lib.  Try this with:
-    # `brew install enchant && pip install pyenchant`
+    # Allow python modules to use ctypes.find_library to find Leopardbrew’s stuff even if the brewed package isn’t a /usr/local/lib.
+    # Try this with:  `brew install enchant && pip install pyenchant`
     inreplace './Lib/ctypes/macholib/dyld.py' do |s|
       s.gsub! 'DEFAULT_LIBRARY_FALLBACK = [',
               "DEFAULT_LIBRARY_FALLBACK = [ '#{HOMEBREW_PREFIX}/lib',"
@@ -132,8 +131,7 @@ END_OF_PATCH
       --with-universal-archs=#{Target.type}#{build.universal? ? '' : "-#{Target.bits(Target.arch)}"}
       --enable-universalsdk=/
     ]
-    # Avoid linking to libgcc.  See http://code.activestate.com/lists/python-dev/112195/
-    # Enable LLVM optimizations.
+    # Avoid linking to libgcc (see http://code.activestate.com/lists/python-dev/112195/).  Enable LLVM optimizations.
     args << '--without-gcc' << '--enable-optimizations' if ENV.compiler == :clang
 
     cppflags = []
@@ -141,17 +139,16 @@ END_OF_PATCH
     ldflags  = []
 
     unless MacOS::CLT.installed?
-      # Help Python's build system (setuptools/pip) to build things on Xcode-only systems
-      # The setup.py looks at “-isysroot” to get the sysroot (and not at --sysroot)
+      # Help Python’s build systems (e.g. setuptools, pip) to build things on Xcode-only systems.  setup.py uses “-isysroot” to get
+      # the sysroot (not --sysroot).
       p = MacOS.sdk_path
       cppflags << "-I#{p}/usr/include" # find zlib
       cflags   << "-isysroot #{p}"
       ldflags  << "-isysroot #{p}"
     end
 
-    # G5 build under Tiger failed to recognize “vector” keyword in system header
-    cflags << '-mpim-altivec' if MacOS.version == :tiger and CPU.altivec? \
-                                 and [:gcc, :gcc_4_0, :llvm].include? ENV.compiler
+    # G5 build under Tiger failed to recognize “vector” keyword in a system header.
+    cflags << '-mpim-altivec' if MacOS.version == :tiger and CPU.altivec? and [:gcc, :gcc_4_0, :llvm].include? ENV.compiler
 
     f = Formula['tcl-tk']
     cppflags << "-I#{f.opt_include}"
@@ -168,78 +165,58 @@ END_OF_PATCH
 
     system './configure', *args
     system 'make'
-    ENV.deparallelize # Installs must be serialized
-    # Tell Python not to install into /Applications (default for framework builds)
+    ENV.deparallelize  # Installs must be serialized.
+    # Tell Python not to install into /Applications (the default for framework builds).
     system 'make', 'install', "PYTHONAPPSDIR=#{prefix}"
     # Demos and Tools
-    system 'make', 'frameworkinstallextras', "PYTHONAPPSDIR=#{share}/python3"
+    system 'make', 'frameworkinstallextras', "PYTHONAPPSDIR=#{pkgshare}"
 
     # Any .app get a “ 3” inserted, so it does not conflict with python 2.x.
-    Dir.glob(prefix/'*.app') { |app| mv app, app.sub('.app', ' 3.app') }
+    Dir.glob("#{prefix}{,/share/python3}/*.app") { |app| mv app, app.sub('.app', ' 3.app') }
 
-    # Symlink the pkgconfig files into HOMEBREW_PREFIX so they're accessible.
-    (lib/'pkgconfig').install_symlink_to Dir[cellar_framework/'lib/pkgconfig/*']
+    # Copy the test stuff and similar miscellanea to libexec, so we can use them for `brew test`.
+    libexec.install buildpath/'Tools'
 
-    # No need to remove 2to3 – while python2 includes it, the python 2 formula already deletes it.
+    # Ensure the pkgconfig files get symlinked into HOMEBREW_PREFIX so they’re accessible.
+    (lib/'pkgconfig').install_symlink_to Dir["#{cellar_framework}/lib/pkgconfig/*"]
 
-    # Remove the site-packages that Python created in its Cellar.  See below in post_install.
-    cellar_site_packages.rmtree
-
-    # Install unversioned symlinks in libexec/bin.
-    { 'idle' => 'idle3',
-      'pydoc' => 'pydoc3',
-      'python' => 'python3',
-      'python-config' => 'python3-config',
-    }.each do |unversioned_name, versioned_name|
-      (libexec/'bin').install_symlink (bin/versioned_name).realpath => unversioned_name
-    end
-  end # install
-
-  def post_install
-    ENV.delete 'PYTHONPATH'
-
-    # Create a site-packages in HOMEBREW_PREFIX/lib/python#{xy}/site-packages so that user‐
-    # installed Python software survives minor updates, such as going from 3.3.2 to 3.3.3:
+    # Remove the site-packages that Python created in its Cellar.  Replace it with HOMEBREW_PREFIX/lib/python#{xy}/site-packages so
+    # that user‐installed Python software survives minor updates, such as going from 3.3.2 to 3.3.3.
     site_packages.mkpath
-    # Symlink it into the cellar
-    cellar_site_packages.rmtree if cellar_site_packages.exists?
+    cellar_site_packages.rmtree
     cellar_site_packages.parent.install_symlink_to site_packages
-
-    rm_rf cellar_framework/'bin/pip'
-    if (cellar_framework/'bin/wheel').exists?
-      mv cellar_framework/'bin/wheel', cellar_framework/'bin/wheel3'
-      bin.install_symlink_to cellar_framework/'bin/wheel3'
-    end
 
     # Write our sitecustomize.py
     rm_rf Dir[site_packages/'sitecustomize.py[co]']
     (site_packages/'sitecustomize.py').atomic_write(sitecustomize)
 
-    # Fix up the LINKFORSHARED configuration variable
+    # Fix up the LINKFORSHARED configuration variable.
     inreplace Dir[cellar_framework/"lib/python#{xy}/_sysconfigdata_*.py"],
-              %r{('LINKFORSHARED':\s+'.+?(?:'\n\s+')?)(Python.framework/Versions/#{xy}/Python',)},
+              %r{('LINKFORSHARED':\s+'(?:.+?'\n\s+')?)[^']*(Python.framework/Versions/#{xy}/Python',)},
               "\\1#{opt_frameworks}/\\2"
+    # Erase any references that point DYLD_FRAMEWORK_PATH into the build directory.
+    inreplace Dir[cellar_framework/"lib/python#{xy}/_sysconfigdata_*.py"],
+              %r{DYLD_FRAMEWORK_PATH=#{Regexp.escape(HOMEBREW_TEMP)}[^']+}, ''
 
-    # Install unversioned symlinks in libexec/bin.
-    { 'pip' => 'pip3',
-      'wheel' => 'wheel3',
-    }.each do |unversioned_name, versioned_name|
-      (libexec/'bin').install_symlink (bin/versioned_name).realpath => unversioned_name \
-        if (bin/versioned_name).exists?
+    # Upgrade pip & setuptools (including wheel), which will have gotten smurfed up by our site‐packages shenanigans anyway:
+    system bin/'python3', '-m', 'ensurepip', '--upgrade', '--no-warn-script-location'
+    %w[pip setuptools].each do |pkg|
+      system cellar_framework/'bin/pip3', 'install', '--force-reinstall', '--upgrade', '--no-warn-script-location', pkg
     end
+    # Give wheel a versioned name:
+    mv "#{cellar_framework}/bin/wheel", "#{cellar_framework}/bin/wheel#{xy}"
+    # Clean up “extra files” (by our definition here):
+    %w[easy_install pip pip3].each{ |junk| rm "#{cellar_framework}/bin/#{junk}" }
 
-    # post_install happens after link
-    %W[pip3 pip#{xy} wheel3].each do |e|
-      (HOMEBREW_PREFIX/'bin').install_symlink_to bin/e if (bin/e).exists?
+    # Put symlinks where needed:
+    %w[easy_install- pip wheel].each do |pfx|
+      (cellar_framework/'bin').install_symlink "#{pfx}#{xy}" => "#{pfx}3", "#{pfx}#{xy}" => pfx.chomp('-')
     end
 
     # Help distutils find brewed stuff when building extensions
-    f_ossl   = Formula['openssl3']
-    f_sqlite = Formula['sqlite']
-    f_tcltk  = Formula['tcl-tk']
-    include_dirs = [HOMEBREW_PREFIX/'include', f_ossl.opt_include, f_sqlite.opt_include,
-                    f_tcltk.opt_include]
-    library_dirs = [HOMEBREW_PREFIX/'lib', f_ossl.opt_lib, f_sqlite.opt_lib, f_tcltk.opt_lib]
+    f_ossl = Formula['openssl3'];  f_sqlite = Formula['sqlite'];  f_tcltk = Formula['tcl-tk']
+    include_dirs = [HOMEBREW_PREFIX/'include', f_ossl.opt_include, f_sqlite.opt_include, f_tcltk.opt_include]
+    library_dirs = [HOMEBREW_PREFIX/'lib',     f_ossl.opt_lib,     f_sqlite.opt_lib,     f_tcltk.opt_lib]
 
     cfg = cellar_framework/"lib/python#{xy}/distutils/distutils.cfg"
     cfg.atomic_write <<-EOS.undent
@@ -255,9 +232,11 @@ END_OF_PATCH
     cfg.atomic_write <<-_.undent
         [install]
         prefix = #{HOMEBREW_PREFIX}
+
+        [install]
         no-warn-script-location = true
       _
-  end # post_install
+  end # install
 
   def cellar_framework; frameworks/"Python.framework/Versions/#{xy}"; end
 
@@ -310,22 +289,19 @@ END_OF_PATCH
 
   def caveats
     text = <<-EOS.undent
-      Python is installed as
+      Python 3 is installed as both of:
+          #{HOMEBREW_PREFIX}/bin/python
           #{HOMEBREW_PREFIX}/bin/python3
 
-      Unversioned symlinks `python`, `python-config`, `pip` etc. pointing to
-      `python3`, `python3-config`, `pip3` etc., respectively, are installed into
-          #{opt_libexec}/bin
+      If you need Leopardbrew’s Python 2.7, run
+          brew install python2
 
-      If you need Leopardbrew’s Python 2.7 run
-          brew install python
-
-      Pip and wheel are installed. To update them run
+      Pip and wheel are installed.  To update them run
           pip3 install --upgrade pip wheel
 
       You can install Python packages with
           pip3 install <package>
-      They will install into the site-package directory
+      They will install into the site-packages directory
           #{HOMEBREW_PREFIX/"lib/python#{xy}/site-packages"}
 
       See:  #{HOMEBREW_REPOSITORY}/share/doc/homebrew/Homebrew-and-Python.md

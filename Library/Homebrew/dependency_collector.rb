@@ -12,7 +12,7 @@ require "set"
 # This class is used by Formula⸬depends_on to turn dependency specifications into the proper kinds of dependencies and requirements.
 class DependencyCollector
   # Define the languages that we can handle as external dependencies.
-  LANGUAGE_MODULES = Set[ :chicken, :jruby, :lua, :node, :ocaml, :perl, :python, :python3, :rbx, :ruby ].freeze
+  LANGUAGE_MODULES = Set[ :chicken, :jruby, :lua, :node, :ocaml, :perl, :python2, :python3, :rbx, :ruby ].freeze
 
   CACHE = {}
 
@@ -94,7 +94,7 @@ class DependencyCollector
       when :nls        then Dependency.new('gettext', tags, nil, 'nls')
       when :osxfuse    then OsxfuseRequirement.new(tags)
       when :postgresql then PostgresqlRequirement.new(tags)
-      when :python, :python2 then PythonRequirement.new(tags)
+      when :python2    then Python2Requirement.new(tags)
       when :python3    then Python3Requirement.new(tags)
       when :ruby       then RubyRequirement.new(tags)
       when :tex        then TeXRequirement.new(tags)

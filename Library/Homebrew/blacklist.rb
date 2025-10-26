@@ -38,17 +38,15 @@ def blacklisted?(name)
     when 'macruby' then
       'MacRuby works better when you install their package:  http://www.macruby.org/'
     when 'pil' then <<-EOS.undent
-        Instead of PIL, consider `pip install pillow` or
-        `brew install Homebrew/python/pillow`.
+        Instead of PIL, consider `pip install pillow`.
       EOS
     when 'osmium' then <<-EOS.undent
         The creator of Osmium requests that it not be packaged and that people
         use the GitHub master branch instead.
       EOS
     when 'pip', 'pip3' then <<-EOS.undent
-        Homebrew provides pip via `brew install python` and pip3 via
-        `brew install python3`.  If your system Python is new enough you don’t want to
-        do that, alternatively you can `sudo easy_install pip`.
+        Leopardbrew provides pip via `brew install python3`.  If your system Python
+        is new enough that you don’t want to do that, you presumably already have pip.
       EOS
     when 'play' then <<-EOS.undent
         Play 2.3 replaces the play command with activator:

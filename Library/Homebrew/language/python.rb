@@ -4,22 +4,16 @@ module Language
   module Python
     module_function
 
-    def major_minor_version(python)
-      if (version = `#{python} --version 2>&1`[%r{\d\.\d+}]) then Version.new(version); end
-    end
+    def major_minor_version(python); if (version = `#{python} --version 2>&1`[%r{\d\.\d+}]) then Version.new(version); end; end
 
-    def homebrew_site_packages(version = "2.7")
-      HOMEBREW_PREFIX/"lib/python#{version}/site-packages"
-    end
+    def homebrew_site_packages(version = "2.7"); HOMEBREW_PREFIX/"lib/python#{version}/site-packages"; end
 
     def each_python(build, &block)
       original_pythonpath = ENV["PYTHONPATH"]
-      ["python", "python3"].each do |python|
+      ["python2", "python3"].each do |python|
         next if build.without? python
         version = major_minor_version python
-        ENV["PYTHONPATH"] = (Formulary.factory(python).installed? \
-          ? nil \
-          : homebrew_site_packages(version))
+        ENV["PYTHONPATH"] = (Formula[python].installed? ? nil : homebrew_site_packages(version))
         block.call python, version if block
       end
       ENV["PYTHONPATH"] = original_pythonpath
@@ -34,7 +28,7 @@ module Language
         probe_file.atomic_write("import site; site.homebrew_was_here = True")
         quiet_system python, "-c", "import site; assert(site.homebrew_was_here)"
       ensure
-        probe_file.unlink if probe_file.exist?
+        probe_file.unlink if probe_file.exists?
       end
     end # Language⸬Python⸬reads_brewed_pth_files?
 
@@ -50,49 +44,28 @@ module Language
       quiet_system python, "-c", script
     end # Language⸬Python⸬in_sys_path?
 
-#    # deprecated; use system "python", *setup_install_args(prefix) instead
-#    def setup_install(python, prefix, *args)
-#      opoo <<-EOS.undent
-#        Language::Python.setup_install is deprecated.
-#        If you are a formula author, please use
-#          system "python", *Language::Python.setup_install_args(prefix)
-#        instead.
-#      EOS
-#
-#      # force-import setuptools, which monkey-patches distutils, to make
-#      # sure that we always call a setuptools setup.py. trick borrowed from pip:
-#      # https://github.com/pypa/pip/blob/043af83/pip/req/req_install.py#L743-L780
-#      shim = <<-EOS.undent
-#        import setuptools, tokenize
-#        __file__ = 'setup.py'
-#        exec(compile(getattr(tokenize, 'open', open)(__file__).read()
-#          .replace('\\r\\n', '\\n'), __file__, 'exec'))
-#      EOS
-#      args += %w[--single-version-externally-managed --record=installed.txt]
-#      args << "--prefix=#{prefix}"
-#      system python, "-c", shim, "install", *args
-#    end
+    # deprecated; use system python, *setup_install_args(prefix) instead
+    def setup_install(python, prefix, *args)
+      opoo <<-EOS.undent
+        Language::Python.setup_install is deprecated.  Formula authors, please use
+            system python, *Language::Python.setup_install_args(prefix), *args
+        instead.
+      EOS
+      system python, *setup_install_args(prefix), *args
+    end # Language⸬Python⸬setup_install
 
     def setup_install_args(prefix)
+      # Force-import setuptools, which monkey-patches distutils, to make sure we always call a setuptools setup.py.  Trick borrowed
+      # from pip:  https://github.com/pypa/pip/blob/043af83/pip/req/req_install.py#L743-L780
       shim = <<-EOS.undent
         import setuptools, tokenize
         __file__ = 'setup.py'
         exec(compile(getattr(tokenize, 'open', open)(__file__).read()
           .replace('\\r\\n', '\\n'), __file__, 'exec'))
       EOS
-      %W[
-        -c
-        #{shim}
-        --no-user-cfg
-        install
-        --prefix=#{prefix}
-        --single-version-externally-managed
-        --record=installed.txt
-      ]
+      %W[-c #{shim} --no-user-cfg install --prefix=#{prefix} --single-version-externally-managed --record=installed.txt]
     end # Language⸬Python⸬setup_install_args
 
-    def package_available?(python, module_name)
-      quiet_system python, "-c", "import #{module_name}"
-    end
+    def package_available?(python, module_name); quiet_system python, "-c", "import #{module_name}"; end
   end # Python
 end # Language

@@ -22,7 +22,7 @@ class LanguageModuleRequirementTests < Homebrew::TestCase
   def test_differing_module_and_import_name
     mod_name = "foo"
     import_name = "bar"
-    l = LanguageModuleRequirement.new(:python, mod_name, import_name)
+    l = LanguageModuleRequirement.new(:python2, mod_name, import_name)
     assert_includes l.message, mod_name
     assert_includes l.the_test, "import #{import_name}"
   end
@@ -36,11 +36,11 @@ class LanguageModuleRequirementTests < Homebrew::TestCase
   end
 
   def test_bad_python_deps
-    assert_deps_fail "notapackage" => :python
+    assert_deps_fail "notapackage" => :python2
   end
 
   def test_good_python_deps
-    assert_deps_pass "datetime" => :python
+    assert_deps_pass "datetime" => :python2
   end
 
   def test_bad_ruby_deps
