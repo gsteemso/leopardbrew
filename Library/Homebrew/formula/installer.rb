@@ -569,7 +569,7 @@ class FormulaInstaller
       puts e
       puts
       puts "You can try again using:"
-      puts "  brew link #{formula.name}"
+      puts "    brew link #{formula.name}"
       @show_summary_heading = true
       Homebrew.failed = true
     rescue Exception => e
@@ -584,9 +584,13 @@ class FormulaInstaller
           origin.parent.mkpath
           backup.rename origin
         end
+        link_overwrite_backup = {}  # They’ve been put back; no use keeping a record.
       end
       Homebrew.failed = true
-      raise
+      if debug?
+        puts 'Depending on just what went wrong, you may be able to'
+        puts "    brew link #{formula.name}"
+      else raise; end
     end # keg.link
 
     unless link_overwrite_backup.empty?
