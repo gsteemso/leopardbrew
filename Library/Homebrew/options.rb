@@ -1,18 +1,25 @@
 require 'set'
 
-OPTION_RX = %r{^--([^=]+=?)(.+)?$}
+OPTION_RX = %r{^(?:--)?([^=]+=?)(.+)?$}
 
+# Note that settable Options have a name and flag that end with an equals sign.  This is intentional.  To get one bare (without its
+# equals sign), just use String#chomp('=').
 class Option
   attr_reader :name, :description, :flag
   attr_accessor :value
 
   def initialize(nm, desc = '')
     @description = desc
-    @name, @value = (Array === nm ? nm : [nm, ''])
+    if Option === nm
+      @name, @value = nm.name, nm.value
+    else nm.to_s =~ OPTION_RX
+      @name, @value = ($1 || ''), ($2 || '')
+    end
+    raise RuntimeError, 'nameless Option somehow created!' if @name == ''
     @flag = "--#{@name}"
   end
 
-  def to_s; value && value != '' ? "#{flag}=#{value}" : flag; end
+  def to_s; value.choke ? "#{flag}#{value}" : flag; end
 
   def <=>(o); return unless Option === o; (name <=> o.name).nope || value <=> o.value; end
 
@@ -43,7 +50,7 @@ end # DeprecatedOption
 class Options
   include Enumerable
 
-  def self.create(opts); new Array(opts).map{ |o| Option === o ? o : Option.new(o =~ OPTION_RX ? ($2 ? [$1, $2] : $1) : o) }; end
+  def self.create(opts); new Array(opts).map{ |o| Option === o ? o : Option.new(o) }; end
 
   def initialize(*args); @options = Set.new(*args); end
 
@@ -51,11 +58,11 @@ class Options
 
   def <<(o); @options << o; self; end
 
-  def -(o); self.class.create(@options - o); end
+  def -(o); self.class.create(@options - Array(o)); end
 
-  def &(o); self.class.create(@options & o); end
+  def &(o); self.class.create(@options & Array(o)); end
 
-  def |(o); self.class.create(@options | o); end
+  def |(o); self.class.create(@options | Array(o)); end
   alias_method :+, :|
 
   def *(arg); @options.to_a.map(&:to_s) * arg; end
