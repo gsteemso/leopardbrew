@@ -32,7 +32,7 @@ begin
     numprocs = `sysctl -n kern.maxproc`.to_i * 2 / 3
     if numprocs > `sysctl -n kern.maxprocperuid`.to_i
       opoo <<-_.undent
-        Your ancient version of Mac OS has a very low limit on the number of concurrent
+        Your ancient version of Mac OS sharply limits the number of concurrent
         processes you are allowed to run.  ’Brewing without raising this limit will not
         always work properly, and the resulting failures will seem nonsensical.  Please
         enter your sudo password at the prompt so Leopardbrew can raise the limit.  (It
