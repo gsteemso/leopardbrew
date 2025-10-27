@@ -1,3 +1,4 @@
+# This file is loaded before ENV gets extended.
 require 'macos'  # pulls in cpu for us
 
 class Target
