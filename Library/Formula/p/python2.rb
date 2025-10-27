@@ -73,8 +73,7 @@ class Python2 < Formula
                          define_macros=[('WITH_APPINIT', 1)] + defs,
 END_OF_PATCH
 
-  # setuptools remembers the build flags python is built with and uses them to
-  # build packages later.  Xcode-only systems need different flags.
+  # setuptools remembers the build flags, and uses them later to build packages.  Xcode-only systems need different flags.
   def pour_bottle
     reason <<-EOS.undent
       The bottle needs the Apple Command Line Tools to be installed.
@@ -91,9 +90,8 @@ END_OF_PATCH
     ENV['PYTHONHOME'] = nil  # Unset these so that installing pip and setuptools puts them where we
     ENV['PYTHONPATH'] = nil  # want and not into some other Python the user has installed.
 
-    # There’s no simple way to extract a “ppc” slice from a universal file.  We have to specify the
-    # exact sub‐architecture we actually put in there in the first place.  Of course, if it already
-    # was :g4, we don’t need to do anything.
+    # There’s no simple way to extract a “ppc” slice from a universal file.  We must specify the exact sub‐architecture we actually
+    # put in there in the first place.  Of course, if it already was :g4, we don’t need to do anything.
     if Target.powerpc? and (m_for_ppc = Target.model_for_arch(:ppc)) != :g4
       our_ppc_flavour = Target.model_optflags(m_for_ppc)[/^-mcpu=(\d+)/, 1]
       inreplace 'configure' do |s| s.gsub! '-extract ppc7400', "-extract ppc#{our_ppc_flavour}" end
@@ -129,9 +127,8 @@ END_OF_PATCH
       end
     end
 
-    # Allow python modules to use ctypes.find_library to find Leopardbrew’s stuff even if the
-    # brewed package is not a /usr/local/lib.  Try this with:
-    # `brew install enchant && pip install pyenchant`
+    # Allow python modules to use ctypes.find_library to find Leopardbrew’s stuff even if the brewed package isn’t a /usr/local/lib.
+    # Try this with:  `brew install enchant && pip install pyenchant`
     inreplace './Lib/ctypes/macholib/dyld.py' do |s|
       s.gsub! 'DEFAULT_LIBRARY_FALLBACK = [', "DEFAULT_LIBRARY_FALLBACK = [ '#{HOMEBREW_PREFIX}/lib',"
       s.gsub! 'DEFAULT_FRAMEWORK_FALLBACK = [', "DEFAULT_FRAMEWORK_FALLBACK = [ '#{HOMEBREW_PREFIX}/Frameworks',"
@@ -205,24 +202,24 @@ END_OF_PATCH
                cellar_framework/'lib/pkgconfig/python-2.7.pc'],
               prefix, opt_prefix
 
-    # A fix, because python and python3 both want to install Python.framework
-    # and therefore we can't link both into HOMEBREW_PREFIX/Frameworks
+    # A fix, because python2 and python3 both want to install Python.framework which would conflict in HOMEBREW_PREFIX/Frameworks.
     # https://github.com/Homebrew/homebrew/issues/15943
-    # After 2020, Python 3 is the norm; thus, remove these from Python2 rather than from Python3
+    # After 2020, Python 3 is the norm; thus, remove these from Python2 rather than from Python3.
     ['Headers', 'Python', 'Resources', 'Versions/Current'].each{ |ln| rm frameworks/"Python.framework/#{ln}" }
 
-    # Any .app get a “ 2” inserted, so it does not conflict with python 3.x.
+    # Any .apps get a “ 2” inserted, to not conflict with python 3.x.
     Dir.glob(prefix/'*.app') { |app| mv app, app.sub('.app', ' 2.app') }
-
-    # Ensure the pkgconfig files get linked into HOMEBREW_PREFIX so they’re accessible.
-    (lib/'pkgconfig').install_symlink Dir[cellar_framework/'lib/pkgconfig/*']
 
     cd 'Doc' do
       system 'make', 'html'
       doc.install Dir['build/html/*']
     end if build.with?('html-docs')
 
-    # Fix up the site-packages so that user-installed Python software survives minor updates, such as going from 2.7.0 to 2.7.1:
+    # Ensure the pkgconfig files get linked into HOMEBREW_PREFIX so they’re accessible.
+    (lib/'pkgconfig').install_symlink Dir[cellar_framework/'lib/pkgconfig/*']
+
+    # Remove the site-packages which Python created in its Cellar.  Replace it using HOMEBREW_PREFIX/lib/python27/site-packages, so
+    # that user‐installed Python software survives minor updates, such as going from 2.7.2 to 2.7.3.
     site_packages.mkpath
     cellar_site_packages.rmtree
     cellar_site_packages.parent.install_symlink_to site_packages
@@ -230,33 +227,19 @@ END_OF_PATCH
     # Write our sitecustomize.py
     rm_rf Dir["#{site_packages}/sitecustomize.py[co]"]
     (site_packages/'sitecustomize.py').atomic_write(sitecustomize)
+  end # install
 
+  def post_install
     # Remove old setuptools installations that may still fly around and be listed in the easy_install.pth.  It can break setuptools
     # builds with, e.g., “zipimport.ZipImportError: bad local file header setuptools-0.9.5-py3.3.egg”.
     rm_rf Dir["#{site_packages}/setuptools*"]
     rm_rf Dir["#{site_packages}/distribute*"]
     rm_rf Dir["#{site_packages}/pip{,[-_.][0-9]*}"]
 
-    # (Re‐)install pip, setuptools, & wheel, which will have been smurfed up by the site‐packages shenanigans above (not to mention
-    # being out of date) if they were already present.
-    system bin/'python2', '-m', 'ensurepip', '--upgrade'
-    %w[pip setuptools wheel].each do |pkg|
-      system cellar_framework/'bin/pip2', 'install', '--force-reinstall', '--upgrade', '--no-warn-script-location', pkg
-    end
-    # Give wheel a versioned name:
-    mv "#{cellar_framework}/bin/wheel", "#{cellar_framework}/bin/wheel2.7"
-    # Clean up “extra files” (by our definition here):
-    %w[easy_install pip pip2].each{ |junk| rm "#{cellar_framework}/bin/#{junk}" }
-    # Put symlinks where needed:
-    %w[easy_install- pip wheel].each do |pfx|
-      (cellar_framework/'bin').install_symlink "#{pfx}2.7" => "#{pfx}2", "#{pfx}2.7" => pfx.chomp('-')
-    end
-
-    # Help distutils find brewed stuff when building extensions
+    # Help distutils find brewed stuff when building extensions.
     f_ossl = Formula['openssl3'];  f_tcltk = Formula['tcl-tk']
     include_dirs = [HOMEBREW_PREFIX/'include', f_ossl.opt_include, f_tcltk.opt_include]
     library_dirs = [HOMEBREW_PREFIX/'lib',     f_ossl.opt_lib,     f_tcltk.opt_lib]
-
     if build.with? 'sqlite'
       f = Formula['sqlite']
       include_dirs << f.opt_include
@@ -265,7 +248,7 @@ END_OF_PATCH
 
     (cellar_framework/'lib/python2.7/distutils/distutils.cfg').atomic_write <<-EOS.undent
         [install]
-        prefix=#{HOMEBREW_PREFIX}
+        prefix=#{cellar_framework}
 
         [build_ext]
         include_dirs=#{include_dirs.join ':'}
@@ -274,11 +257,25 @@ END_OF_PATCH
 
     (cellar_framework/'pip.conf').atomic_write <<-_.undent
         [install]
-        prefix = #{HOMEBREW_PREFIX}
-
-        [install]
-        no-warn-script-location = true
+        prefix=#{cellar_framework}
+        no-warn-script-location=true
       _
+
+    # (Re‐)install pip, setuptools, & wheel, which will have been smurfed up by the site‐packages shenanigans above (not to mention
+    # being out of date) if they were already present.
+    system bin/'python2', '-m', 'ensurepip', '--upgrade'
+    cfb = cellar_framework/'bin'
+    system "#{cfb}/pip2", 'install', '--force-reinstall', '--upgrade', 'pip'
+    # Replace duplicate files with symlinks.
+    rm Dir["#{cfb}/pip{,2}"]
+    cfb.install_symlink_to 'pip2.7' => 'pip2'
+    bin.install_symlink_to "#{cfb}/pip2.7" => 'pip2'
+
+    inreplace [cellar_framework/"lib/python2.7/distutils/distutils.cfg", cellar_framework/'pip.conf'],
+      %r{prefix=#{cellar_framework}},
+      "prefix=#{HOMEBREW_PREFIX}"
+
+    system "#{cfb}/pip2", 'install', '--force-reinstall', '--upgrade', 'setuptools'
   end # install
 
   def cellar_framework; frameworks/'Python.framework/Versions/2.7'; end

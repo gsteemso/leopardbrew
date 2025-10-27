@@ -1,11 +1,10 @@
-# stable release 2025-06-03; checked 2025-08-08
-# (Python 3.11.x should build but needs C11; 3.12.x and 3.13.x are inscrutable.)
+# stable release 2025-10-09; checked 2025-10-26
+# (Python 3.11.x should build but needs C11; 3.12.x–3.14.x are inscrutable.)
 class Python3 < Formula
   desc 'Interpreted, interactive, object-oriented programming language'
   homepage 'https://www.python.org/'
-  url 'https://www.python.org/ftp/python/3.10.18/Python-3.10.18.tar.xz'
-  sha256 'ae665bc678abd9ab6a6e1573d2481625a53719bc517e9a634ed2b9fefae3817f'
-  revision 1
+  url 'https://www.python.org/ftp/python/3.10.19/Python-3.10.19.tar.xz'
+  sha256 'c8f4a596572201d81dd7df91f70e177e19a70f1d489968b54b5fbbf29a97c076'
 
   XY = '3.10'.freeze
 
@@ -68,8 +67,7 @@ class Python3 < Formula
          #       -DWITH_PIL -I../Extensions/Imaging/libImaging  tkImaging.c \\
 END_OF_PATCH
 
-  # setuptools remembers what flags python is built with, and uses them to build packages later.  Xcode-only systems need different
-  # flags.
+  # setuptools remembers the build flags, and uses them later to build packages.  Xcode-only systems need different flags.
   def pour_bottle?; MacOS::CLT.installed?; end
 
   def install
@@ -171,7 +169,7 @@ END_OF_PATCH
     # Demos and Tools
     system 'make', 'frameworkinstallextras', "PYTHONAPPSDIR=#{pkgshare}"
 
-    # Any .app get a “ 3” inserted, so it does not conflict with python 2.x.
+    # Any .apps get a “ 3” inserted, to not conflict with python 2.x.
     Dir.glob("#{prefix}{,/share/python3}/*.app") { |app| mv app, app.sub('.app', ' 3.app') }
 
     # Copy the test stuff and similar miscellanea to libexec, so we can use them for `brew test`.
@@ -192,51 +190,65 @@ END_OF_PATCH
 
     # Fix up the LINKFORSHARED configuration variable.
     inreplace Dir[cellar_framework/"lib/python#{xy}/_sysconfigdata_*.py"],
-              %r{('LINKFORSHARED':\s+'(?:.+?'\n\s+')?)[^']*(Python.framework/Versions/#{xy}/Python',)},
+              %r{('LINKFORSHARED':\s+'(?:.+?'\n\s+')?)[^']*(Python.framework/Versions/#{xyq}/Python',)},
               "\\1#{opt_frameworks}/\\2"
     # Erase any references that point DYLD_FRAMEWORK_PATH into the build directory.
     inreplace Dir[cellar_framework/"lib/python#{xy}/_sysconfigdata_*.py"],
               %r{DYLD_FRAMEWORK_PATH=#{Regexp.escape(HOMEBREW_TEMP)}[^']+}, ''
+  end # install
 
-    # Upgrade pip & setuptools (including wheel), which will have gotten smurfed up by our site‐packages shenanigans anyway:
-    system bin/'python3', '-m', 'ensurepip', '--upgrade', '--no-warn-script-location'
-    %w[pip setuptools].each do |pkg|
-      system cellar_framework/'bin/pip3', 'install', '--force-reinstall', '--upgrade', '--no-warn-script-location', pkg
-    end
-    # Give wheel a versioned name:
-    mv "#{cellar_framework}/bin/wheel", "#{cellar_framework}/bin/wheel#{xy}"
-    # Clean up “extra files” (by our definition here):
-    %w[easy_install pip pip3].each{ |junk| rm "#{cellar_framework}/bin/#{junk}" }
-
-    # Put symlinks where needed:
-    %w[easy_install- pip wheel].each do |pfx|
-      (cellar_framework/'bin').install_symlink "#{pfx}#{xy}" => "#{pfx}3", "#{pfx}#{xy}" => pfx.chomp('-')
-    end
-
-    # Help distutils find brewed stuff when building extensions
+  def post_install
+    # Help distutils find brewed stuff when building extensions.
     f_ossl = Formula['openssl3'];  f_sqlite = Formula['sqlite'];  f_tcltk = Formula['tcl-tk']
     include_dirs = [HOMEBREW_PREFIX/'include', f_ossl.opt_include, f_sqlite.opt_include, f_tcltk.opt_include]
     library_dirs = [HOMEBREW_PREFIX/'lib',     f_ossl.opt_lib,     f_sqlite.opt_lib,     f_tcltk.opt_lib]
 
-    cfg = cellar_framework/"lib/python#{xy}/distutils/distutils.cfg"
-    cfg.atomic_write <<-EOS.undent
+    (cellar_framework/"lib/python#{xy}/distutils/distutils.cfg").atomic_write <<-EOS.undent
         [install]
-        prefix=#{HOMEBREW_PREFIX}
+        prefix=#{cellar_framework}
 
         [build_ext]
         include_dirs=#{include_dirs.join ':'}
         library_dirs=#{library_dirs.join ':'}
       EOS
 
-    cfg = cellar_framework/'pip.conf'
-    cfg.atomic_write <<-_.undent
+    (cellar_framework/'pip.conf').atomic_write <<-_.undent
         [install]
-        prefix = #{HOMEBREW_PREFIX}
-
-        [install]
-        no-warn-script-location = true
+        prefix=#{cellar_framework}
+        no-warn-script-location=true
       _
-  end # install
+
+    # Upgrade {pip} & {build} (which include {setuptools}, {distutils}, & {wheel}), all of which will have gotten smurfed up by the
+    # site‐packages shenanigans above even if they were already present:
+
+    system bin/'python3', '-m', 'ensurepip'
+    cfb = cellar_framework/'bin'
+    system "#{cfb}/pip3", 'install', '--force-reinstall', '--upgrade', 'pip'
+    # Replace duplicate files with symlinks.  Note:  Many former command-line tools like “easy_install” are no longer provided.
+    rm Dir["#{cfb}/pip{,3}"]
+    cfb.install_symlink_to "pip#{xy}" => 'pip3'
+    bin.install_symlink_to "#{cfb}/pip#{xy}" => 'pip3'
+
+    # While we’re in here, install unversioned symlinks to everything.
+    Dir["#{cfb}/*#{xy}*"].each do |tgt|
+      lnk = File.basename(tgt)
+      next if lnk == "2to3-#{xy}"  # Unversioned form of this name is already linked.
+      lnk[/-?#{xyq}/] = ''
+      cfb.install_symlink tgt => lnk
+      bin.install_symlink tgt => lnk
+    end
+
+    # Since post‐install happens after link, hook everything up manually:
+    Dir["#{bin}/*"].each do |file|
+      (HOMEBREW_PREFIX/'bin').install_symlink_to file unless (HOMEBREW_PREFIX/"bin/#{File.basename(file)}").exists?
+    end
+
+    inreplace [cellar_framework/"lib/python#{xy}/distutils/distutils.cfg", cellar_framework/'pip.conf'],
+      %r{prefix=#{cellar_framework}},
+      "prefix=#{HOMEBREW_PREFIX}"
+
+    system "#{cfb}/pip3", 'install', '--force-reinstall', '--upgrade', 'build'
+  end # post_install
 
   def cellar_framework; frameworks/"Python.framework/Versions/#{xy}"; end
 
@@ -247,6 +259,8 @@ END_OF_PATCH
   def site_packages; HOMEBREW_PREFIX/relative_site_packages; end
 
   def xy; XY; end
+
+  def xyq; XY.sub '.', "\\."; end
 
   def sitecustomize
     <<-EOS.undent
@@ -317,12 +331,19 @@ END_OF_PATCH
   end # caveats
 
   test do
-    # Check if sqlite is ok, because we build with --enable-loadable-sqlite-extensions
-    # and it can occur that building sqlite silently fails if OSX's sqlite is used.
-    arch_system bin/"python#{xy}", '-c', "'import sqlite3'"
-    # Check if some other modules import. Then the linked libs are working.
-    arch_system bin/"python#{xy}", '-c', "'import tkinter; root = tkinter.Tk()'"
-    system bin/'pip3', 'list'  # pip3 is not a binary
+    if ARGV.includes? '--unit'  # Run the unit tests we stashed in libexec.
+      # Old Mac OSes can’t run very many concurrent processes.
+      args = ['-j', (MacOS.version >= :snow_leopard ? ENV.make_jobs.to_s : '1')]
+      args << '-u' << 'all' if ARGV.long?
+      system "#{bin}/python3", "#{libexec}/Tools/scripts/run_tests.py", *args
+    else
+      # Check if sqlite is ok, because we build with --enable-loadable-sqlite-extensions
+      # and it can occur that building sqlite silently fails if OSX's sqlite is used.
+      arch_system bin/"python#{xy}", '-c', "'import sqlite3'"
+      # Check if some other modules import. Then the linked libs are working.
+      arch_system bin/"python#{xy}", '-c', "'import tkinter; root = tkinter.Tk()'"
+      system "#{bin}/pip3", 'list'  # pip3 is not a binary
+    end
   end # test
 end # Python3
 
