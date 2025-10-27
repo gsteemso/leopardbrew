@@ -11,11 +11,12 @@ module HomebrewArgvExtension
                   sandbox?
                   verbose?  ].freeze
 
-  SWITCHES = { '1' => '--1', # (“do not recurse” – only used by the `deps` command)
+  SWITCHES = { '1' => '--1',  # “do not recurse” – only used by the `deps` command
              # 'd' => '--debug', (already handled as an environment flag)
                'f' => '--force',
                'g' => '--git',
                'i' => '--interactive',
+               'l' => '--long',  # “run the long tests too” – available for running tests
                'n' => '--dry-run',
              # 'q' => '--quieter'  (already handled as an environment flag)
              # 's' => '--build-from-source', (already handled as an environment flag)
@@ -152,6 +153,8 @@ module HomebrewArgvExtension
   def git?; flag? '--git'; end
 
   def interactive?; flag? '--interactive'; end
+
+  def long?; flag? '--long'; end
 
   def one?; flag? '--1'; end
 
