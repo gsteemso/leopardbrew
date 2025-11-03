@@ -8,8 +8,7 @@ brew() { "$HOMEBREW_BREW_FILE" "$@" ; }
 
 onoe() {
   # If stderr is a terminal, underline “Error” & print it in red
-  if [ -t 2 ]; then echo -ne "\033[4;31mError\033[0m:  " >&2
-  else echo -n 'Error:  ' >&2 ; fi
+  if [ -t 2 ]; then echo -ne "\033[4;31mError\033[0m:  " >&2; else echo -n 'Error:  ' >&2 ; fi
   if [ $# -eq 0 ]; then /bin/cat >&2 ; else echo "$*" >&2 ; fi
 }
 
@@ -27,12 +26,9 @@ version_string() {
 ###### Preliminaries ######
 
 # Force UTF-8 to avoid encoding issues for users with broken locale settings.
-if [ "$(locale charmap 2> /dev/null)" != 'UTF-8' ]; then
-  export LC_ALL='en_US.UTF-8'
-fi
+if [ "$(locale charmap 2> /dev/null)" != 'UTF-8' ]; then export LC_ALL='en_US.UTF-8'; fi
 
-# Where we store built products.  [prefix]/Cellar if it exists ([prefix] is
-# “/usr/local” by default) – but usually [repository]/Cellar.
+# Where we store built products.  [prefix]/Cellar if it exists (default [prefix] is “/usr/local”) – but usually [repository]/Cellar.
 if [ -d "$HOMEBREW_PREFIX/Cellar" ]; then HOMEBREW_CELLAR="$HOMEBREW_PREFIX/Cellar"
 else HOMEBREW_CELLAR="$HOMEBREW_REPOSITORY/Cellar"; fi
 
@@ -43,8 +39,7 @@ case "$*" in
   --cellar) echo "$HOMEBREW_CELLAR"; exit 0 ;;
   --repository|--repo) echo "$HOMEBREW_REPOSITORY"; exit 0 ;;
 esac
-# Note – if ARGV also contains anything else, the relevant `brew` subcommand is
-# executed instead of one of these shortcuts.
+# Note – if ARGV also contains anything else, the relevant `brew` subcommand is executed instead of one of these shortcuts.
 
 # Where we keep the Homebrew Ruby libraries.
 HOMEBREW_RUBY_LIBRARY="${HOMEBREW_LIBRARY}/Homebrew"
@@ -54,17 +49,15 @@ HOMEBREW_RUBY_LIBRARY="${HOMEBREW_LIBRARY}/Homebrew"
 
 ###### Sanity checks ######
 
-[ "$HOMEBREW_PREFIX" = '/' -o "$HOMEBREW_PREFIX" = '/usr' ] && \
-  odie "Refusing to continue at this prefix:  $HOMEBREW_PREFIX"
+[ "$HOMEBREW_PREFIX" = '/' -o "$HOMEBREW_PREFIX" = '/usr' ] && odie "Refusing to continue at this prefix:  $HOMEBREW_PREFIX"
 
-# Many Pathname operations use getwd() when they shouldn’t, and then fail in
-# strange ways.  Reduce our support burden by showing a user-friendly error.
+# Many Pathname operations use getwd() when they shouldn’t, and then fail in strange ways.  Reduce our support burden by showing a
+# user-friendly error.
 [ -d "$(pwd)" ] || odie 'The current working directory doesn’t exist; cannot proceed.'
 
 ###### The command line ######
 
-if [ "$1" = -v ]; then shift; set -- "$@" -v; fi
-# Shift the -v to the end of the parameter list
+if [ "$1" = -v ]; then shift; set -- "$@" -v; fi  # Shift the -v to the end of the parameter list
 
 HOMEBREW_ARG_COUNT="$#"
 HOMEBREW_COMMAND="$1"
@@ -115,8 +108,7 @@ HOMEBREW_USER_AGENT="Leopardbrew/$LEOPARDBREW_VERSION (Macintosh; $HOMEBREW_PROC
 
 ###### More sanity checks ######
 
-# Check early for bad xcode-select, because `doctor` and many other things will
-# hang.  Note that this bug was fixed in 10.9.
+# Check early for bad xcode-select, because `doctor` and many other things will hang.  Note that this bug was fixed in 10.9.
 [ $HOMEBREW_OS_VERSION_DIGITS -lt 100900 ] && [ -f '/usr/bin/xcode-select' ] \
   && [ "$('/usr/bin/xcode-select' --print-path)" = '/' ] && odie <<EOS
 Your xcode-select path is currently set to “/”.
@@ -149,7 +141,6 @@ unset GEM_PATH
 source "$HOMEBREW_RUBY_LIBRARY/utils/vendor-ruby.sh"
 setup-ruby-path
 
-HOMEBREW_CURL_PATH='/usr/bin/curl'
 source "$HOMEBREW_RUBY_LIBRARY/utils/vendor-curl.sh"
 setup-curl-path
 
@@ -164,13 +155,13 @@ export HOMEBREW_LIBRARY
 export HOMEBREW_PREFIX
 export HOMEBREW_REPOSITORY
 
-# Declared in setup-ruby-path
+# Declared in setup-____-path
+export HOMEBREW_CURL_PATH
 export HOMEBREW_RUBY_PATH
 
 # Declared here in brew.sh
 export HOMEBREW_CACHE
 export HOMEBREW_CELLAR
-export HOMEBREW_CURL_PATH
 export HOMEBREW_PROCESSOR_TYPE
 export HOMEBREW_RUBY_LIBRARY
 export HOMEBREW_OS_VERSION
@@ -181,18 +172,14 @@ export LEOPARDBREW_VERSION
 ###### Command execution ######
 
 if [ -n "$HOMEBREW_BASH_COMMAND" ]; then
-  # Source rather than executing directly, to ensure the whole file is read into
-  # memory before it is run.  This makes running a Bash script behave more like
-  # a Ruby script and avoids hard-to-debug issues if the Bash script is updated
-  # at the same time as being run.
-  #
+  # Source rather than executing directly, to ensure the whole file is loaded before it is run.  This makes running a Bash script
+  # behave more like a Ruby script and avoids hard-to-debug issues if the Bash script is updated at the same time as being run.
   # Hide shellcheck complaint:
   # shellcheck source=/dev/null
   source "$HOMEBREW_BASH_COMMAND"
   { "homebrew-$HOMEBREW_COMMAND" "$@"; exit $?; }
-else
-  # Unshift command back into argument list (unless it was empty, i.e. there was
-  # no command).
+else # There is no shell‐script version of the command.
+  # Unshift command back into argument list (unless it was empty, i.e. there was no command).
   [ "$HOMEBREW_ARG_COUNT" -gt 0 ] && set -- "$HOMEBREW_COMMAND" "$@"
   if [ -n "$HOMEBREW_DEBUG_RUBY" ]; then
     export HOMEBREW_DEBUG_RUBY
