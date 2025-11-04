@@ -41,46 +41,26 @@ class Migrator
   end
 
   # instance of new name formula
-  attr_reader :formula
-
   # old name of the formula
-  attr_reader :oldname
-
   # path to oldname’s rack in the cellar
-  attr_reader :old_cellar
+  attr_reader :formula, :oldname, :old_cellar
 
   # path to oldname pin
-  attr_reader :old_pin_record
-
   # path to oldname opt
-  attr_reader :old_opt_record
-
   # oldname linked keg
-  attr_reader :old_linked_keg
-
   # path to oldname's linked keg
-  attr_reader :old_linked_keg_record
+  attr_reader :old_pin_record, :old_opt_record, :old_linked_keg, :old_linked_keg_record
 
   # tabs from oldname kegs
-  attr_reader :old_tabs
-
   # tap of the old name
-  attr_reader :old_tap
-
   # resolved path to oldname pin
-  attr_reader :old_pin_link_record
+  attr_reader :old_tabs, :old_tap, :old_pin_link_record
 
   # new name of the formula
-  attr_reader :newname
-
   # path to newname’s rack in the cellar according to new name
-  attr_reader :new_cellar
-
   # path to newname pin
-  attr_reader :new_pin_record
-
   # path to newname keg that will be linked if old_linked_keg isn't nil
-  attr_reader :new_linked_keg_record
+  attr_reader :newname, :new_cellar, :new_pin_record, :new_linked_keg_record
 
   def initialize(formula)
     @oldname = formula.oldname
@@ -337,7 +317,7 @@ class Migrator
   end # Migrator#backup_oldname
 
   def backup_oldname_cellar
-    unless old_cellar.exist?
+    unless old_cellar.exists?
       FileUtils.mv(new_cellar, old_cellar)
     end
   end
