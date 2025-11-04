@@ -38,7 +38,7 @@ class Perl < Formula
   def site_perl; HOMEBREW_PREFIX/'site_perl'; end
 
   def install
-    ENV.allow_universal_binary if build.universal?
+    Target.allow_universal_binary if build.universal?
     archs = Target.archset
 
     args = %W[

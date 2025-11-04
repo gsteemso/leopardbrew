@@ -17,7 +17,7 @@ class Libtasn1 < Formula
 
   def install
     if build.universal?
-      ENV.allow_universal_binary
+      Target.allow_universal_binary
       the_binaries = %w[
         bin/asn1Coding
         bin/asn1Decoding

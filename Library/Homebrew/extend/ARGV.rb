@@ -82,16 +82,14 @@ module HomebrewArgvExtension
   def formulae
     require 'formula'
     @fae ||= (downcased_unique_named - casks).map{ |name|
-        if name.include?('/') or File.exists?(name) then Formulary.factory(name, spec)
+        if name.includes?('/') or File.exists?(name) then Formulary.factory(name, spec)
         else Formulary.find_with_priority(name, spec); end
       }
   end # formulae
 
   def resolved_formulae
     require 'formula'
-    @res_fae ||= racks.map{ |r| Formulary.from_rack(r) }.select{ |f|
-        f.any_version_installed? or f.oldname_installed?
-      }
+    @res_fae ||= racks.map{ |r| Formulary.from_rack(r) }.select{ |f| f.any_version_installed? or f.oldname_installed? }
   end # resolved_formulae
 
   def casks; @casks ||= downcased_unique_named.grep HOMEBREW_CASK_TAP_FORMULA_REGEX; end
@@ -182,13 +180,23 @@ module HomebrewArgvExtension
 
   def build_stable?; include? '--stable' or (not build_head? and not build_devel?); end
 
+  def build_spec; build_stable? ? :stable : build_devel? ? :devel : :head; end
+
   def build_cross?; include? '--cross' or switch? 'x' or ENV['HOMEBREW_UNIVERSAL_MODE'].to_s.downcase == 'cross'; end
 
-  def build_universal?; ENV['HOMEBREW_UNIVERSAL_MODE'].to_s.downcase == 'local' or flag? '--universal'; end
+  def build_universal?; flag? '--universal' or ENV['HOMEBREW_UNIVERSAL_MODE'].to_s.downcase == 'local'; end
 
   def build_fat?; build_universal? or build_cross?; end
 
-  def build_mode; build_cross? ? :cross : build_universal? ? :local : :plain; end
+  def build_mode
+    (include? '--cross' or switch? 'x') ? :cross \
+      : flag?('--universal')            ? :local \
+      : case ENV['HOMEBREW_UNIVERSAL_MODE'].to_s.downcase
+          when 'cross' then :cross
+          when 'local' then :local
+          else              :plain
+        end
+  end # build_mode
 
   # Request a 32-bit only build.  Needed for some use-cases.  Building Universal is preferable.
   def build_32_bit?; include? '--32-bit'; end

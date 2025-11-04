@@ -1,11 +1,4 @@
-module Universality
-  def self.extended(_); instance_variable_set(:@formula_can_be_universal, false); end
-  def formula_can_be_universal?; not not @formula_can_be_universal; end
-end
-
-ENV.extend(Universality)
-
-require 'target'
+require 'target'; Target.no_universal_binary
 require 'extend/ENV/shared'
 require 'extend/ENV/std'
 require 'extend/ENV/super'

@@ -15,13 +15,13 @@ class Kerberos < Formula
   keg_only :provided_by_osx
 
   option :universal
-  option 'with-tests',    'Carry out the build‐time unit tests'
+  option :tests
   option 'with-test-dns', 'Allow use of resolv-wrapper for the build-time unit tests'
 
   @do_unit_tests = build.with?('tests') || build.with?('test-dns')
 
-  depends_on :ld64
-  depends_on 'pkg-config'     => :build
+  depends_on :ld64        => :build
+  depends_on 'pkg-config' => :build
   if @do_unit_tests
     depends_on :python3         => :build  # Only used during unit testing.
     depends_on 'resolv_wrapper' => :build if build.with? 'test-dns'
@@ -39,7 +39,7 @@ class Kerberos < Formula
 
   def install
     if build.universal?
-      ENV.allow_universal_binary
+      Target.allow_universal_binary
       the_binaries = %w[
           bin/gss-client
           bin/kadmin

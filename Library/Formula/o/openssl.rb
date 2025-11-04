@@ -36,7 +36,7 @@ class Openssl < Formula
 
   def install
     if build.universal?
-      ENV.allow_universal_binary
+      Target.allow_universal_binary
       the_binaries = %w[
         bin/openssl
         lib/libcrypto.a

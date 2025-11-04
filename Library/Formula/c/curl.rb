@@ -11,18 +11,18 @@ class Curl < Formula
 
   keg_only :provided_by_osx
 
+  option :tests,    'Run the build‐time test suite (slow and requires Python3)'
   option :universal
 
-  option 'with-gnutls',        'Add GnuTLS security, independent of OpenSSL/LibreSSL'
+  option 'with-gnutls',        'Add GnuTLS security, independent of OpenSSL'
   option 'with-rtmpdump',      'Support RTMP (streaming Flash)'
-  option 'with-standalone',    'Omit every discretionary dependency except OpenSSL3'
-  option 'with-tests',         'Run the build‐time test suite (slow and requires Python3)'
 
   option 'without-dns-extras', 'Omit asynchronous, internationalized, public‐suffix‐aware DNS'
+  option 'without-frills',     'Omit every discretionary dependency except OpenSSL3'
   option 'without-gsasl',      'Omit Simple Authentication & Security Layer SCRAM authentication'
   option 'without-kerberos',   'Support GSS-API and SPNEGO authentication (via MIT Kerberos)'
   option 'without-libssh2',    'Omit scp and sFTP access'
-  option 'without-ssl',        'Omit LibreSSL/OpenSSL security (recommend adding GnuTLS)'
+  option 'without-ssl',        'Omit OpenSSL security (recommend adding GnuTLS)'
   option 'without-zstd',       'Omit ZStandard compression'
 
   deprecated_option 'with-rtmp'        => 'with-rtmpdump'
@@ -32,7 +32,7 @@ class Curl < Formula
   depends_on :ld64        => :build
   depends_on 'make'       => :build  # pre‐version 4 `make` can be flaky when running parallel jobs
   depends_on 'pkg-config' => :build
-  depends_on :python3    => :build if build.with? 'tests'
+  depends_on :python3     => :build if build.with? 'tests'
 
   depends_on 'curl-ca-bundle'
   depends_on 'libnghttp2'
@@ -41,7 +41,7 @@ class Curl < Formula
   depends_on 'perl'
   depends_on 'zlib'
 
-  if build.without? 'standalone'
+  if build.with? 'frills'
     depends_group ['dns-extras', ['c-ares', 'libidn2', 'libpsl'] => :recommended]
     depends_on     'gsasl'      => :recommended
     depends_on     'kerberos'   => :recommended
@@ -56,7 +56,7 @@ class Curl < Formula
 
   def install
     if build.universal?
-      ENV.allow_universal_binary
+      Target.allow_universal_binary
       the_binaries = %w[
         bin/curl
         lib/libcurl.4.dylib
@@ -67,8 +67,8 @@ class Curl < Formula
     archs = Target.archset
 
     # Complain about this, but it doesn’t justify cancelling the build.
-    opoo '“--with-standalone” overrides all other “--with-” options except “--with-tests”.  Ignoring them.' \
-      if build.with? 'standalone' and (build.with? 'gnutls' or build.with? 'rtmpdump')
+    opoo '“--without-frills” overrides all “--with-” options except “--with-tests”.  Ignoring them.' \
+      if build.without? 'frills' and (build.with? 'gnutls' or build.with? 'rtmpdump')
 
     # The defaults:
     #   --with-aix-soname=aix*, --enable-alt-svc,  --with-apple-idn*, --disable-ares, --enable-aws,
@@ -183,24 +183,22 @@ class Curl < Formula
     # among multiple SSLs breaks without doing this.  That said, the prerequisites‐assembly process
     # already sets $PKG_CONFIG_PATH for us, so it doesn’t much matter.
 
-    args << '--with-gnutls' << '--enable-ech' if build.with? 'gnutls'
-    if build.with? 'ssl'
-      args << '--with-openssl' << '--enable-openssl-auto-load-config'
-    elsif build.without? 'gnutls'
-      args << '--without-ssl'
+    args << '--with-gnutls' << '--enable-ech' if build.with? 'frills' and build.with? 'gnutls'
+
+    if build.with?('ssl') then args << '--with-openssl' << '--enable-openssl-auto-load-config'
+    elsif build.without?('gnutls') then args << '--without-ssl'; end
+
+    if build.with? 'frills' and build.with? 'dns-extras' then args << '--enable-ares'
+    else args << '--without-libidn2' << '--without-libpsl'; end
+
+    if build.with? 'frills'
+      args << "--with-gssapi=#{Formula['kerberos'].opt_prefix}" if build.with? 'kerberos'
+      args << '--with-libssh2' if build.with? 'libssh2'
     end
 
-    if build.with? 'dns-extras'
-      args << '--enable-ares'
-    else
-      args << '--without-libidn2' << '--without-libpsl'
-    end
-
-    args << '--without-brotli' unless enhanced_by? 'brotli'
-    args << "--with-gssapi=#{Formula['kerberos'].opt_prefix}" if build.with? 'kerberos'
-    args << '--with-libssh2' if build.with? 'libssh2'
-    args << '--without-librtmp' if build.without? 'rtmpdump'
-    args << '--without-zstd' if build.without? 'zstd'
+    args << '--without-brotli' if build.without? 'frills' or not enhanced_by? 'brotli'
+    args << '--without-librtmp' if build.without? 'frills' or build.without? 'rtmpdump'
+    args << '--without-zstd' if build.without? 'frills' or build.without? 'zstd'
 
     archs.each do |arch|
       ENV.set_build_archs(arch) if build.universal?
@@ -246,7 +244,7 @@ class Curl < Formula
       filename.delete
     end
 
-    if Formula['perl'].installed?
+    if Formula['perl'].any_version_installed?
       ENV.prepend_path 'PATH', Formula['perl'].opt_bin
       # so mk-ca-bundle can find it
       ENV.prepend_path 'PATH', Formula['curl'].opt_bin

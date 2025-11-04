@@ -1,8 +1,11 @@
-# This file is loaded before ENV gets extended.
+# This library is loaded before ENV gets extended.
 require 'macos'  # pulls in cpu for us
 
 class Target
   class << self
+    def allow_universal_binary; @@formula_can_be_universal = true;  end
+    def no_universal_binary;    @@formula_can_be_universal = false; end
+
     # What architecture are we building for?  Either one passed explicitly through --bottle-arch=, or the preferred variant for our
     # native hardware.  We do not care if a bottle will be built, only if an architecture for one was supplied.
     # This routine assumes that only the specified or preferred architecture will be built.  To process multiple architectures, use
@@ -13,11 +16,11 @@ class Target
     # universal build includes every runnable architecture (with less‐capable duplicates, such as bare :x86_64 on a Haswell machine,
     # removed).  A “cross” build includes every buildable architecture (with, again, less‐capable duplicates removed).
     def archset
-      ENV.formula_can_be_universal? ? (ARGV.build_universal? ? local_archs \
-                                      : ARGV.build_cross? ? cross_archs \
-                                      : (a = ARGV.bottle_arch) ? [oldest(a)].extend(ArchitectureListExtension) \
-                                      : preferred_arch_as_list) \
-                                    : preferred_arch_as_list
+      @@formula_can_be_universal ? (ARGV.build_universal?    ? local_archs \
+                                   : ARGV.build_cross?       ? cross_archs \
+                                   : (a = ARGV.bottle_arch)  ? [oldest(a)].extend(ArchitectureListExtension) \
+                                   : preferred_arch_as_list) \
+                                 : preferred_arch_as_list
     end # Target⸬archset
 
     # What CPU type are we building for?  Either one corresponding to a value explicitly passed using --bottle-arch=, or our native
@@ -151,7 +154,7 @@ class Target
     # These return arrays extended via ArchitectureListExtension (see “mach.rb”), which provides helper methods like #as_arch_flags
     # & #as_cmake_arch_flags.  Note that building for 64-bit is only just possible on Tiger & unevenly supported on Leopard.  Don’t
     # even try unless 64‐bit builds are enabled; they generally aren’t, prior to Leopard, although the issue can be forced on Tiger
-    # by setting the environment variable $HOMEBREW_PREFER_64_BIT to “FORCE” (case‐insensitively).
+    # by case‐insensitively setting the environment variable $HOMEBREW_PREFER_64_BIT to “FORCE”.
     # Weirdly, builds for Haswell-architecture :x86_64h and Apple‐silicon :arm64e seem to be absent from the latest Mac OS releases
     # – with unclear implications.
     def all_archs; CPU.known_archs.extend ArchitectureListExtension; end
@@ -168,7 +171,8 @@ class Target
       (MacOS.version   >= :big_sur)  ? universal_archs_2 \
       : (MacOS.version >= :catalina) ? [_64b_arch(:intel)].extend(ArchitectureListExtension) \
       : (MacOS.version >= :lion)     ? [:i386, _64b_arch(:intel)].extend(ArchitectureListExtension) \
-      : (MacOS.version >= :tiger)    ? (prefer_64b? ? (ENV.compiler == :clang ? triple_fat_archs : quad_fat_archs) \
+      : (MacOS.version >= :tiger)    ? (prefer_64b? ? ((ENV.respond_to?(:compiler) and ENV.compiler == :clang) ? triple_fat_archs \
+                                                                                                               : quad_fat_archs) \
                                                     : universal_archs_1)
       : [:ppc].extend(ArchitectureListExtension)
     end # Target⸬cross_archs

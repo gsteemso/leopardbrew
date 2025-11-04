@@ -368,7 +368,7 @@ class FormulaInstaller
       df.insinuate rescue nil
     end
   ensure
-    ENV.no_universal_binary
+    Target.no_universal_binary
   end # install_dependency
 
   def caveats
@@ -430,7 +430,7 @@ class FormulaInstaller
   def build_time; @build_time ||= Time.now - @start_time if @start_time and not interactive?; end
 
   def sanitized_ARGV_options
-    args = []
+    args = Options.new
     args << "--ignore-dependencies" if ignore_deps?
 
     if build_bottle?
@@ -457,16 +457,10 @@ class FormulaInstaller
       args << "--devel"
     end
 
-    formula.options.each do |opt|
-      name  = opt.name[/\A(.+)=\z$/, 1]
-      value = ARGV.value(name)
-      args << "--#{name}=#{value}" if name and value
-    end
-
     args
   end # sanitized_ARGV_options
 
-  def build_argv; sanitized_ARGV_options + options.as_flags; end
+  def build_argv; (sanitized_ARGV_options | Options.create(ARGV.effective_formula_flags)).as_flags; end
 
   def build
     FileUtils.rm_rf(formula.logs)
@@ -492,6 +486,7 @@ class FormulaInstaller
     # Ruby 2.0+ sets close-on-exec by default on all file descriptors except 0, 1, & 2, so we must tell it we want the pipe to stay
     # open in the child process.
     args << { write => write } if RUBY_VERSION >= "2.0"
+    $stderr.puts "Build command line:  “#{args * ' '}”" if DEBUG
 
     pid = fork do
       begin

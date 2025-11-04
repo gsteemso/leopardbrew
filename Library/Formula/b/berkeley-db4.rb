@@ -22,7 +22,7 @@ class BerkeleyDb4 < Formula
 
   def install
     if build.universal?
-      ENV.allow_universal_binary
+      Target.allow_universal_binary
       the_binaries = %w[
         bin/db_archive
         bin/db_checkpoint

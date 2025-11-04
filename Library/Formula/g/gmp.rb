@@ -33,7 +33,7 @@ class Gmp < Formula
     end # lookup
 
     if build.universal?
-      ENV.allow_universal_binary
+      Target.allow_universal_binary
       the_binaries = %w[
         lib/libgmp.10.dylib
         lib/libgmp.a

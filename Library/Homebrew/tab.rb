@@ -13,7 +13,7 @@ class Tab < OpenStruct
     def create(formula, compiler, stdlib, build_opts, archs)
       attributes = {
         'active_aids'        => formula.active_enhancements,
-        'build_mode'         => ARGV.build_mode.to_s,
+        'build_mode'         => (formula.option_defined?('universal') ? ARGV.build_mode.to_s : 'plain'),
         'built_archs'        => archs,
         'built_as_bottle'    => build_opts.bottle?,
         'compiler'           => compiler,
@@ -36,7 +36,7 @@ class Tab < OpenStruct
     def empty
       attributes = {
         'active_aids'        => [],
-        'build_mode'         => ARGV.build_mode.to_s,
+        'build_mode'         => 'plain',
         'built_archs'        => [],
         'built_as_bottle'    => false,
         'compiler'           => nil,
@@ -93,7 +93,7 @@ class Tab < OpenStruct
     def from_file_content(content, path)
       attrs = Utils::JSON.load(content)
       attrs['active_aids'] ||= (attrs['active_aid_sets'] ? attrs['active_aid_sets'].flatten(1) : [])
-      attrs['active_aids'].map!{ |fa| Formulary.from_keg(HOMEBREW_CELLAR/fa[0]/fa[1]) }  # can be nil if missing
+      attrs['active_aids'].map!{ |fa| Formulary.from_keg(HOMEBREW_CELLAR/fa[0]/fa[1]) }.compact!  # can be nil if missing
       attrs['built_archs'] ||= []
       attrs['source'] ||= {}
       pn = Pathname.new(attrs['source']['path'])
@@ -145,7 +145,7 @@ class Tab < OpenStruct
   def active_aids; super || []; end
 
   # Older tabs won’t have this field, so compute the most probable value.
-  def build_mode; super || (tabfile && tabfile.exists? ? Keg.for(tabfile).reconstruct_build_mode.to_s : ''); end
+  def build_mode; super.to_sym || ((tabfile and tabfile.exists?) ? Keg.for(tabfile).reconstruct_build_mode : nil); end
 
   def built_archs
     # Older tabs won’t have this field, so compute a plausible default.
@@ -171,15 +171,15 @@ class Tab < OpenStruct
 
   def to_json
     attributes = {
-      'active_aids'        => active_aids.map{ |f| [f.full_name, f.pkg_version.to_s] },
-      'build_mode'         => build_mode,
+      'active_aids'        => active_aids.compact.map{ |f| [f.full_name, f.pkg_version.to_s] },
+      'build_mode'         => build_mode.to_s.choke,
       'built_archs'        => built_archs.map(&:to_s),
       'built_as_bottle'    => built_as_bottle,
-      'compiler'           => (compiler.to_s if compiler),
+      'compiler'           => compiler.to_s,
       'git_head_SHA1'      => git_head_SHA1,
       'poured_from_bottle' => poured_from_bottle,
       'source'             => source,
-      'stdlib'             => (stdlib.to_s if stdlib),
+      'stdlib'             => stdlib.to_s.choke,
       'time'               => time,
       'unused_options'     => unused_options.as_flags,
       'used_options'       => used_options.as_flags,
@@ -195,8 +195,9 @@ class Tab < OpenStruct
            else 'Installed'
          end
     bm = case build_mode
-           when 'local' then ' [local build mode]'
-           when 'cross' then ' [cross-build mode]'
+           when :local then ' [local build mode]'
+           when :cross then ' [cross-build mode]'
+           when nil    then ' [unknown build mode]'
            else ''
          end
     s << "(for #{built_archs.map(&:to_s).list}#{bm})"

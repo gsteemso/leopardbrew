@@ -32,7 +32,7 @@ module SharedEnvExtension
     @formula_name = formula.full_name if formula
     reset
     set_build_archs(@build_archs = archset || Target.archset)
-    if archset then @formula_can_be_universal = archset.fat?; end
+    if archset and archset.fat? then Target.allow_universal_binary; end
     self['MAKEFLAGS'] ||= "-j#{make_jobs}"
   end # setup_build_environment
 
@@ -123,7 +123,9 @@ module SharedEnvExtension
 
   def fcflags; self['FCFLAGS']; end
 
-  def homebrew_built_archs; self['HOMEBREW_BUILT_ARCHS'].to_s.split(' ').extend ArchitectureListExtension; end
+  def homebrew_built_archs; self['HOMEBREW_BUILT_ARCHS'].to_s.split(' ').map(&:to_sym).extend ArchitectureListExtension; end
+
+  def reset_built_archs; self['HOMEBREW_BUILT_ARCHS'] = ''; end
 
   # Outputs the current compiler.
   # @return [Symbol]
@@ -297,10 +299,7 @@ module SharedEnvExtension
     end # no opt/ prefix
   end # warn_about_non_apple_gcc
 
-  def allow_universal_binary; @formula_can_be_universal = true; end
-  def no_universal_binary; @formula_can_be_universal = false; end
-
-  def universal_binary; allow_universal_binary; set_build_archs(Target.archset); end
+  def universal_binary; Target.allow_universal_binary; set_build_archs(Target.archset); end
 
   def set_build_archs(archset)
     archset = Array(archset).extend ArchitectureListExtension unless archset.responds_to?(:fat?)
