@@ -29,7 +29,7 @@ class Dependency
 
   def to_formula
     formula = Formulary.factory(name)
-    formula.build = BuildOptions.new(options, formula.options)
+    formula.build = BuildOptions.new(Options.create(ARGV.effective_formula_flags), formula.options)
     formula
   end
 
@@ -63,7 +63,7 @@ class Dependency
       deps.each do |dep|
         raise "The formula #{dep.name} depends on itself!" if dep.name == dependent.name
         raise "The formula #{dependent.name} circularly depends on #{original_dependent.name}!" \
-                                                             if dep.name == original_dependent.name
+                                                                                             if dep.name == original_dependent.name
         next if expanded_deps.include? dep
         f = dep.to_formula
         case action(dependent, dep, &block)
