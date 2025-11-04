@@ -11,7 +11,7 @@ module Dependable
 
   def run?; tags.include? :run; end
 
-  def required?; !build? && !optional? && !recommended?; end
+  def required?; run? || (!build? && !optional? && !recommended?); end
 
   def options; Options.create(tags - RESERVED_TAGS); end
 end # Dependable
