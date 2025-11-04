@@ -65,7 +65,7 @@ module FormulaCellarChecks
     <<-EOS.undent
       Non-libraries were installed to “#{formula.lib}”
       Installing non-libraries to “lib” is discouraged.  The offending files are:
-        #{non_libraries * "\n  "}
+        #{non_libs * "\n  "}
     EOS
   end # check_non_libraries
 
@@ -104,8 +104,8 @@ module FormulaCellarChecks
       return if formula.name.starts_with?(formula_name)
     end
 
-    return if MacOS.version < :mavericks && formula.name.starts_with?("postgresql")
-    return if MacOS.version < :yosemite  && formula.name.starts_with?("memcached")
+    return if MacOS.version < :mavericks and formula.name.starts_with?("postgresql")
+    return if MacOS.version < :yosemite  and formula.name.starts_with?("memcached")
 
     return if formula.keg_only? or not formula.include.directory?
 
