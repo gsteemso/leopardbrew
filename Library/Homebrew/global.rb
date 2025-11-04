@@ -10,12 +10,9 @@ require 'extend/pathname'  # also pulls in extend/fileutils, mach, metafiles, & 
 require 'osay'
 require 'utils'
 
-if ENV['HOMEBREW_BREW_FILE'].choke
-  # Path to main executable ($HOMEBREW_PREFIX/bin/brew):
-  HOMEBREW_BREW_FILE = Pathname.new(ENV['HOMEBREW_BREW_FILE'])
-else
-  odie '$HOMEBREW_BREW_FILE was not exported!  Please brew via bin/brew!'
-end
+# Path to main executable ($HOMEBREW_PREFIX/bin/brew):
+if ENV['HOMEBREW_BREW_FILE'].choke then HOMEBREW_BREW_FILE = Pathname.new(ENV['HOMEBREW_BREW_FILE'])
+else odie '$HOMEBREW_BREW_FILE was not exported!  Please brew via bin/brew!'; end
 
 RbConfig = Config if RUBY_VERSION < '1.8.6'  # different module name on Tiger
 
@@ -29,8 +26,7 @@ CONFIG_RUBY_PATH        = RbConfig.responds_to?(:ruby) \
 CURL_PATH               = Pathname.new(ENV['HOMEBREW_CURL_PATH'])   # our internal Portable Curl
 HOMEBREW_CACHE          = Pathname.new(ENV['HOMEBREW_CACHE'])
                           # Where downloads (bottles, source tarballs, etc.) are cached (/Library/Caches/Homebrew)
-  HOMEBREW_FORMULA_CACHE =  HOMEBREW_CACHE/'Formula'
-                            # Where formulæ specified by URL, and all formula locks, are cached
+  HOMEBREW_FORMULA_CACHE =  HOMEBREW_CACHE/'Formula'                # Where URL‐spec’d formulæ, & all formula locks, are cached
 HOMEBREW_CELLAR         = Pathname.new(ENV['HOMEBREW_CELLAR']).realpath
 HOMEBREW_LIBRARY        = Pathname.new(ENV['HOMEBREW_LIBRARY'])     # In HOMEBREW_REPOSITORY
   HOMEBREW_CONTRIB      =   HOMEBREW_LIBRARY/'Contributions'
@@ -39,21 +35,20 @@ HOMEBREW_LIBRARY        = Pathname.new(ENV['HOMEBREW_LIBRARY'])     # In HOMEBRE
 HOMEBREW_RUBY_LIBRARY   = Pathname.new(ENV['HOMEBREW_RUBY_LIBRARY']) # Homebrew’s Ruby libraries
   HOMEBREW_CMDS         =   HOMEBREW_RUBY_LIBRARY/'cmd'
   HOMEBREW_DEV_CMDS     =   HOMEBREW_RUBY_LIBRARY/'dev-cmd'
-  HOMEBREW_LOAD_PATH    =   HOMEBREW_RUBY_LIBRARY
-                            # The path to our libraries /when invoking Ruby/.  May be set to a custom value during unit testing of
-                            # Homebrew itself.
+  HOMEBREW_LOAD_PATH    =   HOMEBREW_RUBY_LIBRARY                   # The path to our libraries /when invoking Ruby/.  May be set
+                                                                    # to a custom value during unit testing of Homebrew itself.
   TEST_FIXTURES         =   HOMEBREW_RUBY_LIBRARY/'test/fixtures'
 HOMEBREW_PREFIX         = Pathname.new(ENV['HOMEBREW_PREFIX'])      # Where we link under
   OPTDIR                =   HOMEBREW_PREFIX/'opt'                   # Where we are always available
 HOMEBREW_REPOSITORY     = Pathname.new(ENV['HOMEBREW_REPOSITORY'])  # Where .git is found
+  GIT_REPO_HEAD         =   HOMEBREW_REPOSITORY/'.git/refs/heads/combined'
 HOMEBREW_RUBY_PATH      = Pathname.new(ENV['HOMEBREW_RUBY_PATH'])   # Our internal Ruby binary
 OPEN_PATH               = Pathname.new('/usr/bin/open')
 SYSTEM_RUBY_PATH        = Pathname.new('/usr/bin/ruby')             # The system Ruby binary
-TAR_PATH                = begin (gtar = OPTDIR/'gnu-tar/bin/gtar').executable? ? gtar : Pathname.new('/usr/bin/tar'); end
+TAR_PATH                = (gtar = OPTDIR/'gnu-tar/bin/gtar').executable? ? gtar : Pathname.new('/usr/bin/tar')
 
 # Predefined regular expressions:
-# CompilerConstants::GNU_CXX11_REGEXP # see `compilers.rb`
-# CompilerConstants::GNU_GCC_REGEXP   #
+# CompilerConstants::GNU_GCC_REGEXP # For recognizing brewed, non-Apple GCCs.
 HOMEBREW_CASK_TAP_FORMULA_REGEX   = %r{^(Caskroom)/(cask)/([\w+-.]+)$}
                                     # Match formulæ in the default brew‐cask tap, e.g. Caskroom/cask/someformula
 HOMEBREW_CORE_FORMULA_REGEX       = %r{^homebrew/homebrew/([\w+-.]+)$}i
@@ -69,12 +64,14 @@ HOMEBREW_TAP_FORMULA_REGEX        = %r{^([\w-]+)/([\w-]+)/([\w+-.@]+)$}
                                     # Match taps’ formulæ, e.g. someuser/sometap/someformula
 # OPTION_RX                         # see `options.rb`
 # Pathname::BOTTLE_EXTNAME_RX       # see `extend/pathname.rb`
-VERSIONED_NAME_REGEX              = %r{^([^-=][^=]*)=([^=]+)$}
-                                    # matches a formula‐name‐including‐version specification
+VERSIONED_NAME_REGEX              = %r{^([^-=][^=]*)=([^=]+)$}      # Matches a formula‐name‐including‐version specification.
 
 # Other predefined values:
-# CompilerConstants::CLANG_CXX11_MIN # see `compilers.rb`
-# CompilerConstants::COMPILERS       #
+# CompilerConstants::ARCH_COMPILER_MINIMUM
+                                    # Lists the minimum compiler to target a given architecture.
+# CompilerConstants::COMPILER_DEFAULT # Lists the default language versions for a given compiler version.
+# CompilerConstants::COMPILER_SUPPORT # Lists the greatest supported language versions for a given compiler version.
+# CompilerConstants::COMPILERS      # Lists the known compilers.
 HOMEBREW_CURL_ARGS       = '-f#LA'
 HOMEBREW_INTERNAL_COMMAND_ALIASES = { 'ls'          => 'list',
                                       'homepage'    => 'home',
@@ -118,10 +115,8 @@ HOMEBREW_TEMP   = Pathname.new(ENV.fetch 'HOMEBREW_TEMP', '/tmp').realpath
                   # Where temporary folders for building and testing formulæ are created
 NO_EMOJI        = ENV['HOMEBREW_NO_EMOJI']    # Don’t show badges at all (see `formula/installer.rb` and `cmd/info.rb`)
 ORIGINAL_PATHS  = ENV['PATH'].split(File::PATH_SEPARATOR).map{ |p| Pathname.new(p).expand_path rescue nil }.compact.freeze
-QUIETER         = ARGV.quieter?               # Give less-verbose feedback when VERBOSE (checks all
-                                              #   of “-q”, “--quieter”, and $HOMEBREW_QUIET)
-VERBOSE         = ARGV.verbose?               # Give lots of feedback (checks all of “-v”,
-                                              #   “--verbose”, $HOMEBREW_VERBOSE, & $VERBOSE)
+QUIETER         = ARGV.quieter?               # Give less feedback when VERBOSE (checks:  “-q”, “--quieter”, & $HOMEBREW_QUIET)
+VERBOSE         = ARGV.verbose? or QUIETER    # Give lots of feedback (checks:  “-v”, “--verbose”, $HOMEBREW_VERBOSE, & $VERBOSE)
 
 require 'extend/ENV'; ENV.activate_extensions!  # pulls in target (thence macos, & cpu) and formula (thence almost two dozen more)
 
