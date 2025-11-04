@@ -15,9 +15,9 @@ class Libtool < Formula
   depends_on 'automake' => :run
   depends_on 'gettext' if build.with? 'tests'
 
-  # For some reason, the Libtool maintainers think that Darwin’s loadable‐module extension is “.so”
-  # rather than “.dylib”.  Apple’s documentation is clear on the topic – although called a bundle,
-  # its extension shall always be “.dylib”.  “.so” is never even mentioned.
+  # For some reason, the Libtool maintainers think that Darwin’s loadable‐module extension is “.so”, rather than “.dylib”.  Apple’s
+  # documentation is clear on the topic – although called a bundle, with a Mach filetype of “bundle”, its extension shall always be
+  # “.dylib”.  “.so” is never even mentioned.
   patch :DATA
 
   def install
