@@ -144,11 +144,11 @@ end # do_system
 # useful for `test` blocks:
 
 # repeats cmd for each of its runnable fat‐binary architectures
-def arch_system(cmd, *args); for_archs(cmd) { |_, cmd_array| system *cmd_array, *args }; end
+def arch_system(cmd, *args); for_archs(cmd) { |_, cmd_array| Homebrew.system *cmd_array, *args }; end
 
-# Repeats {block} for each of {cmd}’s fat‐binary architectures, passing it the architecture symbol and an array containing the arch-
-# qualified command string’s component parts.  Realize that if the arch(1) command can’t or shouldn’t be executed, the architecture
-# symbol will be nil.
+# Repeats {block} for each of {cmd}’s executable fat‐binary architectures, passing it the architecture symbol & an array containing
+# the arch-qualified command string’s component parts.  Be aware that if arch(1) cannot or should not be executed, the architecture
+# parameter will be nil.
 #   for_archs(cmd) do |arch, cmd_array|
 #     system *cmd_array, args ...
 #   end
@@ -334,7 +334,7 @@ module GitHub
       super <<-EOS.undent
         GitHub #{error}
         HOMEBREW_GITHUB_API_TOKEN may be invalid or expired, check:
-          https://github.com/settings/tokens
+            https://github.com/settings/tokens
       EOS
     end # initialize
   end # AuthenticationFailedError < Error
@@ -344,8 +344,8 @@ module GitHub
       super <<-EOS.undent
         GitHub #{error}
         Try again in #{pretty_ratelimit_reset(reset)}, or create an personal access token:
-          https://github.com/settings/tokens
-        and then set the token as: HOMEBREW_GITHUB_API_TOKEN
+            https://github.com/settings/tokens
+        and then set the token as:  HOMEBREW_GITHUB_API_TOKEN
       EOS
     end # initialize
 
