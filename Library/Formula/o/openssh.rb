@@ -223,7 +223,8 @@ class Openssh < Formula
         exit 1
       fi
     else   # it’s still in place; assume it’s the stock version.
-      echo 'It looks like your configuration is already stock.  Aborting reconfiguration.'
+      echo 'It looks like your configuration is already stock.  Ending reconfiguration.'
+      if ! [ -d "$(brew --cellar)/openssh" ]; then sudo rm -f $(brew --prefix)/bin/to-*-openssh; fi
       exit 0
     fi
     # At this point we know the stock version.
