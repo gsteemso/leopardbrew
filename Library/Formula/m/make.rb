@@ -11,13 +11,12 @@ class Make < Formula
   option 'with-tests',         'Run the build-time unit tests (requires Perl)'
 
   depends_on :nls => :recommended
-  depends_on 'perl' if build.with? 'tests'
+  depends_on 'perl' => :build if build.with? 'tests'
 
   enhanced_by ['guile', 'pkg-config']
 
-  # For some reason the test suite deletes all but a few environment variables
-  # to run the first four tests, obliterating Superenv’s internal state.  This
-  # patch adds the $HOMEBREW_* variables to the list of those that get kept.
+  # For some reason the test suite deletes all but a few environment variables to run the first four tests, obliterating Superenv’s
+  # internal state.  This patch adds the $HOMEBREW_* variables to the list of those that get kept.
   patch :DATA
 
   def install
