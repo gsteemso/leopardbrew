@@ -19,9 +19,9 @@ module ArchitectureListExtension  # applicable to arrays of architecture symbols
   def fat_intel?; includes? :i386 and intersects? INTEL_ARCHS_64; end
   def fat_powerpc?; includes? :ppc and includes? :ppc64; end
 
-  # Universal Binaries, original flavour:  Usually old-style 32-bit PowerPC/Intel, e.g. ppc + i386,
-  # but can also be Leopard‐style quad fat binaries, or Snow‐Leopard‐style triple fat binaries with
-  # no ppc64 slice.  (Other combinations are not generally found in the wild.)
+  # Universal Binaries, original flavour:  Usually old-style 32-bit PowerPC/Intel, e.g. ppc + i386, but might also be Leopard‐style
+  # quad fat binaries, or Snow‐Leopard‐style triple fat binaries with no ppc64 slice.  (Other combinations are not usually found in
+  # the wild, unless you count iOS binaries with multiple 32‐bit ARM slices.)
   def universal_1?; includes? :i386 and includes? :ppc; end
   def universal_2?; intersects_all?(INTEL_ARCHS_64, ARM_ARCHS); end
 
@@ -46,27 +46,26 @@ module MachO  # only useable when included in Pathname
   # @private
   AR_MAGIC = "!<arch>\n".freeze
   AR_MEMBER_HDR_SIZE = 60.freeze
-
-  # @private
   FILE_SIGNATURES = {
-    0xcafebabe => :FAT_MAGIC,
-    0xfeedface => :MH_MAGIC,
-    0xfeedfacf => :MH_MAGIC_64,
-  }.freeze
+      0xcafebabe => :FAT_MAGIC,
+      0xfeedface => :MH_MAGIC,
+      0xfeedfacf => :MH_MAGIC_64,
+    }.freeze
   MACH_FILE_TYPE = {
-    0x00000001 => :MH_OBJECT,       # Relatively small object‐code file
-    0x00000002 => :MH_EXECUTE,      # Executable
-    0x00000003 => :MH_FVMLIB,       # Fixed VM shared library file (obsolete)
-    0x00000004 => :MH_CORE,         # Core dump
-    0x00000005 => :MH_PRELOAD,      # Preloaded executable
-    0x00000006 => :MH_DYLIB,        # Dynamically bound shared library
-    0x00000007 => :MH_DYLINKER,     # Dynamic link editor (LD itself)
-    0x00000008 => :MH_BUNDLE,       # Dynamically bound object‐code bundle
-    0x00000009 => :MH_DYLIB_STUB,   # Shared library stub – static linking only (sections have no content)
-    0x0000000a => :MH_DSYM,         # “companion file with only debug sections”
-    0x0000000b => :MH_KEXT_BUNDLE,  # X86_64 kernel extension
-    0x0000000c => :MH_FILESET       # “set of Mach‐Os”
-  }.freeze
+      0x00000001 => :MH_OBJECT,       # Relatively small object‐code file
+      0x00000002 => :MH_EXECUTE,      # Executable
+      0x00000003 => :MH_FVMLIB,       # Fixed VM shared library file (obsolete)
+      0x00000004 => :MH_CORE,         # Core dump
+      0x00000005 => :MH_PRELOAD,      # Preloaded executable
+      0x00000006 => :MH_DYLIB,        # Dynamically bound shared library
+      0x00000007 => :MH_DYLINKER,     # Dynamic link editor (LD itself)
+      0x00000008 => :MH_BUNDLE,       # Dynamically bound object‐code bundle
+      0x00000009 => :MH_DYLIB_STUB,   # Shared library stub – static linking only (sections have no content)
+      0x0000000a => :MH_DSYM,         # “companion file with only debug sections”
+      0x0000000b => :MH_KEXT_BUNDLE,  # X86_64 kernel extension
+      0x0000000c => :MH_FILESET       # “set of Mach‐Os”
+    }.freeze
+  MAX_FAT_COUNT = 30.freeze  # 3 times Apple’s historical limit
 
   # Mach-O binary methods, see:
   # <mach-o/loader.h>
@@ -82,10 +81,9 @@ module MachO  # only useable when included in Pathname
           if sig == :FAT_MAGIC
             if (fct = fat_count_at(0)) and fct > 0
               fct.times do |i|
-                # The second uint32 is the number of `struct fat_arch` in the file.  Each `struct
-                # fat_arch` is 5 uint32 (net 20 octets); the `offset` member is the 3rd (8 octets
-                # into the struct), with an additional 8‐octet offset due to the two-uint32 `struct
-                # fat_header` at the beginning of the file.
+                # The second uint32 is the number of `struct fat_arch` in the file.  Each `struct fat_arch` is 5 uint32 (net 20
+                # octets); the `offset` member is the 3rd (8 octets into the struct), with an additional 8‐octet offset due to the
+                # two-uint32 `struct fat_header` at the beginning of the file.
                 candidate = binread(4, 16 + 20*i).unpack("N").first
                 offsets << (ar_sigseek_from(candidate) or candidate)
               end
@@ -94,21 +92,18 @@ module MachO  # only useable when included in Pathname
           end # mach-O signature?
         end # signatures?
         offsets.each do |offset|
-          if size >= (offset + 16)  # Mach headers:  We only care about the first 4 uint32 (net 16
-            # octets) of the 7 in the header.  The first (at offset + 0) is the signature, the
-            # second (at offset + 4) is the CPU type (with flags in the high‐order octet), the
-            # third (at offset + 8) is the CPU subtype (with flags in the high‐order octet), and
-            # the fourth (at offset + 12) is the Mach file type.
+          if size >= (offset + 16)  # Mach headers:  Of the 7 uint32 in the header, we only care about the first 4 (net 16 octets).
+            # The first (at offset + 0) is the signature, the second (at offset + 4) is the CPU type (with flags in the high‐order
+            # octet), the third (at offset + 8) is the CPU subtype (with flags in the high‐order octet), & the fourth (at offset +
+            # 12) is the Mach file type.
             sig, cputype, cpu_subtype, mach_filetype = binread(16, offset).unpack('NNNN')
             sig = FILE_SIGNATURES[sig & 0xfffffffe]
             arch = if sig == :MH_MAGIC
                      case cputype
                        when 0x00000007 then :i386
                        when 0x00000012 then :ppc
-                       when 0x01000007
-                         cpu_subtype & 0x00ffffff == 8 ? :x86_64h : :x86_64
-                       when 0x0100000c
-                         cpu_subtype & 0x00ffffff == 2 ? :arm64e : :arm64
+                       when 0x01000007 then cpu_subtype & 0x00ffffff == 8 ? :x86_64h : :x86_64
+                       when 0x0100000c then cpu_subtype & 0x00ffffff == 2 ? :arm64e : :arm64
                        when 0x01000012 then :ppc64
                        else :dunno
                      end
@@ -116,7 +111,7 @@ module MachO  # only useable when included in Pathname
             data << { :arch => arch,
                       :cpu_subtype => cpu_subtype,
                       :type => MACH_FILE_TYPE[mach_filetype]
-            } unless arch == :dunno
+              } unless arch == :dunno
           end # valid offset
         end # each offset
         data.uniq
@@ -157,15 +152,14 @@ module MachO  # only useable when included in Pathname
     }
   end
 
-  # The universal‐binary file signature is the same as that of Java files, so we do extra sanity‐
-  # checking for that case.  If there are an implausibly large number of architectures, it is
-  # unlikely to be a real fat binary; Java files, for example, will produce a figure well in excess
-  # of 60 thousand.  Assume up to 30 architectures, allowing for ARM binaries (some system‐library
-  # stubs contain one slice for each of the possible iPhone architectures!) and slots for future
-  # expansion.  At present we only expect:  ppc, i386, ppc64, x86_64, x86_64h, arm64, arm64e.
+  # The universal‐binary file signature is the same as that of a Java file, so we do extra sanity‐checking for that case.  If there
+  # are an implausibly large number of architectures, it is unlikely to be a real fat binary; Java files, for example, will produce
+  # a figure well in excess of 60 thousand.  Assume up to MAX_FAT_COUNT architectures, allowing for both things like ARM binaries –
+  # some system‐library stubs contain one slice for each possible iPhone architecture! – & future expansion in general.  At present
+  # we only expect:  ppc, i386, ppc64, x86_64, x86_64h, arm64, arm64e.
   def mach_o_signature_at?(offset)
     sig = FILE_SIGNATURES[binread(4, offset).unpack('N').first] if file? and size >= (offset + 4)
-    sig if sig and sig != :FAT_MAGIC or (fct = fat_count_at(offset) and fct <= 30)
+    sig if sig and sig != :FAT_MAGIC or (fct = fat_count_at(offset) and fct <= MAX_FAT_COUNT)
   end # mach_o_signature_at?
 
   # Only call this if we already know it’s a fat binary!
@@ -178,9 +172,9 @@ module MachO  # only useable when included in Pathname
     file? and size >= (offset + 8) and (binread(8, offset).unpack('a8').first == AR_MAGIC)
   end
 
-  # In an ‘ar’ archive, finds the start of the current member’s sub‐file and walks to the next
-  #   member.  Returns a list:  [offset of signature, offset of next header].  The latter is ‘nil’
-  #   at the end of the archive; the former is also ‘nil’ if the current member is stunted enough.
+  # In an ‘ar’ archive, finds the start of the current member’s sub‐file and walks to the next member.  Returns a list:  [offset of
+  #   signature, offset of next header].  The latter is ‘nil’ at the end of the archive; the former is ‘nil’ as well if the current
+  #   member is stunted enough.
   # @private
   def ar_walk_from(initial_offset)
     return [nil, nil] if size <= (body_offset = initial_offset + AR_MEMBER_HDR_SIZE)
@@ -243,9 +237,9 @@ module MachO  # only useable when included in Pathname
   # @private
   def mach_metadata; @mach_metadata ||= Metadata.new(self); end
 
-  # Returns an array containing all dynamically-linked libraries, based on the output of otool.
-  # This returns the install names, so these are not guaranteed to be absolute paths.  Returns an
-  # empty array both for software that links against no libraries, and for non-mach objects.
+  # Returns an array containing all dynamically-linked libraries, based on the output of otool.  This returns the install names, so
+  # these are not guaranteed to be absolute paths.  Returns an empty array both for software that links against no libraries, & for
+  # non-Mach objects.
   # @private
   def dynamically_linked_libraries; mach_metadata.dylibs; end
 
