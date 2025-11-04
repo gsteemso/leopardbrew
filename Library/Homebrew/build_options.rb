@@ -1,12 +1,11 @@
 class BuildOptions
-  attr_accessor :s_args
-  attr_reader :defined_options
+  attr_accessor :s_args, :options
 
   # @private
   def initialize(arg_options, defined_options)
     @o_args = arg_options
     @s_args = @o_args.map{ |o| o.to_s }.extend(HomebrewArgvExtension)
-    @defined_options = defined_options
+    @options = defined_options
   end
 
   def fix_deprecation(deprecated_option)
@@ -36,8 +35,8 @@ class BuildOptions
     if Dependency === val then name = val.option_name
     elsif Option === val then name = val.name
     else name = val.to_s; end
-    if option_defined? "with-#{name}" then includes? "with-#{name}"
-    elsif option_defined? "without-#{name}" then !include? "without-#{name}"
+    if option_defined?("with-#{name}") then includes?("with-#{name}")
+    elsif option_defined?("without-#{name}") then ! includes?("without-#{name}")
     else false; end
   end # with?
 
@@ -70,11 +69,11 @@ class BuildOptions
   def universal?; s_args.build_universal? and option_defined?('universal'); end
 
   # True if a {Formula} is being built for multiple platforms.
-  def cross?; universal? and ARGV.build_mode == :cross; end
+  def cross?; universal? and s_args.build_mode == :cross; end
 
   # True if a {Formula} is being built for multiple local architectures.
   # e.g. on Power Macs this means a combined ppc/ppc64 binary or library.
-  def local_fat?; universal? and ARGV.build_mode == :local; end
+  def local_fat?; universal? and s_args.build_mode == :local; end
 
   # True if a {Formula} is being built in C++11 mode.
   def cxx11?; include?('c++11') and option_defined?('c++11'); end
@@ -84,12 +83,12 @@ class BuildOptions
   def build_32_bit?; s_args.build_32_bit? and option_defined?('32-bit'); end
 
   # @private
-  def used_options; defined_options & @o_args; end
+  def used_options; options & @o_args; end
 
   # @private
-  def unused_options; defined_options - @o_args; end
+  def unused_options; options - @o_args; end
 
   private
 
-  def option_defined?(val); defined_options.include? val; end
+  def option_defined?(val); options.include? val; end
 end # BuildOptions

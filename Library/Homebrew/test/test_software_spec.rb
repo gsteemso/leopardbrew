@@ -82,12 +82,12 @@ class SoftwareSpecTests < Homebrew::TestCase
 
   def test_option_description
     @spec.option("bar", "description")
-    assert_equal "description", @spec.options.first.description
+    assert_equal "description", @spec.build.options.first.description
   end
 
   def test_option_description_defaults_to_empty_string
     @spec.option("foo")
-    assert_equal "", @spec.options.first.description
+    assert_equal "", @spec.build.options.first.description
   end
 
   def test_deprecated_option
@@ -124,7 +124,7 @@ class SoftwareSpecTests < Homebrew::TestCase
   def test_explicit_options_override_default_dep_option_description
     @spec.option("with-foo", "blah")
     @spec.depends_on("foo" => :optional)
-    assert_equal "blah", @spec.options.first.description
+    assert_equal "blah", @spec.build.options.first.description
   end
 
   def test_patch

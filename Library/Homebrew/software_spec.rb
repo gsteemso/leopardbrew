@@ -1,3 +1,4 @@
+# This library is loaded before ENV gets extended.
 # Ruby library:
 require 'forwardable'
 # Homebrew libraries:
@@ -15,25 +16,25 @@ class SoftwareSpec
   extend Forwardable
 
   PREDEFINED_OPTIONS = {
-    :universal => (Target.archset.length > 1 \
+    :universal => (Target.cross_archs.universal? \
                     ? [Option.new('universal', 'Build a universal binary for every target architecture this computer can run'),
                        Option.new('cross', 'Build a universal binary for every possible target architecture')] \
                     : []),
     :tests     => [Option.new('with-tests', 'Run the build-time unit tests (can be slow)')],
-    :head      => [Option.new('HEAD', 'Build the version from the head of the development queue')],
+    :longtests => [Option.new('with-tests', 'Run the normal build-time unit tests (can be slow)'),
+                   Option.new('with-long-tests', 'Run even the long build-time unit tests (very slow)')],
+    :head      => [Option.new('HEAD', 'Build the version from the head of the development series')],
     :devel     => [Option.new('devel', 'Build the development version')],
     :cxx11     => [Option.new('c++11', 'Build using C++11 mode')],
     '32-bit'   => [Option.new('32-bit', 'Build 32-bit only')]
   }
 
   attr_reader :name, :full_name, :owner
-  attr_reader :bottle_specification, :build, :compiler_failures, :dependency_collector,
-              :deprecated_actuals, :deprecated_options, :active_enhancements, :named_enhancements,
-              :options, :patches, :resources
+  attr_reader :bottle_specification, :build, :compiler_failures, :dependency_collector, :deprecated_actuals, :deprecated_options,
+              :active_enhancements, :named_enhancements, :patches, :resources
 
-  def_delegators :@resource, :cached_download, :checksum, :clear_cache, :fetch, :mirror, :mirrors,
-                             :specs, :stage, :using, :verify_download_integrity, :version,
-                             *Checksum::TYPES
+  def_delegators :@resource, :cached_download, :checksum, :clear_cache, :fetch, :mirror, :mirrors, :specs, :stage, :using,
+                             :verify_download_integrity, :version, *Checksum::TYPES
 
   def initialize
     @active_enhancements = []
@@ -44,12 +45,11 @@ class SoftwareSpec
     @deprecated_options = []
     @flags = ARGV.effective_flags
     @named_enhancements = []
-    @options = Options.new
     @patches = []
     @resource = Resource.new
     @resources = {}
 
-    @build = BuildOptions.new(Options.create(@flags), options)
+    @build = BuildOptions.new(Options.create(@flags), Options.new)
   end # SoftwareSpec#initialize
 
   def owner=(owner)
@@ -101,7 +101,7 @@ class SoftwareSpec
 
   def go_resource(name, &block); resource name, Resource::Go, &block; end
 
-  def option_defined?(opt); options.include?(opt); end
+  def option_defined?(opt); build.options.include?(opt); end
 
   def option(name, description = '')
     opts = PREDEFINED_OPTIONS.fetch(name) do
@@ -117,7 +117,7 @@ class SoftwareSpec
         raise ArgumentError, 'option name must not start with dashes' if name.starts_with?('-')
         [Option.new(name, description)]
       end
-    @options += opts unless opts.empty?
+    build.options += opts unless opts.empty?
   end # SoftwareSpec#option
 
   def deprecated_option(hash)
@@ -151,12 +151,11 @@ class SoftwareSpec
 #    add_set_options(d_set) if d_set
 #  end # SoftwareSpec#depends_1_of
 
-  # depends_group takes a two-element array.  The first element is the group name and the second
-  # lists its component dependencies.  The second element, the list, must be in the form of a
-  # singleton hash:  the key is an array of formula names and the value is an array of tags that
-  # must include either :optional or :recommended.  The array of formula names can have members
-  # which themselves are singleton hashes:  Such a member has a key that is a formula name, and a
-  # value that is a string or array of strings giving the option(s) that formula must be built with.
+  # depends_group takes a two-element array.  The first element is the group name and the second lists its constituent dependencies.
+  # The second element, the list, must be in the form of a single‐member hash:  the key is an array of formula names, and the value
+  # is an array of tags that must include either :optional or :recommended.  A member of the formula‐name array may itself be a one‐
+  # element hash:  In such a member, the key is the formula name, & the value is a string or array of strings naming what option(s)
+  # that formula must be built with.
   def depends_group(group)
     group_name, group_members = Array(group)
     group_tags = Array(group_members.values.first)
@@ -177,10 +176,11 @@ class SoftwareSpec
   end # SoftwareSpec#depends_group
 
   def enhanced_by(aid)
-    # Enhancements may be specified either individually, or as a mutually‐necessary group.  Named
-    # enhancements are therefore stored as one large array of small, usually single-element, arrays
-    # of formulæ.  The active enhancements are just a flat array of formulæ.  All of these are kept
-    # sorted for convenience.
+    # Enhancements may be specified either individually, or as a mutually‐necessary group.  Named enhancements are therefore stored
+    #   as one large array of small, usually single-element, arrays of formulæ.  The active enhancements are merely a flat array of
+    #   formulæ.  All of these are kept sorted for convenience.
+    # Note:  The “active” enhancements describe what would be true of a new build done at run time.  They do not describe the state
+    #   of any installed keg – use Formula#enhanced_by?() for that.
     aids = Array(aid).map{ |name| Formula[name == :nls ? 'gettext' : name] rescue nil }.compact
     unless aids.empty?
       @named_enhancements << aids.sort{ |a, b| a.full_name <=> b.full_name }
@@ -213,26 +213,26 @@ class SoftwareSpec
     else
       name = dep.option_name
       if dep.optional? and not option_defined?("with-#{name}")
-        @options << Option.new("with-#{name}",
-                               name == 'nls' ? 'Build with Natural-Language Support (internationalization)' \
-                                             : "Build with #{name} support")
+        build.options << Option.new("with-#{name}",
+                                    name == 'nls' ? 'Build with Natural-Language Support (internationalization)' \
+                                                  : "Build with #{name} support")
       elsif dep.recommended? and not option_defined?("without-#{name}")
-        @options << Option.new("without-#{name}",
-                               name == 'nls' ? 'Build without Natural-Language Support (internationalization)' \
-                                             : "Build without #{name} support")
+        build.options << Option.new("without-#{name}",
+                                    name == 'nls' ? 'Build without Natural-Language Support (internationalization)' \
+                                                  : "Build without #{name} support")
       end
     end
   end # SoftwareSpec#add_dep_option
 
   def add_group_option(group_name, priority)
     if priority == :optional and not option_defined?("with-#{group_name}")
-      @options << Option.new("with-#{group_name}",
-                             group_name == 'nls' ? 'Build with Natural-Language Support (internationalization)' \
-                                                 : "Build with #{group_name} support")
+      build.options << Option.new("with-#{group_name}",
+                                  group_name == 'nls' ? 'Build with Natural-Language Support (internationalization)' \
+                                                      : "Build with #{group_name} support")
     elsif priority == :recommended and not option_defined?("without-#{group_name}")
-      @options << Option.new("without-#{group_name}",
-                             group_name == 'nls' ? 'Build without Natural-Language Support (internationalization)' \
-                                                 : "Build without #{group_name} support")
+      build.options << Option.new("without-#{group_name}",
+                                  group_name == 'nls' ? 'Build without Natural-Language Support (internationalization)' \
+                                                      : "Build without #{group_name} support")
     end
   end # SoftwareSpec#add_group_option
 
