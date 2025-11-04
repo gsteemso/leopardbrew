@@ -27,7 +27,7 @@ class Formulary
 
   def self.load_formula_from_path(name, path)
     contents = path.open("r") { |f| set_encoding(f).read }
-    namespace = "FormulaNamespace#{Digest::MD5.hexdigest(path.to_s)}"
+    namespace = "FormulaNamespace#{Digest::SHA256.hexdigest(path.to_s)}"
     klass = load_formula(name, path, contents, namespace)
     FORMULAE[path] = klass
   end # Formulary::load_formula_from_path
@@ -181,7 +181,7 @@ class Formulary
 
     def klass
       STDERR.puts "#{$0} (#{self.class.name}):  Loading #{path}" if DEBUG
-      namespace = "FormulaNamespace#{Digest::MD5.hexdigest(contents)}"
+      namespace = "FormulaNamespace#{Digest::SHA256.hexdigest(contents)}"
       Formulary.load_formula(name, path, contents, namespace)
     end
   end # FormulaContentsLoader
