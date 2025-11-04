@@ -48,7 +48,7 @@ module Homebrew
       formulae = []
 
       if ARGV.casks.any?
-        brew_cask = Formulary.factory('brew-cask')
+        brew_cask = Formula['brew-cask']
         install_formula(brew_cask) unless brew_cask.installed?
         args = []
         args << '--force' if ARGV.force?
@@ -93,7 +93,7 @@ module Homebrew
             _
         elsif f.oldname_installed? and not ARGV.force?
           # Check if the formula we try to install is the same as installed
-          # but not migrated one. If --force passed then install anyway.
+          # but not migrated one.  If --force passed then install anyway.
           opoo "#{f.oldname} is already installed, it’s just not migrated.",
             "You can migrate this formula with `brew migrate #{f}`,\n",
             "or you can force‐install it with `brew install #{f} --force`."
@@ -106,7 +106,7 @@ module Homebrew
 
       formulae.each do |f|
         notice  = "Installing #{f.full_name}"
-        notice += " with #{f.build.used_options * ', '}" unless f.build.used_options.empty?
+        notice += " with #{f.build.used_options.list}" unless f.build.used_options.empty?
         oh1 notice
 
         install_formula(f)
@@ -123,8 +123,7 @@ module Homebrew
         puts_columns(search_taps(query))
 
         # If they haven't updated in a while, that might explain the error
-        master = HOMEBREW_REPOSITORY/'.git/refs/heads/master'
-        if master.exists? and (Time.now.to_i - master.mtime.to_i) > HOMEBREW_OUTDATED_LIMIT
+        if GIT_REPO_HEAD.exists? and (Time.now.to_i - GIT_REPO_HEAD.mtime.to_i) > HOMEBREW_OUTDATED_LIMIT
           ohai 'You haven’t updated Leopardbrew in a while.', <<-EOS.undent
             A formula for #{e.name} might have been added recently.
             Run “brew update” to get the latest Leopardbrew updates!
@@ -198,7 +197,7 @@ module Homebrew
     fi.force_bottle        = ARGV.force_bottle?
     fi.interactive         = ARGV.interactive? or ARGV.git?
     fi.git                 = ARGV.git?
-    fi.verbose             = VERBOSE or QUIETER
+    fi.verbose             = VERBOSE
     fi.quieter             = QUIETER
     fi.debug               = DEBUG
     fi.prelude
