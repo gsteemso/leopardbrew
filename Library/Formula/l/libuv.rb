@@ -19,11 +19,11 @@ class Libuv < Formula
   depends_on 'automake'   => :build
   depends_on 'autoconf'   => :build
   depends_on 'libtool'    => :build
-  # During the build process, --gnu is passed to M4, which is only understood by GNU M4 1.4.12 or
-  # later.  Apple stock M4 on all releases is forked from GNU version 1.4.6.
+  # During the build process, --gnu is passed to M4, which is only understood by GNU M4 1.4.12 or later.  Apple stock M4 on all Mac
+  # OS releases is forked from GNU version 1.4.6.
   depends_on 'm4'         => :build
   depends_on 'pkg-config' => :build
-  depends_on :python      => :build if (build.with? 'docs' and MacOS.version <= :snow_leopard)
+  depends_on :python2     => :build if (build.with? 'docs' and MacOS.version <= :snow_leopard)
 
   resource 'alabaster' do
     url 'https://pypi.python.org/packages/source/a/alabaster/alabaster-0.7.4.tar.gz'
@@ -108,11 +108,11 @@ END_OF_PATCH
       ENV.prepend_create_path 'PYTHONPATH', buildpath/'sphinx/lib/python2.7/site-packages'
       resources.each do |r|
         r.stage do
-          system 'python', *Language::Python.setup_install_args(buildpath/'sphinx')
+          system 'python2', *Language::Python.setup_install_args(buildpath/'sphinx')
         end
       end
       ENV.prepend_path 'PATH', buildpath/'sphinx/bin'
-      # This isn't yet handled by the make install process sadly.
+      # This isn’t yet handled by the make install process sadly.
       cd 'docs' do
         system 'make', 'man'
         system 'make', 'singlehtml'

@@ -7,9 +7,9 @@ class Ldns < Formula
 
   option :universal
 
-  depends_on :python => :optional
+  depends_on :python2 => :optional
   depends_on 'openssl3'
-  depends_on 'swig' => :build if build.with? 'python'
+  depends_on 'swig' => :build if build.with? 'python2'
 
   def install
     ENV.universal_binary if build.universal?
@@ -21,12 +21,12 @@ class Ldns < Formula
       --with-ssl=#{Formula['openssl3'].opt_prefix}
     ]
 
-    args << '--with-pyldns' if build.with? 'python'
+    args << '--with-pyldns' if build.with? 'python2'
 
     system './configure', *args
     system 'make'
     system 'make', 'install'
-    system 'make', 'install-pyldns' if build.with? 'python'
+    system 'make', 'install-pyldns' if build.with? 'python2'
     (lib/'pkgconfig').install 'packaging/libldns.pc'
   end
 

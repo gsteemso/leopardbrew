@@ -20,8 +20,10 @@ class Libxml2 < Formula
 
   depends_on 'pkg-config' => :build
   depends_on 'readline'
-  depends_on :python => :optional
-  depends_on :python3 if build.with? 'python'
+  if build.with? 'python'
+    depends_on :python2
+    depends_on :python3
+  end
 
   enhanced_by 'libiconv'
   enhanced_by 'xz'
@@ -62,18 +64,11 @@ class Libxml2 < Formula
       if build.with? 'python'
         ENV.delete 'PYTHONPATH'
         mktemp do
-          old_path = ENV['PATH']
-          begin
-            # replace the unversioned `python` 2 in $PATH with the unversioned `python` 3 in Python3/libexec/bin
-            ENV['PATH'] = ENV['PATH'].sub(Formula['python'].opt_bin.to_s, "#{Formula['python3'].opt_prefix}/libexec/bin")
-            system "#{buildpath}/configure", *args
-            Pathname.new(pwd).install_symlink_to "#{maintemp}/libxml2.la", "#{maintemp}/.libs"
-            system 'make', '-C', 'python'
-            system 'make', '-C', 'python', 'check'
-            system 'make', '-C', 'python', 'install'
-          ensure
-            ENV['PATH'] = old_path
-          end
+          system "#{buildpath}/configure", *args
+          Pathname.new(pwd).install_symlink_to "#{maintemp}/libxml2.la", "#{maintemp}/.libs"
+          system 'make', '-C', 'python'
+          system 'make', '-C', 'python', 'check'
+          system 'make', '-C', 'python', 'install'
         end # secondary temporary directory
       end # build with python?
     end # main temporary directory
@@ -85,7 +80,7 @@ class Libxml2 < Formula
       # library itself has to be keg‐only.
       # Our Python will be missing if system Python was deemed adequate, but even if site_packages
       # is not there, Pathname⸬binwrite will simply create it before writing to the file.
-      (Formula['python'].site_packages/'libxml2.pth').binwrite "#{opt_lib}/python2.7/site-packages\n"
+      (Formula['python2'].site_packages/'libxml2.pth').binwrite "#{opt_lib}/python2.7/site-packages\n"
       py3 = Formula['python3']
       (py3.site_packages/'libxml2.pth').binwrite "#{opt_lib}/python#{py3.xy}/site-packages\n"
     end # build with python?

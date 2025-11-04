@@ -41,10 +41,10 @@ class Git < Formula
     depends_on 'subversion' => 'with-perl'  # at all (see https://github.com/Homebrew/homebrew/issues/34554)
   end
 
-  enhanced_by 'expat'  # Used for locking over DAV.
-  enhanced_by 'python'
+  enhanced_by 'expat'   # Used for locking over DAV.
+  enhanced_by 'python2'
   enhanced_by 'python3'
-  enhanced_by 'zlib'   # The stock version works, but newer is better.
+  enhanced_by 'zlib'    # The stock version works, but newer is better.
 
   patch :DATA if MacOS.version <= :mavericks  # The patches are annotated inline.
 
