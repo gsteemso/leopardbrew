@@ -1,6 +1,6 @@
 require 'set'
 
-OPTION_RX = %r{^(?:--)?([^=]+=?)(.+)?$}
+OPTION_RX = %r{^(--)?([^=]+=?)(.+)?$}
 
 # Note that settable Options have a name and flag that end with an equals sign.  This is intentional.  To get one bare (without its
 # equals sign), just use String#chomp('=').
@@ -12,10 +12,10 @@ class Option
     @description = desc
     if Option === nm
       @name, @value = nm.name, nm.value
-    else nm.to_s =~ OPTION_RX
-      @name, @value = ($1 || ''), ($2 || '')
+    elsif nm.to_s =~ OPTION_RX
+      @name, @value = ($2 || ''), ($3 || '')
     end
-    raise RuntimeError, 'nameless Option somehow created!' if @name == ''
+    raise RuntimeError, 'nameless Option somehow created!' if @name == '' or @name == '--'
     @flag = "--#{@name}"
   end
 
@@ -56,7 +56,10 @@ class Options
 
   def each(*args, &block); @options.each(*args, &block); end
 
-  def <<(o); @options << o; self; end
+  def <<(o)
+    @options << (Option === o ? o : Option.new(o))
+    self
+  end
 
   def -(o); self.class.create(@options - Array(o)); end
 
@@ -73,17 +76,19 @@ class Options
 
   def include?(other)
     other_name = case other.class.to_s
-        when 'String'   then (other.starts_with?('--') ? (other =~ OPTION_RX)[1] : other[/^[^=]+/])
+        when 'String'
+          if (other =~ OPTION_RX) then $2; else raise RuntimeError, "This doesn’t match an Option:  #{other}"; end
         when 'Option'   then other.name
         when 'NilClass' then ''
         else raise RuntimeError, "Options object queried re inclusion of alien class “#{other.class}”"
       end
     any?{ |o| o.name == other_name }
   end # include?
+  alias_method :includes?, :include?
 
   alias_method :to_ary, :to_a
 
-  def inspect; "#<#{self.class.name}: #{to_a.inspect}>"; end
+  def inspect; "#<#{self.class.name}:  #{@options.to_a.inspect}>"; end
 
-  def list; to_a.list; end
+  def list; @options.to_a.list; end
 end # Options
