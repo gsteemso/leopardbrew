@@ -172,7 +172,7 @@ class Keg
 
   def optlinked?; opt_record.symlink? and path == opt_record.resolved_path; end
 
-  def remove_opt_record; opt_record.unlink if opt_record.exists?; opt_record.parent.rmdir_if_possible; end
+  def remove_opt_record; opt_record.unlink if opt_record.symlink?; opt_record.parent.rmdir_if_possible; end
 
   def uninstall
     path.rmtree
@@ -328,7 +328,7 @@ class Keg
     built_sets = {}
     path.find do |pn|
       if pn.tracked_mach_o?
-        archset = pn.archs.sort
+        archset = pn.archs.compact.sort
         if built_sets[archset] then built_sets[archset] += 1; else built_sets[archset] = 1; end
       end
     end
