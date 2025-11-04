@@ -86,8 +86,7 @@ class DependencyCollector
       when :hg         then MercurialRequirement.new(tags)
       when :java       then JavaRequirement.new(tags)
       # Tiger’s, and sometimes Leopard’s, ld are too old to properly link some software
-      when :ld64
-        Dependency.new('ld64', [:build], proc { ENV.ld64 }) if MacOS.version <= :leopard
+      when :ld64       then Dependency.new('ld64', [:build], proc { ENV.ld64 }) if MacOS.version <= :leopard
       when :macos      then MinimumMacOSRequirement.new(tags)
       when :mpi        then MPIRequirement.new(*tags)
       when :mysql      then MysqlRequirement.new(tags)

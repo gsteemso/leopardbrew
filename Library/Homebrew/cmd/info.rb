@@ -20,7 +20,7 @@ module Homebrew
 
   def print_info
     if ARGV.named.empty?
-      if HOMEBREW_CELLAR.exist?
+      if HOMEBREW_CELLAR.exists?
         count = Formula.racks.length
         puts "#{count} keg#{plural(count)}, #{HOMEBREW_CELLAR.abv}"
       end
@@ -28,7 +28,7 @@ module Homebrew
       ARGV.named.each_with_index do |f, i|
         puts unless i == 0
         begin
-          if f.include?('/') || File.exists?(f)
+          if f.includes?('/') or File.exists?(f)
             info_formula Formulary.factory(f)
           else
             info_formula Formulary.find_with_priority(f)
@@ -46,9 +46,9 @@ module Homebrew
   end # print_info
 
   def print_json
-    ff = if ARGV.include? '--all'
+    ff = if ARGV.includes? '--all'
       Formula
-    elsif ARGV.include? '--installed'
+    elsif ARGV.includes? '--installed'
       Formula.installed
     else
       ARGV.formulae

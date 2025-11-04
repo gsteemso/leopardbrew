@@ -34,9 +34,7 @@ module Superenv
   # @private
   def setup_build_environment(formula = nil, archset = nil)
     super
-
     send(compiler)
-
     # $M4 must go first because @deps may get modified.
     if deps.any?{ |d| d.name == 'libtool' }
       _m4 = OPTDIR/'m4/bin/m4'
