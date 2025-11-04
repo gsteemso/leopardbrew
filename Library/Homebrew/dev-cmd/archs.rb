@@ -1,4 +1,4 @@
-#:  Usage:  brew list-archs [--thorough] /installed formula/ [...]
+#:  Usage:  brew archs [--thorough] /installed formula/ [...]
 #:
 #:List what hardware architectures each given /installed formula/ was brewed for.
 #:The data available from the brewing system are somewhat uneven, so executables
@@ -8,8 +8,8 @@
 #:The /--thorough/ flag elicits a more detailed breakdown of the types of binary
 #:program built for each /installed formula/.
 #:
-#:The results are shown after a short, but non‐trivial delay.  (Certain formulae
-#:do weird things which require every last file within each keg to be examined.)
+#:The results are shown after a short, but non‐trivial, delay.  (Some formulæ do
+#:strange things that necessitate examining every last file within their kegs.)
 
 CPU_TYPES = {
   '00000001' => 'VAX',
@@ -64,8 +64,8 @@ module TerminalANSI # standard terminal display-control sequences (yes, can be a
   def sgr(*list) ; "#{csi}#{list.join(';')}m" ; end
   # - The ꜱɢʀ selector‐parameters are:
   def rst    ;   '0' ; end # cancels everything.
-  def boldr  ;   '1' ; end # } in theory, these two stack and unstack with each other, but most
-  def fntr   ;   '2' ; end # } terminal emulators don’t support 2.
+  def boldr  ;   '1' ; end # } in theory, these two stack and unstack with each other, but most terminal emulators don’t support 2.
+  def fntr   ;   '2' ; end # }
              #    3 was for Italic face, and cancelled 20.
   def undr   ;   '4' ; end # cancels 21.
              #    5–6 were for slow vs. fast blink; don’t care whether they work, flashing is vile.
@@ -111,41 +111,40 @@ module TerminalANSI # standard terminal display-control sequences (yes, can be a
   def br_blk ;  '90' ; end # }
   def br_red ;  '91' ; end # }
   def br_grn ;  '92' ; end # }
-  def br_ylw ;  '93' ; end # } “Display” (foreground) colours.  Undifferentiated in Tiger’s
-  def br_blu ;  '94' ; end # }                                  Terminal.app; brighter in Leopard’s
-  def br_mag ;  '95' ; end # }                                  et seq.
+  def br_ylw ;  '93' ; end # } “Display” (foreground) colours.  No different in Tiger’s Terminal.app; brighter in Leopard’s et seq.
+  def br_blu ;  '94' ; end # }
+  def br_mag ;  '95' ; end # }
   def br_cyn ;  '96' ; end # }
   def br_wht ;  '97' ; end # } ___
   def onbblk ; '100' ; end # }
   def onbred ; '101' ; end # }
   def onbgrn ; '102' ; end # }
-  def onbylw ; '103' ; end # } Background colours.  Undifferentiated in Tiger’s Terminal.app;
-  def onbblu ; '104' ; end # }                      brighter in Leopard’s et seq.
+  def onbylw ; '103' ; end # } Background colours.  Undifferentiated in Tiger’s Terminal.app; brighter in Leopard’s et seq.
+  def onbblu ; '104' ; end # }
   def onbmag ; '105' ; end # }
   def onbcyn ; '106' ; end # }
   def onbwht ; '107' ; end # }
 
-  # - ꜱɢʀ is affected by the Graphic Rendition Combination Mode (ɢʀᴄᴍ).  The default (off) ɢʀᴄᴍ
-  #   state, REPLACING, causes any ꜱɢʀ sequence to reset all parameters it doesn’t explicitly
-  #   mention; enabling the CUMULATIVE state allows effects to persist until cancelled.  Luckily,
-  #   OS X’s Terminal app seems to ignore the standard and default this to the more sensible
-  #   CUMULATIVE state, at least under Leopard.
-  # - If ɢʀᴄᴍ is in the REPLACING state and needs to be set CUMULATIVE, the Set Mode (ꜱᴍ) sequence
-  #   is “ᴄꜱɪ ⟨Pₛ⟩ ... ‘h’” and the parameter value for ɢʀᴄᴍ is 21.  Should it for some reason need
-  #   to be changed back to REPLACING, the Reset Mode (ʀᴍ) sequence is “ᴄꜱɪ ⟨Pₛ⟩ ... ‘l’”.
+  # - ꜱɢʀ is affected by the Graphic Rendition Combination Mode (ɢʀᴄᴍ).  The default (off) ɢʀᴄᴍ state, REPLACING, causes any ꜱɢʀ
+  #   sequence to reset all parameters it doesn’t explicitly mention; enabling the CUMULATIVE state allows effects to persist until
+  #   cancelled.  Luckily, OS X’s Terminal app seems to ignore the standard and default this to the more sensible CUMULATIVE state,
+  #   at least under Leopard.
+  # - If ɢʀᴄᴍ is in the REPLACING state and needs to be set CUMULATIVE, the Set Mode (ꜱᴍ) sequence is “ᴄꜱɪ ⟨Pₛ⟩ ... ‘h’” and the
+  #   parameter value for ɢʀᴄᴍ is 21.  Should it for some reason need to be changed back to REPLACING, the Reset Mode (ʀᴍ) sequence
+  #   is “ᴄꜱɪ ⟨Pₛ⟩ ... ‘l’”.
   def set_grcm_cumulative ; "#{csi}21h" ; end
   def set_grcm_replacing  ; "#{csi}21l" ; end
 
-  def bolder_on_black ; sgr(boldr, on_blk) ; end
-  def in_yellow(msg) ; sgr(ylw) + msg.to_s + sgr(dflt) ; end
-  def in_cyan(msg) ; sgr(cyn) + msg.to_s + sgr(dflt) ; end
-  def in_white(msg) ; sgr(wht) + msg.to_s + sgr(dflt) ; end
-  def in_br_red(msg) ; sgr(br_red) + msg.to_s + sgr(dflt) ; end
+  def bolder_on_black   ; sgr(boldr, on_blk) ; end
+  def in_yellow(msg)    ; sgr(ylw)    + msg.to_s + sgr(dflt) ; end
+  def in_cyan(msg)      ; sgr(cyn)    + msg.to_s + sgr(dflt) ; end
+  def in_white(msg)     ; sgr(wht)    + msg.to_s + sgr(dflt) ; end
+  def in_br_red(msg)    ; sgr(br_red) + msg.to_s + sgr(dflt) ; end
   def in_br_yellow(msg) ; sgr(br_ylw) + msg.to_s + sgr(dflt) ; end
-  def in_br_blue(msg) ; sgr(br_blu) + msg.to_s + sgr(dflt) ; end
-  def in_br_cyan(msg) ; sgr(br_cyn) + msg.to_s + sgr(dflt) ; end
-  def in_br_white(msg) ; sgr(br_wht) + msg.to_s + sgr(dflt) ; end
-  def resetgr ; sgr(rst) ; end
+  def in_br_blue(msg)   ; sgr(br_blu) + msg.to_s + sgr(dflt) ; end
+  def in_br_cyan(msg)   ; sgr(br_cyn) + msg.to_s + sgr(dflt) ; end
+  def in_br_white(msg)  ; sgr(br_wht) + msg.to_s + sgr(dflt) ; end
+  def resetgr           ; sgr(rst); end
 end # TerminalANSI
 
 module Homebrew
@@ -204,7 +203,7 @@ module Homebrew
           key, alien_report = report_1_arch_at(pn, offset)
           alien_reports << alien_report if alien_report
         elsif sig = pn.mach_o_signature_at?(0)
-          if sig == :FAT_MAGIC  # only returns this if we have 7 or fewer fat_archs
+          if sig == :FAT_MAGIC  # only returns this if we have 30 or fewer fat_archs
             if (arch_count = pn.fat_count_at(0)) > 0
               # Generate a key describing this set of architectures.  First, extract the list of them:
               parts = []
@@ -242,7 +241,7 @@ module Homebrew
                   "#{in_cyan(fp.keys.first[:type])}:#{in_cyan(fp.keys.first[:subtype])}"
                 }
               alien_reports << "File #{in_white(pn)}:\n  #{foreign_parts.map{ |fp| fp.values.first } * "\n  "}\n" \
-                                                                             if foreign_parts != []
+                                                                                                             if foreign_parts != []
             end # (arch_count > 0)?
           elsif sig # :MH_MAGIC, :MH_MAGIC_64
             key, alien_report = report_1_arch_at(pn, 0)
@@ -255,12 +254,13 @@ module Homebrew
         end
       end # do each |pn|
       if arch_reports == {}
-        oho "#{in_white(keg.name)} appears to contain #{in_yellow('no valid Mach-O files')}."
+        oho "#{in_white("#{keg.name} #{keg.path.basename}")} appears to contain #{in_yellow('no valid Mach-O files')}."
         no_archs_msg = true
       else # there are arch reports
         machO_count = arch_reports.values.sum
         combo_count = arch_reports.length
-        ohey("#{in_white(keg.name)} appears to contain some foreign code:", alien_reports * '') if alien_reports != []
+        ohey("#{in_white("#{keg.name} #{keg.path.basename}")} appears to contain some foreign code:", alien_reports * '') \
+                                                                                                             if alien_reports != []
         unless thorough?
           combo_incidence = arch_reports.values.max  # How often did the most common arch combos occur?
           arch_reports.select!{ |_, v| v == combo_incidence }  # Only report those most‐common combos
