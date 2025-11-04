@@ -58,7 +58,7 @@ module Homebrew
           --
           #{HOMEBREW_RUBY_LIBRARY}/test.rb
           #{f.path}
-        ]).concat(ARGV.options_only)
+        ]).concat(ARGV.effective_flags)
 
         if Sandbox.available? && ARGV.sandbox?
           if Sandbox.auto_disable?
