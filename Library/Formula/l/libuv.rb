@@ -89,8 +89,7 @@ class Libuv < Formula
 # 64-bit inodes are only available from Leopard onwards.
 --- old/Makefile.am
 +++ new/Makefile.am
-@@ -292,7 +292,6 @@
- 
+@@ -293,6 +293,5 @@
  if DARWIN
  include_HEADERS += include/uv-darwin.h
 -libuv_la_CFLAGS += -D_DARWIN_USE_64_BIT_INODE=1
