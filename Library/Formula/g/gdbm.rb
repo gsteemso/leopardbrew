@@ -10,7 +10,7 @@ class Gdbm < Formula
   keg_only :shadowed_by_osx
 
   option :universal
-  option 'without-libgdbm-compat', 'Omit the libgdbm_compat library, which provides old‐style dbm/ndbm interfaces'
+  option 'without-libgdbm-compat', 'Omit the libgdbm_compat library & its old‐style dbm/ndbm interfaces'
 
   depends_on 'autoconf' => :build
   depends_on 'automake' => :build

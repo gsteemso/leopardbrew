@@ -1,4 +1,4 @@
-# stable release 2023-07-30; checked 2025-08-04
+# stable release 2023-07-30; checked 2025-08-04.
 require 'merge'
 
 class Gmp < Formula

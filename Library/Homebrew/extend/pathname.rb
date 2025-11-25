@@ -389,9 +389,9 @@ class Pathname
   end
 
   # This seems absolutely insane.  Tiger’s ruby (1.8.2) deals with symlinked directores in nonsense ways.
-  # Pathname#unlink checks whether the target is a file or a directory, and calls the appropriate File or Dir method as appropriate.
-  # So far so good.  However, if the target is both directory & symlink, then Pathname will redirect to Dir.unlink, which will then
-  # treat the symlink as a *file* and raise Errno::EISDIR.
+  # Pathname#unlink checks whether the target is a file or a directory, & calls the appropriate File or Dir method.  So far so good.
+  # However, if the target is both a directory & a symlink, Pathname will redirect to Dir.unlink, which will then treat the symlink
+  # as a *file* and raise Errno::EISDIR.
   if RUBY_VERSION <= "1.8.2"
     alias :oldunlink :unlink
     def unlink; symlink? ? File.unlink(to_s) : oldunlink; end
