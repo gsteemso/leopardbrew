@@ -25,8 +25,8 @@ class DependencyCollector
     @requirements = Requirements.new
   end
 
-  def add(spec)
-    case dep = fetch(spec)
+  def add(dspec, option_name = nil)
+    case dep = fetch(dspec, option_name)
       when Dependency  then @deps << dep
       when Requirement then @requirements << dep
       when Array       then dep.each {|d| add(d)}
@@ -34,101 +34,104 @@ class DependencyCollector
     dep
   end # add
 
-  def fetch(spec); CACHE.fetch(cache_key(spec)) { |key| CACHE[key] = build(spec) }; end
+  def fetch(dspec, option_name); CACHE.fetch(cache_key(dspec)) { |key| CACHE[key] = build(dspec, option_name) }; end
 
-  def cache_key(spec)
-    if Resource === spec && spec.download_strategy == CurlDownloadStrategy
-      File.extname(spec.url)
+  def cache_key(dspec)
+    if Resource === dspec && dspec.download_strategy == CurlDownloadStrategy
+      File.extname(dspec.url)
     else
-      spec
+      dspec
     end
   end # cache_key
 
-  def build(spec)
-    spec, tags = Hash === spec ? spec.first : spec
-    parse_spec(spec, Array(tags))
+  def build(dspec, option_name)
+    dspec, tags = Hash === dspec ? dspec.first : dspec
+    parse_spec(dspec, Array(tags), option_name)
   end
 
   private
 
-  def parse_spec(spec, tags)
-    case spec
-      when Requirement, Dependency then spec
-      when Resource then resource_dep(spec, tags)
-      when Class    then parse_class_spec(spec, tags)
-      when String   then parse_string_spec(spec, tags)
-      when Symbol   then parse_symbol_spec(spec, tags)
-      else raise TypeError, "Unsupported type #{spec.class.name} for #{spec.inspect}"
+  def parse_spec(dspec, tags, option_name)
+    case dspec
+      when Requirement, Dependency then dspec
+      when Resource then resource_dep(dspec, tags)
+      when Class    then parse_class_spec(dspec, tags)
+      when String   then parse_string_spec(dspec, tags, option_name)
+      when Symbol   then parse_symbol_spec(dspec, tags, option_name)
+      else raise TypeError, "Unsupported type #{dspec.class.name} for #{dspec.inspect}"
     end
   end # parse_spec
 
-  def parse_string_spec(spec, tags)
-    if HOMEBREW_TAP_FORMULA_REGEX === spec then TapDependency.new(spec, tags)
-    elsif tags.empty? then Dependency.new(spec, tags)
+  def parse_string_spec(dspec, tags, option_name)
+    if HOMEBREW_TAP_FORMULA_REGEX === dspec then option_name \
+                                                   ? TapDependency.new(dspec, tags, Dependency::DEFAULT_ENV_PROC, option_name) \
+                                                   : TapDependency.new(dspec, tags)
+    elsif tags.empty? then Dependency.new(dspec, tags, Dependency::DEFAULT_ENV_PROC, option_name || dspec)
     elsif (tag = tags.first) && LANGUAGE_MODULES.include?(tag)
-      LanguageModuleRequirement.new(tag, spec, tags[1])
-    else Dependency.new(spec, tags)
+      LanguageModuleRequirement.new(tag, dspec, tags[1])
+    else Dependency.new(dspec, tags, Dependency::DEFAULT_ENV_PROC, option_name || dspec)
     end
   end # parse_string_spec
 
-  def parse_symbol_spec(spec, tags)
-    case spec
-      when :ant        then ant_dep(spec, tags)
-      when :apr        then AprRequirement.new(tags)
+  def parse_symbol_spec(dspec, tags, option_name)
+    case dspec
+      when :ant        then ant_dep(tags, option_name)
+      when :apr        then AprRequirement.new(tags, option_name)
       when :arch       then ArchRequirement.new(tags)
-      when :c11        then C11Requirement.new(tags)
       when :cctools    then CctoolsRequirement.new(tags)
-      when :cxx11      then Cxx11Requirement.new(tags)
-      when :emacs      then EmacsRequirement.new(tags)
-      when :expat      then Dependency.new('expat', tags) if MacOS.version < :leopard
-      when :fortran    then FortranRequirement.new(tags)
-      when :gpg        then GPGRequirement.new(tags)
-      when :hg         then MercurialRequirement.new(tags)
-      when :java       then JavaRequirement.new(tags)
+      when :emacs      then EmacsRequirement.new(tags, option_name)
+      when :expat      then Dependency.new('expat', tags, Dependency::DEFAULT_ENV_PROC, option_name || 'expat') \
+                              if MacOS.version < :leopard
+      when :fortran    then FortranRequirement.new(tags, option_name)
+      when :gpg        then GPGRequirement.new(tags, option_name, option_name)
+      when :hg         then MercurialRequirement.new(tags, option_name)
+      when :java       then JavaRequirement.new(tags, option_name)
       # Tiger’s, and sometimes Leopard’s, ld are too old to properly link some software
-      when :ld64       then Dependency.new('ld64', [:build], proc { ENV.ld64 }) if MacOS.version <= :leopard
+      when :ld64       then Dependency.new('ld64', [:build], proc { ENV.ld64 }, option_name || 'ld64') if MacOS.version <= :leopard
       when :macos      then MinimumMacOSRequirement.new(tags)
       when :mpi        then MPIRequirement.new(*tags)
-      when :mysql      then MysqlRequirement.new(tags)
-      when :nls        then Dependency.new('gettext', tags, nil, 'nls')
-      when :osxfuse    then OsxfuseRequirement.new(tags)
-      when :postgresql then PostgresqlRequirement.new(tags)
-      when :python2    then Python2Requirement.new(tags)
-      when :python3    then Python3Requirement.new(tags)
-      when :ruby       then RubyRequirement.new(tags)
+      when :mysql      then MysqlRequirement.new(tags, option_name)
+      when :nls        then Dependency.new('gettext', tags, Dependency::DEFAULT_ENV_PROC, option_name || 'nls')
+      when :osxfuse    then OsxfuseRequirement.new(tags, option_name)
+      when :postgresql then PostgresqlRequirement.new(tags, option_name)
+      when :python2    then Python2Requirement.new(tags, option_name)
+      when :python3    then Python3Requirement.new(tags, option_name)
+      when :ruby       then RubyRequirement.new(tags, option_name)
       when :tex        then TeXRequirement.new(tags)
-      when :tuntap     then TuntapRequirement.new(tags)
-      when :x11        then X11Requirement.new(spec.to_s, tags)
+      when :tuntap     then TuntapRequirement.new(tags, option_name)
+      when :x11        then X11Requirement.new(dspec.to_s, tags, option_name)
       when :xcode      then XcodeRequirement.new(tags)
       when :autoconf, :automake, :bsdmake, :libtool # deprecated
-        autotools_dep(spec, tags)
+                       then autotools_dep(dspec, tags, option_name)
       when :cairo, :fontconfig, :freetype, :libpng, :pixman # deprecated
-        Dependency.new(spec.to_s, tags)
+                       then Dependency.new(dspec.to_s, tags, Dependency::DEFAULT_ENV_PROC, option_name || dspec.to_s)
       when :libltdl # deprecated
-        tags << :run
-        Dependency.new("libtool", tags)
-      else raise ArgumentError, "Unsupported special dependency #{spec.inspect}"
+                       then tags << :run
+                            Dependency.new('libtool', tags.uniq, Dependency::DEFAULT_ENV_PROC, option_name || 'libtool')
+      else raise ArgumentError, "Unsupported special dependency #{dspec.inspect}"
     end
   end # parse_symbol_spec
 
-  def parse_class_spec(spec, tags)
-    if spec < Requirement then spec.new(tags)
-    else raise TypeError, "#{spec.inspect} is not a Requirement subclass"
+  def parse_class_spec(dspec, tags)
+    if dspec < Requirement then dspec.new(tags)
+    else raise TypeError, "#{dspec.inspect} is not a Requirement subclass"
     end
   end
 
-  def autotools_dep(spec, tags)
+  def autotools_dep(dspec, tags, option_name)
     tags << :build unless tags.include? :run
-    Dependency.new(spec.to_s, tags)
+    Dependency.new(dspec.to_s, tags.uniq, Dependency::DEFAULT_ENV_PROC, option_name || dspec.to_s)
   end
 
-  def ant_dep(spec, tags); Dependency.new(spec.to_s, tags) if MacOS.version >= :mavericks; end
+  def ant_dep(tags, option_name)
+    Dependency.new('ant', tags, Dependency::DEFAULT_ENV_PROC, option_name || 'ant') if MacOS.version >= :mavericks
+  end
 
-  def resource_dep(spec, tags)
+  def resource_dep(dspec, tags)
     tags << :build
-    strategy = spec.download_strategy
+    strategy = dspec.download_strategy
     case
-      when strategy <= CurlDownloadStrategy      then parse_url_spec(spec.url, tags)
+      when strategy <= CurlDownloadStrategy      then parse_url_spec(dspec.url, tags)
       when strategy <= GitDownloadStrategy       then GitRequirement.new(tags)
       when strategy <= MercurialDownloadStrategy then MercurialRequirement.new(tags)
       when strategy <= FossilDownloadStrategy    then Dependency.new("fossil", tags)

@@ -154,24 +154,18 @@ class SoftwareSpec
   # depends_group takes a two-element array.  The first element is the group name and the second lists its constituent dependencies.
   # The second element, the list, must be in the form of a single‐member hash:  the key is an array of formula names, and the value
   # is an array of tags that must include either :optional or :recommended.  A member of the formula‐name array may itself be a one‐
-  # element hash:  In such a member, the key is the formula name, & the value is a string or array of strings naming what option(s)
-  # that formula must be built with.
+  # element hash:  The key is the formula name, and the value is an array of strings naming what option(s) it must be built with.
   def depends_group(group)
     group_name, group_members = Array(group)
     group_tags = Array(group_members.values.first)
     group_members = Array(group_members.keys.first)
-    raise UsageError, "dependency group “#{group_name}” MUST have :optional or :recommended priority" \
+    raise RuntimeError, "dependency group “#{group_name}” MUST have :optional or :recommended priority" \
       unless group_tags.any?{ |tag| [:optional, :recommended].include? tag }
     _deps = []
-    group_members.each do |member|
-      if member.is_a? Hash
-        _deps << dependency_collector.add(Dependency.new(member.keys.first,
-                                                         (group_tags + member.values).uniq,
-                                                         nil, group_name))
-      else
-        _deps << dependency_collector.add(Dependency.new(member, group_tags, nil, group_name))
-      end
-    end
+    group_members.each{ |member|
+      _deps << dependency_collector.add(member.is_a?(Hash) ? {member.keys.first => (group_tags + member.values).uniq} \
+                                                           : {member => group_tags},
+                                        group_name) }
     add_group_option(group_name, group_tags.detect{ |tag| [:optional, :recommended].include? tag }) unless _deps.empty?
   end # SoftwareSpec#depends_group
 

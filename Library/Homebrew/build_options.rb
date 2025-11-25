@@ -32,7 +32,7 @@ class BuildOptions
   # else args << '--with-example1'
   # end
   def with?(val)
-    if Dependency === val then name = val.option_name
+    if (Dependency === val or Requirement === val) then name = val.option_name
     elsif Option === val then name = val.name
     else name = val.to_s; end
     if option_defined?("with-#{name}") then includes?("with-#{name}")

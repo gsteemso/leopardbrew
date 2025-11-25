@@ -6,11 +6,11 @@ class X11Requirement < Requirement
 
   fatal true
   cask "xquartz"
-  download "https://xquartz.macosforge.org"
+  download "https://xquartz.org"
 
   env { ENV.x11 }
 
-  def initialize(name = "x11", tags = [])
+  def initialize(name = "x11", tags = [], opt_name = nil)
     @name = name
     if /(\d\.)+\d/ === tags.first
       @min_version = Version.new(tags.shift)
@@ -19,7 +19,7 @@ class X11Requirement < Requirement
       @min_version = Version.new("0.0.0")
       @min_version_string = ""
     end
-    super(tags)
+    super(tags, opt_name)
   end
 
   satisfy :build_env => false do

@@ -8,10 +8,9 @@ require 'build_environment'
 class Requirement
   include Dependable
 
-  attr_reader :tags, :name, :cask, :download, :default_formula
-  alias_method :option_name, :name
+  attr_reader :tags, :name, :cask, :download, :default_formula, :option_name
 
-  def initialize(tags = [])
+  def initialize(tags = [], opt_name = nil)
     @default_formula = self.class.default_formula
     @cask ||= self.class.cask
     @download ||= self.class.download
@@ -23,6 +22,7 @@ class Requirement
     @tags = tags
 #    @tags << :build if self.class.build
     @name ||= infer_name
+    @option_name = opt_name || name
   end # Requirement#initialize
 
   # The message to show when the requirement is not met.
@@ -77,15 +77,15 @@ class Requirement
 
   def hash; name.hash ^ tags.hash; end
 
-  def inspect; "#<#{self.class.name}: #{name.inspect} #{tags.inspect}>"; end
+  def inspect; "#<#{self.class.name}: #{name.inspect} #{tags.inspect}#{" #{option_name.inspect}" if option_name != name}>"; end
 
   def to_dependency
     f = self.class.default_formula
     raise "No default formula defined for #{inspect}" if f.nil?
     if HOMEBREW_TAP_FORMULA_REGEX === f
-      TapDependency.new(f, tags, method(:modify_build_environment), name)
+      TapDependency.new(f, tags, method(:modify_build_environment), option_name)
     else
-      Dependency.new(f, tags, method(:modify_build_environment), name)
+      Dependency.new(f, tags, method(:modify_build_environment), option_name)
     end
   end # Requirement#to_dependency
 
