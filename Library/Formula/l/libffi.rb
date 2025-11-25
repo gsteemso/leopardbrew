@@ -25,6 +25,7 @@ class Libffi < Formula
   end # install
 
   test do
+    ENV.universal_binary
     (testpath/'closure.c').write <<-TEST_SCRIPT.undent
      #include <stdio.h>
      #include <ffi.h>
@@ -61,7 +62,7 @@ class Libffi < Formula
                if (ffi_prep_closure_loc(closure, &cif, puts_binding,
                                         stdout, bound_puts) == FFI_OK)
                  {
-                   rc = bound_puts("Hello World!");
+                   rc = bound_puts("Hello World!\\n");
                    /* rc now holds the result of the call to fputs */
                  }
              }
@@ -76,6 +77,6 @@ class Libffi < Formula
 
     flags = %W[-L#{lib} -lffi -I#{include}]
     system ENV.cc, '-o', 'closure', 'closure.c', *(flags + ENV.cflags.to_s.split)
-    system './closure'
+    arch_system './closure'
   end # test
 end # Libffi
