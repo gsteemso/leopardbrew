@@ -1,6 +1,6 @@
 # stable release 2020-04-20; discontinued
 class Python2 < Formula
-  desc 'Interpreted, interactive, object-oriented programming language (historical version)'
+  desc 'Interpreted, interactive, object-oriented language (historical vers.)'
   homepage 'https://www.python.org'
   url 'https://www.python.org/ftp/python/2.7.18/Python-2.7.18.tar.xz'
   sha256 'b62c0e7937551d0cc02b8fd5cb0f544f9405bafc9a54d3808ed4594812edef43'
