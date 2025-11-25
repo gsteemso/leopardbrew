@@ -143,7 +143,7 @@ module Homebrew
       else  # swapping Cellars wholesale
         # pathnames – either absolute, or relative to the current (Cellar’s parent) directory:
         unless (save_as = ARGV.value('save-as').choke)
-          raise UsageError, 'A name must be supplied with the “--save-as” flag'; end
+          raise RuntimeError, 'A name must be supplied with the “--save-as” flag'; end
         use_new = ARGV.value('use-new').choke
           # use_new being undefined is an expected use case, so no error for that
         got_pins = PINDIR.exists?
