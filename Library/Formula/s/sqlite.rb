@@ -12,6 +12,8 @@ class Sqlite < Formula
   option 'with-secure-delete', 'Defaults secure_delete to on'
   option 'with-unlock-notify', 'Enable the unlock notification feature'
 
+  enhanced_by 'readline'
+
   resource 'docs' do
     url 'https://sqlite.org/2025/sqlite-doc-3500400.zip'
     version '3.50.4'
@@ -20,9 +22,7 @@ class Sqlite < Formula
 
   def install
     # Sqlite segfaults on Tiger/PPC with our gcc-4.2.
-    ENV.no_optimization if ENV.compiler == :gcc && MacOS.version == :tiger
-    # Need to allow -w when building with extensions.
-    ENV.enable_warnings if ENV.compiler == :gcc_4_0
+    ENV.no_optimization if CPU.powerpc? and ENV.compiler == :gcc and MacOS.version == :tiger
 
     # (The recommended set of optimizations.)
 
