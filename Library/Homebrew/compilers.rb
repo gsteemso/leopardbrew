@@ -4,10 +4,10 @@
 # The six substantive C++ revisions are [ :cxx98, :cxx11, :cxx14, :cxx17, :cxx20, :cxx23 ].
 #   (GCC’s C++11 support took so long that the default implementation went from C++98 in GCC 6.0 to C++14 in GCC 6.1.)  Preliminary
 #   support for the expected C++26 standard exists, but will not be ABI‐stable any time soon.
-# According to the GCC Fortran wiki, revisions of that language date all the way back to 1956 – but GNU Fortran only supports a few
+# According to GCC Fortran’s wiki, revisions of that language date from 2023 all the way back to 1956, but it only supports a chunk
 #   from the middle of that range.  The nine most‐substantive revisions are probably [ :f57, :f66, :f77, :f90, :f95, :f2003, :f2008,
 #   :f2018, :f2023 ].  Support in LLVM for Fortran is via the third‐party “Flang”, which is its own bizarre beast.
-# Other nominal revisions of each language exist, but are largely redundant.
+# Additional nominal revisions of each language exist, but are largely redundant.
 
 # @private
 module CompilerConstants
@@ -43,13 +43,13 @@ module CompilerConstants
   }
 
   ARCH_COMPILER_MINIMUM = {
-    :arm64   => {:gcc => nil, :clang => nil},
-    :arm64e  => {:gcc => nil, :clang => nil},
-    :i386    => {:gcc => 4.0, :clang => 0.0},
-    :ppc     => {:gcc => 4.0, :clang => 0.0},
-    :ppc64   => {:gcc => 4.0, :clang => nil},
-    :x86_64  => {:gcc => 4.0, :clang => 0.0},
-    :x86_64h => {:gcc => nil, :clang => nil},
+    :arm64   => {:gcc => 15.0, :clang => nil},
+    :arm64e  => {:gcc => 15.0, :clang => nil},
+    :i386    => {:gcc =>  4.0, :clang => 0.0},
+    :ppc     => {:gcc =>  4.0, :clang => 0.0},
+    :ppc64   => {:gcc =>  4.0, :clang => nil},
+    :x86_64  => {:gcc =>  4.0, :clang => 0.0},
+    :x86_64h => {:gcc =>  nil, :clang => nil},
   }
 
   COMPILER_SYMBOL_MAP = {
