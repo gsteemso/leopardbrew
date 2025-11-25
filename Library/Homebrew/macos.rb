@@ -27,7 +27,7 @@ module MacOS
 
   # Locates a (working) copy of each tool, guaranteed to function whether the
   # user has developer tools installed or not.
-  ['install_name_tool', 'lipo', 'otool'].each do |tool|
+  ['install_name_tool', 'libtool', 'lipo', 'otool'].each do |tool|
     define_method(tool.to_sym) {
       (path = OPTDIR/"cctools/bin/#{tool}").executable? ? path : locate(tool)
     }
