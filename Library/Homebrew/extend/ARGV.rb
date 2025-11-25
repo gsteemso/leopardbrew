@@ -38,7 +38,7 @@ module HomebrewArgvExtension
   public
 
   def clear
-    @btl_arch = @btl_chk = @casks = @effl = @efffl = @fae = @kegs = @lowr_uniq = @n = @named = @racks = @res_fae = nil
+    @btl_arch = @btl_chk = @casks = @effl = @efffl = @fae = @kegs = @lowr_uniq = @mode = @n = @named = @racks = @res_fae = nil
     super
   end
 
@@ -182,20 +182,20 @@ module HomebrewArgvExtension
 
   def build_spec; build_stable? ? :stable : build_devel? ? :devel : :head; end
 
-  def build_cross?; include? '--cross' or switch? 'x' or ENV['HOMEBREW_UNIVERSAL_MODE'].to_s.downcase == 'cross'; end
+  def build_cross?; build_mode == :cross; end
 
-  def build_universal?; flag? '--universal' or ENV['HOMEBREW_UNIVERSAL_MODE'].to_s.downcase == 'local'; end
+  def build_universal?; build_mode == :local; end
 
-  def build_fat?; build_universal? or build_cross?; end
+  def build_fat?; build_mode != :plain; end
 
   def build_mode
-    (include? '--cross' or switch? 'x') ? :cross \
-      : flag?('--universal')            ? :local \
-      : case ENV['HOMEBREW_UNIVERSAL_MODE'].to_s.downcase
-          when 'cross' then :cross
-          when 'local' then :local
-          else              :plain
-        end
+    @mode ||= (include? '--cross' or switch? 'x') ? :cross \
+                : flag?('--universal')            ? :local \
+                : case ENV['HOMEBREW_UNIVERSAL_MODE'].to_s.downcase
+                    when 'cross' then :cross
+                    when 'local' then :local
+                    else              :plain
+                  end
   end # build_mode
 
   # Request a 32-bit only build.  Needed for some use-cases.  Building Universal is preferable.
