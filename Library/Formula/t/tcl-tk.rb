@@ -112,7 +112,7 @@ class TclTk < Formula
 
   test do
     for_archs(bin/'tclsh') do |_, cmd_array|
-      assert_equal 'honk', pipe_output(*cmd_array, "puts honk\n").chomp
+      assert_equal 'honk', pipe_output(cmd_array * ' ', "puts honk\n").chomp
     end
   end # test
 end # TclTk
