@@ -9,6 +9,7 @@ class Dependency
   DEFAULT_ENV_PROC = proc {}
 
   def initialize(name, tags = [], env_proc = DEFAULT_ENV_PROC, option_name = name)
+    odie "Dependency created with a Symbol for a name:  “#{name.inspect}”" if name.is_a? Symbol
     @name = name
     @tags = tags
     @env_proc = env_proc
@@ -28,8 +29,9 @@ class Dependency
   def hash; name.hash ^ tags.hash; end
 
   def to_formula
-    formula = Formulary.factory(name)
-    formula.build = BuildOptions.new(Options.create(ARGV.effective_formula_flags), formula.options)
+    formula = Formulary.factory(name)  # Can’t use `Formula[]`, it produces `nil` instead of a {Formula} subclass.
+    formula.build = BuildOptions.new(Options.create(formula.installed? ? Tab.for_formula(formula).used_options \
+                                                                       : ARGV.effective_formula_flags), formula.options)
     formula
   end
 
