@@ -39,12 +39,15 @@ module MacOS
       end
     end # detect_version
 
-    # https://xquartz.macosforge.org/trac/wiki
-    # https://xquartz.macosforge.org/trac/wiki/Releases
+    # https://xquartz.org/trac/wiki
+    # https://xquartz.org/trac/wiki/Releases
     def latest_version
       case MacOS.version
-        when "10.5" then "2.6.3"
-        else             "2.7.7"
+        when :panther, :tiger then '1.1.3'
+        when :leopard         then '2.6.3'
+        when :snow_leopard, :lion,
+             :mountain_lion   then '2.7.11'
+        else                       '2.8.5'
       end
     end # latest_version
 
