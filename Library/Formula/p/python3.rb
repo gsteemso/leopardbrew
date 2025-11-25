@@ -34,7 +34,7 @@ class Python3 < Formula
 @@ -2158,22 +2158,6 @@
              if dir not in include_dirs:
                  include_dirs.append(dir)
- 
+-
 -        # Check for various platform-specific directories
 -        if HOST_PLATFORM == 'sunos5':
 -            include_dirs.append('/usr/openwin/include')
@@ -51,17 +51,19 @@ class Python3 < Formula
 -            include_dirs.append('/usr/X11/include')
 -            added_lib_dirs.append('/usr/X11/lib')
 -
++
          # If Cygwin, then verify that X is installed before proceeding
          if CYGWIN:
              x11_inc = find_file('X11/Xlib.h', [], include_dirs)
 @@ -2194,10 +2178,6 @@
          libs.append('tk'+ version)
          libs.append('tcl'+ version)
- 
+-
 -        # Finally, link with the X11 libraries (not appropriate on cygwin)
 -        if not CYGWIN:
 -            libs.append('X11')
 -
++
          # XXX handle these, but how to detect?
          # *** Uncomment and edit for PIL (TkImaging) extension only:
          #       -DWITH_PIL -I../Extensions/Imaging/libImaging  tkImaging.c \\
@@ -331,7 +333,7 @@ END_OF_PATCH
   end # caveats
 
   test do
-    if ARGV.includes? '--unit'  # Run the unit tests we stashed in libexec.
+    if build.includes? 'unit'  # Run the unit tests we stashed in libexec.
       # Old Mac OSes can’t run very many concurrent processes.
       args = ['-j', (MacOS.version >= :snow_leopard ? ENV.make_jobs.to_s : '1')]
       args << '-u' << 'all' if ARGV.long?
