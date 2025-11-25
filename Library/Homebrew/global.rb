@@ -3,9 +3,9 @@ require 'rbconfig'  # Ruby libraries.
 require 'set'       #
 # These others are Homebrew libraries:
 require 'extend/leopard' if RUBY_VERSION <= '1.8.6'  # also pulls in extend/tiger if needed
-require 'extend/string'
+require 'extend/string'    # extends NilClass and String, and defines StringInreplaceExtension
+require 'extend/misc'      # extends Array, Enumerable, Hash, Numeric, and Object
 require 'extend/ARGV'; ARGV.extend(HomebrewArgvExtension)
-require 'extend/misc'
 require 'extend/pathname'  # also pulls in extend/fileutils, mach, metafiles, & resource
 require 'osay'
 require 'utils'
