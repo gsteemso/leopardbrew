@@ -4,7 +4,7 @@ require "build_options"
 require "formula/support"
 require "formula/lock"       # pulls in fcntl
 require "formula/pin"        # pulls in keg
-require "formulary"          # pulls in vendor/backports/enumerable, digest/md5, formula/renames
+require "formulary"          # pulls in vendor/backports/enumerable, digest, formula/renames
 require "install_renamed"
 require "pkg_version"        # pulls in version
 require "software_spec"      # pulls in forwardable, build_options, checksum, compilers, dependency_collector, patch;
@@ -108,6 +108,8 @@ class Formula
   # Compare formulæ by their names.  If their names are equal, use their full names instead.
   def <=>(other); r = (name <=> other.name).to_s.nope || full_name <=> other.full_name; r.to_i; end
 
+  # By the time this gets called, the formula has already been {instance_eval}’d by the Formulary.  The {SoftwareSpec}s are already
+  # instantiated, for example.
   # @private
   def initialize(name, path, spec)
     @name = name
@@ -125,6 +127,7 @@ class Formula
     @active_spec = determine_active_spec(spec)
     @active_spec_sym = head? ? :head : (devel? ? :devel : :stable)
     validate_attributes!
+    Resource::Patch.reset_count
     @build = active_spec.build
     @pin = FormulaPin.new(self)
   end # initialize
@@ -297,7 +300,7 @@ class Formula
   # If this {Formula} is installed.  Specifically, checks that the requested current prefix is installed, or the active one if none
   #   is specified.
   # @private
-  def installed?(spec = nil); is_installed_prefix?(spec ? spec_prefix(spec) : prefix); end
+  def installed?(ssym = nil); is_installed_prefix?(ssym ? spec_prefix(ssym) : prefix); end
 
   # If at least one version of {Formula} is installed, no matter how outdated.
   # @private
@@ -309,7 +312,7 @@ class Formula
   # @private
   def only_old_versions_installed?
     rack.directory? and rack.subdirs.select{ |keg_dir|
-                          [:head, :devel, :stable].any?{ |ss| keg_dir == spec_prefix(ss) }
+                          [:head, :devel, :stable].any?{ |ssym| keg_dir == spec_prefix(ssym) }
                         }.empty? and rack.subdirs.any?{ |keg_dir| is_installed_prefix?(keg_dir) }
   end
 
@@ -344,9 +347,9 @@ class Formula
   # @private
   def linked_keg; LINKDIR/name; end
 
-  # What would be the .prefix for the given SoftwareSpec?
+  # What would be the .prefix for the SoftwareSpec corresponding to the given symbol?
   # @private
-  def spec_prefix(ss); if s = send(ss) then prefix(PkgVersion.new(s.version, revision)); end; end
+  def spec_prefix(ssym); if ss = send(ssym) then prefix(PkgVersion.new(ss.version, revision)); end; end
 
   # The list of installed current spec versions.
   def installed_current_prefixes
@@ -540,7 +543,7 @@ class Formula
 
   # @private
   def run_post_install
-    build, self.build = self.build, Tab.for_formula(self)
+    build, self.build = self.build, Tab.for_keg(spec_prefix(active_spec_sym))
     post_install
   ensure
     self.build = build
@@ -937,6 +940,7 @@ class Formula
   # If there is a `make install` available, please use it!
   #     system 'make', 'install'
   def system(cmd, *args)
+    cmd = cmd.to_s; args.map!(&:to_s)
     verbose_using_dots = !ENV['HOMEBREW_VERBOSE_USING_DOTS'].nil?
     # Remove “boring” arguments so that the important ones are more likely to be shown, considering that we trim long ohai lines to
     # the terminal width.
@@ -1127,7 +1131,7 @@ class Formula
 
     # A list of the {.stable}, {.devel} and {.head} {SoftwareSpec}s.
     # @private
-    def specs; @specs ||= [stable, devel, head].freeze; end
+    def specs; @specs ||= [stable, devel, head].compact.freeze; end
 
     # @!attribute [w] url
     # The URL used to download the source for the {#stable} version of the formula.  We prefer `https` for security & proxy reasons.
@@ -1139,7 +1143,7 @@ class Formula
     #     `S3DownloadStrategy` (Download from S3 using signed request.)
     #     url 'https://packed.sources.and.we.prefer.https.example.com/archive-1.2.3.tar.bz2'
     #     url 'https://some.dont.provide.archives.example.com', :using => :git, :tag => '1.2.3'
-    def url(val, specs = {}); stable.url(val, specs); end
+    def url(val, txfer_specs = {}); stable.url(val, txfer_specs); end
 
     # @!attribute [w] version
     # The version string for the {#stable} version of the formula.  The version is autodetected from the URL and/or tag, so we only
@@ -1225,12 +1229,12 @@ class Formula
     #     head 'https://example.com/.git', :branch => 'name_of_branch', :revision => 'abc123'
     # or (if autodetect fails):
     #     head 'https://hg.is.awesome.but.git.has.won.example.com/', :using => :hg
-    def head(val = nil, specs = {}, &block)
+    def head(val = nil, txfer_specs = {}, &block)
       @head ||= HeadSoftwareSpec.new
       @head.option :head
       block_given? ? @head.instance_eval(&block) \
-        : val ? @head.url(val, specs) \
-        : @head
+                   : val ? @head.url(val, txfer_specs) \
+                   : @head
     end # head
 
     # Additional downloads can be defined as {Resource}s and accessed in the install method.  {Resource}s can also be defined in a
