@@ -282,7 +282,7 @@ class FormulaInstaller
   def effective_build_options_for(dependent, inherited_options = [])
     opt_args  = dependent.build.used_options
     opt_args |= dependent == formula ? options : inherited_options
-    opt_args |= Tab.for_formula(dependent).used_options
+    opt_args |= Tab.for_formula(dependent, :active).used_options  # Prefer an active keg over the most current.
 
     BuildOptions.new(opt_args, dependent.options)
   end # effective_build_options_for
@@ -329,7 +329,7 @@ class FormulaInstaller
 
   def install_dependency(dep, inherited_options)
     df = dep.to_formula
-    tab = Tab.for_formula(df)  # Not necessarily a current version.
+    tab = Tab.for_formula(df, :active)  # Not necessarily a current version.
     # Correctly unlink things even if a different version is linked:
     previously_linked = nil
     if df.linked_keg.directory?
@@ -482,11 +482,11 @@ class FormulaInstaller
       #{formula.path}
     ]).concat(build_argv)
     args.unshift('nice', BREW_NICE_LEVEL) if BREW_NICE_LEVEL
+    $stderr.puts "Build command line:  “#{args * ' '}”" if DEBUG
 
     # Ruby 2.0+ sets close-on-exec by default on all file descriptors except 0, 1, & 2, so we must tell it we want the pipe to stay
-    # open in the child process.
+    # open in the child process.  This argument is silently removed when `exec` interprets it; the system does not see it.
     args << { write => write } if RUBY_VERSION >= "2.0"
-    $stderr.puts "Build command line:  “#{args * ' '}”" if DEBUG
 
     pid = fork do
       begin

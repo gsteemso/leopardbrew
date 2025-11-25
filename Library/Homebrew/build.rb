@@ -12,37 +12,30 @@ class Build
   def initialize(f, args)
     @formula = f
     @formula.build = BuildOptions.new(Options.create(args), f.options)
-    if ARGV.ignore_deps?
-      @deps = []
-      @reqs = []
-    else
-      @deps = expand_deps
-      @reqs = expand_reqs
-    end
+    if ARGV.ignore_deps? then @deps = []; @reqs = []
+    else @deps = expand_deps; @reqs = expand_reqs; end
     @aids = (ARGV.ignore_aids? ? [] : f.active_enhancements)
   end # initialize
 
   def post_superenv_hacks
-    # Only allow Homebrew-approved directories into the PATH, unless
-    # a formula opts-in to allowing the user's path.
+    # Only allow Homebrew-approved directories into the PATH, unless a formula opts-in to allowing the user’s path.
     if formula.env.userpaths? or reqs.any? { |rq| rq.env.userpaths? }
       ENV.userpaths!
     end
   end # post_superenv_hacks
 
+  # ‘dependent’ is a Formula‐subclass instance.
   def effective_build_options_for(dependent)
     opt_args  = dependent.build.used_options
-    opt_args |= Tab.for_formula(dependent).used_options
+    opt_args |= Tab.for_formula(dependent, :active).used_options  # Prefer an active keg over the most current.
     BuildOptions.new(opt_args, dependent.options)
   end
 
   def expand_reqs
     formula.recursive_requirements do |dependent, req|
       build = effective_build_options_for(dependent)
-      if (req.optional? or req.recommended?) and build.without?(req)
-        Requirement.prune
-      elsif req.build? and dependent != formula
-        Requirement.prune
+      if (req.optional? or req.recommended?) and build.without?(req) then Requirement.prune
+      elsif req.build? and dependent != formula then Requirement.prune
       elsif req.satisfied? and req.default_formula? and (dep = req.to_dependency).installed?
         deps << dep
         Requirement.prune
@@ -53,14 +46,10 @@ class Build
   def expand_deps
     formula.recursive_dependencies do |dependent, dep|
       build = effective_build_options_for(dependent)
-      if (dep.optional? or dep.recommended?) and build.without?(dep)
-        Dependency.prune
+      if (dep.optional? or dep.recommended?) and build.without?(dep) then Dependency.prune
       elsif dep.build?
-        if dependent != formula
-          Dependency.prune
-        else
-          Dependency.keep_but_prune_recursive_deps
-        end
+        if dependent != formula then Dependency.prune
+        else Dependency.keep_but_prune_recursive_deps; end
       end
     end
   end # expand_deps
@@ -71,7 +60,7 @@ class Build
 
     _deps = deps.map(&:to_formula) + aids
     keg_only_deps = _deps.select(&:keg_only?)
-    _deps.each { |dep| fixopt(dep) unless dep.opt_prefix.directory? }
+    _deps.each{ |dep| fixopt(dep) unless dep.opt_prefix.directory? }
 
     if superenv?
       ENV.keg_only_deps = keg_only_deps
@@ -142,22 +131,16 @@ class Build
   def detect_stdlibs(compiler)
     keg = Keg.new(formula.prefix)
     CxxStdlib.check_compatibility(formula, deps, keg, compiler)
-
-    # The stdlib recorded in the install receipt is used during dependency
-    # compatibility checks, so we only care about the stdlib that libraries
-    # link against.
+    # The stdlib recorded in the install receipt is used during dependency compatibility checks, so we only care about which stdlib
+    # libraries link against.
     keg.detect_cxx_stdlibs(:skip_executables => true)
   end # detect_stdlibs
 
   def fixopt(f)
-    path = if f.linked_keg.directory? and f.linked_keg.symlink?
-        f.linked_keg.resolved_path
-      elsif f.prefix.directory?
-        f.prefix
-      elsif (gik = f.greatest_installed_keg)
-        gik.path
-      else
-        raise RuntimeError, 'can’t make opt/ link:  none of the usual directories are valid'
+    path = if f.linked_keg.directory? and f.linked_keg.symlink? then f.linked_keg.resolved_path
+      elsif f.prefix.directory?                                 then f.prefix
+      elsif (gik = f.greatest_installed_keg)                    then gik.path
+      else raise RuntimeError, 'can’t make opt/ link:  none of the usual directories are valid'
       end
     Keg.new(path).optlink
   rescue StandardError

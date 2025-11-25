@@ -56,13 +56,28 @@ class Tab < OpenStruct
       new(attributes)
     end # Tab::empty
 
-    def for_formula(f)
+    def for_formula?(f, prefer = :current)  # Pass _anything_ else to prefer an active version over the latest one.
       paths = []
-      if (p = f.prefix).directory? then paths << p; end
-      if (p = f.opt_prefix).symlink? and p.directory? then paths << p.resolved_path; end
-      if (p = f.linked_keg).symlink? and p.directory? then paths << p.resolved_path; end
-      if (p = f.rack).directory? and (d = p.subdirs).length == 1 then paths << d.first; end
-      if (p = paths.map{ |pn| pn/FILENAME }.find(&:file?))
+      if prefer == :current
+        if (p = f.spec_prefix :stable) and p.directory? then paths << p; end
+        if (p = f.spec_prefix :devel) and p.directory? then paths << p; end
+        if (p = f.spec_prefix :head) and p.directory? then paths << p; end
+        if (p = f.opt_prefix).symlink? and p.directory? then paths << p.resolved_path; end
+        if (p = f.linked_keg).symlink? and p.directory? then paths << p.resolved_path; end
+        if (p = f.rack).directory? and (d = p.subdirs).length == 1 then paths << d.first; end
+      else
+        if (p = f.opt_prefix).symlink? and p.directory? then paths << p.resolved_path; end
+        if (p = f.linked_keg).symlink? and p.directory? then paths << p.resolved_path; end
+        if (p = f.rack).directory? and (d = p.subdirs).length == 1 then paths << d.first; end
+        if (p = f.spec_prefix :stable) and p.directory? then paths << p; end
+        if (p = f.spec_prefix :devel) and p.directory? then paths << p; end
+        if (p = f.spec_prefix :head) and p.directory? then paths << p; end
+      end
+      paths.map{ |pn| pn/FILENAME }.find(&:file?)
+    end
+
+    def for_formula(f, prefer = :current)  # Pass _anything_ else to prefer an active version over the latest one.
+      if p = for_formula?(f, prefer)
         tab = from_file(p)
         used_options = remap_deprecated_options(f.deprecated_options, tab.used_options)
         tab.used_options = used_options.as_flags
@@ -99,9 +114,7 @@ class Tab < OpenStruct
       pn = Pathname.new(attrs['source']['path'])
       if not pn.exists? and pn.dirname == HOMEBREW_LIBRARY/'Formula'
         b = pn.basename.to_s
-        if (pn = pn.dirname/b[0]/b).exists?
-          attrs['source']['path'] = pn.to_s
-        end
+        if (pn = pn.dirname/b[0]/b).exists? then attrs['source']['path'] = pn.to_s; end
       end
       if attrs['source']['spec'].nil?
         version = PkgVersion.parse path.to_s.split('/')[-2]
