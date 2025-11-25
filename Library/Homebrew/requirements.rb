@@ -18,23 +18,30 @@ require "requirements/x11_requirement"
 class ArchRequirement < Requirement
   fatal true
 
-  def initialize(arch)
-    @arch = Array(arch).pop
+  def initialize(archs)
+    @archs = Array(archs)
     super
   end
 
   satisfy(:build_env => false) do
-    case @arch.to_s.downcase
-      when %r{^arm} then Target.arm?
-      when 'i386', 'ppc' then Target.arch == @arch
-      when 'intel' then Target.intel?
-      when 'powerpc' then Target.powerpc?
-      when 'ppc64' then Target.prefer_64b? and Target.powerpc?
-      when 'x86_64' then Target.prefer_64b? and Target.intel?
-    end
+    @archs.any?{ |a|
+      case a.to_s.downcase
+        when %r{^arm} then Target.arm?
+        when 'i386', 'ppc' then Target.archset.includes? a.to_sym
+        when 'intel' then Target.intel?
+        when 'powerpc' then Target.powerpc?
+        when 'ppc64' then Target.prefer_64b? and Target.powerpc?
+        when 'x86_64' then Target.prefer_64b? and Target.intel?
+      end
+    }
   end
 
-  def message; "This formula requires a#{@arch.to_s[0] == 'p' ? '' : 'n'} #{@arch} architecture."; end
+  env { Target.restrict_archset(@archs) }
+
+  def message
+    if @archs.length == 1 then "This formula requires a#{@archs[0].to_s[0] == 'p' ? '' : 'n'} #{@archs[0]} architecture."
+    else "This formula requires at least one of these architectures:  #{@archs.list('or')}."; end
+  end
 end # ArchRequirement
 
 class GitRequirement < Requirement

@@ -116,9 +116,9 @@ class CPU
     def sse4_2?;  Sysctl.sse4_2?;  end
 
     TYPE_DATA = {
-      :powerpc => POWERPC_ARCHS,
-      :intel   => INTEL_ARCHS,
-      :arm     => ARM_ARCHS,
+      :powerpc => {:archs => POWERPC_ARCHS},
+      :intel   => {:archs => INTEL_ARCHS  },
+      :arm     => {:archs => ARM_ARCHS    },
     }.freeze
 
     ARCH_DATA = {
@@ -186,6 +186,8 @@ class CPU
 
     def known_models; MODEL_DATA.keys; end
 
+    def archs_of_type(t = type); type_data(t)[:archs]; end
+
     def which_gcc_knows_about(m = model); model_data(m)[:gcc][:vrsn] if model_data(m); end
 
     def type_of(obj)
@@ -200,7 +202,7 @@ class CPU
 
     def arch_of(obj)
       case obj
-        when *known_types  then type_data(obj).first
+        when *known_types  then archs_of_type(obj).first
         when *known_archs  then obj
         when *known_models then model_data(obj)[:arch]
         when :altivec      then :ppc
@@ -209,6 +211,18 @@ class CPU
         when :intel_64     then :x86_64
       end  # Return nil for any other input.
     end # CPU⸬arch_of
+
+    def native_archs
+      o = model_data[:oldest]
+      archs_of_type.reject{ |a| case a
+          when :arm64   then o == :m1
+          when :arm64e  then o == :a12z
+          when :x86_64  then o == :haswell
+          when :x86_64h then o == :core2
+          else false
+        end # case a
+      }.extend ArchitectureListExtension
+    end # CPU⸬native_archs
 
     def cores_as_words
       case cores

@@ -6,21 +6,44 @@ class Target
     def allow_universal_binary; @@formula_can_be_universal = true;  end
     def no_universal_binary;    @@formula_can_be_universal = false; end
 
+    # This is only used on request.  Some formulæ can only be built for specific architectures.  When an ArchitectureRequirement is
+    # depended upon, it uses this method; then, ⸬filter_archs forcibly restricts the built architectures to those which the formula
+    # can handle.
+    def restrict_archset(allowed);
+      @permissible_archs = if allowed then allowed.flat_map{ |a|
+          CPU.known_types.include?(a) ? CPU.archs_of_type(a) : CPU.arch_of(a)
+        }.uniq; end
+    end
+
+    def filter_archs(archset); @permissible_archs ? archset.select{ |a| @permissible_archs.include?(a) } : archset; end
+
+    def die_from_filter(tried)
+      odie 'No CPU architectures are valid build targets!', <<-_.undent.rewrap
+          The CPU architectures which may currently be built for are [#{@permissible_archs.list}],
+          but the current settings will only attempt building for [#{tried.list}].
+        _
+    end # Target⸬die_from_filter
+
     # What architecture are we building for?  Either one passed explicitly through --bottle-arch=, or the preferred variant for our
     # native hardware.  We do not care if a bottle will be built, only if an architecture for one was supplied.
     # This routine assumes that only the specified or preferred architecture will be built.  To process multiple architectures, use
     # Target⸬archset().
-    def arch; @arch ||= (ARGV.bottle_arch ? CPU.arch_of(ARGV.bottle_arch) : preferred_arch); end
+    def arch
+      @arch ||= (ARGV.bottle_arch ? CPU.arch_of(ARGV.bottle_arch) : preferred_arch)
+      if @permissible_archs and not @permissible_archs.include?(@arch) then die_from_filter([@arch]); end
+      @arch
+    end
 
     # What set of architectures are we building for?  Either a declared bottle architecture, or a preferred native architecture.  A
     # universal build includes every runnable architecture (with less‐capable duplicates, such as bare :x86_64 on a Haswell machine,
     # removed).  A “cross” build includes every buildable architecture (with, again, less‐capable duplicates removed).
     def archset
-      @@formula_can_be_universal ? (ARGV.build_universal?    ? local_archs \
-                                   : ARGV.build_cross?       ? cross_archs \
-                                   : (a = ARGV.bottle_arch)  ? [oldest(a)].extend(ArchitectureListExtension) \
-                                   : preferred_arch_as_list) \
-                                 : preferred_arch_as_list
+      desired_archset = (@@formula_can_be_universal and ARGV.build_fat?) ? (ARGV.build_cross? ? cross_archs : local_archs) \
+                                                : (a = ARGV.bottle_arch) ? [oldest(a)].extend(ArchitectureListExtension) \
+                                                : preferred_arch_as_list
+      result = filter_archs desired_archset
+      die_from_filter(desired_archset) if result.empty?
+      result
     end # Target⸬archset
 
     # What CPU type are we building for?  Either one corresponding to a value explicitly passed using --bottle-arch=, or our native
@@ -42,9 +65,7 @@ class Target
     def model
       # On an x86 CPU without SSE4, neither “-march=native” nor “-march=#{model}” can be trusted, as we might be running in a VM or
       # on a Hackintosh.
-      @model ||= (ARGV.bottle_arch ? oldest(ARGV.bottle_arch) \
-                   : (CPU.intel? and not CPU.sse4?) ? oldest(CPU.model) \
-                   : CPU.model)
+      @model ||= (ARGV.bottle_arch ? oldest(ARGV.bottle_arch) : (CPU.intel? and not CPU.sse4?) ? oldest(CPU.model) : CPU.model)
     end # Target⸬model
 
     # Get the least‐common‐denominator (i.e., the oldest) CPU model that shares characteristics with the parameter – a specific CPU
@@ -52,7 +73,7 @@ class Target
     def oldest(obj = (CPU._64b? ? _64b_arch : _32b_arch))
       CPU.known_models.include?(obj) ? CPU.model_data(obj)[:oldest] \
         : CPU.known_archs.include?(obj) ? CPU.arch_data(obj)[:oldest] \
-        : CPU.known_types.include?(obj) ? CPU.arch_data(CPU.type_data(obj).first)[:oldest] \
+        : CPU.known_types.include?(obj) ? CPU.arch_data(CPU.archs_of_type(obj).first)[:oldest] \
         : case obj
             when :altivec  then :g4
             when :g5_64    then :g5
@@ -83,7 +104,8 @@ class Target
     def model_optflag_map; h = {}; CPU.known_models.each{ |m| h[m] = model_optflags(m) }; h; end
 
     # This gets the optimization flags for each one model being built for, and makes them architecture-specific using -Xarch_<arch>.
-    # This only works with :gcc, :llvm, or :clang, though work is in progress to enable it for the FSF GCCs as well.
+    # This only works with :gcc, :llvm, or :clang, though work is in progress to enable it for the FSF GCCs as well.  That said, it
+    # is not supported at all by any GCC prior to 4.2, whether Apple or FSF.
     def optimization_flagset(as = archset)
       if as.length > 1 and ENV.compiler != :gcc_4_0
         fs = []
@@ -99,8 +121,9 @@ class Target
       unless @_64b_checked
         @_64b_checked = true
         @prefer_64b ||= (CPU._64b? and (MacOS.version >= :snow_leopard or
-          (MacOS.version >= :leopard and envflag = ENV['HOMEBREW_PREFER_64_BIT'].choke) or
-          (MacOS.version >= :tiger and envflag and envflag.downcase == 'force')))
+                                         (MacOS.version >= :leopard and envflag = ENV['HOMEBREW_PREFER_64_BIT'].choke) or
+                                         (MacOS.version >= :tiger and envflag and envflag.downcase == 'force')
+                        )              )
       end
       @prefer_64b
     end # Target⸬prefer_64b?
@@ -160,11 +183,16 @@ class Target
     def all_archs; CPU.known_archs.extend ArchitectureListExtension; end
     def all_our_archs
       o = oldest(CPU.model)
-      all_archs.reject{ |a|
-          # Filter out architecture variants our model has a better alternative for (e.g. if we’re on Apple silicon, we can benefit
-          # from :arm64e; on Haswell or ARM, we can run :x86_64h).
-          (a == :arm64 and o == :m1) or (a == :x86_64 and [:haswell, :a12z, :m1].include? o)
-        }.extend(ArchitectureListExtension)
+      # Filter out architecture variants our model has a better alternative for (e.g. on Apple silicon, we can run :arm64e; on :arm
+      # or Haswell, we can run :x86_64h), or cannot run (e.g. :x86_64h on a pre‐Haswell machine, or :arm64e on :a12z).
+      all_archs.reject{ |a| case a
+          when :arm64   then o == :m1
+          when :arm64e  then o == :a12z
+          when :x86_64  then [:haswell, :a12z, :m1].include? o
+          when :x86_64h then o == :core2
+          else false
+        end # case a
+      }.extend(ArchitectureListExtension)
     end # Target⸬all_our_archs
 
     def cross_archs
