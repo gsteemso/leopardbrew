@@ -96,7 +96,7 @@ rescue MissingParameterError => e
   abort e.message
 rescue SystemExit => e
   $stderr.puts "Kernel.exit(#{e.status})" if e.status != 0 and VERBOSE; raise
-rescue Interrupt => e
+rescue Interrupt, SignalException => e  # This catches SIGTERM et al, in addition to the more common SIGINT.
   puts # seemingly a newline is typical
   exit 130
 rescue BuildError => e
