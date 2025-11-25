@@ -15,15 +15,13 @@ module SharedEnvExtension
   # @private
   COMPILER_VARS = %w[CC CXX FC OBJC OBJCXX]
   # @private
-  SANITIZED_VARS = %w[
-    CDPATH GREP_OPTIONS
+  SANITIZED_VARS = COMPILER_VARS + CC_FLAG_VARS + %w[
+    CDPATH GREP_OPTIONS LIBRARY_PATH
     CPATH C_INCLUDE_PATH CPLUS_INCLUDE_PATH OBJC_INCLUDE_PATH
-    CC CXX OBJC OBJCXX CPP MAKE LD LDSHARED
-    CFLAGS CXXFLAGS OBJCFLAGS OBJCXXFLAGS LDFLAGS CPPFLAGS
+    CPP MAKE LD LDSHARED CPPFLAGS LDFLAGS
     MACOSX_DEPLOYMENT_TARGET SDKROOT DEVELOPER_DIR
     CMAKE_PREFIX_PATH CMAKE_INCLUDE_PATH CMAKE_FRAMEWORK_PATH
     GOBIN GOPATH GOROOT
-    LIBRARY_PATH
   ] # CLICOLOR_FORCE  ← why was this in there?
 
   # @private
@@ -36,15 +34,12 @@ module SharedEnvExtension
     self['MAKEFLAGS'] ||= "-j#{make_jobs}"
   end # setup_build_environment
 
-  # @private
-  def reset; SANITIZED_VARS.each { |k| delete(k) }; end
+  def delete_multiple(keys); h = {}; Array(keys).each{ |k| h[k] = delete(k) }; h; end
 
-  def remove_cc_etc
-    keys = COMPILER_VARS + CC_FLAG_VARS + FC_FLAG_VARS + %w[LD CPP LDFLAGS CPPFLAGS]
-    removed = Hash[*keys.flat_map{ |key| [key, self[key]] }]
-    keys.each{ |key| delete(key) }
-    removed
-  end # remove_cc_etc
+  # @private
+  def reset; SANITIZED_VARS.each{ |k| delete(k) }; end
+
+  def remove_cc_etc; delete_multiple(COMPILER_VARS + CC_FLAG_VARS + FC_FLAG_VARS + %w[CPP CPPFLAGS LD LDFLAGS]); end
 
   def append_to_cflags(newflags); append(CC_FLAG_VARS, newflags); end
 
@@ -100,7 +95,7 @@ module SharedEnvExtension
     Array(keys).each do |key|
       next unless self[key]
       # Make sure to only delete whole entries – not from the middle of one.
-      self[key] = self[key].sub(/(\W)#{value}(?!\w)/, $1 || '').gsub(/#{sep}{2,}/, sep).chomp
+      self[key] = self[key].sub(/(^|\W)#{value}(?!\w)/, $1 || '').gsub(/#{sep}{2,}/, sep).lchomp(sep).chomp(sep)
       delete(key) if self[key].empty?
     end if value
   end # remove
@@ -298,6 +293,8 @@ module SharedEnvExtension
       EOS
     end # no opt/ prefix
   end # warn_about_non_apple_gcc
+
+  def single_arch_binary; Target.no_universal_binary; set_build_archs(Target.archset); end
 
   def universal_binary; Target.allow_universal_binary; set_build_archs(Target.archset); end
 
