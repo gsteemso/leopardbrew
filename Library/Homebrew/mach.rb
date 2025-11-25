@@ -34,12 +34,6 @@ module ArchitectureListExtension  # applicable to arrays of architecture symbols
   def as_cmake_arch_flags; map(&:to_s).join(';'); end
 
   def as_build_archs; map(&:to_s).join(' '); end
-
-  protected
-
-  def intersects?(aset); aset.any?{ |a| includes? a }; end
-
-  def intersects_all?(*asets); asets.all?{ |aset| intersects? aset }; end
 end # ArchitectureListExtension
 
 module MachO  # only useable when included in Pathname

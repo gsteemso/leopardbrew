@@ -90,5 +90,5 @@ class Options
 
   def inspect; "#<#{self.class.name}:  #{@options.to_a.inspect}>"; end
 
-  def list; @options.to_a.list; end
+  def list(connective = 'and'); @options.to_a.list(connective); end
 end # Options
