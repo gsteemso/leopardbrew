@@ -23,12 +23,12 @@ class Bzip2 < Formula
     inreplace 'Makefile', '$(PREFIX)/man', '$(PREFIX)/share/man'
 
     system 'make', 'clean'
-    system 'make'
+    system 'make', "CC=#{ENV.cc}"
     system 'make', 'install', "PREFIX=#{prefix}"
 
     # Install shared libraries
     system 'make', '-f', 'Makefile-libbz2_so', 'clean'
-    system 'make', '-f', 'Makefile-libbz2_so'
+    system 'make', '-f', 'Makefile-libbz2_so', "CC=#{ENV.cc}"
 
     lib.install 'libbz2.1.0.8.dylib', 'libbz2.1.0.dylib'
     lib.install_symlink "libbz2.#{version}.dylib" => 'libbz2.dylib'
