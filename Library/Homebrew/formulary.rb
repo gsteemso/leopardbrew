@@ -1,5 +1,5 @@
 require "vendor/backports/enumerable"  # provides #max_by
-require "digest/md5"
+require "digest"
 require "formula/renames"
 
 # The Formulary is responsible for creating instances of Formula.
@@ -27,7 +27,7 @@ class Formulary
 
   def self.load_formula_from_path(name, path)
     contents = path.open("r") { |f| set_encoding(f).read }
-    namespace = "FormulaNamespace#{Digest::SHA256.hexdigest(path.to_s)}"
+    namespace = "FormulaNamespace#{Digest::SHA1.hexdigest(path.to_s)}"
     klass = load_formula(name, path, contents, namespace)
     FORMULAE[path] = klass
   end # Formulary::load_formula_from_path
@@ -181,7 +181,7 @@ class Formulary
 
     def klass
       STDERR.puts "#{$0} (#{self.class.name}):  Loading #{path}" if DEBUG
-      namespace = "FormulaNamespace#{Digest::SHA256.hexdigest(contents)}"
+      namespace = "FormulaNamespace#{Digest::SHA1.hexdigest(contents)}"
       Formulary.load_formula(name, path, contents, namespace)
     end
   end # FormulaContentsLoader
@@ -251,8 +251,9 @@ class Formulary
   def self.path(ref); loader_for(ref).path; end
 
   def self.loader_for(ref)
+    odie "Somehow, a {Symbol} has been passed to {Formulary::loader_for(#{ref.inspect})}" if ref.is_a? Symbol
     case ref
-      when %r{(https?|ftp|file)://} then return FromUrlLoader.new(ref)
+      when %r{^(https?|s?ftp|file)://} then return FromUrlLoader.new(ref)
       when Pathname::BOTTLE_EXTNAME_RX then return BottleLoader.new(ref)
       when HOMEBREW_CORE_FORMULA_REGEX
         name = $1
