@@ -2,9 +2,8 @@ require 'download_strategy'
 require 'checksum'
 require 'version'
 
-# Resource is the fundamental representation of an external resource. The
-# primary formula download, along with other declared resources, are instances
-# of this class.
+# A {Resource} is the fundamental representation of an external resource.  The main {Formula} download and other declared resources
+# are instances of this class.
 class Resource
   include FileUtils
 
@@ -12,8 +11,7 @@ class Resource
   attr_writer :version
   attr_accessor :checksum, :download_strategy
 
-  # The formula name has to get set after the DSL is interpreted, as we have no access to it before
-  # initialization of the formula.
+  # The formula name has to get set after the DSL is interpreted, as we have no access to it before initialization of the formula.
   attr_accessor :name, :owner
 
   class Download
@@ -39,8 +37,8 @@ class Resource
 
   def downloader; @downloader ||= download_strategy.new(download_name,Download.new(self)); end
 
-  # Removes slashes from resource names.  This allows Go package names to be used as resource names
-  # without confusing software that interacts with download_name, e.g. github.com/foo/bar.
+  # Removes slashes from resource names.  This allows Go package names to be used as resource names without confusing software that
+  # interacts with {download_name}, e.g. “github.com/foo/bar”.
   def escaped_name; name.tr('/', '-'); end
 
   def download_name; name.nil? ? owner.name : "#{owner.name}--#{escaped_name}"; end
@@ -57,8 +55,8 @@ class Resource
     unpack(target, &block)
   end # Resource#stage
 
-  # With a target, unpack there; otherwise to a temporary folder.  If a block is given, yield to it.
-  # Exactly one target or block must be given.
+  # With a target, unpack there; otherwise, to a temporary folder.  If a block is given, yield.  Exactly one of {target} or {block}
+  # must be given for this method to do anything.
   def unpack(target = nil)
     mktemp(download_name) do
       downloader.stage
@@ -134,8 +132,9 @@ class Resource
     attr_reader :patch_files
 
     def initialize(&block)
+      @@patch_count ||= 0; @@patch_count += 1
       @patch_files = []
-      super 'patch', &block
+      super "patch-#{@@patch_count}", &block
     end
 
     def apply(*paths)
@@ -143,5 +142,7 @@ class Resource
       @patch_files.concat(paths)
       @patch_files.uniq!
     end
+
+    def self.reset_count; @@patch_count = 0; end
   end # Resource⸬Patch < Resource
 end # Resource
