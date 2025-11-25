@@ -128,11 +128,18 @@ module Homebrew
     puts "From:  #{history}" if history
 
     aid_groups = f.named_enhancements
-    unless f.deps.empty? and aid_groups.empty?
+    deps = reqdeps f
+    unless deps.empty? and aid_groups.empty?
       ohai "Dependencies"
-      %w[build required recommended optional].map do |type|
-        deps = f.deps.send(type).uniq.sort
-        puts "#{type.capitalize}:  #{decorate_dependencies deps}" unless deps.empty?
+      %w[required recommended optional].map do |type|
+        _deps = deps.send("build_#{type}").uniq.sort
+        puts "Build (#{type}):  #{decorate_dependencies _deps}" unless _deps.empty?
+      end
+      _deps = deps.required.uniq.sort
+      puts "Required:  #{decorate_dependencies _deps}" unless _deps.empty?
+      %w[recommended optional].map do |type|
+        _deps = deps.send("run_#{type}").uniq.sort
+        puts "#{type.capitalize}:  #{decorate_dependencies _deps}" unless _deps.empty?
       end
       puts "Enhanceable by:  #{decorate_enhancement_groups(aid_groups)}" unless aid_groups.empty?
     end
@@ -167,4 +174,10 @@ module Homebrew
       end
     clump ? deps_status * ' + ' : deps_status.list
   end # decorate_dependencies
+
+  def reqdeps(formula)
+    rd = formula.deps.dup
+    formula.requirements.reject{ |rq| rq.default_formula.nil? or rq.satisfied? }.map(&:to_dependency).each{ |dp| rd << dp }
+    rd
+  end
 end # Homebrew

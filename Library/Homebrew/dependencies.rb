@@ -21,7 +21,17 @@ class Dependencies
 
   def required; select(&:required?); end
 
-  def default; build + required + recommended; end
+  def default; build - build_optional + required + recommended; end
+
+  def build_optional; select(&:build_optional?); end
+
+  def build_recommended; select(&:build_recommended?); end
+
+  def build_required; select(&:build_required?); end
+
+  def run_optional; select(&:run_optional?); end
+
+  def run_recommended; select(&:run_recommended?); end
 
   attr_reader :deps
   protected :deps
