@@ -23,7 +23,7 @@ begin
   f = ARGV.formulae.first
   f.set_active_spec(ARGV.build_head? ? :head : (ARGV.build_devel? ? :devel : :stable))
   t = Tab.from_file(f.prefix/Tab::FILENAME)
-  f.build = BuildOptions.new(t.used_options, f.options)
+  f.build = BuildOptions.new(t.used_options + Options.create(ARGV.effective_formula_flags), f.options)
   f.extend(Homebrew::Assertions)
   ENV.activate_extensions!
   ENV.setup_build_environment(f, t.built_archs)
