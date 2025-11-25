@@ -1,3 +1,4 @@
+# stable release 2019-11-09; frozen.
 class Isl016 < Formula
   desc "Integer Set Library for the polyhedral model"
   homepage "https://libisl.sourceforge.io"

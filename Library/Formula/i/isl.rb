@@ -1,6 +1,7 @@
+# Stable release 2024-09-01; checked 2025-11-23.
 class Isl < Formula
   desc 'Integer Set Library for the polyhedral model'
-  homepage 'https://libisl.sourceforge.io'
+  homepage 'https://libisl.sourceforge.io/'
   # Note:  Always use tarball instead of git tag for stable version.
   url 'https://libisl.sourceforge.io/isl-0.27.tar.xz'
   mirror 'https://gcc.gnu.org/pub/gcc/infrastructure/isl-0.27.tar.xz'

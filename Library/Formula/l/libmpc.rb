@@ -1,3 +1,4 @@
+# stable release 2022-12-16; checked 2025-11-10.
 class Libmpc < Formula
   desc "C library for the arithmetic of high precision complex numbers"
   homepage "https://multiprecision.org"
