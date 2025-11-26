@@ -29,7 +29,6 @@ class Gcc8 < Formula
   depends_on 'libmpc'
   depends_on 'mpfr'
   # Cannot `depends_on` :nls, as an older Mac OS’ stock compilers cannot handle it.
-#  depends_on :nls => :recommended
 
   # Bug 21514 [DR 488] (templates and anonymous enum) – fixed in 4.0.2.  See (https://gcc.gnu.org/bugzilla/show_bug.cgi?id=21514).
   fails_with [:gcc_4_0, :llvm]
@@ -43,6 +42,8 @@ class Gcc8 < Formula
     url 'https://raw.githubusercontent.com/apple-oss-distributions/gcc/refs/tags/gcc-5666.3/driverdriver.c', :using => :nounzip
     sha256 '9c41f0c5e6f30851307671a2223e81a661c0b7113225ad8d0c6e2c6b0036169a'
   end
+
+  patch :DATA  # Annotated inline.
 
   def install
     def add_suffix(file, suffix)
@@ -528,3 +529,18 @@ class Gcc8 < Formula
     for_archs('./test') { |_, cmd| assert_equal("Done\n", Utils.popen_read(*cmd)) }
   end # test
 end # Gcc8
+
+__END__
+# Use of -Wabi without any qualifier regarding what ABI to compare to is utterly pointless, & triggers the exact same damn compiler
+# warning on EACH AND EVERY SOURCE FILE in libstdc++-v3.  This is so immensely irritating that it was worth patching.
+--- old/libstdc++-v3/configure
++++ new/libstdc++-v3/configure
+@@ -81940,7 +81940,7 @@
+   # OPTIMIZE_CXXFLAGS = -O3 -fstrict-aliasing -fvtable-gc
+ 
+ 
+-  WARN_FLAGS='-Wall -Wextra -Wwrite-strings -Wcast-qual -Wabi'
++  WARN_FLAGS='-Wall -Wextra -Wwrite-strings -Wcast-qual'
+ 
+ 
+ 
