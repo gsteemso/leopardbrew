@@ -73,7 +73,7 @@ module Homebrew
 
     # automatically tap any migrated formulae's new tap
     report.select_formula(:D).each do |f|
-      next unless (dir = HOMEBREW_CELLAR/f).exist?
+      next unless (dir = HOMEBREW_CELLAR/f).exists?
       migration = TAP_MIGRATIONS[f]
       next unless migration
       tap_user, tap_repo = migration.split '/'
@@ -125,9 +125,7 @@ module Homebrew
 
   private
 
-  def get_install_time
-    TIMESTAMP_FILE.mtime if TIMESTAMP_FILE.exists?
-  end
+  def get_install_time; TIMESTAMP_FILE.mtime if TIMESTAMP_FILE.exists?; end
 
   def git_init_if_necessary
     if HOMEBREW_GITHUB_API_TOKEN
@@ -143,13 +141,13 @@ module Homebrew
     begin
       mkdir STASHDIR
       if (timestamp = get_install_time) then stash_modified_files(timestamp); end
-      safe_system 'git', '-c', 'advice.defaultBranchName=false', '-c', 'init.defaultBranch=combined', 'init'
+      safe_system 'git', '-c', 'advice.defaultBranchName=false', '-c', 'init.defaultBranch=master', 'init'
       safe_system 'git', 'config', 'set', 'core.autocrlf', 'false'
       safe_system 'git', 'config', 'set', 'push.autoSetupRemote', 'true'
       safe_system 'git', 'config', 'set', 'remote.origin.url', home_repo
       safe_system 'git', 'config', 'set', 'remote.origin.fetch', '+refs/heads/*:refs/remotes/origin/*'
       safe_system 'git', 'fetch', 'origin'
-      safe_system 'git', 'reset', '--hard', 'origin/combined'
+      safe_system 'git', 'reset', '--hard', 'origin/master'
       unstash_modified_files
       TIMESTAMP_FILE.unlink if TIMESTAMP_FILE.exists?
     rescue Exception
@@ -166,14 +164,10 @@ module Homebrew
   end # git_init_if_necessary
 
   def git_verify_config
-    safe_system 'git', 'config', 'set', 'branch.combined.remote', 'origin' \
-      unless `git config get branch.combined.remote`.chomp == 'origin'
-    safe_system 'git', 'config', 'set', 'branch.combined.merge', 'refs/heads/combined' \
-      unless `git config get branch.combined.merge`.chomp == 'refs/heads/combined'
-    safe_system 'git', 'config', 'set', 'branch.upstream.remote', 'origin' \
-      unless `git config get branch.upstream.remote`.chomp == 'origin'
-    safe_system 'git', 'config', 'set', 'branch.upstream.merge', 'refs/heads/upstream' \
-      unless `git config get branch.upstream.merge`.chomp == 'refs/heads/upstream'
+    safe_system 'git', 'config', 'set', 'branch.master.remote', 'origin' \
+      unless `git config get branch.master.remote`.chomp == 'origin'
+    safe_system 'git', 'config', 'set', 'branch.master.merge', 'refs/heads/master' \
+      unless `git config get branch.master.merge`.chomp == 'refs/heads/master'
     safe_system 'git', 'config', 'set', 'push.default', 'current' \
       unless `git config get push.default`.chomp == 'current'
     safe_system 'git', 'config', 'set', 'remote.pushDefault', 'origin' \
@@ -240,6 +234,77 @@ module Homebrew
   end # unstash_modified_files
 end # Homebrew
 
+class Report
+  def initialize; @hash = {}; end
+
+  def dump
+    # Key Legend: Added (A), Copied (C), Deleted (D), Modified (M), Renamed (R)
+    dump_formula_report :A, 'New Formulæ'
+    dump_formula_report :M, 'Updated Formulæ'
+    dump_formula_report :R, 'Renamed Formulæ'
+    dump_formula_report :D, 'Deleted Formulæ'
+  end # Report#dump
+
+  def dump_formula_report(key, title)
+    formula = select_formula(key)
+    formula.map! { |oldname, newname| "#{oldname} -> #{newname}" } if key == :R
+    unless formula.empty?
+      ohai title
+      puts_columns formula
+    end
+  end # Report#dump_formula_report
+
+  def empty?; @hash.empty?; end
+
+  def fetch(*args, &block); @hash.fetch(*args, &block); end
+
+  def select_formula(key)
+    fetch(key, []).map do |path, newpath|
+      if path.to_s =~ HOMEBREW_TAP_PATH_REGEX
+        tap = "#{$1}/#{$2.sub('homebrew-', '')}"
+        if newpath
+          ["#{tap}/#{path.basename('.rb')}", "#{tap}/#{newpath.basename('.rb')}"]
+        else
+          "#{tap}/#{path.basename('.rb')}"
+        end
+      elsif newpath
+        ["#{path.basename('.rb')}", "#{newpath.basename('.rb')}"]
+      else
+        path.basename('.rb').to_s
+      end
+    end.sort
+  end # Report#select_formula
+
+  def update(*args, &block); @hash.update(*args, &block); end
+
+  def update_renamed
+    renamed_formulae = []
+
+    fetch(:D, []).each do |path|
+      case path.to_s
+      when HOMEBREW_TAP_PATH_REGEX
+        user = $1
+        repo = $2.sub('homebrew-', '')
+        oldname = path.basename('.rb').to_s
+        next unless newname = Tap.fetch(user, repo).formula_renames[oldname]
+      else
+        oldname = path.basename('.rb').to_s
+        next unless newname = FORMULA_RENAMES[oldname]
+      end
+
+      if fetch(:A, []).include?(newpath = path.dirname.join("#{newname}.rb"))
+        renamed_formulae << [path, newpath]
+      end
+    end # fetch each |path|
+
+    unless renamed_formulae.empty?
+      @hash[:A] -= renamed_formulae.map(&:last) if @hash[:A]
+      @hash[:D] -= renamed_formulae.map(&:first) if @hash[:D]
+      @hash[:R] = renamed_formulae
+    end
+  end # Report#update_renamed
+end # Report
+
 class Updater
   attr_reader :initial_revision, :current_revision, :repository
 
@@ -248,21 +313,18 @@ class Updater
     @stashed = false
   end
 
-  def pull!(options = {})
-    quiet = []
-    quiet << '--quiet' unless VERBOSE
+  def pull!
+    quiet = (VERBOSE ? [] : ['--quiet'])
 
     unless system 'git', 'diff', '--quiet'
-      unless options[:silent]
-        puts 'Stashing your changes:'
-        system 'git', 'status', '--short', '--untracked-files'
-      end
+      puts 'Stashing your changes:'
+      system 'git', 'status', '--short', '--untracked-files'
       safe_system 'git', 'stash', 'save', '--include-untracked', *quiet
       @stashed = true
     end
 
-    # The upstream repository’s default branch may not be master; check refs/remotes/origin/HEAD to see what the default origin
-    # branch name is, and use that.  If not set, fall back to “master”.
+    # The upstream repository’s default branch might not be “master”.  Check refs/remotes/origin/HEAD for the default origin branch
+    # name, and use that; if not set, fall back to “master”.
     begin
       @upstream_branch = `git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null`
       @upstream_branch = @upstream_branch.chomp.sub('refs/remotes/origin/', '')
@@ -276,37 +338,39 @@ class Updater
       @initial_branch = ''
     end
 
-    if @initial_branch != @upstream_branch && !@initial_branch.empty?
-      safe_system 'git', 'checkout', @upstream_branch, *quiet
-    end
-
-    @initial_revision = read_current_revision
-
     # ensure we don't munge line endings on checkout
     safe_system 'git', 'config', 'core.autocrlf', 'false'
 
-    args = ['pull']
-    args << '--ff'
+    if @initial_branch != @upstream_branch and not @initial_branch.empty?
+      safe_system 'git', 'checkout', @upstream_branch, *quiet
+
+      args = %w[ pull --ff ]
+      args << ((ARGV.include? '--rebase') ? '--rebase' : '--no-rebase')
+      args += quiet
+      args << 'origin'
+      # the refspec ensures that the default upstream branch gets updated
+      args << "refs/heads/#{@upstream_branch}:refs/remotes/origin/#{@upstream_branch}"
+
+      reset_on_interrupt { safe_system 'git', *args }
+    end
+
+    @initial_revision = read_current_revision
+    safe_system 'git', 'checkout', @initial_branch, *quiet
+    @current_revision = read_current_revision
+
+    args = %w[ pull --ff ]
     args << ((ARGV.include? '--rebase') ? '--rebase' : '--no-rebase')
     args += quiet
     args << 'origin'
-    # the refspec ensures that the default upstream branch gets updated
-    args << "refs/heads/#{@upstream_branch}:refs/remotes/origin/#{@upstream_branch}"
+    # the refspec ensures that the default initial branch gets updated
+    args << "refs/heads/#{@initial_branch}:refs/remotes/origin/#{@initial_branch}"
 
     reset_on_interrupt { safe_system 'git', *args }
 
-    @current_revision = read_current_revision
-
-    if @initial_branch != 'master' && !@initial_branch.empty?
-      safe_system 'git', 'checkout', @initial_branch, *quiet
-    end
-
     if @stashed
       safe_system 'git', 'stash', 'pop', *quiet
-      unless options[:silent]
-        puts 'Restored your changes:'
-        system 'git', 'status', '--short', '--untracked-files'
-      end
+      puts 'Restored your changes:'
+      system 'git', 'status', '--short', '--untracked-files'
       @stashed = false
     end # @stashed?
   end # Updater#pull!
@@ -314,7 +378,7 @@ class Updater
   def reset_on_interrupt
     ignore_interrupts { yield }
   ensure
-    if $?.signaled? && $?.termsig == 2 # SIGINT
+    if $?.signaled? && $?.termsig == 2  # SIGINT
       safe_system 'git', 'checkout', @initial_branch unless @initial_branch.empty?
       safe_system 'git', 'reset', '--hard', @initial_revision
       safe_system 'git', 'stash', 'pop' if @stashed
@@ -324,7 +388,7 @@ class Updater
   def report
     map = Hash.new { |h, k| h[k] = [] }
 
-    if initial_revision && initial_revision != current_revision
+    if initial_revision and initial_revision != current_revision
       wc_revision = read_current_revision
 
       diff.each_line do |line|
@@ -366,27 +430,17 @@ class Updater
   private
 
   def formula_directory
-    if repository == HOMEBREW_REPOSITORY
-      'Library/Formula'
-    elsif repository.join('Formula').directory?
-      'Formula'
-    elsif repository.join('HomebrewFormula').directory?
-      'HomebrewFormula'
-    else
-      '.'
-    end
+    repository == HOMEBREW_REPOSITORY                 ? 'Library/Formula' \
+      : repository.join('Formula').directory?         ? 'Formula' \
+      : repository.join('HomebrewFormula').directory? ? 'HomebrewFormula' \
+      :                                                 '.'
   end # Updater#formula_directory
 
-  def read_current_revision
-    `git rev-parse -q --verify HEAD`.chomp
-  end
+  def read_current_revision; `git rev-parse -q --verify HEAD`.chomp; end
 
   def diff
-    Utils.popen_read(
-      'git', 'diff-tree', '-r', '--name-status', '--diff-filter=AMDR',
-      '-M85%', initial_revision, current_revision
-    )
-  end # Updater#diff
+    Utils.popen_read('git', 'diff-tree', '-r', '--name-status', '--diff-filter=AMDR', '-M85%', initial_revision, current_revision)
+  end
 
   def `(cmd)
     out = super
@@ -398,75 +452,3 @@ class Updater
     out
   end # Updater#`
 end # Updater
-
-class Report
-  def initialize; @hash = {}; end
-
-  def fetch(*args, &block); @hash.fetch(*args, &block); end
-
-  def update(*args, &block); @hash.update(*args, &block); end
-
-  def empty?; @hash.empty?; end
-
-  def dump
-    # Key Legend: Added (A), Copied (C), Deleted (D), Modified (M), Renamed (R)
-
-    dump_formula_report :A, 'New Formulæ'
-    dump_formula_report :M, 'Updated Formulæ'
-    dump_formula_report :R, 'Renamed Formulæ'
-    dump_formula_report :D, 'Deleted Formulæ'
-  end # Report#dump
-
-  def update_renamed
-    renamed_formulae = []
-
-    fetch(:D, []).each do |path|
-      case path.to_s
-      when HOMEBREW_TAP_PATH_REGEX
-        user = $1
-        repo = $2.sub('homebrew-', '')
-        oldname = path.basename('.rb').to_s
-        next unless newname = Tap.fetch(user, repo).formula_renames[oldname]
-      else
-        oldname = path.basename('.rb').to_s
-        next unless newname = FORMULA_RENAMES[oldname]
-      end
-
-      if fetch(:A, []).include?(newpath = path.dirname.join("#{newname}.rb"))
-        renamed_formulae << [path, newpath]
-      end
-    end # fetch each |path|
-
-    unless renamed_formulae.empty?
-      @hash[:A] -= renamed_formulae.map(&:last) if @hash[:A]
-      @hash[:D] -= renamed_formulae.map(&:first) if @hash[:D]
-      @hash[:R] = renamed_formulae
-    end
-  end # Report#update_renamed
-
-  def select_formula(key)
-    fetch(key, []).map do |path, newpath|
-      if path.to_s =~ HOMEBREW_TAP_PATH_REGEX
-        tap = "#{$1}/#{$2.sub('homebrew-', '')}"
-        if newpath
-          ["#{tap}/#{path.basename('.rb')}", "#{tap}/#{newpath.basename('.rb')}"]
-        else
-          "#{tap}/#{path.basename('.rb')}"
-        end
-      elsif newpath
-        ["#{path.basename('.rb')}", "#{newpath.basename('.rb')}"]
-      else
-        path.basename('.rb').to_s
-      end
-    end.sort
-  end # Report#select_formula
-
-  def dump_formula_report(key, title)
-    formula = select_formula(key)
-    formula.map! { |oldname, newname| "#{oldname} -> #{newname}" } if key == :R
-    unless formula.empty?
-      ohai title
-      puts_columns formula
-    end
-  end # Report#dump_formula_report
-end # Report

@@ -40,7 +40,7 @@ On the computer you’re reading this on, control‐ or secondary‐click this l
 The option will be something like “Save Link As” or “Download Linked File”, depending on your
 browser:
 
-<https://raw.githubusercontent.com/gsteemso/leopardbrew/combined/go_to/install>
+<https://raw.githubusercontent.com/gsteemso/leopardbrew/master/go_to/install>
 
 (It used to be, and at times still is, possible to use TenFourFox directly from the target machine;
 but that software is no longer maintained, and cannot handle most pages on Github.)
@@ -78,10 +78,10 @@ Run these commands from your terminal.  You must have git installed.  That’s a
 unavoidable.
 
 ```sh
-cd `brew --repository`
+cd "$(brew --repository)"
 git remote set-url origin https://github.com/gsteemso/leopardbrew.git
 git fetch origin
-git reset --hard origin/combined
+git reset --hard origin/master
 ```
 
 ### Something broke!

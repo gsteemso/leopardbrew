@@ -14,7 +14,7 @@ DOWNLOADS_DIR    = "#{ENV['HOME']}/Downloads/"
 TEMP_CURL_DIR    = '/tmp/portable-curl'
 UNPACKED_CURL    = "#{TEMP_CURL_DIR}/#{CURL_VERSION}/bin/curl"
 GITHUB_REPO      = 'https://github.com/gsteemso/leopardbrew'
-GITHUB_BRANCH    = 'combined'
+GITHUB_BRANCH    = 'master'
 GIT_FETCH_ORIGIN = "#{GITHUB_BRANCH}:refs/remotes/origin/#{GITHUB_BRANCH}"
 LBREW_GITHUB_URL = "#{GITHUB_REPO}/archive/refs/heads/#{GITHUB_BRANCH}.zip"
 GIT_ARCHIVE_DIR  = "leopardbrew-#{GITHUB_BRANCH}"
@@ -148,7 +148,7 @@ def oho(*args); puts "#{_bld(cyn)}==>  #{_wht}#{args * ' '}#{_rst}"; end
 
 def sudo(*args); args.unshift '/usr/bin/sudo'; system args, true; end
 
-def system(args, loud = false); oho *args if loud; abort "Failed during:  #{args * ' '}" unless Kernel.system *args; end
+def system(args, loud = false); oho *args if loud; abort "Failed during:  #{args * ' '}" unless Kernel.system *args.map{ |a| a.to_s }; end
 
 def wait_for_user
   puts "\nPress the space bar to continue, or any other key to abort."; abort unless getc == 32
@@ -221,9 +221,9 @@ end while pfx =~ %r{^/[^/]*$}
 
 pfx = Pathname.new(pfx)
 
-sudo '/bin/mkdir', '-p', pfx.to_s unless pfx.directory?
-sudo '/bin/chmod', 'g+rwx', pfx.to_s
-sudo '/usr/bin/chgrp', 'admin', pfx.to_s  # /usr/local defaults to group “wheel” for some reason
+sudo '/bin/mkdir', '-p', pfx unless pfx.directory?
+sudo '/bin/chmod', 'g+rwx', pfx
+sudo '/usr/bin/chgrp', 'admin', pfx  # /usr/local defaults to group “wheel” for some reason
 
 puts "Using “#{pfx}” for the prefix.\n\n"
 
@@ -289,35 +289,20 @@ ohai 'This script will install:', <<_
 _
 
 pdirs = %w[
-    . bin etc include lib lib/pkgconfig sbin share share/aclocal share/doc share/info
-    share/locale share/man share/man/man1 share/man/man2 share/man/man3 share/man/man4
-    share/man/man5 share/man/man6 share/man/man7 share/man/man8 var var/log
+    . bin etc include lib sbin share var lib/pkgconfig share/aclocal share/doc share/info
+    share/locale share/man var/log share/man/man1 share/man/man2 share/man/man3
+    share/man/man4 share/man/man5 share/man/man6 share/man/man7 share/man/man8
   ].map{ |subdir| pfx/subdir }
-
-pdirs.each{ |d| d.mkdir unless d.exist? }
-
-pchmods = pdirs.select{ |d| d.directory? and not (d.readable? and d.writable? and d.executable?) }
-pchgrps = pchmods.reject{ |d| d.stat.grpowned? }
 
 rdirs = %w[. bin Library share].map{ |subdir| repo/subdir }
 
-rdirs.each{ |d| d.mkdir unless d.exist? }
+dirs = pdirs + rdirs
 
-rchmods = rdirs.select{ |d| d.directory? and not (d.readable? and d.writable? and d.executable?) }
-rchgrps = rchmods.reject{ |d| d.stat.grpowned? }
-
-chmods = pchmods.concat(rchmods)
-chgrps = pchgrps.concat(rchgrps)
-
-ohai 'The following directories will be made group-writable:', *chmods unless chmods.empty?
-
-ohai "The following directories will have their group set to #{_uln(cyn)}admin#{_rst}#{_bld(wht)}:",
-  *chgrps unless chgrps.empty?
-
-wait_for_user
-
-sudo '/bin/chmod', 'g+rwx', *chmods unless chmods.empty?
-sudo '/usr/bin/chgrp', 'admin', *chgrps unless chgrps.empty?
+dirs.each{ |d|
+  d.mkdir unless d.exist?
+  sudo '/bin/chmod', 'g+rwx', d unless d.readable? and d.writable? and d.executable?
+  sudo '/usr/bin/chgrp', 'admin', d unless d.stat.grpowned?
+}
 
 oho 'Downloading and Installing Homebrew...'
 Dir.chdir repo do
@@ -369,7 +354,7 @@ end # chdir repo
 warn "#{pfx}/bin is not in your PATH." unless ENV['PATH'].split(':').include? "#{pfx}/bin"
 
 if macos_version < 10.7
-  warn 'Now install Xcode: https://developer.apple.com/xcode/' unless File.exist? '/usr/bin/cc'
+  warn 'Now install Xcode:  https://developer.apple.com/xcode/' unless File.exist? '/usr/bin/cc'
 else
   `/usr/bin/cc --version 2> /dev/null` =~ %r[clang-(\d{2,})]
   version = $1.to_i
