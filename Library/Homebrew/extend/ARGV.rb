@@ -68,7 +68,7 @@ module HomebrewArgvExtension
   # argument to --mode=.
   def effective_flags
     @effl ||= begin
-                flags = flags_only - U_MODE_FLAGS
+                flags = flags_only.reject{ |flag| flag =~ %r{^--mode=} } - U_MODE_FLAGS
                 ENV_FLAGS.each do |s|
                   flag = "--#{s.chop.gsub('_', '-')}"
                   flags << flag if (not include?(flag) and send s.to_sym)
@@ -197,15 +197,16 @@ module HomebrewArgvExtension
 
   def build_native?; build_mode == :native; end
 
-  def build_plain?;  build_mode == :plain; end
+  def build_plain?;  build_mode == :bottle or build_mode == :plain; end
 
   def build_fat?; not build_plain?; end
   alias_method :build_universal?, :build_fat?
 
   def build_mode
-    @mode ||= if includes?('--universal') or value('mode') or intersects?(U_MODE_OPTS.keys) then universal_mode_with_priority
-              elsif m = ENV['HOMEBREW_UNIVERSAL_MODE'].choke                                then validate_universal_mode(m)
-              else                                                                              :plain; end
+    @mode ||= if build_bottle?                                                                 then :bottle
+              elsif includes?('--universal') or value('mode') or intersects?(U_MODE_OPTS.keys) then universal_mode_with_priority
+              elsif m = ENV['HOMEBREW_UNIVERSAL_MODE'].choke                                   then validate_universal_mode(m)
+              else                                                                                 :plain; end
   end
 
   # Request a 32-bit only build.  Needed for some use-cases.  Building Universal is preferable.
