@@ -312,8 +312,8 @@ END_OF_PATCH
       If you need Leopardbrew’s Python 2.7, run
           brew install python2
 
-      Pip and wheel are installed.  To update them run
-          pip3 install --upgrade pip wheel
+      Pip and build are installed.  To update them run
+          pip3 install --upgrade pip build
 
       You can install Python packages with
           pip3 install <package>
