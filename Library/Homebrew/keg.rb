@@ -333,8 +333,13 @@ class Keg
       end
     end
     max_count = built_sets.values.max
-    built_set = built_sets.select{ |_, ct| ct == max_count }.keys.flatten.uniq
-    built_set.length > 1 ? (built_set.all?{ |a| CPU.can_run? a } ? :local : :cross) : :plain
+    built_set = built_sets.select{ |_, ct| ct == max_count }.keys.flatten.uniq.sort
+    built_set.length > 1 ? (built_set.all?{ |a| CPU.can_run? a } \
+                             ? (built_set.all?{ |a| CPU.type_of(a) == CPU.type } \
+                                 ? :native \
+                                 : :local) \
+                             : :cross) \
+                         : :plain
   end # reconstruct_build_mode
 
   private

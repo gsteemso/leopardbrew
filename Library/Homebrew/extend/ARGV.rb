@@ -9,26 +9,38 @@ module HomebrewArgvExtension
                   homebrew_developer?
                   quieter?
                   sandbox?
-                  verbose?  ].freeze
+                  verbose?            ].freeze
 
   SWITCHES = { '1' => '--1',  # “do not recurse” – only used by the `deps` command
              # 'd' => '--debug', (already handled as an environment flag)
                'f' => '--force',
                'g' => '--git',
                'i' => '--interactive',
-               'l' => '--long',  # “run the long tests too” – available for running tests
                'n' => '--dry-run',
              # 'q' => '--quieter'  (already handled as an environment flag)
              # 's' => '--build-from-source', (already handled as an environment flag)
-             # 'u' => '--universal', (already handled as a hashed environment flag)
+             # 'u' => '--universal', (already handled as a build-mode option)
              # 'v' => '--verbose', (already handled as an environment flag)
-             # 'x' => '--cross', (already handled as a hashed environment flag)
+             # 'x' => '--cross', (already handled as a build‐mode option)
              }.freeze
+
+  U_MODE_FLAGS = %w[ --cross
+                     --local
+                     --native
+                     --universal ].freeze
+
+  U_MODE_OPTS = { '--cross'     => :cross,
+                  '--local'     => :local,
+                  '--native'    => :native,
+                  '-u'          => :native,
+                  '-x'          => :cross,
+                }.freeze
 
   BREW_SYSTEM_EQS = %w[ --bottle-arch=
                         --cc=
                         --env=
-                        --json=        ].freeze
+                        --json=
+                        --mode=        ].freeze
 
   BREW_SYSTEM_FLAGS = %w[ --force-bottle
                           --ignore-dependencies
@@ -50,32 +62,31 @@ module HomebrewArgvExtension
   def flags_only; select{ |arg| arg.to_s.starts_with?('--') }; end
 
   # Constructs a list of all the flags which would have needed to be passed to convey every datum which either really was passed as
-  # a flag, or was actually passed as a switch or through an environment variable.  There is a special case here, in that cross and
-  # universal builds are both conveyed by a “--universal” flag; those parts of the brewing infrastructure which need to distinguish
-  # them do so via the presence or absence of “--cross”.
+  # a flag, or was actually passed as a switch or through an environment variable.  There is a special case here, in that all types
+  # of universal build are conveyed to the build and test scripts by the “--mode=” flag, but other flags / switches can also convey
+  # that information, and must be filtered out.  Those parts of our infrastructure which must distinguish amongst them do so by the
+  # argument to --mode=.
   def effective_flags
     @effl ||= begin
-                flags = flags_only - ['--cross', '--universal']
+                flags = flags_only - U_MODE_FLAGS
                 ENV_FLAGS.each do |s|
-                  flag = "--#{s.gsub('_', '-').chop}"
+                  flag = "--#{s.chop.gsub('_', '-')}"
                   flags << flag if (not include?(flag) and send s.to_sym)
                 end
-                flags << '--universal' if build_fat?
-                flags << '--cross' if build_cross?
+                flags << "--mode=#{build_mode}"
                 SWITCHES.each{ |s, flag| flags << flag if (switch?(s) and not include? flag) }
                 flags
               end
   end # effective_flags
 
   # Constructs a list of all user-supplied flags not specific to the brewing system; i.e. only those flags that were (or might have
-  # been) defined by a specific formula.  This does involve a special case in that universal and cross builds can also be specified
-  # by switch or by environment variable, and in either case are indicated by a “--universal” flag from the Formula’s point of view.
+  # been) defined by a specific formula.  This does involve the special case that the assorted flavours of universal build might be
+  # specified in any of several ways, but are always signalled by a “--universal” flag as far as the Formula is concerned.
   def effective_formula_flags
     @efffl ||= begin
-                 flags = flags_only.reject{ |flag| BREW_SYSTEM_EQS.any?{ |eq| flag =~ /^#{eq}/ }} - ['--cross', '--universal']
-                 flags << '--universal' if build_fat?
-                 flags << '--cross' if build_cross?
-                 flags - BREW_SYSTEM_FLAGS - SWITCHES.values - ENV_FLAGS.map{ |ef| "--#{ef.gsub('_', '-').chop}" }
+                 flags = flags_only.reject{ |flag| BREW_SYSTEM_EQS.any?{ |eq| flag =~ /^#{eq}/ }} - U_MODE_FLAGS
+                 flags << '--universal' << "--#{build_mode}" if build_universal?
+                 flags - BREW_SYSTEM_FLAGS - SWITCHES.values - ENV_FLAGS.map{ |ef| "--#{ef.chop.gsub('_', '-')}" }
                end
   end # effective_formula_flags
 
@@ -152,8 +163,6 @@ module HomebrewArgvExtension
 
   def interactive?; flag? '--interactive'; end
 
-  def long?; flag? '--long'; end
-
   def one?; flag? '--1'; end
 
   def quieter?; flag? '--quieter' or ENV['HOMEBREW_QUIET'].choke; end
@@ -182,21 +191,22 @@ module HomebrewArgvExtension
 
   def build_spec; build_stable? ? :stable : build_devel? ? :devel : :head; end
 
-  def build_cross?; build_mode == :cross; end
+  def build_cross?;  build_mode == :cross; end
 
-  def build_universal?; build_mode == :local; end
+  def build_local?;  build_mode == :local; end
 
-  def build_fat?; build_mode != :plain; end
+  def build_native?; build_mode == :native; end
+
+  def build_plain?;  build_mode == :plain; end
+
+  def build_fat?; not build_plain?; end
+  alias_method :build_universal?, :build_fat?
 
   def build_mode
-    @mode ||= (include? '--cross' or switch? 'x') ? :cross \
-                : flag?('--universal')            ? :local \
-                : case ENV['HOMEBREW_UNIVERSAL_MODE'].to_s.downcase
-                    when 'cross' then :cross
-                    when 'local' then :local
-                    else              :plain
-                  end
-  end # build_mode
+    @mode ||= if includes?('--universal') or value('mode') or intersects?(U_MODE_OPTS.keys) then universal_mode_with_priority
+              elsif m = ENV['HOMEBREW_UNIVERSAL_MODE'].choke                                then validate_universal_mode(m)
+              else                                                                              :plain; end
+  end
 
   # Request a 32-bit only build.  Needed for some use-cases.  Building Universal is preferable.
   def build_32_bit?; include? '--32-bit'; end
@@ -211,9 +221,7 @@ module HomebrewArgvExtension
     @btl_arch
   end # bottle_arch
 
-  def build_from_source?
-    switch? 's' or include? '--build-from-source' or ENV['HOMEBREW_BUILD_FROM_SOURCE'].choke
-  end
+  def build_from_source?; switch? 's' or include? '--build-from-source' or ENV['HOMEBREW_BUILD_FROM_SOURCE'].choke; end
 
   def flag?(flag); include? flag or switch? flag[2, 1]; end
 
@@ -236,7 +244,7 @@ module HomebrewArgvExtension
   def collect_build_flags
     build_flags = []
     build_flags << '--HEAD' if build_head?
-    build_flags << '--universal' if build_fat?
+    build_flags << '--universal' << "--mode=#{build_mode}" if build_fat?
     build_flags << '--32-bit' if build_32_bit?
     build_flags << '--build-bottle' if build_bottle?
     build_flags << '--build-from-source' if build_from_source?
@@ -245,10 +253,12 @@ module HomebrewArgvExtension
 
   private
 
-  def spec(default = :stable)
-    if build_head? then :head
-    elsif build_devel? then :devel
-    else default; end
+  def attempt_factory(name)
+    f = ssym = nil
+    [:head, :devel, :stable].find{ |ss| f = Formulary.factory(name, ssym = ss) }
+    return [f, ssym]
+  rescue FormulaUnavailableError
+    return nil
   end
 
   def downcased_unique_named
@@ -259,11 +269,25 @@ module HomebrewArgvExtension
       }.compact.uniq
   end # downcased_unique_named
 
-  def attempt_factory(name)
-    f = ssym = nil
-    [:head, :devel, :stable].find{ |ss| f = Formulary.factory(name, ssym = ss) }
-    return [f, ssym]
-  rescue FormulaUnavailableError
-    return nil
-  end
+  def spec(default = :stable); build_head? ? :head : build_devel? ? :devel : default; end
+
+  def universal_mode_with_priority
+    options_only.reverse_each do |opt|
+      case opt
+        when '--universal'     then return ((m = ENV['HOMEBREW_UNIVERSAL_MODE'].choke) ? validate_universal_mode(m) : :native)
+        when *U_MODE_OPTS.keys then return U_MODE_OPTS[opt]
+        when %r{^--mode=(.+)$} then return validate_universal_mode($1)
+      end
+    end # each option |opt| in reverse order
+    nil
+  end # universal_mode_with_priority
+
+  def validate_universal_mode(m)
+    case m.to_s.downcase
+      when 'cross'  then :cross
+      when 'local'  then :local
+      when 'native' then :native
+      else               :plain
+    end
+  end # validate_universal_mode
 end # HomebrewArgvExtension

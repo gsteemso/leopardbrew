@@ -148,6 +148,10 @@ class Tab < OpenStruct
 
   def cross?; includes?('cross'); end
 
+  def local?; includes?('local'); end
+
+  def native?; includes?('native'); end
+
   def universal?; includes?('universal'); end
 
   def bottle?; built_as_bottle; end
@@ -162,8 +166,12 @@ class Tab < OpenStruct
 
   def built_archs
     # Older tabs won’t have this field, so compute a plausible default.
-    if super.empty? then if cross? then Target.cross_archs
-                         elsif universal? then Target.local_archs
+    if super.empty? then if universal? then case build_mode
+                                              when :cross then Target.cross_archs
+                                              when :local then Target.local_archs
+                                              when :native then CPU.native_archs
+                                              when :plain then Target.preferred_arch_as_list
+                                            end
                          else Target.preferred_arch_as_list; end
     else super.map(&:to_sym).extend ArchitectureListExtension; end
   end # built_archs

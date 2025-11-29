@@ -38,9 +38,13 @@ class Target
     # universal build includes every runnable architecture (with less‐capable duplicates, such as bare :x86_64 on a Haswell machine,
     # removed).  A “cross” build includes every buildable architecture (with, again, less‐capable duplicates removed).
     def archset
-      desired_archset = (@@formula_can_be_universal and ARGV.build_fat?) ? (ARGV.build_cross? ? cross_archs : local_archs) \
+      desired_archset = (@@formula_can_be_universal and ARGV.build_fat?) ? case ARGV.build_mode
+                                                                             when :cross  then cross_archs
+                                                                             when :local  then local_archs
+                                                                             when :native then CPU.native_archs
+                                                                           end \
                                                 : (a = ARGV.bottle_arch) ? [oldest(a)].extend(ArchitectureListExtension) \
-                                                : preferred_arch_as_list
+                                                :                          preferred_arch_as_list
       result = filter_archs desired_archset
       die_from_filter(desired_archset) if result.empty?
       result
@@ -178,8 +182,8 @@ class Target
     # & #as_cmake_arch_flags.  Note that building for 64-bit is only just possible on Tiger & unevenly supported on Leopard.  Don’t
     # even try unless 64‐bit builds are enabled; they generally aren’t, prior to Leopard, although the issue can be forced on Tiger
     # by case‐insensitively setting the environment variable $HOMEBREW_PREFER_64_BIT to “FORCE”.
-    # Weirdly, builds for Haswell-architecture :x86_64h and Apple‐silicon :arm64e seem to be absent from the latest Mac OS releases
-    # – with unclear implications.
+    # Weirdly, builds for Haswell-architecture :x86_64h and Apple‐silicon :arm64e seem to be absent from the latest Mac OS releases.
+    # The implications are unclear.
     def all_archs; CPU.known_archs.extend ArchitectureListExtension; end
     def all_our_archs
       o = oldest(CPU.model)
@@ -199,8 +203,8 @@ class Target
       (MacOS.version   >= :big_sur)  ? universal_archs_2 \
       : (MacOS.version >= :catalina) ? [_64b_arch(:intel)].extend(ArchitectureListExtension) \
       : (MacOS.version >= :lion)     ? [:i386, _64b_arch(:intel)].extend(ArchitectureListExtension) \
-      : (MacOS.version >= :tiger)    ? (prefer_64b? ? ((ENV.respond_to?(:compiler) and ENV.compiler == :clang) ? triple_fat_archs \
-                                                                                                               : quad_fat_archs) \
+      : (MacOS.version >= :tiger)    ? (prefer_64b? ? ((ENV.respond_to?(:compiler) and ENV.compiler != :clang) ? quad_fat_archs \
+                                                                                                               : triple_fat_archs) \
                                                     : universal_archs_1)
       : [:ppc].extend(ArchitectureListExtension)
     end # Target⸬cross_archs

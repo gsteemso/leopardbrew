@@ -16,16 +16,50 @@ class SoftwareSpec
   extend Forwardable
 
   PREDEFINED_OPTIONS = {
-    :universal => (Target.cross_archs.universal? \
-                    ? [Option.new('universal', 'Build a universal binary for every target architecture this computer can run'),
-                       Option.new('cross', 'Build a universal binary for every possible target architecture')] \
-                    : []),
+    # The cross architecture‐set is always equal to or a superset of the local architecture‐set, which itself is always equal to or
+    # a superset of the native architecture‐set, which is guaranteed to contain either one or two architectures exactly.
+    # The possibilities are, from newest to oldest:
+    #   - one native arch == one local arch == one cross arch       (:arm,     28…)
+    #                                                               (:intel,   :catalina)
+    #                                                               (:powerpc, …:panther)
+    #   - one native arch; two local archs == two cross archs       (:arm,     :big_sur…27)
+    #   - one native arch == one local arch; two cross archs        (:intel,   :big_sur…:tahoe)
+    #                                                               (:intel,   :lion…:mohave)
+    #                                                               (:i386,    :tiger…:snow_leopard)
+    #                                                               (:ppc,     :tiger…:leopard)
+    #   - two native archs; three local archs == three cross archs  (:x86_64,  :tiger…:snow_leopard, Clang)
+    #   - two native archs; three local archs; four cross archs     (:x86_64,  :tiger…:snow_leopard, GCC)
+    #                                                               (:ppc64,   :tiger…:leopard)
+    :universal => (Target.cross_archs.fat? \
+                    ? (CPU.native_archs.fat? \
+                      ? (Target.local_archs == Target.cross_archs \
+                        ? [ # The native architecture‐set differs from the local/cross architecture‐set.
+                            Option.new('cross', 'Build a universal binary for every possible target architecture'),
+                            Option.new('native', 'Build a universal binary for the architectures native to this computer'),
+                            Option.new('universal', 'Build a universal binary for the default set of architectures'),
+                          ] \
+                        : [ # The native, local, and cross architecture‐sets all differ.
+                            Option.new('cross', 'Build a universal binary for every possible target architecture'),
+                            Option.new('local', 'Build a universal binary for every target architecture this computer can run'),
+                            Option.new('native', 'Build a universal binary for the architectures native to this computer'),
+                            Option.new('universal', 'Build a universal binary for the default set of architectures'),
+                          ] \
+                        ) \
+                      : [ # The cross archset ≠ the single native arch, and the local arch(set) equals one of them.
+                          Option.new('cross', 'Build a universal binary for every possible target architecture'),
+                          Option.new('universal', 'Build a universal binary for the default set of architectures'),
+                        ] \
+                      ) \
+                    : [ # No architecture‐sets are fat.
+                      ] \
+                  ),
     :tests     => [Option.new('with-tests', 'Run the build-time unit tests (can be slow)')],
     :longtests => [Option.new('with-tests', 'Run the normal build-time unit tests (can be slow)'),
-                   Option.new('with-long-tests', 'Run even the long build-time unit tests (very slow)')],
+                   Option.new('with-long-tests', 'Run even the long build-time unit tests (very slow)')
+                  ],
     :head      => [Option.new('HEAD', 'Build the version from the head of the development series')],
     :devel     => [Option.new('devel', 'Build the development version')],
-    :cxx11     => [Option.new('c++11', 'Build using C++11 mode')],
+    :cxx11     => [],  # This is obsolete, and should be replaced by a “needs” clause in any formula that won’t build without it.
     '32-bit'   => [Option.new('32-bit', 'Build 32-bit only')]
   }
 
