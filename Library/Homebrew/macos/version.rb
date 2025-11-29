@@ -7,13 +7,14 @@ module MacOS
 
   class Version < ::Version
     SYMBOLS = {       # Mac OS    Darwin
-      :tahoe         => '26',     # 26 – start of :arm64‐only
-      :sequoia       => '15',     # 24 – end of :intel
+                                  # 27 - end of Rosetta 2 / Universal 2
+      :tahoe         => '26',     # 26
+      :sequoia       => '15',     # 24 – end of :intel‐native
       :sonoma        => '14',     # 23
       :ventura       => '13',     # 22
       :monterey      => '12',     # 21
-      :big_sur       => '11',     # 20 – start of :arm64 and Rosetta 2 / Universal 2
-      :catalina      => '10.15',  # 19 – start of :x86_64‐only
+      :big_sur       => '11',     # 20 – start of :arm64[e] and Rosetta 2 / Universal 2
+      :catalina      => '10.15',  # 19 – start of :x86_64[h]‐only
       :mojave        => '10.14',  # 18 – end of :i386
       :high_sierra   => '10.13',  # 17
       :sierra        => '10.12',  # 16
@@ -22,10 +23,10 @@ module MacOS
       :mavericks     => '10.9',   # 13
       :mountain_lion => '10.8',   # 12
       :lion          => '10.7',   # 11 – start of 64‐bit CPU requirement
-      :snow_leopard  => '10.6',   # 10 – end of Rosetta
-      :leopard       => '10.5',   #  9 – end of :powerpc
+      :snow_leopard  => '10.6',   # 10 – end of :i386‐only and of Rosetta
+      :leopard       => '10.5',   #  9 – end of :powerpc‐native
       :tiger         => '10.4',   #  8 – start of :intel, of Rosetta (:ppc only) / Universal, and of 64‐bit
-      :panther       => '10.3'    #  7
+      :panther       => '10.3'    #  7 - end of :ppc‐only
     }.freeze
 
     def self.from_encumbered_symbol(sym)
