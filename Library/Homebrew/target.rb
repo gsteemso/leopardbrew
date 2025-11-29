@@ -29,7 +29,7 @@ class Target
     # This routine assumes that only the specified or preferred architecture will be built.  To process multiple architectures, use
     # Target⸬archset().
     def arch
-      @arch ||= (ARGV.bottle_arch ? CPU.arch_of(ARGV.bottle_arch) : preferred_arch)
+      @arch ||= ((ba = ARGV.bottle_arch) ? CPU.arch_of(oldest ba) : preferred_arch)
       if @permissible_archs and not @permissible_archs.include?(@arch) then die_from_filter([@arch]); end
       @arch
     end
@@ -43,8 +43,7 @@ class Target
                                                                              when :local  then local_archs
                                                                              when :native then CPU.native_archs
                                                                            end \
-                                                : (a = ARGV.bottle_arch) ? [oldest(a)].extend(ArchitectureListExtension) \
-                                                :                          preferred_arch_as_list
+                                                                         : [arch]
       result = filter_archs desired_archset
       die_from_filter(desired_archset) if result.empty?
       result
