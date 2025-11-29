@@ -8,7 +8,7 @@ class Brotli < Formula
 
   option :universal
 
-  depends_on "cmake" => :build
+  depends_on 'cmake' => :build
 
   def install
     archs = Target.archset
@@ -29,7 +29,7 @@ class Brotli < Formula
       Brotli bindings for Python 3 are available via Pip:
           pip3 install brotli
     _
-  end if Formula['python3'].installed?
+  end if Formula['python3'].any_version_installed?
 
   test do
     system bin/'brotli', '-k', '-o', './brotliest.br', bin/'brotli'
