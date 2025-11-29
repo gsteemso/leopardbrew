@@ -157,6 +157,8 @@ ENV['HOMEBREW_SVN'] = "#{OPTDIR}/subversion/bin/svn" if (OPTDIR/'subversion/bin/
 # $HOMEBREW_BUILD_ARCHS      # Tracks the architectures being built for
 # $HOMEBREW_CC               # Tracks the selected compiler (see `extend/ENV/*.rb`)
 # $HOMEBREW_CC_LOG_PATH      # This is set by `formula.rb` whenever it executes a Superenv build tool
+# $HOMEBREW_DEBUG_INSTALL    # ← These two track the current formula during ::interactive_shell() (see `utils.rb`).
+# $HOMEBREW_DEBUG_PREFIX     # ←
 # $HOMEBREW_MACH_O_FILE      # Briefly exists during `otool -L` parsing; see `mach.rb`
 # $HOMEBREW_PROCESSOR_TYPE   # Set by `brew.sh` and used by `cmd/vendor-install.sh`
 
