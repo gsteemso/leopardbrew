@@ -176,14 +176,14 @@ def recursive_mv(src_pn, src_root, dst_root)
         # do nothing, assume the new version is correct
       else # neither source nor destination are directories, or at least not real ones
         if src_pn.lstat.mtime > dst_pn.lstat.mtime
-          system 'mv', '-f', src_pn.to_s, dst_pn.to_s
+          system %W[mv -f #{src_pn} #{dst_pn}]
         else
           # the local version is newer, assume it is correct and do nothing
         end
       end
     end
   else
-    system 'mv', '-f', src_pn, dst_pn
+    system %W[mv -f #{src_pn} #{dst_pn}]
   end
 end
 
@@ -325,7 +325,11 @@ Dir.chdir repo do
     # unzip -K:  Keep suid/sgid/sticky mode bits.
     #       -b:  treat all files as Binary (no text conversions).
     #       -q:  work Quietly (don’t list files as they are unzipped).
-    system %W[/usr/bin/unzip -Kbq #{GIT_ARCHIVE_NAME}]
+    begin
+      system %W[/usr/bin/unzip -Kbq #{GIT_ARCHIVE_NAME}]
+    rescue Exception
+      system %W[/usr/bin/unzip -q #{GIT_ARCHIVE_NAME}]  # some unzips are missing a lot of options
+    end
     archive_dir = Pathname.new(GIT_ARCHIVE_DIR)
     archive_dir.children.each{ |ch| recursive_mv(ch, archive_dir, repo) }
     # rm -f:  Force removals.
@@ -338,7 +342,10 @@ Dir.chdir repo do
     %w[bin share/doc share/man/man1].each do |d|
       (repo/d).children.each do |ch|
         pp = pfx/d/(ch.basename)
-        pp.unlink if pp.exist?
+        if pp.exist?
+          if pp.directory? then pp.rmtree
+          else pp.unlink; end
+        end
         pp.make_symlink(ch.to_s)
       end
     end
