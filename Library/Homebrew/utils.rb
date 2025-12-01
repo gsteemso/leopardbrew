@@ -184,7 +184,7 @@ end # shell_profile
 
 # prints no output
 def silent_system(cmd, *args); do_system([:silent, :nostdout, :nostderr], cmd, *args); end
-alias_method :quiet_system, :silent_system
+alias :quiet_system :silent_system
 
 def which(cmd, path = ENV['PATH'])
   path.split(File::PATH_SEPARATOR).each do |p|
