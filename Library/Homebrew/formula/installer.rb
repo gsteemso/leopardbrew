@@ -162,7 +162,11 @@ class FormulaInstaller
           formula.rack.rmdir_if_possible
         end
         @pour_failed = true
-        onoe e.message
+        if DEBUG
+          onoe e.message, e.backtrace
+        else
+          onoe e.message
+        end
         opoo "Bottle installation failed:  Building from source."
         raise BuildToolsError.new([formula]) unless MacOS.has_apple_developer_tools?
       else
@@ -586,6 +590,8 @@ class FormulaInstaller
         puts 'Depending on just what went wrong, you may be able to'
         puts "    brew link #{formula.name}"
       else raise; end
+    else
+      @show_summary_heading = true
     end # keg.link
 
     unless link_overwrite_backup.empty?

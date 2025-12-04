@@ -62,7 +62,7 @@ class Caveats
     s << "#{f.keg_only_reason}\n"
     if f.lib.directory? or f.include.directory?
       s << <<-EOS.undent
-          Generally there are no consequences of this for you. If you build your
+          Generally there are no consequences of this for you.  If you build your
           own software and it requires this formula, you’ll need to add to your
           build variables:
         EOS

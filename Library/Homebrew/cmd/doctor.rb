@@ -1046,7 +1046,7 @@ class Checks
   end # check_for_old_homebrew_share_python_in_path
 
   def check_for_bad_python_symlink
-    return unless which "python"
+    return unless which 'python' and which 'python3'
     `python -V 2>&1` =~ /Python (\d+)\./
     # This won't be the right warning if we matched nothing at all
     return if $1.nil?

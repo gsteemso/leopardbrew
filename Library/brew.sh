@@ -1,6 +1,6 @@
 #!/bin/sh
 
-LEOPARDBREW_VERSION='0.5.1'
+LEOPARDBREW_VERSION='0.5.2'
 
 ###### Convenience functions ######
 
@@ -45,6 +45,7 @@ esac
 HOMEBREW_RUBY_LIBRARY="${HOMEBREW_LIBRARY}/Homebrew"
 
 # This should be set to the system “/Library/Caches/Homebrew” for a multi‐user machine.
+[ -d '/Library/Caches/Homebrew' -a -z "$HOMEBREW_CACHE" ] && HOMEBREW_CACHE='/Library/Caches/Homebrew'
 [ -z "$HOMEBREW_CACHE" ] && HOMEBREW_CACHE="$HOME/Library/Caches/Homebrew"
 
 ###### Sanity checks ######

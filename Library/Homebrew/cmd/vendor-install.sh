@@ -33,7 +33,7 @@ _fetch() {
   local temporary_path
 
   echo '==> Please wait... leopards are now brewing'
-  echo "Downloading Leopardbrew’s ${VENDOR_NAME}; this may take some time\n"
+  echo "Downloading Leopardbrew’s ${VENDOR_NAME}; this may take some time"
 
   curl_args=( --fail --remote-time --location --user-agent "$HOMEBREW_USER_AGENT_CURL" )
 

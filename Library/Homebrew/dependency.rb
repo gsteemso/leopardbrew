@@ -13,7 +13,7 @@ class Dependency
     @name = name
     @tags = tags
     @env_proc = env_proc
-    @option_name = option_name
+    @option_name = option_name || name
   end # initialize
 
   def to_s; name; end

@@ -102,18 +102,17 @@ MACOS_FULL_VERSION       = ENV['HOMEBREW_OS_VERSION'].chomp
 # Tab::FILENAME                # see `tab.rb`
 
 # Optionally user‐defined values:
-BREW_NICE_LEVEL = ENV['HOMEBREW_NICE_LEVEL']  # Do we `nice` our build process?
+BREW_NICE_LEVEL = ENV['HOMEBREW_NICE_LEVEL'].choke  # Do we `nice` our build process?
 DEBUG           = ARGV.debug?                 # Checks all of “-d”, “--debug”, & $HOMEBREW_DEBUG
-DEVELOPER       = ARGV.homebrew_developer?    # Enable developer commands (checks both
-                                              #   “--homebrew-developer” & $HOMEBREW_DEVELOPER)
-HOMEBREW_GITHUB_API_TOKEN = ENV['HOMEBREW_GITHUB_API_TOKEN'] # For unthrottled Github access
-HOMEBREW_INSTALL_BADGE = ENV['HOMEBREW_INSTALL_BADGE'] || "\xf0\x9f\x8d\xba"
+DEVELOPER       = ARGV.homebrew_developer?    # Enable developer commands (checks both “--homebrew-developer” & $HOMEBREW_DEVELOPER)
+HOMEBREW_GITHUB_API_TOKEN = ENV['HOMEBREW_GITHUB_API_TOKEN'].choke  # For unthrottled Github access
+HOMEBREW_INSTALL_BADGE = ENV['HOMEBREW_INSTALL_BADGE'].choke || "\xf0\x9f\x8d\xba"
                                               # Default is the beer emoji (see `formula/installer.rb`)
 HOMEBREW_LOGS   = Pathname.new(ENV.fetch 'HOMEBREW_LOGS', '~/Library/Logs/Homebrew/').expand_path
                   # Where build, postinstall, and test logs of formulæ are written to
 HOMEBREW_TEMP   = Pathname.new(ENV.fetch 'HOMEBREW_TEMP', '/tmp').realpath
                   # Where temporary folders for building and testing formulæ are created
-NO_EMOJI        = ENV['HOMEBREW_NO_EMOJI']    # Don’t show badges at all (see `formula/installer.rb` and `cmd/info.rb`)
+NO_EMOJI        = ENV['HOMEBREW_NO_EMOJI'].choke  # Don’t show badges at all (see `formula/installer.rb` and `cmd/info.rb`)
 ORIGINAL_PATHS  = ENV['PATH'].split(File::PATH_SEPARATOR).map{ |p| Pathname.new(p).expand_path rescue nil }.compact.freeze
 QUIETER         = ARGV.quieter?               # Give less feedback when VERBOSE (checks:  “-q”, “--quieter”, & $HOMEBREW_QUIET)
 VERBOSE         = ARGV.verbose? or QUIETER    # Give lots of feedback (checks:  “-v”, “--verbose”, $HOMEBREW_VERBOSE, & $VERBOSE)

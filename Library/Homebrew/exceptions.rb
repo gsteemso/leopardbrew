@@ -193,21 +193,22 @@ class ChosenCompilerError < RuntimeError
     super <<-_.undent
         #{formula.full_name} cannot be built with the specified compiler, #{compiler_name}.
         To install this formula, you may need to
-            brew install gcc
+            brew install gcc8
       _
   end # initialize
 end # ChosenCompilerError
 
-# raised by CompilerSelector if the formula fails with all of
-# the compilers available on the user's system
+# Raised by CompilerSelector if the formula fails with all of the compilers available on the user’s system.
 class CompilerSelectionError < RuntimeError
   def initialize(formula)
     super <<-EOS.undent
         #{formula.full_name} cannot be built with any available compilers.
-        To install this formula, you may need to either:
+        To install this formula, you may need to either
             brew install apple-gcc42
-        or:
-            brew install gcc
+        or
+            brew install gcc6
+        or, if you already have one of those,
+            brew install gcc8
       EOS
   end # initialize
 end # CompilerSelectionError

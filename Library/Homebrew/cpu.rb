@@ -217,14 +217,15 @@ class CPU
 
     def native_archs
       o = model_data[:oldest]
-      archs_of_type.reject{ |a| case a
-          when :arm64   then o == :m1
-          when :arm64e  then o == :a12z
-          when :x86_64  then o == :haswell
-          when :x86_64h then o == :core2
-          else false
-        end # case a
-      }.extend ArchitectureListExtension
+      (_64b? ? archs_of_type.reject{ |a| case a
+                                           when :arm64   then o == :m1
+                                           when :arm64e  then o == :a12z
+                                           when :x86_64  then o == :haswell
+                                           when :x86_64h then o == :core2
+                                           else false
+                                         end }
+             : [powerpc? ? :ppc : :i386]
+      ).extend ArchitectureListExtension
     end # CPU⸬native_archs
 
     def cores_as_words

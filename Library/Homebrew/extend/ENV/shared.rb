@@ -198,14 +198,14 @@ module SharedEnvExtension
 
   def make_jobs
     self['HOMEBREW_MAKE_JOBS'].nope \
-      || (self['MAKEFLAGS'] =~ %r{-\w*j(\d+)})[1].nope \
+      || (self['MAKEFLAGS'].nope and (self['MAKEFLAGS'] =~ %r{-\w*j(\d+)})[1].nope) \
       || 4 * CPU.cores
   end
 
   # Edits $MAKEFLAGS to restrict Make to a single job – useful for makefiles with race conditions.  When passed a block, $MAKEFLAGS
   # is altered only within the block, being restored on its completion.
   def deparallelize
-    old = self['MAKEFLAGS']; j_rex = %r{(-\w*j)\d+}
+    old = self['MAKEFLAGS'].to_s; j_rex = %r{(-\w*j)\d+}
     if old =~ j_rex then self['MAKEFLAGS'] = old.sub(j_rex, '\11')
     else append 'MAKEFLAGS', '-j1'; end
     begin; yield; ensure; self['MAKEFLAGS'] = old; end if block_given?
