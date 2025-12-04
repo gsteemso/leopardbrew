@@ -67,8 +67,8 @@ class Curl < Formula
     archs = Target.archset
 
     # Complain about this, but it doesn’t justify cancelling the build.
-    opoo '“--without-frills” overrides all “--with-” options except “--with-tests”.  Ignoring them.' \
-      if build.without? 'frills' and (build.with? 'gnutls' or build.with? 'rtmpdump')
+    opoo '“--without-frills” overrides “--with-rtmpdump”.  Ignoring it.' \
+      if build.without? 'frills' and build.with? 'rtmpdump'
 
     # The defaults:
     #   --with-aix-soname=aix*, --enable-alt-svc,  --with-apple-idn*, --disable-ares, --enable-aws,
@@ -183,7 +183,7 @@ class Curl < Formula
     # among multiple SSLs breaks without doing this.  That said, the prerequisites‐assembly process
     # already sets $PKG_CONFIG_PATH for us, so it doesn’t much matter.
 
-    args << '--with-gnutls' << '--enable-ech' if build.with? 'frills' and build.with? 'gnutls'
+    args << '--with-gnutls' << '--enable-ech' if build.with? 'gnutls'
 
     if build.with?('ssl') then args << '--with-openssl' << '--enable-openssl-auto-load-config'
     elsif build.without?('gnutls') then args << '--without-ssl'; end
