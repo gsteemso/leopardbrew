@@ -820,8 +820,7 @@ __END__
 +find $DEST_DIR -perm -0111 \! -name fixinc.sh \! -name 'libgcc_s.*.dylib' \! -name libstdc++.dylib \
 +  \! -name mkheaders \! -path '@@OPTDIR@@/cctools/*' \! -path '/usr/*' -type f -print | xargs strip || exit 1
  find $DEST_DIR -name \*.a -print | xargs strip -SX || exit 1
--find $DEST_DIR -name \*.a -print | xargs ranlib || exit 1
-+find $DEST_DIR -name \*.a -print | xargs libtool -static || exit 1
+ find $DEST_DIR -name \*.a -print | xargs ranlib || exit 1
  find $DEST_DIR -name \*.dSYM -print | xargs rm -r || exit 1
 -chgrp -h -R wheel $DEST_DIR
 -chgrp -R wheel $DEST_DIR
