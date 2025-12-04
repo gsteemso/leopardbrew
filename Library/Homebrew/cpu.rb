@@ -28,6 +28,8 @@ class CPU
               when 0x1b588bb3 then :m1          # arm    1. A14/M1, most variants (Firestorm & Icestorm cores)
               when 0x1cf8a03e then :cometlake   # intel 12. Comet Lake
               when 0x1f65e835 then :ivybridge   # intel  6. Ivy Bridge
+              when 0x204526d0 then :m4          # arm    8. Tupai (probably m4?)
+              when 0x2876f5b5 then :m3          # arm    ?. Coll (probably m3?)
               when 0x37fc219f then :skylake     # intel  9. Sky Lake
               when 0x38435547 then :icelake     # intel 11. Ice Lake
               when 0x426f69ef then :core2       # intel  1. Merom et al:  Core 2 Duo  (Ex600, P7x00, T5600, T7x00, X7900)
@@ -39,6 +41,7 @@ class CPU
               when 0x6f5129ac then :m4          # arm    6. Donan
               when 0x72015832 then :m3          # arm    5. Palma (M3 Max:  Everest & Sawtooth cores)
               when 0x73d67300 then :core        # intel  0. Yonah et al:  Core Solo/Duo  (T1200, T2x00, L2400)
+              when 0x75d4acb9 then :m4          # arm    7. Tahiti (probably m4?)
               when 0x78ea4fbc then :penryn      # intel  2. Penryn  (E8x35, P7x50, P8x00, SL9x00, SU9x00, T8x00, T9x00, T9550)
               when 0xda33d83d then :m2          # arm    2. A15/M2, most variants (Avalanche & Blizzard cores)
               when 0xfa33415e then :m3          # arm    3. Ibiza (base M3:  Everest & Sawtooth cores)
@@ -182,11 +185,11 @@ class CPU
 
     CPU.known_types().each{ |t| define_method("#{t}?") { type == t } }
 
-    def known_archs; ARCH_DATA.keys; end
+    def known_archs; ARCH_DATA.keys.extend ArchitectureListExtension; end
 
     def known_models; MODEL_DATA.keys; end
 
-    def archs_of_type(t = type); type_data(t)[:archs]; end
+    def archs_of_type(t = type); (type_data(t)[:archs]).extend ArchitectureListExtension; end
 
     def which_gcc_knows_about(m = model); model_data(m)[:gcc][:vrsn] if model_data(m); end
 
