@@ -16,10 +16,8 @@ class Formulary
     mod = Module.new
     const_set(namespace, mod)
     mod.module_eval(contents, path)
-    class_name = class_s(name)
-
     begin
-      mod.const_get(class_name)
+      mod.const_get(class_s name)
     rescue NameError => e
       raise FormulaUnavailableError, name, e.backtrace
     end
@@ -74,7 +72,7 @@ class Formulary
     private
 
     def load_file
-      STDERR.puts "#{$0} (#{self.class.name}):  Loading #{path}" if DEBUG
+      STDERR.puts "#{$0} (#{self.class.name}):  Loading #{path}" if DEBUG and DEVELOPER
       raise FormulaUnavailableError, name unless path.file?
       Formulary.load_formula_from_path(name, path)
     end
@@ -180,7 +178,7 @@ class Formulary
     end
 
     def klass
-      STDERR.puts "#{$0} (#{self.class.name}):  Loading #{path}" if DEBUG
+      STDERR.puts "#{$0} (#{self.class.name}):  Loading #{path}" if DEBUG and DEVELOPER
       namespace = "FormulaNamespace#{Digest::SHA1.hexdigest(contents)}"
       Formulary.load_formula(name, path, contents, namespace)
     end

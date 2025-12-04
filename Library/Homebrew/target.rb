@@ -43,7 +43,7 @@ class Target
                                                                              when :local  then local_archs
                                                                              when :native then CPU.native_archs
                                                                            end \
-                                                                         : [arch]
+                                                                         : [arch].extend(ArchitectureListExtension)
       result = filter_archs desired_archset
       die_from_filter(desired_archset) if result.empty?
       result

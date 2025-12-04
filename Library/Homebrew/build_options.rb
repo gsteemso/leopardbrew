@@ -33,15 +33,15 @@ class BuildOptions
   end # with?
 
   # True if a {Formula} is being built without a specific option.
-  # args << '--no-spam-plz' if build.without? 'spam'
+  #   args << '--no-spam-plz' if build.without? 'spam'
   def without?(val); not with? val; end
 
   # True if a {Formula} is being built as a bottle (i.e. binary package).
   def bottle?; s_args.build_bottle?; end
 
   # True if a {Formula} is being built with {#head} instead of {#stable}.
-  # args << '--some-new-stuff' if build.head?
-  # # If there are multiple conditional arguments, use a block.
+  #   args << '--some-new-stuff' if build.head?
+  # If there are multiple conditional arguments, use a block.
   #  if build.head?
   #    args << '--i-want-pizza'
   #    args << '--and-a-cold-beer' if build.with? 'cold-beer'
@@ -49,15 +49,15 @@ class BuildOptions
   def head?; s_args.build_head?; end
 
   # True if a {Formula} is being built with {#devel} instead of {#stable}.
-  # args << '--some-beta' if build.devel?
+  #   args << '--some-beta' if build.devel?
   def devel?; s_args.build_devel?; end
 
   # True if a {Formula} is being built with {#stable}, not {#devel} or {#head}.  This is the default.
-  # args << '--some-beta' if build.devel?
+  #   args << '--some-beta' if build.devel?
   def stable?; s_args.build_stable?; end
 
   # True if a {Formula} is being built as a universal binary, whether native‐only, locally‐oriented, or cross‐compiled.
-  # ENV.universal_binary if build.universal?
+  #   ENV.universal_binary if build.universal?
   def universal?; s_args.build_universal? and option_defined?('universal'); end
   alias_method :fat?, :universal?
 

@@ -91,6 +91,18 @@ class Tab < OpenStruct
 
     def for_keg(kegpath); (path = kegpath/FILENAME).file? ? from_file(path) : empty; end
 
+    # This is made for use before formulæ have been parsed, so we can’t do things like ask them for their deprecated options.  This
+    # means we can’t get a completely up‐to‐date set of used options, but fortunately, the difference is rarely going to matter.
+    def for_rack?(rack)
+      return unless rack.directory?
+      rackname = rack.basename; paths = []
+      if (p = OPTDIR/rackname).symlink? and p.directory? then paths << p.resolved_path; end
+      if (p = LINKDIR/rackname).symlink? and p.directory? then paths << p.resolved_path; end
+      if (p = PINDIR/rackname).symlink? and p.directory? then paths << p.resolved_path; end
+      if (p = rack.subdirs).length == 1 then paths << p.first; end
+      from_file(p) if p = paths.map{ |pn| pn/FILENAME }.find(&:file?)
+    end # Tab::for_rack?
+
     def for_name(name); for_formula(Formulary.factory(name)); end
 
     def remap_deprecated_options(deprecated_options, options)
@@ -162,7 +174,7 @@ class Tab < OpenStruct
   def active_aids; super || []; end
 
   # Older tabs won’t have this field, so compute the most probable value.
-  def build_mode; super.to_sym || ((tabfile and tabfile.exists?) ? Keg.for(tabfile).reconstruct_build_mode : nil); end
+  def build_mode; (super.to_sym if super) || (:plain if poured_from_bottle) || ((tabfile and tabfile.exists?) ? Keg.for(tabfile).reconstruct_build_mode : nil); end
 
   def built_archs
     # Older tabs won’t have this field, so compute a plausible default.
@@ -216,14 +228,15 @@ class Tab < OpenStruct
            else 'Installed'
          end
     bm = case build_mode
-           when :local then ' [local build mode]'
-           when :cross then ' [cross-build mode]'
-           when nil    then ' [unknown build mode]'
+           when :cross  then ' [cross-build mode]'
+           when :local  then ' [local build mode]'
+           when :native then ' [native build mode]'
+           when nil     then ' [unknown build mode]'
            else ''
          end
     s << "(for #{built_archs.map(&:to_s).list}#{bm})"
     s << 'with: ' << used_options.to_a.sort.list unless used_options.empty?
-    s << "\nEnhanced by:  #{active_aids.compact.map(&:full_name).list}" if active_aids.choke
+    s << "\nEnhanced by:  #{active_aids.compact.map{ |f| "#{f.full_name} #{f.pkg_version}" }.list}" if active_aids.choke
     s * ' '
   end # to_s
 

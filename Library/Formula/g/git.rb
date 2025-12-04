@@ -23,7 +23,7 @@ class Git < Formula
   option 'with-tests',            'Perform build-time unit tests (might not succeed)'
   option 'without-tcl-tk',        'Disable graphical user interface'
 
-  depends_on 'gnu-tar' => :build if MacOS.version < :leopard # stock tar has odd permissions errors
+  depends_on 'gnu-tar' => :build if MacOS.version < :leopard  # stock tar has odd permissions errors
   depends_on 'go'      => :build if build.with? 'persistent-https'
   depends_on 'make'    => :build
   depends_on 'tcl-tk'  => :recommended  # “wish” is used for the GUI.
