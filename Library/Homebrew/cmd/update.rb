@@ -216,7 +216,7 @@ module Homebrew
 
   def stash_modified_files(install_time)
     HOMEBREW_REPOSITORY.find{ |pn|
-      next if pn == HOMEBREW_REPOSITORY or pn.symlink?
+      next if pn == HOMEBREW_REPOSITORY or pn.symlink? or pn.basename == '.DS_Store'
       relative_path = pn.to_s.sub(%r{^#{HOMEBREW_REPOSITORY}/}, '')
       if relative_path == 'Cellar' or relative_path == 'Library/Homebrew/vendor' or pn == STASHDIR then Find.prune; next; end
       destination = STASHDIR/relative_path
