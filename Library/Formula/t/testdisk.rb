@@ -1,3 +1,4 @@
+# stable version 2024-02-22; checked 2025-12-06.
 class Testdisk < Formula
   desc 'powerful free data-recovery utility'
   homepage 'http://www.cgsecurity.org/wiki/TestDisk'
