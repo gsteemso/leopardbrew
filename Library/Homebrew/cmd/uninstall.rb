@@ -19,7 +19,7 @@ module Homebrew
             Missing installation “#{e.name}” detected and cleaned up.  Depending on how it got that
             way, stray symlinks may still exist under #{HOMEBREW_PREFIX}.
           _
-        kegs = []
+        retry
       end
       kegs.each do |keg|
         was_linked = keg.linked?
