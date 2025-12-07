@@ -4,6 +4,7 @@ class AppleGcc42 < Formula
   homepage 'http://https://opensource.apple.com/releases/'
   url 'https://github.com/apple-oss-distributions/gcc/archive/refs/tags/gcc-5666.3.tar.gz'
   version '4.2.1-5666.3'
+  revision 1  # For the crt0 fix.
   sha256 '2e9889ce0136f5a33298cf7cce5247d31a5fb1856e6f301423bde4a81a5e7ea6'
 
   keg_only :provided_by_osx if MacOS.version > :tiger and MacOS.version < :lion
@@ -16,7 +17,7 @@ class AppleGcc42 < Formula
   enhanced_by :nls
 
   # Fiddle with the build script and associated files (to allow more possible system configurations, albeit much of it specifically
-  # for building :arm compilers, and also to greatly simplify installation).
+  # for building :arm32 compilers; to fix several bugs; and also to greatly simplify installation).
   patch :DATA
 
   patch <<END_OF_PATCH if MacOS.version < :leopard
@@ -297,7 +298,7 @@ __END__
 # - Use the part of the split prefix that we DIDN’T set to the null string.
 # - Put shared libraries in the correct location.
 # - Use the architecture‐specific tools from cctools, if we are building for ARM and so know they are available (except the unbuilt
-#   ld, which we must configure separately).
+#  “classic” ld, which we must configure separately).
 # - Let our `as` interposer scripts rewrite mistaken -arch flags, and symlink the relevant one as just “as” for each added compiler
 #   we build.
 # - When building the cross‐hosted compilers and we know cctools are available, make sure they are in $COMPILER_PATH, & set $prefix
@@ -309,7 +310,7 @@ __END__
 # - Remove several instances of doubled directory separators.
 # - Don’t bother generating debugging data.  It gets discarded.
 # - Don’t try to strip libgcc.*.dylib, nor anything in cctools, nor anything under /usr.
-# - Don’t chgrp.  It does nothing useful, and we aren’t in the destination group (“wheel”) so it fails messily.
+# - Don’t chgrp.  It does nothing useful, and as we aren’t in the destination group (“wheel”), it fails messily.
 @@ -5,9 +5,11 @@
  
  # -arch arguments are different than configure arguments. We need to
@@ -949,6 +950,39 @@ __END__
          RET
          FUNC_END restore_vfp_d8_d15_regs
  #endif
+# Remove all mentions of “crt0” from option specifications.  No such file exists on Darwin systems, & GCC not finding it will cause
+# compilation failures at _best_.
+--- old/gcc/config/darwin.h
++++ new/gcc/config/darwin.h
+@@ -481,9 +481,7 @@
+        %:version-compare(>< 10.5 10.6 mmacosx-version-min= -lgcc_s.10.5)   \
+        -lgcc}"
+ 
+-/* We specify crt0.o as -lcrt0.o so that ld will search the library path.
+-
+-   crt3.o provides __cxa_atexit on systems that don't have it.  Since
++/* crt3.o provides __cxa_atexit on systems that don't have it.  Since
+    it's only used with C++, which requires passing -shared-libgcc, key
+    off that to avoid unnecessarily adding a destructor to every
+    powerpc program built.  */
+@@ -494,15 +492,8 @@
+   "%{Zdynamiclib: %(darwin_dylib1) }					    \
+    "/* APPLE LOCAL link optimizations 6499452 */"			    \
+    %{!Zdynamiclib:%{Zbundle:%{!static: %(darwin_bundle1)}}		    \
+-     %{!Zbundle:%{pg:%{static:-lgcrt0.o}				    \
+-                     %{!static:%{object:-lgcrt0.o}			    \
+-                               %{!object:%{preload:-lgcrt0.o}		    \
+-                                 %{!preload:-lgcrt1.o %(darwin_crt2)}}}}    \
+-                %{!pg:%{static:-lcrt0.o}				    \
+-                      %{!static:%{object:-lcrt0.o}			    \
+-                                %{!object:%{preload:-lcrt0.o}		    \
+-                                  %{!preload: %(darwin_crt1)		    \
+-					      %(darwin_crt2)}}}}}}	    \
++                  %{!Zbundle:%{pg:%{!static:%{!object:%{!preload:-lgcrt1.o %(darwin_crt2)}}}}
++                             %{!pg:%{!static:%{!object:%{!preload: %(darwin_crt1) %(darwin_crt2)}}}}}}
+   %{shared-libgcc:							    \
+     %{!miphoneos-version-min=*:						    \
+       %:version-compare(< 10.5 mmacosx-version-min= crt3.o%s)}}"
 # Remove bug‐workaround “-pipe” flags to let our `as` interposer script work properly.
 --- old/gcc/config/i386/t-darwin
 +++ new/gcc/config/i386/t-darwin
