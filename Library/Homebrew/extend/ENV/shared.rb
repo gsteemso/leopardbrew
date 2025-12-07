@@ -124,11 +124,8 @@ module SharedEnvExtension
 
   # Outputs the current compiler.
   # @return [Symbol]
-  # <pre># Do something only for clang
-  # if ENV.compiler == :clang
-  #   # modify CFLAGS CXXFLAGS OBJCFLAGS OBJCXXFLAGS in one go:
-  #   ENV.append_to_cflags '-I ./missing/includes'
-  # end</pre>
+  # Do something only for clang:
+  #     ENV.append_to_cflags '-I ./missing/includes' if ENV.compiler == :clang
   def compiler
     @compiler ||= \
       if (cc = ARGV.cc)
@@ -172,15 +169,9 @@ module SharedEnvExtension
   end # Define a method for each |compiler| in COMPILERS, for use exactly once during setup.
 
   def default_language_version(lang)
-    if compiler != :clang and
-      ary = COMPILER_DEFAULT[:gcc][lang] and
+    if ary = COMPILER_DEFAULT[compiler != :clang ? :gcc : :clang][lang] and
       i = ary.find_index{ |h| h.keys.first > compiler_version }
         ary[i - 1].values.first
-    else
-      case lang
-        when :c   then   :c89
-        when :cxx then :cxx98
-      end
     end
   end # default_language_version
 
@@ -267,29 +258,19 @@ module SharedEnvExtension
   def ld64; ld64 = Formulary.factory('ld64'); self['LD'] = "#{ld64.bin}/ld"; append 'LDFLAGS', "-B#{ld64.bin}/"; end
 
   # @private
-  def gcc_version_formula(name)
-    version = name[GNU_GCC_REGEXP, 1]
-    gcc_version_name = "gcc#{version.delete('.')}"
-    gcc = Formulary.factory('gcc')
-    if gcc.version_suffix == version then gcc
-    else Formulary.factory(gcc_version_name); end
-  end # gcc_version_formula
+  def gcc_version_formula(name); Formulary.factory(name.delete '-.'); end
 
   # @private
   def warn_about_non_apple_gcc(name)
     begin
       gcc_formula = gcc_version_formula(name)
     rescue FormulaUnavailableError => e
-      raise <<-EOS.undent
-        Leopardbrew GCC requested, but formula #{e.name} not found!
-        You may need to:
-            brew tap homebrew/versions
-      EOS
+      raise "A Leopardbrew GCC was requested, but no formula #{e.name} was found!"
     end # get GCC formula
     unless gcc_formula.opt_prefix.exists?
       raise <<-EOS.undent
-      The requested Leopardbrew GCC is not installed.  You must:
-          brew install #{gcc_formula.full_name}
+        The requested Leopardbrew GCC is not installed.  You must:
+            brew install #{gcc_formula.full_name}
       EOS
     end # no opt/ prefix
   end # warn_about_non_apple_gcc

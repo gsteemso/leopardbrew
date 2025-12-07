@@ -1,3 +1,5 @@
+# This library is loaded before most others, so must eschew most ’brew‐isms at eval time.
+
 class CannotInstallFormulaError < RuntimeError; end
 # Raised by Pathname#verify_checksum when “expected” is nil or empty:
 class ChecksumMissingError < ArgumentError; end
@@ -24,7 +26,7 @@ class UsageError < RuntimeError; end
 
 class AlienCompilerError < ArgumentError
   def initialize(name)
-    super "Compiler “#{name}”?  Sorry, Leopardbrew only knows about GCC variants and Clang."
+    super "Compiler “#{name}”?  Sorry, Leopardbrew only knows about Clang and various GCCs."
   end
 end
 
@@ -192,8 +194,12 @@ class ChosenCompilerError < RuntimeError
   def initialize(formula, compiler_name)
     super <<-_.undent
         #{formula.full_name} cannot be built with the specified compiler, #{compiler_name}.
-        To install this formula, you may need to
-            brew install gcc8
+        To install this formula, you may need to do:
+            brew install #{compiler_name == 'gcc-8' ? 'gcc6' : 'gcc8'}
+        or
+            brew install #{compiler_name == 'gcc-4.2' ? 'gcc6' : 'apple-gcc42'}
+        or
+            brew install #{%w[clang llvm].include?(compiler_name) ? 'gcc6' : 'llvm'}
       _
   end # initialize
 end # ChosenCompilerError
@@ -203,12 +209,12 @@ class CompilerSelectionError < RuntimeError
   def initialize(formula)
     super <<-EOS.undent
         #{formula.full_name} cannot be built with any available compilers.
-        To install this formula, you may need to either
+        To install this formula, you may need to
             brew install apple-gcc42
         or
-            brew install gcc6
-        or, if you already have one of those,
             brew install gcc8
+        or
+            brew install llvm
       EOS
   end # initialize
 end # CompilerSelectionError
