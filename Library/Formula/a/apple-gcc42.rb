@@ -950,10 +950,10 @@ __END__
          RET
          FUNC_END restore_vfp_d8_d15_regs
  #endif
-# Remove all mentions of “crt0” from option specifications.  No such file exists on Darwin systems, & GCC not finding it will cause
-# compilation failures at _best_.
 --- old/gcc/config/darwin.h
 +++ new/gcc/config/darwin.h
+# Remove all mentions of “crt0” from option specifications.  No such file exists on Darwin systems, & GCC not finding it will cause
+# compilation failures at _best_.
 @@ -481,9 +481,7 @@
         %:version-compare(>< 10.5 10.6 mmacosx-version-min= -lgcc_s.10.5)   \
         -lgcc}"
@@ -983,7 +983,7 @@ __END__
    %{shared-libgcc:							    \
      %{!miphoneos-version-min=*:						    \
        %:version-compare(< 10.5 mmacosx-version-min= crt3.o%s)}}"
-# Remove bug‐workaround “-pipe” flags to let our `as` interposer script work properly.
+# :Remove bug‐workaround “-pipe” flags to let our `as` interposer script work properly.
 --- old/gcc/config/i386/t-darwin
 +++ new/gcc/config/i386/t-darwin
 @@ -17,6 +17,6 @@
@@ -1148,9 +1148,21 @@ __END__
    { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
    (eval $ac_try) 2>&5
    ac_status=$?
+--- old/gcc/gcc.c
++++ new/gcc/gcc.c
+# Remove all references to libssp, which Apple had removed but not cleaned out after.
+@@ -721,7 +721,7 @@
+     %{static:} %{L*} %(mfwrap) %(link_libgcc) %o\
+     %{fopenmp:%:include(libgomp.spec)%(link_gomp)} %(mflib)\
+     %{fprofile-arcs|fprofile-generate|coverage|fcreate-profile:-lgcov}\
+-    %{!nostdlib:%{!nodefaultlibs:%(link_ssp) %(link_gcc_c_sequence)}}\
++    %{!nostdlib:%{!nodefaultlibs:%(link_gcc_c_sequence)}}\
+     %{!A:%{!nostdlib:%{!nostartfiles:%E}}} %{T*} }}}}}}"
+ #endif
+ /* APPLE LOCAL end add fcreate-profile */
 --- old/gcc/local-alloc.c
 +++ new/gcc/local-alloc.c
-# Fix some variable‐size mismatches that only become apparent with 64‐bit pointers.
+# "Fix some variable‐size mismatches that only become apparent with 64‐bit pointers.
 @@ -901,7 +901,7 @@
  	  /* APPLE LOCAL begin 5695218 */
  	  if (reg_inheritance_matrix)
