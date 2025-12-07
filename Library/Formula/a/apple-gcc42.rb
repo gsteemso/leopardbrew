@@ -978,8 +978,8 @@ __END__
 -                                %{!object:%{preload:-lcrt0.o}		    \
 -                                  %{!preload: %(darwin_crt1)		    \
 -					      %(darwin_crt2)}}}}}}	    \
-+                  %{!Zbundle:%{pg:%{!static:%{!object:%{!preload:-lgcrt1.o %(darwin_crt2)}}}}
-+                             %{!pg:%{!static:%{!object:%{!preload: %(darwin_crt1) %(darwin_crt2)}}}}}}
++                  %{!Zbundle:%{pg:%{!static:%{!object:%{!preload:-lgcrt1.o %(darwin_crt2)}}}} \
++                             %{!pg:%{!static:%{!object:%{!preload: %(darwin_crt1) %(darwin_crt2)}}}}}} \
    %{shared-libgcc:							    \
      %{!miphoneos-version-min=*:						    \
        %:version-compare(< 10.5 mmacosx-version-min= crt3.o%s)}}"
