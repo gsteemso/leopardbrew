@@ -209,7 +209,7 @@ class Target
     # This architecture set is for the end targets of tools we build (e.g. compilers).  Absent a good reason otherwise, it ought to
     # encompass absolutely everything we have the information to build for.  See also under ⸬tool_target_archset.
     def tool_cross_archs
-      buildable_types = (MacOS.sdk_path/'usr/include/architecture').subdirs.map{ |pn| pn.basename.to_sym
+      buildable_types = (MacOS.sdk_path/'usr/include/architecture').subdirs.map{ |pn| pn.basename.to_s.to_sym
         }.select{ |a| all_archs.include? a }.map{ |a| CPU.type_of a }
       buildable_archs = (all_archs - [:arm64e, :x86_64h]).select{ |a| buildable_types.include? CPU.type_of a }
       buildable_archs << :arm32 if MacOS.iPhone_SDK_present?
