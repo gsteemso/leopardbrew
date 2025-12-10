@@ -189,7 +189,27 @@ class CPU
 
     def known_models; MODEL_DATA.keys; end
 
-    def archs_of_type(t = type); (type_data(t)[:archs]).extend ArchitectureListExtension; end
+    def archs_of_type(t = type); (type_data(t)[:archs]).dup.extend ArchitectureListExtension; end
+
+    def native_archs_of_type(t = type)
+      result = archs_of_type(t)
+      return result if t == :powerpc
+      (if t == type
+         o = model_data[:oldest]
+         result.reject do |a|
+           next if _32b_arch?(a)
+           case a
+             when :arm64   then o == :m1
+             when :arm64e  then o == :a12z
+             when :x86_64  then o == :haswell
+             when :x86_64h then o == :core2
+           end # Anything else is false and thus not rejected.
+         end # do reject |a|
+       else result - [:arm64e, :x86_64h]; end
+      ).extend ArchitectureListExtension
+    end # CPU⸬native_archs_of_type
+
+    def native_archs; native_archs_of_type; end
 
     def which_gcc_knows_about(m = model); model_data(m)[:gcc][:vrsn] if model_data(m); end
 
@@ -214,19 +234,6 @@ class CPU
         when :intel_64     then :x86_64
       end  # Return nil for any other input.
     end # CPU⸬arch_of
-
-    def native_archs
-      o = model_data[:oldest]
-      (_64b? ? archs_of_type.reject{ |a| case a
-                                           when :arm64   then o == :m1
-                                           when :arm64e  then o == :a12z
-                                           when :x86_64  then o == :haswell
-                                           when :x86_64h then o == :core2
-                                           else false
-                                         end }
-             : [powerpc? ? :ppc : :i386]
-      ).extend ArchitectureListExtension
-    end # CPU⸬native_archs
 
     def cores_as_words
       case cores
@@ -255,6 +262,9 @@ class CPU
     end # CPU⸬can_run?
 
     private
+
+    def _32b_arch?(a); arch_data(a)[:bits] == 32; end
+    def _64b_arch?(a); arch_data(a)[:bits] == 64; end
 
     def arm_can_run?(this)
       case this
