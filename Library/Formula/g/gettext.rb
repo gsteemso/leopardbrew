@@ -1,4 +1,4 @@
-# stable release 2025-07-19; checked 2025-08-01
+# stable release 2025-07-19; checked 2025-12-11
 class Gettext < Formula
   desc 'GNU internationalization (i18n) and localization (l10n) library'
   homepage 'https://www.gnu.org/software/gettext/'
@@ -12,7 +12,7 @@ class Gettext < Formula
   # only made this package keg‐only because Mac OS does include its counterpart, libiconv; but the quantity & magnitude of problems
   # caused by {gettext}’s invisibility to other packages warrant reversing that decision for Leopardbrew.  The brew mechanisms that
   # make keg‐only packages work are meant for library linkage, and can’t make up for the concealment of directly‐executable files –
-  # in other words, as using gettext requires that its bin/ be visible, by extension, it must be linked.
+  # in other words, using gettext requires that its bin/ be visible, which requires that its keg be linked.
 
   option :universal
   # The unit tests can no longer be disentangled from Gnulib.  Trying to run them is now futile on older systems.
@@ -66,76 +66,580 @@ class Gettext < Formula
 end # Gettext
 
 __END__
-# Synchronize usage of `gl_long_double_union` between header and implementation.
+# Fix this header file per Oct. 2025 discussion on the bug-gnulib mailing list:
 --- old/gettext-runtime/gnulib-lib/float.in.h
 +++ new/gettext-runtime/gnulib-lib/float.in.h
-@@ -115,8 +115,7 @@
+@@ -113,83 +113,32 @@
+ # define LDBL_MAX_10_EXP 4932
+ #endif
  
- /* On PowerPC with gcc 15 when using __ibm128 long double, the value of
-    LDBL_MIN_EXP, LDBL_MIN, LDBL_MAX, and LDBL_NORM_MAX are wrong.  */
+-/* On PowerPC with gcc 15 when using __ibm128 long double, the value of
+-   LDBL_MIN_EXP, LDBL_MIN, LDBL_MAX, and LDBL_NORM_MAX are wrong.  */
 -#if ((defined _ARCH_PPC || defined _POWER) && LDBL_MANT_DIG == 106 \
 -     && defined __GNUC__)
-+# if (defined _ARCH_PPC || defined _POWER) && (defined _AIX || defined __linux__) && (LDBL_MANT_DIG == 106) && defined __GNUC__
++/* Current Gnulib lists some compiler failures on PowerPC and concludes that
++   any GCC new enough to define __LDBL_NORM_MAX__ is probably OK. */
++#if (defined _ARCH_PPC && LDBL_MANT_DIG == 106 \
++     && defined __GNUC__ && !defined __LDBL_NORM_MAX__)
  # undef LDBL_MIN_EXP
- # define LDBL_MIN_EXP DBL_MIN_EXP
+-# define LDBL_MIN_EXP DBL_MIN_EXP
++# define LDBL_MIN_EXP (-968)
  # undef LDBL_MIN_10_EXP
+-# define LDBL_MIN_10_EXP DBL_MIN_10_EXP
++# define LDBL_MIN_10_EXP (-291)
+ # undef LDBL_MIN
+-# define LDBL_MIN 2.22507385850720138309023271733240406422e-308L /* DBL_MIN = 2^-1022 */
++# define LDBL_MIN 0x1p-969L
++/* Re:  IBM long double format.  See (https://gcc.gnu.org/PR120993).' */
+ # undef LDBL_MAX
+-/* LDBL_MAX is 2**1024 - 2**918, represented as: { 0x7FEFFFFF, 0xFFFFFFFF,
+-                                                   0x7C9FFFFF, 0xFFFFFFFF }.
+-
+-   Do not write it as a constant expression, as GCC would likely treat
+-   that as infinity due to the vagaries of this platform's funky arithmetic.
+-   Instead, define it through a reference to an external variable.
+-   Like the following, but using a union to avoid type mismatches:
+-
+-     const double LDBL_MAX[2] = { DBL_MAX, DBL_MAX / 0x1p53 };
+-     extern const long double LDBL_MAX;
+-
+-   The following alternative would not work as well when GCC is optimizing:
+-
+-     #define LDBL_MAX (*(long double const *) (double[])
+-                       { DBL_MAX, DBL_MAX / 0x1p53 })
+-
+-   The following alternative would require GCC 6 or later:
+-
+-     #define LDBL_MAX __builtin_pack_longdouble (DBL_MAX, DBL_MAX / 0x1p53)
+-
+-   Unfortunately none of the alternatives are constant expressions.  */
+-# if !GNULIB_defined_long_double_union
+-union gl_long_double_union
+-  {
+-    struct { double hi; double lo; } dd;
+-    long double ld;
+-  };
+-#  define GNULIB_defined_long_double_union 1
+-# endif
+-extern const union gl_long_double_union gl_LDBL_MAX;
+-# define LDBL_MAX (gl_LDBL_MAX.ld)
+-# undef LDBL_NORM_MAX
+-# define LDBL_NORM_MAX LDBL_MAX
+-#endif
+-
+-/* On IRIX 6.5, with cc, the value of LDBL_MANT_DIG is wrong.
+-   On IRIX 6.5, with gcc 4.2, the values of LDBL_MIN_EXP, LDBL_MIN, LDBL_EPSILON
+-   are wrong.  */
+-#if defined __sgi && (LDBL_MANT_DIG >= 106)
+-# undef LDBL_MANT_DIG
+-# define LDBL_MANT_DIG 106
+-# if defined __GNUC__
+-#  undef LDBL_MIN_EXP
+-#  define LDBL_MIN_EXP DBL_MIN_EXP
+-#  undef LDBL_MIN_10_EXP
+-#  define LDBL_MIN_10_EXP DBL_MIN_10_EXP
+-#  undef LDBL_MIN
+-#  define LDBL_MIN 2.22507385850720138309023271733240406422e-308L /* DBL_MIN = 2^-1022 */
+-#  undef LDBL_EPSILON
+-#  define LDBL_EPSILON 2.46519032881566189191165176650870696773e-32L /* 2^-105 */
+-# endif
+-#endif
++# define LDBL_MAX 0x1.fffffffffffff7ffffffffffff8p+1023L
+ 
+ /* On PowerPC platforms, 'long double' has a double-double representation.
+    Up to ISO C 17, this was outside the scope of ISO C because it can represent
+    numbers with mantissas of the form 1.<52 bits><many zeroes><52 bits>, such as
+    1.0L + 4.94065645841246544176568792868221e-324L = 1 + 2^-1074; see
+    ISO C 17 § 5.2.4.2.2.(3).
+    In ISO C 23, wording has been included that makes this 'long double'
+    representation compliant; see ISO C 23 § 5.2.5.3.3.(8)-(9).  In this setting,
+    numbers with mantissas of the form 1.<52 bits><many zeroes><52 bits> are
+    called "unnormalized".  And since LDBL_EPSILON must be normalized (per
+    ISO C 23 § 5.2.5.3.3.(33)), it must be 2^-105.  */
+-#if defined __powerpc__ && LDBL_MANT_DIG == 106
+ # undef LDBL_EPSILON
+-# define LDBL_EPSILON 2.46519032881566189191165176650870696773e-32L /* 2^-105 */
++# define LDBL_EPSILON 0x1p-105L
+ #endif
+ 
+ /* ============================ ISO C11 support ============================ */
 --- old/gettext-runtime/intl/gnulib-lib/float.in.h
 +++ new/gettext-runtime/intl/gnulib-lib/float.in.h
-@@ -115,8 +115,7 @@
+@@ -113,83 +113,32 @@
+ # define LDBL_MAX_10_EXP 4932
+ #endif
  
- /* On PowerPC with gcc 15 when using __ibm128 long double, the value of
-    LDBL_MIN_EXP, LDBL_MIN, LDBL_MAX, and LDBL_NORM_MAX are wrong.  */
+-/* On PowerPC with gcc 15 when using __ibm128 long double, the value of
+-   LDBL_MIN_EXP, LDBL_MIN, LDBL_MAX, and LDBL_NORM_MAX are wrong.  */
 -#if ((defined _ARCH_PPC || defined _POWER) && LDBL_MANT_DIG == 106 \
 -     && defined __GNUC__)
-+# if (defined _ARCH_PPC || defined _POWER) && (defined _AIX || defined __linux__) && (LDBL_MANT_DIG == 106) && defined __GNUC__
++/* Current Gnulib lists some compiler failures on PowerPC and concludes that
++   any GCC new enough to define __LDBL_NORM_MAX__ is probably OK. */
++#if (defined _ARCH_PPC && LDBL_MANT_DIG == 106 \
++     && defined __GNUC__ && !defined __LDBL_NORM_MAX__)
  # undef LDBL_MIN_EXP
- # define LDBL_MIN_EXP DBL_MIN_EXP
+-# define LDBL_MIN_EXP DBL_MIN_EXP
++# define LDBL_MIN_EXP (-968)
  # undef LDBL_MIN_10_EXP
+-# define LDBL_MIN_10_EXP DBL_MIN_10_EXP
++# define LDBL_MIN_10_EXP (-291)
+ # undef LDBL_MIN
+-# define LDBL_MIN 2.22507385850720138309023271733240406422e-308L /* DBL_MIN = 2^-1022 */
++# define LDBL_MIN 0x1p-969L
++/* Re:  IBM long double format.  See (https://gcc.gnu.org/PR120993).' */
+ # undef LDBL_MAX
+-/* LDBL_MAX is 2**1024 - 2**918, represented as: { 0x7FEFFFFF, 0xFFFFFFFF,
+-                                                   0x7C9FFFFF, 0xFFFFFFFF }.
+-
+-   Do not write it as a constant expression, as GCC would likely treat
+-   that as infinity due to the vagaries of this platform's funky arithmetic.
+-   Instead, define it through a reference to an external variable.
+-   Like the following, but using a union to avoid type mismatches:
+-
+-     const double LDBL_MAX[2] = { DBL_MAX, DBL_MAX / 0x1p53 };
+-     extern const long double LDBL_MAX;
+-
+-   The following alternative would not work as well when GCC is optimizing:
+-
+-     #define LDBL_MAX (*(long double const *) (double[])
+-                       { DBL_MAX, DBL_MAX / 0x1p53 })
+-
+-   The following alternative would require GCC 6 or later:
+-
+-     #define LDBL_MAX __builtin_pack_longdouble (DBL_MAX, DBL_MAX / 0x1p53)
+-
+-   Unfortunately none of the alternatives are constant expressions.  */
+-# if !GNULIB_defined_long_double_union
+-union gl_long_double_union
+-  {
+-    struct { double hi; double lo; } dd;
+-    long double ld;
+-  };
+-#  define GNULIB_defined_long_double_union 1
+-# endif
+-extern const union gl_long_double_union gl_LDBL_MAX;
+-# define LDBL_MAX (gl_LDBL_MAX.ld)
+-# undef LDBL_NORM_MAX
+-# define LDBL_NORM_MAX LDBL_MAX
+-#endif
+-
+-/* On IRIX 6.5, with cc, the value of LDBL_MANT_DIG is wrong.
+-   On IRIX 6.5, with gcc 4.2, the values of LDBL_MIN_EXP, LDBL_MIN, LDBL_EPSILON
+-   are wrong.  */
+-#if defined __sgi && (LDBL_MANT_DIG >= 106)
+-# undef LDBL_MANT_DIG
+-# define LDBL_MANT_DIG 106
+-# if defined __GNUC__
+-#  undef LDBL_MIN_EXP
+-#  define LDBL_MIN_EXP DBL_MIN_EXP
+-#  undef LDBL_MIN_10_EXP
+-#  define LDBL_MIN_10_EXP DBL_MIN_10_EXP
+-#  undef LDBL_MIN
+-#  define LDBL_MIN 2.22507385850720138309023271733240406422e-308L /* DBL_MIN = 2^-1022 */
+-#  undef LDBL_EPSILON
+-#  define LDBL_EPSILON 2.46519032881566189191165176650870696773e-32L /* 2^-105 */
+-# endif
+-#endif
++# define LDBL_MAX 0x1.fffffffffffff7ffffffffffff8p+1023L
+ 
+ /* On PowerPC platforms, 'long double' has a double-double representation.
+    Up to ISO C 17, this was outside the scope of ISO C because it can represent
+    numbers with mantissas of the form 1.<52 bits><many zeroes><52 bits>, such as
+    1.0L + 4.94065645841246544176568792868221e-324L = 1 + 2^-1074; see
+    ISO C 17 § 5.2.4.2.2.(3).
+    In ISO C 23, wording has been included that makes this 'long double'
+    representation compliant; see ISO C 23 § 5.2.5.3.3.(8)-(9).  In this setting,
+    numbers with mantissas of the form 1.<52 bits><many zeroes><52 bits> are
+    called "unnormalized".  And since LDBL_EPSILON must be normalized (per
+    ISO C 23 § 5.2.5.3.3.(33)), it must be 2^-105.  */
+-#if defined __powerpc__ && LDBL_MANT_DIG == 106
+ # undef LDBL_EPSILON
+-# define LDBL_EPSILON 2.46519032881566189191165176650870696773e-32L /* 2^-105 */
++# define LDBL_EPSILON 0x1p-105L
+ #endif
+ 
+ /* ============================ ISO C11 support ============================ */
 --- old/gettext-runtime/libasprintf/gnulib-lib/float.in.h
 +++ new/gettext-runtime/libasprintf/gnulib-lib/float.in.h
-@@ -115,8 +115,7 @@
+@@ -113,83 +113,32 @@
+ # define LDBL_MAX_10_EXP 4932
+ #endif
  
- /* On PowerPC with gcc 15 when using __ibm128 long double, the value of
-    LDBL_MIN_EXP, LDBL_MIN, LDBL_MAX, and LDBL_NORM_MAX are wrong.  */
+-/* On PowerPC with gcc 15 when using __ibm128 long double, the value of
+-   LDBL_MIN_EXP, LDBL_MIN, LDBL_MAX, and LDBL_NORM_MAX are wrong.  */
 -#if ((defined _ARCH_PPC || defined _POWER) && LDBL_MANT_DIG == 106 \
 -     && defined __GNUC__)
-+# if (defined _ARCH_PPC || defined _POWER) && (defined _AIX || defined __linux__) && (LDBL_MANT_DIG == 106) && defined __GNUC__
++/* Current Gnulib lists some compiler failures on PowerPC and concludes that
++   any GCC new enough to define __LDBL_NORM_MAX__ is probably OK. */
++#if (defined _ARCH_PPC && LDBL_MANT_DIG == 106 \
++     && defined __GNUC__ && !defined __LDBL_NORM_MAX__)
  # undef LDBL_MIN_EXP
- # define LDBL_MIN_EXP DBL_MIN_EXP
+-# define LDBL_MIN_EXP DBL_MIN_EXP
++# define LDBL_MIN_EXP (-968)
  # undef LDBL_MIN_10_EXP
+-# define LDBL_MIN_10_EXP DBL_MIN_10_EXP
++# define LDBL_MIN_10_EXP (-291)
+ # undef LDBL_MIN
+-# define LDBL_MIN 2.22507385850720138309023271733240406422e-308L /* DBL_MIN = 2^-1022 */
++# define LDBL_MIN 0x1p-969L
++/* Re:  IBM long double format.  See (https://gcc.gnu.org/PR120993).' */
+ # undef LDBL_MAX
+-/* LDBL_MAX is 2**1024 - 2**918, represented as: { 0x7FEFFFFF, 0xFFFFFFFF,
+-                                                   0x7C9FFFFF, 0xFFFFFFFF }.
+-
+-   Do not write it as a constant expression, as GCC would likely treat
+-   that as infinity due to the vagaries of this platform's funky arithmetic.
+-   Instead, define it through a reference to an external variable.
+-   Like the following, but using a union to avoid type mismatches:
+-
+-     const double LDBL_MAX[2] = { DBL_MAX, DBL_MAX / 0x1p53 };
+-     extern const long double LDBL_MAX;
+-
+-   The following alternative would not work as well when GCC is optimizing:
+-
+-     #define LDBL_MAX (*(long double const *) (double[])
+-                       { DBL_MAX, DBL_MAX / 0x1p53 })
+-
+-   The following alternative would require GCC 6 or later:
+-
+-     #define LDBL_MAX __builtin_pack_longdouble (DBL_MAX, DBL_MAX / 0x1p53)
+-
+-   Unfortunately none of the alternatives are constant expressions.  */
+-# if !GNULIB_defined_long_double_union
+-union gl_long_double_union
+-  {
+-    struct { double hi; double lo; } dd;
+-    long double ld;
+-  };
+-#  define GNULIB_defined_long_double_union 1
+-# endif
+-extern const union gl_long_double_union gl_LDBL_MAX;
+-# define LDBL_MAX (gl_LDBL_MAX.ld)
+-# undef LDBL_NORM_MAX
+-# define LDBL_NORM_MAX LDBL_MAX
+-#endif
+-
+-/* On IRIX 6.5, with cc, the value of LDBL_MANT_DIG is wrong.
+-   On IRIX 6.5, with gcc 4.2, the values of LDBL_MIN_EXP, LDBL_MIN, LDBL_EPSILON
+-   are wrong.  */
+-#if defined __sgi && (LDBL_MANT_DIG >= 106)
+-# undef LDBL_MANT_DIG
+-# define LDBL_MANT_DIG 106
+-# if defined __GNUC__
+-#  undef LDBL_MIN_EXP
+-#  define LDBL_MIN_EXP DBL_MIN_EXP
+-#  undef LDBL_MIN_10_EXP
+-#  define LDBL_MIN_10_EXP DBL_MIN_10_EXP
+-#  undef LDBL_MIN
+-#  define LDBL_MIN 2.22507385850720138309023271733240406422e-308L /* DBL_MIN = 2^-1022 */
+-#  undef LDBL_EPSILON
+-#  define LDBL_EPSILON 2.46519032881566189191165176650870696773e-32L /* 2^-105 */
+-# endif
+-#endif
++# define LDBL_MAX 0x1.fffffffffffff7ffffffffffff8p+1023L
+ 
+ /* On PowerPC platforms, 'long double' has a double-double representation.
+    Up to ISO C 17, this was outside the scope of ISO C because it can represent
+    numbers with mantissas of the form 1.<52 bits><many zeroes><52 bits>, such as
+    1.0L + 4.94065645841246544176568792868221e-324L = 1 + 2^-1074; see
+    ISO C 17 § 5.2.4.2.2.(3).
+    In ISO C 23, wording has been included that makes this 'long double'
+    representation compliant; see ISO C 23 § 5.2.5.3.3.(8)-(9).  In this setting,
+    numbers with mantissas of the form 1.<52 bits><many zeroes><52 bits> are
+    called "unnormalized".  And since LDBL_EPSILON must be normalized (per
+    ISO C 23 § 5.2.5.3.3.(33)), it must be 2^-105.  */
+-#if defined __powerpc__ && LDBL_MANT_DIG == 106
+ # undef LDBL_EPSILON
+-# define LDBL_EPSILON 2.46519032881566189191165176650870696773e-32L /* 2^-105 */
++# define LDBL_EPSILON 0x1p-105L
+ #endif
+ 
+ /* ============================ ISO C11 support ============================ */
 --- old/gettext-tools/gnulib-lib/float.in.h
 +++ new/gettext-tools/gnulib-lib/float.in.h
-@@ -115,8 +115,7 @@
+@@ -113,83 +113,32 @@
+ # define LDBL_MAX_10_EXP 4932
+ #endif
  
- /* On PowerPC with gcc 15 when using __ibm128 long double, the value of
-    LDBL_MIN_EXP, LDBL_MIN, LDBL_MAX, and LDBL_NORM_MAX are wrong.  */
+-/* On PowerPC with gcc 15 when using __ibm128 long double, the value of
+-   LDBL_MIN_EXP, LDBL_MIN, LDBL_MAX, and LDBL_NORM_MAX are wrong.  */
 -#if ((defined _ARCH_PPC || defined _POWER) && LDBL_MANT_DIG == 106 \
 -     && defined __GNUC__)
-+# if (defined _ARCH_PPC || defined _POWER) && (defined _AIX || defined __linux__) && (LDBL_MANT_DIG == 106) && defined __GNUC__
++/* Current Gnulib lists some compiler failures on PowerPC and concludes that
++   any GCC new enough to define __LDBL_NORM_MAX__ is probably OK. */
++#if (defined _ARCH_PPC && LDBL_MANT_DIG == 106 \
++     && defined __GNUC__ && !defined __LDBL_NORM_MAX__)
  # undef LDBL_MIN_EXP
- # define LDBL_MIN_EXP DBL_MIN_EXP
+-# define LDBL_MIN_EXP DBL_MIN_EXP
++# define LDBL_MIN_EXP (-968)
  # undef LDBL_MIN_10_EXP
+-# define LDBL_MIN_10_EXP DBL_MIN_10_EXP
++# define LDBL_MIN_10_EXP (-291)
+ # undef LDBL_MIN
+-# define LDBL_MIN 2.22507385850720138309023271733240406422e-308L /* DBL_MIN = 2^-1022 */
++# define LDBL_MIN 0x1p-969L
++/* Re:  IBM long double format.  See (https://gcc.gnu.org/PR120993).' */
+ # undef LDBL_MAX
+-/* LDBL_MAX is 2**1024 - 2**918, represented as: { 0x7FEFFFFF, 0xFFFFFFFF,
+-                                                   0x7C9FFFFF, 0xFFFFFFFF }.
+-
+-   Do not write it as a constant expression, as GCC would likely treat
+-   that as infinity due to the vagaries of this platform's funky arithmetic.
+-   Instead, define it through a reference to an external variable.
+-   Like the following, but using a union to avoid type mismatches:
+-
+-     const double LDBL_MAX[2] = { DBL_MAX, DBL_MAX / 0x1p53 };
+-     extern const long double LDBL_MAX;
+-
+-   The following alternative would not work as well when GCC is optimizing:
+-
+-     #define LDBL_MAX (*(long double const *) (double[])
+-                       { DBL_MAX, DBL_MAX / 0x1p53 })
+-
+-   The following alternative would require GCC 6 or later:
+-
+-     #define LDBL_MAX __builtin_pack_longdouble (DBL_MAX, DBL_MAX / 0x1p53)
+-
+-   Unfortunately none of the alternatives are constant expressions.  */
+-# if !GNULIB_defined_long_double_union
+-union gl_long_double_union
+-  {
+-    struct { double hi; double lo; } dd;
+-    long double ld;
+-  };
+-#  define GNULIB_defined_long_double_union 1
+-# endif
+-extern const union gl_long_double_union gl_LDBL_MAX;
+-# define LDBL_MAX (gl_LDBL_MAX.ld)
+-# undef LDBL_NORM_MAX
+-# define LDBL_NORM_MAX LDBL_MAX
+-#endif
+-
+-/* On IRIX 6.5, with cc, the value of LDBL_MANT_DIG is wrong.
+-   On IRIX 6.5, with gcc 4.2, the values of LDBL_MIN_EXP, LDBL_MIN, LDBL_EPSILON
+-   are wrong.  */
+-#if defined __sgi && (LDBL_MANT_DIG >= 106)
+-# undef LDBL_MANT_DIG
+-# define LDBL_MANT_DIG 106
+-# if defined __GNUC__
+-#  undef LDBL_MIN_EXP
+-#  define LDBL_MIN_EXP DBL_MIN_EXP
+-#  undef LDBL_MIN_10_EXP
+-#  define LDBL_MIN_10_EXP DBL_MIN_10_EXP
+-#  undef LDBL_MIN
+-#  define LDBL_MIN 2.22507385850720138309023271733240406422e-308L /* DBL_MIN = 2^-1022 */
+-#  undef LDBL_EPSILON
+-#  define LDBL_EPSILON 2.46519032881566189191165176650870696773e-32L /* 2^-105 */
+-# endif
+-#endif
++# define LDBL_MAX 0x1.fffffffffffff7ffffffffffff8p+1023L
+ 
+ /* On PowerPC platforms, 'long double' has a double-double representation.
+    Up to ISO C 17, this was outside the scope of ISO C because it can represent
+    numbers with mantissas of the form 1.<52 bits><many zeroes><52 bits>, such as
+    1.0L + 4.94065645841246544176568792868221e-324L = 1 + 2^-1074; see
+    ISO C 17 § 5.2.4.2.2.(3).
+    In ISO C 23, wording has been included that makes this 'long double'
+    representation compliant; see ISO C 23 § 5.2.5.3.3.(8)-(9).  In this setting,
+    numbers with mantissas of the form 1.<52 bits><many zeroes><52 bits> are
+    called "unnormalized".  And since LDBL_EPSILON must be normalized (per
+    ISO C 23 § 5.2.5.3.3.(33)), it must be 2^-105.  */
+-#if defined __powerpc__ && LDBL_MANT_DIG == 106
+ # undef LDBL_EPSILON
+-# define LDBL_EPSILON 2.46519032881566189191165176650870696773e-32L /* 2^-105 */
++# define LDBL_EPSILON 0x1p-105L
+ #endif
+ 
+ /* ============================ ISO C11 support ============================ */
 --- old/gettext-tools/libgettextpo/float.in.h
 +++ new/gettext-tools/libgettextpo/float.in.h
-@@ -115,8 +115,7 @@
+@@ -113,83 +113,32 @@
+ # define LDBL_MAX_10_EXP 4932
+ #endif
  
- /* On PowerPC with gcc 15 when using __ibm128 long double, the value of
-    LDBL_MIN_EXP, LDBL_MIN, LDBL_MAX, and LDBL_NORM_MAX are wrong.  */
+-/* On PowerPC with gcc 15 when using __ibm128 long double, the value of
+-   LDBL_MIN_EXP, LDBL_MIN, LDBL_MAX, and LDBL_NORM_MAX are wrong.  */
 -#if ((defined _ARCH_PPC || defined _POWER) && LDBL_MANT_DIG == 106 \
 -     && defined __GNUC__)
-+# if (defined _ARCH_PPC || defined _POWER) && (defined _AIX || defined __linux__) && (LDBL_MANT_DIG == 106) && defined __GNUC__
++/* Current Gnulib lists some compiler failures on PowerPC and concludes that
++   any GCC new enough to define __LDBL_NORM_MAX__ is probably OK. */
++#if (defined _ARCH_PPC && LDBL_MANT_DIG == 106 \
++     && defined __GNUC__ && !defined __LDBL_NORM_MAX__)
  # undef LDBL_MIN_EXP
- # define LDBL_MIN_EXP DBL_MIN_EXP
+-# define LDBL_MIN_EXP DBL_MIN_EXP
++# define LDBL_MIN_EXP (-968)
  # undef LDBL_MIN_10_EXP
+-# define LDBL_MIN_10_EXP DBL_MIN_10_EXP
++# define LDBL_MIN_10_EXP (-291)
+ # undef LDBL_MIN
+-# define LDBL_MIN 2.22507385850720138309023271733240406422e-308L /* DBL_MIN = 2^-1022 */
++# define LDBL_MIN 0x1p-969L
++/* Re:  IBM long double format.  See (https://gcc.gnu.org/PR120993).' */
+ # undef LDBL_MAX
+-/* LDBL_MAX is 2**1024 - 2**918, represented as: { 0x7FEFFFFF, 0xFFFFFFFF,
+-                                                   0x7C9FFFFF, 0xFFFFFFFF }.
+-
+-   Do not write it as a constant expression, as GCC would likely treat
+-   that as infinity due to the vagaries of this platform's funky arithmetic.
+-   Instead, define it through a reference to an external variable.
+-   Like the following, but using a union to avoid type mismatches:
+-
+-     const double LDBL_MAX[2] = { DBL_MAX, DBL_MAX / 0x1p53 };
+-     extern const long double LDBL_MAX;
+-
+-   The following alternative would not work as well when GCC is optimizing:
+-
+-     #define LDBL_MAX (*(long double const *) (double[])
+-                       { DBL_MAX, DBL_MAX / 0x1p53 })
+-
+-   The following alternative would require GCC 6 or later:
+-
+-     #define LDBL_MAX __builtin_pack_longdouble (DBL_MAX, DBL_MAX / 0x1p53)
+-
+-   Unfortunately none of the alternatives are constant expressions.  */
+-# if !GNULIB_defined_long_double_union
+-union gl_long_double_union
+-  {
+-    struct { double hi; double lo; } dd;
+-    long double ld;
+-  };
+-#  define GNULIB_defined_long_double_union 1
+-# endif
+-extern const union gl_long_double_union gl_LDBL_MAX;
+-# define LDBL_MAX (gl_LDBL_MAX.ld)
+-# undef LDBL_NORM_MAX
+-# define LDBL_NORM_MAX LDBL_MAX
+-#endif
+-
+-/* On IRIX 6.5, with cc, the value of LDBL_MANT_DIG is wrong.
+-   On IRIX 6.5, with gcc 4.2, the values of LDBL_MIN_EXP, LDBL_MIN, LDBL_EPSILON
+-   are wrong.  */
+-#if defined __sgi && (LDBL_MANT_DIG >= 106)
+-# undef LDBL_MANT_DIG
+-# define LDBL_MANT_DIG 106
+-# if defined __GNUC__
+-#  undef LDBL_MIN_EXP
+-#  define LDBL_MIN_EXP DBL_MIN_EXP
+-#  undef LDBL_MIN_10_EXP
+-#  define LDBL_MIN_10_EXP DBL_MIN_10_EXP
+-#  undef LDBL_MIN
+-#  define LDBL_MIN 2.22507385850720138309023271733240406422e-308L /* DBL_MIN = 2^-1022 */
+-#  undef LDBL_EPSILON
+-#  define LDBL_EPSILON 2.46519032881566189191165176650870696773e-32L /* 2^-105 */
+-# endif
+-#endif
++# define LDBL_MAX 0x1.fffffffffffff7ffffffffffff8p+1023L
+ 
+ /* On PowerPC platforms, 'long double' has a double-double representation.
+    Up to ISO C 17, this was outside the scope of ISO C because it can represent
+    numbers with mantissas of the form 1.<52 bits><many zeroes><52 bits>, such as
+    1.0L + 4.94065645841246544176568792868221e-324L = 1 + 2^-1074; see
+    ISO C 17 § 5.2.4.2.2.(3).
+    In ISO C 23, wording has been included that makes this 'long double'
+    representation compliant; see ISO C 23 § 5.2.5.3.3.(8)-(9).  In this setting,
+    numbers with mantissas of the form 1.<52 bits><many zeroes><52 bits> are
+    called "unnormalized".  And since LDBL_EPSILON must be normalized (per
+    ISO C 23 § 5.2.5.3.3.(33)), it must be 2^-105.  */
+-#if defined __powerpc__ && LDBL_MANT_DIG == 106
+ # undef LDBL_EPSILON
+-# define LDBL_EPSILON 2.46519032881566189191165176650870696773e-32L /* 2^-105 */
++# define LDBL_EPSILON 0x1p-105L
+ #endif
+ 
+ /* ============================ ISO C11 support ============================ */
 --- old/libtextstyle/lib/float.in.h
 +++ new/libtextstyle/lib/float.in.h
-@@ -115,8 +115,7 @@
+@@ -113,83 +113,32 @@
+ # define LDBL_MAX_10_EXP 4932
+ #endif
  
- /* On PowerPC with gcc 15 when using __ibm128 long double, the value of
-    LDBL_MIN_EXP, LDBL_MIN, LDBL_MAX, and LDBL_NORM_MAX are wrong.  */
+-/* On PowerPC with gcc 15 when using __ibm128 long double, the value of
+-   LDBL_MIN_EXP, LDBL_MIN, LDBL_MAX, and LDBL_NORM_MAX are wrong.  */
 -#if ((defined _ARCH_PPC || defined _POWER) && LDBL_MANT_DIG == 106 \
 -     && defined __GNUC__)
-+# if (defined _ARCH_PPC || defined _POWER) && (defined _AIX || defined __linux__) && (LDBL_MANT_DIG == 106) && defined __GNUC__
++/* Current Gnulib lists some compiler failures on PowerPC and concludes that
++   any GCC new enough to define __LDBL_NORM_MAX__ is probably OK. */
++#if (defined _ARCH_PPC && LDBL_MANT_DIG == 106 \
++     && defined __GNUC__ && !defined __LDBL_NORM_MAX__)
  # undef LDBL_MIN_EXP
- # define LDBL_MIN_EXP DBL_MIN_EXP
+-# define LDBL_MIN_EXP DBL_MIN_EXP
++# define LDBL_MIN_EXP (-968)
  # undef LDBL_MIN_10_EXP
+-# define LDBL_MIN_10_EXP DBL_MIN_10_EXP
++# define LDBL_MIN_10_EXP (-291)
+ # undef LDBL_MIN
+-# define LDBL_MIN 2.22507385850720138309023271733240406422e-308L /* DBL_MIN = 2^-1022 */
++# define LDBL_MIN 0x1p-969L
++/* Re:  IBM long double format.  See (https://gcc.gnu.org/PR120993).' */
+ # undef LDBL_MAX
+-/* LDBL_MAX is 2**1024 - 2**918, represented as: { 0x7FEFFFFF, 0xFFFFFFFF,
+-                                                   0x7C9FFFFF, 0xFFFFFFFF }.
+-
+-   Do not write it as a constant expression, as GCC would likely treat
+-   that as infinity due to the vagaries of this platform's funky arithmetic.
+-   Instead, define it through a reference to an external variable.
+-   Like the following, but using a union to avoid type mismatches:
+-
+-     const double LDBL_MAX[2] = { DBL_MAX, DBL_MAX / 0x1p53 };
+-     extern const long double LDBL_MAX;
+-
+-   The following alternative would not work as well when GCC is optimizing:
+-
+-     #define LDBL_MAX (*(long double const *) (double[])
+-                       { DBL_MAX, DBL_MAX / 0x1p53 })
+-
+-   The following alternative would require GCC 6 or later:
+-
+-     #define LDBL_MAX __builtin_pack_longdouble (DBL_MAX, DBL_MAX / 0x1p53)
+-
+-   Unfortunately none of the alternatives are constant expressions.  */
+-# if !GNULIB_defined_long_double_union
+-union gl_long_double_union
+-  {
+-    struct { double hi; double lo; } dd;
+-    long double ld;
+-  };
+-#  define GNULIB_defined_long_double_union 1
+-# endif
+-extern const union gl_long_double_union gl_LDBL_MAX;
+-# define LDBL_MAX (gl_LDBL_MAX.ld)
+-# undef LDBL_NORM_MAX
+-# define LDBL_NORM_MAX LDBL_MAX
+-#endif
+-
+-/* On IRIX 6.5, with cc, the value of LDBL_MANT_DIG is wrong.
+-   On IRIX 6.5, with gcc 4.2, the values of LDBL_MIN_EXP, LDBL_MIN, LDBL_EPSILON
+-   are wrong.  */
+-#if defined __sgi && (LDBL_MANT_DIG >= 106)
+-# undef LDBL_MANT_DIG
+-# define LDBL_MANT_DIG 106
+-# if defined __GNUC__
+-#  undef LDBL_MIN_EXP
+-#  define LDBL_MIN_EXP DBL_MIN_EXP
+-#  undef LDBL_MIN_10_EXP
+-#  define LDBL_MIN_10_EXP DBL_MIN_10_EXP
+-#  undef LDBL_MIN
+-#  define LDBL_MIN 2.22507385850720138309023271733240406422e-308L /* DBL_MIN = 2^-1022 */
+-#  undef LDBL_EPSILON
+-#  define LDBL_EPSILON 2.46519032881566189191165176650870696773e-32L /* 2^-105 */
+-# endif
+-#endif
++# define LDBL_MAX 0x1.fffffffffffff7ffffffffffff8p+1023L
+ 
+ /* On PowerPC platforms, 'long double' has a double-double representation.
+    Up to ISO C 17, this was outside the scope of ISO C because it can represent
+    numbers with mantissas of the form 1.<52 bits><many zeroes><52 bits>, such as
+    1.0L + 4.94065645841246544176568792868221e-324L = 1 + 2^-1074; see
+    ISO C 17 § 5.2.4.2.2.(3).
+    In ISO C 23, wording has been included that makes this 'long double'
+    representation compliant; see ISO C 23 § 5.2.5.3.3.(8)-(9).  In this setting,
+    numbers with mantissas of the form 1.<52 bits><many zeroes><52 bits> are
+    called "unnormalized".  And since LDBL_EPSILON must be normalized (per
+    ISO C 23 § 5.2.5.3.3.(33)), it must be 2^-105.  */
+-#if defined __powerpc__ && LDBL_MANT_DIG == 106
+ # undef LDBL_EPSILON
+-# define LDBL_EPSILON 2.46519032881566189191165176650870696773e-32L /* 2^-105 */
++# define LDBL_EPSILON 0x1p-105L
+ #endif
+ 
+ /* ============================ ISO C11 support ============================ */
