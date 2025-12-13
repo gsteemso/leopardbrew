@@ -29,6 +29,7 @@ HOMEBREW_CACHE          = Pathname.new(ENV['HOMEBREW_CACHE'])
   HOMEBREW_FORMULA_CACHE =  HOMEBREW_CACHE/'Formula'                # Where URL‐spec’d formulæ, & all formula locks, are cached
 HOMEBREW_CELLAR         = Pathname.new(ENV['HOMEBREW_CELLAR']).realpath
 HOMEBREW_LIBRARY        = Pathname.new(ENV['HOMEBREW_LIBRARY'])     # In HOMEBREW_REPOSITORY
+  CHECKPOINTS           =   HOMEBREW_LIBRARY/'Checkpoints'
   HOMEBREW_CONTRIB      =   HOMEBREW_LIBRARY/'Contributions'
   LINKDIR               =   HOMEBREW_LIBRARY/'LinkedKegs'           # Records which kegs are linked
   PINDIR                =   HOMEBREW_LIBRARY/'PinnedKegs'           # see `formula/pin.rb`

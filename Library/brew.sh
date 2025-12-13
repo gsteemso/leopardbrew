@@ -1,6 +1,6 @@
 #!/bin/sh
 
-LEOPARDBREW_VERSION='0.5.2'
+LEOPARDBREW_VERSION='0.6.0'  # checkpoint functionality is a big step, so increase minor version
 
 ###### Convenience functions ######
 
