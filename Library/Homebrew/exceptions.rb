@@ -291,6 +291,15 @@ class FormulaNotInstalledError < RuntimeError
   def initialize(name); @name = name; super "#{name} is not installed."; end
 end
 
+class FormulaSyntaxError < RuntimeError
+  attr_reader :defect, :name
+  def initialize(name, defect)
+    @defect = defect
+    @name = name
+    super "The formula #{name} has invalid syntax:  #{defect}"
+  end
+end # FormulaSyntaxError
+
 class FormulaUnavailableError < RuntimeError
   attr_reader :name
   attr_accessor :dependent
