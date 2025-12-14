@@ -37,14 +37,9 @@ class Dependency
 
   def installed?; to_formula.installed?; end
 
-  def satisfied?(inherited_options)
-    installed? && missing_options(inherited_options).empty?
-  end
+  def satisfied?(inherited_options); installed? and missing_options(inherited_options).empty?; end
 
-  def missing_options(inherited_options)
-    required = options | inherited_options
-    required - Tab.for_formula(to_formula).used_options
-  end
+  def missing_options(inherited_options); (options | inherited_options) - Tab.for_formula(to_formula).used_options; end
 
   def modify_build_environment; env_proc.call unless env_proc.nil?; end
 
