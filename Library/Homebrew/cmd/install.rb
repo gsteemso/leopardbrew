@@ -68,21 +68,21 @@ module Homebrew
           when :stable
             if f.stable.nil?
               if f.devel.nil?
-                raise UsageError, "#{f.full_name} is a head‐only formula, please specify --HEAD"
+                raise ArgvSyntaxError, "#{f.full_name} is a head‐only formula, please specify --HEAD"
               elsif f.head.nil?
-                raise UsageError, "#{f.full_name} is a development‐only formula, please specify --devel"
+                raise ArgvSyntaxError, "#{f.full_name} is a development‐only formula, please specify --devel"
               else
-                raise UsageError, "#{f.full_name} has no stable download, please choose --devel or --HEAD"
+                raise ArgvSyntaxError, "#{f.full_name} has no stable download, please choose --devel or --HEAD"
               end
             end
-          when :head then raise UsageError, "No head is defined for #{f.full_name}" if f.head.nil?
-          when :devel then raise UsageError, "No devel block is defined for #{f.full_name}" if f.devel.nil?
+          when :head then raise ArgvSyntaxError, "No head is defined for #{f.full_name}" if f.head.nil?
+          when :devel then raise ArgvSyntaxError, "No devel block is defined for #{f.full_name}" if f.devel.nil?
         end
 
         if f.installed?(requested_spec)
           msg = "#{f.full_name} #{f.send(requested_spec).version} is already installed"
-          msg << ', it’s just not linked' unless f.keg_only? or (f.linked_keg.symlink? and
-                                  f.linked_keg.resolved_real_path == f.spec_prefix(requested_spec))
+          msg << ', it’s just not linked' unless f.keg_only? or (f.linked_keg.symlink? and f.linked_keg.exists? and
+                                                                  f.linked_keg.resolved_real_path == f.spec_prefix(requested_spec))
           msg << '.'
           opoo msg
         elsif f.only_old_versions_installed?
@@ -130,7 +130,7 @@ module Homebrew
           EOS
         end # outdated?
       end # not blacklisted
-    rescue UsageError => e
+    rescue ArgvSyntaxError => e
       ofail e.message
     end # rescue blocks
   end # install

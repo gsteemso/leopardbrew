@@ -1,6 +1,6 @@
 #!/bin/sh
 
-LEOPARDBREW_VERSION='0.6.1'  # fix always-universal builds (i.e., those where no option is provided)
+LEOPARDBREW_VERSION='0.6.2'  # new ArgvSyntaxError exception type.
 
 ###### Convenience functions ######
 

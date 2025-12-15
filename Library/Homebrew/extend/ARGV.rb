@@ -149,7 +149,7 @@ module HomebrewArgvExtension
   def includes?(arg); @n = index arg; end
   alias_method :include?, :includes?
 
-  def next1; @n and at(@n + 1) or raise(UsageError); end
+  def next1; @n and at(@n + 1) or raise ARGVSyntaxError, 'Missing datum at end of command line'; end
 
   def value(arg)
     if find{ |o| o =~ /^--#{arg}=(.+)$/ } then $1
