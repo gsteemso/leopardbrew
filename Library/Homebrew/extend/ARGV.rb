@@ -32,9 +32,7 @@ module HomebrewArgvExtension
   U_MODE_OPTS = { '--cross'     => :cross,
                   '--local'     => :local,
                   '--native'    => :native,
-                  '-u'          => :native,
-                  '-x'          => :cross,
-                }.freeze
+                  '-x'          => :cross,  }.freeze
 
   BREW_SYSTEM_EQS = %w[ --bottle-arch=
                         --cc=
@@ -49,10 +47,11 @@ module HomebrewArgvExtension
 
   public
 
-  def clear
+  def empty_caches
     @btl_arch = @btl_chk = @casks = @effl = @efffl = @fae = @kegs = @lowr_uniq = @mode = @n = @named = @racks = @res_fae = nil
-    super
   end
+
+  def clear; empty_caches; super; end
 
   def named; @named ||= (self - options_only).select{ |nm| nm.choke }; end
 
@@ -62,19 +61,19 @@ module HomebrewArgvExtension
   def flags_only; select{ |arg| arg.to_s.starts_with?('--') }; end
 
   # Constructs a list of all the flags which would have needed to be passed to convey every datum which either really was passed as
-  # a flag, or was actually passed as a switch or through an environment variable.  There is a special case here, in that all types
-  # of universal build are conveyed to the build and test scripts by the “--mode=” flag, but other flags / switches can also convey
-  # that information, and must be filtered out.  Those parts of our infrastructure which must distinguish amongst them do so by the
-  # argument to --mode=.
+  # a flag, or was actually passed as a switch or through an environment variable.  There is a special case here, in that universal
+  # (& plain) builds of any type are conveyed to the build and test scripts by the “--mode=” flag, but that information can also be
+  # relayed by other means, which must be filtered out.  Those parts of our infrastructure which must distinguish amongst the types
+  # of build do so via the argument to --mode=.
   def effective_flags
     @effl ||= begin
                 flags = flags_only.reject{ |flag| flag =~ %r{^--mode=} } - U_MODE_FLAGS
                 ENV_FLAGS.each do |s|
                   flag = "--#{s.chop.gsub('_', '-')}"
-                  flags << flag if (not include?(flag) and send s.to_sym)
+                  flags << flag if (not includes?(flag) and send s.to_sym)
                 end
                 flags << "--mode=#{build_mode}"
-                SWITCHES.each{ |s, flag| flags << flag if (switch?(s) and not include? flag) }
+                SWITCHES.each{ |s, flag| flags << flag if (switch?(s) and not includes? flag) }
                 flags
               end
   end # effective_flags
@@ -85,7 +84,8 @@ module HomebrewArgvExtension
   def effective_formula_flags
     @efffl ||= begin
                  flags = flags_only.reject{ |flag| BREW_SYSTEM_EQS.any?{ |eq| flag =~ /^#{eq}/ }} - U_MODE_FLAGS
-                 flags << '--universal' << "--#{build_mode}" if build_universal?
+                 flags << '--universal' if build_universal?
+                 flags << "--#{build_mode}" unless build_mode == :plain or build_mode == :bottle
                  flags - BREW_SYSTEM_FLAGS - SWITCHES.values - ENV_FLAGS.map{ |ef| "--#{ef.chop.gsub('_', '-')}" }
                end
   end # effective_formula_flags
@@ -146,13 +146,14 @@ module HomebrewArgvExtension
       end.compact  # end of kegs = ...collect do
   end # kegs
 
-  def include?(arg); @n = index arg; end
+  def includes?(arg); @n = index arg; end
+  alias_method :include?, :includes?
 
   def next1; @n and at(@n + 1) or raise(UsageError); end
 
   def value(arg)
     if find{ |o| o =~ /^--#{arg}=(.+)$/ } then $1
-    elsif include?("--#{arg}") then next1; end
+    elsif includes?("--#{arg}") then next1; end
   end
 
   def debug?; flag? '--debug' or ENV['HOMEBREW_DEBUG'].choke; end
@@ -169,25 +170,25 @@ module HomebrewArgvExtension
 
   def verbose?; flag? '--verbose' or ENV['VERBOSE'].choke or ENV['HOMEBREW_VERBOSE'].choke; end
 
-  def dry_run?; include? '--dry-run' or switch? 'n'; end
+  def dry_run?; includes? '--dry-run' or switch? 'n'; end
 
-  def homebrew_developer?; include? '--homebrew-developer' or ENV['HOMEBREW_DEVELOPER'].choke; end
+  def homebrew_developer?; includes? '--homebrew-developer' or ENV['HOMEBREW_DEVELOPER'].choke; end
 
-  def ignore_aids?; include? '--no-enhancements'; end
+  def ignore_aids?; includes? '--no-enhancements'; end
 
-  def ignore_deps?; include? '--ignore-dependencies'; end
+  def ignore_deps?; includes? '--ignore-dependencies'; end
 
-  def only_deps?; include? '--only-dependencies'; end
+  def only_deps?; includes? '--only-dependencies'; end
 
-  def sandbox?; include? '--sandbox' or ENV['HOMEBREW_SANDBOX'].choke; end
+  def sandbox?; includes? '--sandbox' or ENV['HOMEBREW_SANDBOX'].choke; end
 
   def json; value 'json'; end
 
-  def build_head?; include? '--HEAD'; end
+  def build_head?; includes? '--HEAD'; end
 
-  def build_devel?; include? '--devel'; end
+  def build_devel?; includes? '--devel'; end
 
-  def build_stable?; include? '--stable' or (not build_head? and not build_devel?); end
+  def build_stable?; includes? '--stable' or (not build_head? and not build_devel?); end
 
   def build_spec; build_stable? ? :stable : build_devel? ? :devel : :head; end
 
@@ -203,16 +204,26 @@ module HomebrewArgvExtension
   alias_method :build_universal?, :build_fat?
 
   def build_mode
-    @mode ||= if build_bottle?                                                                 then :bottle
-              elsif includes?('--universal') or value('mode') or intersects?(U_MODE_OPTS.keys) then universal_mode_with_priority
-              elsif m = ENV['HOMEBREW_UNIVERSAL_MODE'].choke                                   then validate_universal_mode(m)
-              else                                                                                 :plain; end
-  end
+    @mode ||= if build_bottle?                               then :bottle
+              elsif includes?('--universal') or
+                    value('mode') or
+                    intersects?(U_MODE_OPTS.keys)            then universal_mode_with_priority
+              elsif m = ENV['HOMEBREW_UNIVERSAL_MODE'].choke then validate_universal_mode(m)
+              else                                                :plain; end
+  end # build_mode
+
+  def force_universal_mode  # This needs to be kept in sync with BuildOptions#force_universal_mode
+    return if build_mode != :plain  # Either it’s already universal & we’ve finished, or it’s :bottle & we can’t in the first place.
+    unshift '--universal' unless includes?('--universal')  # putting it at the front should let the user override it.
+    empty_caches
+    insert(index('--universal') + 1, "--#{build_mode}") unless includes?(build_mode.to_s)
+    insert(index("--#{build_mode}") + 1, "--mode=#{build_mode}") unless includes_eq?('mode')
+  end # force_universal_mode
 
   # Request a 32-bit only build.  Needed for some use-cases.  Building Universal is preferable.
-  def build_32_bit?; include? '--32-bit'; end
+  def build_32_bit?; includes? '--32-bit'; end
 
-  def build_bottle?; include? '--build-bottle' or ENV['HOMEBREW_BUILD_BOTTLE'].choke or bottle_arch; end
+  def build_bottle?; includes? '--build-bottle' or ENV['HOMEBREW_BUILD_BOTTLE'].choke or bottle_arch; end
 
   def bottle_arch
     unless @btl_chk
@@ -222,11 +233,11 @@ module HomebrewArgvExtension
     @btl_arch
   end # bottle_arch
 
-  def build_from_source?; switch? 's' or include? '--build-from-source' or ENV['HOMEBREW_BUILD_FROM_SOURCE'].choke; end
+  def build_from_source?; switch? 's' or includes? '--build-from-source' or ENV['HOMEBREW_BUILD_FROM_SOURCE'].choke; end
 
-  def flag?(flag); include? flag or switch? flag[2, 1]; end
+  def flag?(flag); includes? flag or switch? flag[2, 1]; end
 
-  def force_bottle?; include? '--force-bottle'; end
+  def force_bottle?; includes? '--force-bottle'; end
 
   # eg. `foo -ns -i --bar` has three switches, n, s and i
   def switch?(char)
@@ -265,19 +276,21 @@ module HomebrewArgvExtension
   def downcased_unique_named
     # Only downcase names – pass paths, bottle filenames and URLs unaltered
     @lowr_uniq ||= named.map{ |arg|
-        if arg.include? '/' or arg =~ /\.tar\..{2,4}$/ then arg
+        if arg.includes? '/' or arg =~ /\.tar\..{2,4}$/ then arg
         else arg.downcase; end
       }.compact.uniq
   end # downcased_unique_named
+
+  def includes_eq?(eq); find{ |o| o.starts_with? "--#{eq}=" } or includes?("--#{eq}"); end
 
   def spec(default = :stable); build_head? ? :head : build_devel? ? :devel : default; end
 
   def universal_mode_with_priority
     options_only.reverse_each do |opt|
       case opt
-        when '--universal'     then return ((m = ENV['HOMEBREW_UNIVERSAL_MODE'].choke) ? validate_universal_mode(m) : :native)
-        when *U_MODE_OPTS.keys then return U_MODE_OPTS[opt]
-        when %r{^--mode=(.+)$} then return validate_universal_mode($1)
+        when '--universal', '-u' then return ((m = ENV['HOMEBREW_UNIVERSAL_MODE'].choke) ? validate_universal_mode(m) : :native)
+        when *U_MODE_OPTS.keys   then return U_MODE_OPTS[opt]
+        when %r{^--mode=(.+)$}   then return validate_universal_mode($1)
       end
     end # each option |opt| in reverse order
     nil

@@ -15,7 +15,7 @@ module Stdenv
   end
 
   # @private
-  def setup_build_environment(formula = nil, archset = nil)
+  def setup_build_environment(archset = nil)
     super
 
     if MacOS.version >= :mountain_lion
