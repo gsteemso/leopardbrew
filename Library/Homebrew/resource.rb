@@ -51,7 +51,7 @@ class Resource
     unless target or block
       raise ArgumentError, 'target directory or block is required'
     end
-    verify_download_integrity(fetch)
+    verify_download_integrity(fetch) unless download_strategy == FileCopyStrategy
     unpack(target, &block)
   end # Resource#stage
 

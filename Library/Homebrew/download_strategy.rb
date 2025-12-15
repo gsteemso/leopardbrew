@@ -172,9 +172,7 @@ class AbstractFileDownloadStrategy < AbstractDownloadStrategy
 
   def pipe_to_tar(tool)
     Utils.popen_read(tool, '-dc', cached_location.to_s) do |rd|
-      Utils.popen_write(TAR_PATH, '-xif', '-') do |wr|
-        buf = ''; wr.write(buf) while rd.read(16384, buf)
-      end
+      Utils.popen_write(TAR_PATH, '-xif', '-') do |wr| buf = ''; wr.write(buf) while rd.read(16384, buf); end
     end
   end
 
@@ -197,6 +195,14 @@ class AbstractFileDownloadStrategy < AbstractDownloadStrategy
     Pathname.new(@url).extname[/[^?]+/]
   end # AbstractFileDownloadStrategy#ext
 end # AbstractFileDownloadStrategy
+
+class FileCopyStrategy < AbstractDownloadStrategy
+  def cached_location; Pathname.new @url.sub(%r{^file://}, ''); end
+
+  def clear_cache; end  # Obviously, we do not want to arbitrarily delete anything from the user’s filesystem.
+
+  def stage; cp cached_location, Pathname.getwd/File.basename(@url); end
+end
 
 class CurlDownloadStrategy < AbstractFileDownloadStrategy
   attr_reader :mirrors, :tarball_path, :temporary_path
@@ -641,6 +647,8 @@ class DownloadStrategyDetector
 
   def self.detect_from_url(url)
     case url
+      when %r{^file://.+$}
+        FileCopyStrategy
       when %r{^https?://.+\.git$}, %r{^git://}
         GitDownloadStrategy
       when %r{^https?://www\.apache\.org/dyn/closer\.cgi}, %r{^https?://www\.apache\.org/dyn/closer\.lua}
@@ -671,6 +679,7 @@ class DownloadStrategyDetector
   def self.detect_from_symbol(symbol)
     case symbol
       when :bzr     then BazaarDownloadStrategy
+      when :copy    then FileCopyStrategy
       when :curl    then CurlDownloadStrategy
       when :cvs     then CVSDownloadStrategy
       when :fossil  then FossilDownloadStrategy
