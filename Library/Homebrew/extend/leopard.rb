@@ -4,7 +4,7 @@
 require 'extend/tiger' if RUBY_VERSION == '1.8.2'
 
 class Dir
-  # This definition comes from Ruby 1.8.7
+  # This definition comes from Ruby 1.8.7.
   def Dir.mktmpdir(prefix_suffix=nil, tmpdir=nil)
     case prefix_suffix
     when nil
@@ -43,7 +43,7 @@ class Dir
       path
     end
   end unless defined? Dir.mktmpdir
-end
+end # Dir
 
 module Enumerable
   def flat_map
@@ -56,20 +56,13 @@ module Enumerable
     r
   end unless method_defined?(:flat_map)
 
-  def group_by
-    inject({}) do |h, e|
-      h.fetch(yield(e)) { |k| h[k] = [] } << e; h
-    end
-  end unless method_defined?(:group_by)
-end
+  def group_by; inject({}) { |h, e| h.fetch(yield(e)) { |k| h[k] = [] } << e; h }; end unless method_defined?(:group_by)
+end # Enumerable
 
 class Hash
-  # Hash isn't ordered in Ruby 1.8, but 1.8.7 nonetheless provides a
-  # #first method. This is weird, but we use it in Homebrew for
-  # single-length hashes.
-  def first
-    each { |el| break el }
-  end unless method_defined?(:first)
+  # Hashes are unordered in Ruby 1.8, but 1.8.7 nevertheless provides a #first method.  This is weird, but we use it in Leopardbrew
+  # for single-length hashes.
+  def first; each{ |el| break el }; end unless method_defined?(:first)
 end
 
 class String
@@ -98,10 +91,8 @@ class String
       ['', '', dup]
     end
   end unless method_defined?(:rpartition)
-end
+end # String
 
 class Symbol
-  def to_proc
-    proc { |*args| args.shift.send(self, *args) }
-  end unless method_defined?(:to_proc)
+  def to_proc; proc { |*args| args.shift.send(self, *args) }; end unless method_defined?(:to_proc)
 end
