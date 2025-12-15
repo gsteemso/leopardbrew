@@ -26,21 +26,21 @@ class SoftwareSpec
     #   - one native arch == one local arch; two cross archs        (:intel,   :big_sur…:tahoe)
     #                                                               (:intel,   :lion…:mohave)
     #                                                               (:i386,    :tiger…:snow_leopard)
-    #                                                               (:ppc,     :tiger…:leopard)
+    #                                                               (:ppc,     :tiger…:snow_leopard)
     #   - two native archs; three local archs == three cross archs  (:x86_64,  :tiger…:snow_leopard, Clang)
+    #   - two native archs == two local archs; four cross archs     (:ppc64,   :tiger…:leopard)
     #   - two native archs; three local archs; four cross archs     (:x86_64,  :tiger…:snow_leopard, GCC)
-    #                                                               (:ppc64,   :tiger…:leopard)
     :universal => (Target.cross_archs.fat? \
                     ? (CPU.native_archs.fat? \
-                      ? (Target.local_archs == Target.cross_archs \
-                        ? [ # The native architecture‐set differs from the local/cross architecture‐set.
+                      ? ((Target.local_archs != Target.cross_archs and Target.local_archs != CPU.native_archs) \
+                        ? [ # The native, local, and cross architecture‐sets all differ.
                             Option.new('cross', 'Build a universal binary for every possible target architecture'),
+                            Option.new('local', 'Build a universal binary for every target architecture this computer can run'),
                             Option.new('native', 'Build a universal binary for the architectures native to this computer'),
                             Option.new('universal', 'Build a universal binary for the default set of architectures'),
                           ] \
-                        : [ # The native, local, and cross architecture‐sets all differ.
+                        : [ # The native and cross architecture‐sets differ, but the local set is the same as one of them.
                             Option.new('cross', 'Build a universal binary for every possible target architecture'),
-                            Option.new('local', 'Build a universal binary for every target architecture this computer can run'),
                             Option.new('native', 'Build a universal binary for the architectures native to this computer'),
                             Option.new('universal', 'Build a universal binary for the default set of architectures'),
                           ] \

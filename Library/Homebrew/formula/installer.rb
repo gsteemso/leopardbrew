@@ -464,7 +464,7 @@ class FormulaInstaller
     args
   end # sanitized_ARGV_options
 
-  def build_argv; (sanitized_ARGV_options | Options.create(ARGV.effective_formula_flags)).as_flags; end
+  def build_argv; (sanitized_ARGV_options | Options.create(formula.build.effective_formula_flags)).as_flags; end
 
   def build
     FileUtils.rm_rf(formula.logs)

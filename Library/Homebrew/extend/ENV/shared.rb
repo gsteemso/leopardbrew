@@ -6,7 +6,7 @@ require 'formula'  # pulls in almost two dozen other library files
 module SharedEnvExtension
   include CompilerConstants
 
-  attr_reader :build_archs, :formula_name
+  attr_reader :formula, :build_archs
 
   # @private
   CC_FLAG_VARS = %w[CFLAGS CXXFLAGS OBJCFLAGS OBJCXXFLAGS]
@@ -25,14 +25,14 @@ module SharedEnvExtension
   ] # CLICOLOR_FORCE  ← why was this in there?
 
   # @private
-  def setup_build_environment(formula, archset)
-    @formula = formula
-    @formula_name = formula.full_name if formula
+  def setup_build_environment(archset)
     reset
     set_build_archs(@build_archs = archset || Target.archset)
     if archset and archset.fat? then Target.allow_universal_binary; end
     self['MAKEFLAGS'] ||= "-j#{make_jobs}"
   end # setup_build_environment
+
+  def set_active_formula(f); @formula = f; end
 
   def delete_multiple(keys); h = {}; Array(keys).each{ |k| h[k] = delete(k) }; h; end
 
@@ -130,13 +130,13 @@ module SharedEnvExtension
     @compiler ||= \
       if (cc = ARGV.cc)
         warn_about_non_apple_gcc($&) if cc =~ GNU_GCC_REGEXP
-        CompilerSelector.validate_user_compiler(@formula, fetch_compiler(cc, '--cc'))
+        CompilerSelector.validate_user_compiler(formula, fetch_compiler(cc, '--cc'))
       elsif (cc = homebrew_cc)
         warn_about_non_apple_gcc($&) if cc =~ GNU_GCC_REGEXP
         compiler = fetch_compiler(cc, '$HOMEBREW_CC')
-        compiler = CompilerSelector.select_for(@formula, [compiler] + CompilerSelector.compilers) if @formula
+        compiler = CompilerSelector.select_for(formula, [compiler] + CompilerSelector.compilers) if formula
         compiler
-      elsif @formula then CompilerSelector.select_for(@formula)
+      elsif formula then CompilerSelector.select_for(formula)
       else MacOS.default_compiler; end
   end # compiler
 
@@ -277,7 +277,15 @@ module SharedEnvExtension
 
   def single_arch_binary; Target.no_universal_binary; set_build_archs(Target.archset); end
 
-  def universal_binary; Target.allow_universal_binary; set_build_archs(Target.archset); end
+  def universal_binary
+    formula.active_spec.option(:universal) unless formula.options.include?('universal')
+    if ARGV.build_mode == :plain  # Note that this does nothing if the build mode is :bottle.
+      ARGV.force_universal_mode
+      formula.build.force_universal_mode
+    end
+    Target.allow_universal_binary
+    set_build_archs(Target.archset)
+  end
 
   def set_build_archs(archset)
     archset = Array(archset).extend ArchitectureListExtension unless archset.responds_to?(:fat?)

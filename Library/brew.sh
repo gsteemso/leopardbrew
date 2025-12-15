@@ -1,6 +1,6 @@
 #!/bin/sh
 
-LEOPARDBREW_VERSION='0.5.2'
+LEOPARDBREW_VERSION='0.6.2'  # new ArgvSyntaxError exception type.
 
 ###### Convenience functions ######
 

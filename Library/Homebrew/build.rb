@@ -12,6 +12,7 @@ class Build
   def initialize(f, args)
     @formula = f
     @formula.build = BuildOptions.new(Options.create(args), f.options)
+    ENV.set_active_formula(@formula)
     if ARGV.ignore_deps? then @deps = []; @reqs = []
     else @deps = expand_deps; @reqs = expand_reqs; end
     @aids = (ARGV.ignore_aids? ? [] : f.active_enhancements)
@@ -68,7 +69,7 @@ class Build
       ENV.x11 = reqs.any? { |rq| rq.is_a? X11Requirement }
     end
 
-    ENV.setup_build_environment(formula)
+    ENV.setup_build_environment
 
     post_superenv_hacks if superenv?
 
@@ -109,13 +110,15 @@ class Build
 
         interactive_shell(formula)
       else
+        formula.checkpoints = 0
         formula.install
+        formula.checkpoints = nil
       end
 
       raise RuntimeError, 'Empty installation; aborting' if formula.prefix.children.empty?
 
       stdlibs = detect_stdlibs(ENV.compiler)
-      Tab.create(formula, ENV.compiler, stdlibs.first, formula.build, get_archs).write
+      Tab.create(formula, ENV.compiler, stdlibs.first, get_archs).write
 
       # Find and link metafiles
       formula.prefix.install_metafiles Pathname.pwd

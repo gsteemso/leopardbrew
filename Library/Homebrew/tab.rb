@@ -10,12 +10,12 @@ class Tab < OpenStruct
   FILENAME = 'INSTALL_RECEIPT.json'
 
   class << self
-    def create(formula, compiler, stdlib, build_opts, archs)
+    def create(formula, compiler, stdlib, archs)
       attributes = {
         'active_aids'        => formula.active_enhancements,
-        'build_mode'         => (formula.option_defined?('universal') ? ARGV.build_mode.to_s : 'plain'),
+        'build_mode'         => formula.build.mode.to_s,
         'built_archs'        => archs,
-        'built_as_bottle'    => build_opts.bottle?,
+        'built_as_bottle'    => formula.build.bottle?,
         'compiler'           => compiler,
         'git_head_SHA1'      => Homebrew.git_head,
         'poured_from_bottle' => false,
@@ -27,8 +27,8 @@ class Tab < OpenStruct
         'stdlib'             => stdlib,
         'tabfile'            => formula.prefix/FILENAME,
         'time'               => Time.now.to_i,
-        'unused_options'     => build_opts.unused_options.as_flags,
-        'used_options'       => build_opts.used_options.as_flags,
+        'unused_options'     => formula.build.unused_options.as_flags,
+        'used_options'       => formula.build.used_options.as_flags,
       }
       new(attributes)
     end # Tab::create

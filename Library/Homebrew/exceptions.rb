@@ -6,8 +6,9 @@ class ChecksumMissingError < ArgumentError; end
 class DebugError < RuntimeError; end
 class FormulaSpecificationError < StandardError; end
 # Raised when a single patch file is not found and apply hasn’t been specified:
-class MissingApplyError < RuntimeError ; end
-class MissingParameterError < RuntimeError ; end
+class MissingApplyError < RuntimeError; end
+class MissingParameterError < RuntimeError; end
+class ArgvSyntaxError < RuntimeError; end
 class UsageError < RuntimeError; end
   class FormulaUnspecifiedError < UsageError; end
   class KegUnspecifiedError < UsageError; end
@@ -290,6 +291,15 @@ class FormulaNotInstalledError < RuntimeError
   attr_reader :name
   def initialize(name); @name = name; super "#{name} is not installed."; end
 end
+
+class FormulaSyntaxError < RuntimeError
+  attr_reader :defect, :name
+  def initialize(name, defect)
+    @defect = defect
+    @name = name
+    super "The formula #{name} has invalid syntax:  #{defect}"
+  end
+end # FormulaSyntaxError
 
 class FormulaUnavailableError < RuntimeError
   attr_reader :name

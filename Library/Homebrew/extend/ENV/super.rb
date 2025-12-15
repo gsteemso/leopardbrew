@@ -32,7 +32,7 @@ module Superenv
   def reset; super; delete('as_nl'); end
 
   # @private
-  def setup_build_environment(formula = nil, archset = nil)
+  def setup_build_environment(archset = nil)
     super
     send(compiler)
     # $M4 must go first because @deps may get modified.

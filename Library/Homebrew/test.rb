@@ -26,7 +26,8 @@ begin
   f.build = BuildOptions.new(t.used_options + Options.create(ARGV.effective_formula_flags), f.options)
   f.extend(Homebrew::Assertions)
   ENV.activate_extensions!
-  ENV.setup_build_environment(f, t.built_archs)
+  ENV.set_active_formula(f)
+  ENV.setup_build_environment(t.built_archs)
 
   path_parts = ENV['PATH'].split(':') + normal_path.split(':')
   ENV['PATH'] = path_parts.uniq.join(':')
