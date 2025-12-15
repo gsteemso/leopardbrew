@@ -5,8 +5,8 @@
 #:formulæ.
 #:
 #:If multiple current versions are installed (the extreme case being all three of
-#:of stable, devel, and HEAD), clarify which one to reïnstall by using or leaving
-#:out the usual options and/or the special option “--stable”.
+#:stable, devel, and HEAD), clarify which one to reïnstall with the usual options,
+#:and/or the special option “--stable”.
 #:
 #:Active options may be cancelled by specifying their opposite.  A formula brewed
 #:--with-A may be reïnstalled --without-A to cancel it; while one --without-B may
@@ -151,8 +151,8 @@ module Homebrew
             anti_opts << Option.new('universal') << Option.new('cross')
             ENV.delete 'HOMEBREW_BUILD_UNIVERSAL'
             ENV.delete 'HOMEBREW_CROSS_COMPILE'
-          when '--cross', '--universal'
-            # the formula doesn’t have either option; ignore it
+          when '--cross', '--local', '--native', '--universal'
+            # the formula doesn’t have any of these options; ignore it
           when '--stable'
             anti_opts += [Option.new('HEAD'), Option.new('devel')]
           when '--devel'
