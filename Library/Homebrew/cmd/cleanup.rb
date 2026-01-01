@@ -30,7 +30,7 @@ module Homebrew
       if Pathname::BOTTLE_EXTNAME_RX === file.to_s then version = bottle_resolve_version(file) rescue file.version
       else version = file.version; end
       next unless version
-      next unless (name = file.basename.to_s[/(.*)-(?:#{Regexp.escape(version)})/, 1])
+      next unless (name = file.basename.to_s[/(.*)-(?:#{Regexp.escape(version.to_s)})/, 1])
       next unless HOMEBREW_CELLAR.directory?
       begin
         f = Formulary.from_rack(HOMEBREW_CELLAR/name)
@@ -46,19 +46,26 @@ module Homebrew
 
   def cleanup_cellar; Formula.installed.each{ |formula| cleanup_formula formula }; end
 
-  def cleanup_checkpoints; return unless CHECKPOINTS.exists?; rm_rf CHECKPOINTS unless ARGV.dry_run?; end
+  def cleanup_checkpoints; return unless CHECKPOINTS.exists?; cleanup_path(CHECKPOINTS) { CHECKPOINTS.rmtree }; end
 
   def cleanup_formula(f)
     if f.installed?
       eligible_kegs = f.rack.subdirs.map{ |d| Keg.new(d) }.select{ |k| f.pkg_version > k.version }
       if eligible_kegs.any? && eligible_for_cleanup?(f) then eligible_kegs.each{ |keg| cleanup_keg(keg) }
       else eligible_kegs.each{ |keg| opoo "Skipping (old) keg-only:  #{keg}" }; end
-    elsif f.rack.subdirs.length > 1
-      # If the cellar only has one version installed, don’t complain that we can’t tell which one to keep.
+    elsif (pn = f.linked_keg.resolved_path).directory? \
+          or (f.pinned? and (pn = (PINDIR/f.name).resolved_path).directory?) \
+          or (pn = f.opt_prefix.resolved_path).directory?  # Clean up the others.
+      eligible_kegs = f.rack.subdirs.select{ |d| d != pn }.map{ |d| Keg.new(d) }
+      if eligible_kegs.any? && eligible_for_cleanup?(f) then eligible_kegs.each{ |keg| cleanup_keg(keg) }
+      else eligible_kegs.each{ |keg| opoo "Skipping (old) keg-only:  #{keg}" }; end
+    elsif f.rack.subdirs.length == 1  # If only one version is installed, don’t complain that we can’t tell which one to keep.
       opoo "Skipping #{f.full_name}:  Most recent version #{f.pkg_version} not installed"
+    else
+      raise MultipleVersionsInstalledError.new(f.full_name)
     end
     return unless (CHECKPOINTS/f.name).exists?
-    rm_rf CHECKPOINTS/f.name unless ARGV.dry_run?
+    cleanup_path(CHECKPOINTS/f.name) { (CHECKPOINTS/f.name).rmtree }
   end # cleanup_formula
 
   def cleanup_keg(keg)

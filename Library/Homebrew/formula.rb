@@ -37,7 +37,7 @@ class Formula
   include Utils::Inreplace
   extend Enumerable
 
-  TIMEFILE = 'brew-checkpoint.timestamp'
+  TIMEFILE = 'brew-checkpoint-@.timestamp'
 
   # @!method inreplace(paths, before = nil, after = nil)
   # Implemented in {Utils⸬Inreplace.inreplace}.  Sometimes we have to change a bit before we install.  Generally we prefer a patch;
@@ -108,7 +108,8 @@ class Formula
   attr_accessor :build
 
   # The count of {#checkpoint} blocks that have been encountered during the {#install} method.  Ought to be nil outside that method.
-  attr_accessor :checkpoints
+  attr_accessor :checkpoints  # For some reason, this is not catching some accesses made to the bare name “checkpoints”.  I have as
+                              # a result written all references within this file to use “@checkpoints”.
 
   # Compare formulæ by their names.  If their names are equal, use their full names instead.
   def <=>(other); r = (name <=> other.name).to_s.nope || full_name <=> other.full_name; r.to_i; end
@@ -543,38 +544,44 @@ class Formula
 
   protected
 
-  def checkpoint_directory; CHECKPOINTS/name/pkg_version.to_s; end
+  def checkpoint_prefix; CHECKPOINTS/name/pkg_version.to_s; end
 
   # Got a formula which takes hours to build?  Does it keep screwing up right before it finishes, wasting all that effort?  Write a
   #   checkpoint block at a suitable point, and all progress made within it will be archived for you automatically, so installation
   #   can resume therefrom.  Be warned that this will consume a horrifying amount of disk space if you are careless with it.
   def checkpoint(checkpoint_name = nil)
+    timestamp = Time.now
     raise FormulaSyntaxError.new(full_name, 'A checkpoint must have a code block – things created within it are what get saved') \
-                                                                                                                 unless block_given
-    raise FormulaSyntaxError.new(full_name, 'A checkpoint can only be set from within `install`') unless checkpoints
-    checkpoints += 1
-    checkpoint_name = checkpoint_name.nil? ? checkpoints.to_s : "#{checkpoints}-#{checkpoint_name}"
-    unless (checkpoint_directory/"#{checkpoint_name}.tar.bz2").exists?
-      oh1 "Creating checkpoint #{checkpoint_name}"
-      timestamp = Time.now
+                                                                                                                unless block_given?
+    raise FormulaSyntaxError.new(full_name, 'A checkpoint can only be set from within `install`') unless @checkpoints
+    @checkpoints += 1
+    checkpoint_name ||= "anonymous-checkpoint-number-#{@checkpoints}"
+    checkpoint_timestamp_file = Pathname.getwd/TIMEFILE.sub('@', checkpoint_name)
+    unless (checkpoint_archive_file = checkpoint_prefix/"#{checkpoint_name}.tbz2").exists?
       yield
-      (Pathname.getwd/TIMEFILE).atomic_write(timestamp.to_i.to_s)
-      # Find everything in the current directory that’s newer than timestamp.  This won’t include anything whose name starts with a
-      # dot, but should include the timestamp file.
+      oh1 "Packing up the checkpoint “#{checkpoint_name}”" if VERBOSE
+      checkpoint_timestamp_file.atomic_write(timestamp.to_i.to_s)
+      # Find everything in the current directory that’s newer than <timestamp>.  This won’t include anything whose name starts with
+      #   a dot, but should include the timestamp file and anything that gets created or modified in the block.  Of course, it does
+      #   require that such creations/modifications be visible from the initial working directory.  Switching directories mid‐block
+      #   is likely to cause trouble.
       files_etc = []; Dir['*'].each{ |f| files_etc << f if File.stat(f).mtime - timestamp >= 0 }
-      mkdir_p checkpoint_directory unless checkpoint_directory.exists?
+      checkpoint_prefix.mkpath unless checkpoint_prefix.exists?
       # c:  Create a tarchive
       # j:  filter it through bzip2
       # f:  pack into this tarFile
-      silent_system TAR_PATH, '-cjf', checkpoint_directory/"#{checkpoint_name}.tar.bz2", *files_etc
+      silent_system TAR_PATH, '-cjf', checkpoint_archive_file, *files_etc
+      oh1 "This checkpoint was created between #{timestamp} and #{Time.now}" if VERBOSE and not QUIETER
     else # checkpoint already exists
-      oh1 "Unpacking checkpoint #{checkpoint_name}"
+      oh1 "Unpacking the checkpoint “#{checkpoint_name}”" if VERBOSE
       # x:  eXtract a tarchive
       # j:  filter it through bzip2
-      # m:  update Mtimes as files are unpacked (avoids things being wrongly rebuilt because they look older than a makefile)
+      # m:  update Modification times as files are unpacked.  Avoids things being needlessly rebuilt when they look older than some
+      #     random makefile.
       # p:  preserve Permissions
       # f:  unpack from this tarFile
-      silent_system TAR_PATH, '-xjmpf', checkpoint_parent/"#{checkpoint_name}.tar.bz2"
+      silent_system TAR_PATH, '-xjmpf', checkpoint_archive_file
+      oh1 "This checkpoint was created #{Time.at(checkpoint_timestamp_file.binread.to_i)}" if VERBOSE and not QUIETER
     end # create checkpoint, or unpack it?
   end # checkpoint
 
@@ -985,8 +992,8 @@ class Formula
   # If there is a `make install` available, please use it!
   #     system 'make', 'install'
   def system(cmd, *args)
-    cmd = cmd.to_s; args.map!(&:to_s)
-    verbose_using_dots = !ENV['HOMEBREW_VERBOSE_USING_DOTS'].nil?
+    cmd = cmd.to_s; args = args.compact.map(&:to_s)
+    verbose_using_dots = ENV['HOMEBREW_VERBOSE_USING_DOTS'].choke
     # Remove “boring” arguments so that the important ones are more likely to be shown, considering that we trim long ohai lines to
     # the terminal width.
     pretty_args = args.dup
@@ -996,7 +1003,7 @@ class Formula
       pretty_args.delete '--disable-silent-rules'
     end
     pretty_args.each_index do |i|
-      if pretty_args[i].to_s.starts_with? 'import setuptools'
+      if pretty_args[i].starts_with? 'import setuptools'
         pretty_args[i] = 'import setuptools...'
       end
     end
@@ -1068,16 +1075,19 @@ class Formula
     ENV['HOMEBREW_CC_LOG_PATH'] = logfn
     cmd = cmd.to_s
     # TODO: system 'xcodebuild' is deprecated, this should be removed soon.
-    ENV.remove_cc_etc if cmd.starts_with? 'xcodebuild'
+    if cmd.starts_with? 'xcodebuild'
+      ENV.remove_cc_etc
+      opoo 'The command “system "xcodebuild", …” is deprecated and will be removed.  This formula recipe needs to be updated.'
+    end
     # Turn on argument filtering in the superenv compiler wrapper.  (There should probably be a better mechanism for this than just
     #   adding special cases to this method.)
     # ??? Argument filtering is ALREADY on most of the time, and there are no Python shims to intercept this anyway!  Just what was
     #   this trying to achieve?
-    if cmd == 'python2'
-      setup_py_in_args = %w[setup.py build.py].include?(args.first)
-      setuptools_shim_in_args = args.any?{ |a| a.to_s.starts_with? 'import setuptools' }
-      if setup_py_in_args or setuptools_shim_in_args then ENV.refurbish_args; end
-    end
+#    if cmd == 'python2'
+#      setup_py_in_args = %w[setup.py build.py].include?(args.first)
+#      setuptools_shim_in_args = args.any?{ |a| a.to_s.starts_with? 'import setuptools' }
+#      if setup_py_in_args or setuptools_shim_in_args then ENV.refurbish_args; end
+#    end
     $stdout.reopen(out); $stderr.reopen(out); out.close
     cmd = cmd.split(' '); args.collect!(&:to_s)
     exec(*cmd, *args) rescue nil
