@@ -51,11 +51,17 @@ class Target
       ARGV.build_fat? ? send("#{ARGV.build_mode}_archs".to_sym) : [arch].extend(ArchitectureListExtension)
     end
 
-    # What set of architectures should tools we build be able to target?  Ideally, all of them, unless we’re told otherwise.  (It’s
-    # simplest to just have a parameter for that part.)  If our build is not to target everything, then it should target only those
-    # architectures common to the CPU type of {arch} – e.g. if we have a bottle target of :i386, the tool targets should be :i386 &
-    # :x86_64.
-    def tool_target_archset(target_them_all); target_them_all ? tool_cross_archs : CPU.native_archs_of_type(CPU.type_of arch); end
+    # This architecture set is for the end targets of tools we build (e.g. compilers).  It ought to encompass absolutely everything
+    # we have the information to build for.
+    def tool_target_archset
+      archs = (MacOS.sdk_path/'usr/include/architecture').subdirs.map{ |pn| pn.basename.to_s.to_sym }.select{ |a|
+        all_archs.include? a }.map{ |a| CPU.type_of a }.map{ |t| CPU.archs_of_type t }.flatten.extend ArchitectureListExtension
+      # Ideally, in the presence of the iPhoneOS SDK, we would also incorporate the list of available arm32 subarchitectures.  Alas,
+      # computing that set is non‐trivial, and derives several constants in passing that are also required by certain formulæ which
+      # would be able to act on the information.  The additional computation is better done locally therein.
+      $stderr.puts("Target::tool_target_archset:  result is “#{archs.as_build_archs}”") if DEBUG
+      archs
+    end # Target⸬tool_target_archset
 
     # What CPU type are we building for?  Either one corresponding to a value explicitly passed using --bottle-arch=, or our native
     # one.  We do not care if a bottle will be built, only whether an architecture for one was supplied.
@@ -198,23 +204,13 @@ class Target
       # or Haswell, we can run :x86_64h), or cannot run (e.g. :x86_64h on a pre‐Haswell machine, or :arm64e on :a12z).
       all_archs.reject{ |a| case a
           when :arm64   then o == :m1
-          when :arm64e  then o == :a12z
+          when :arm64e  then o != :m1
           when :x86_64  then [:haswell, :a12z, :m1].include? o
-          when :x86_64h then o == :core2
+          when :x86_64h then ! [:haswell, :a12z, :m1].include? o
           else false
         end # case a
       }.extend(ArchitectureListExtension)
     end # Target⸬all_our_archs
-
-    # This architecture set is for the end targets of tools we build (e.g. compilers).  Absent a good reason otherwise, it ought to
-    # encompass absolutely everything we have the information to build for.  See also under ⸬tool_target_archset.
-    def tool_cross_archs
-      buildable_types = (MacOS.sdk_path/'usr/include/architecture').subdirs.map{ |pn| pn.basename.to_s.to_sym
-        }.select{ |a| all_archs.include? a }.map{ |a| CPU.type_of a }
-      buildable_archs = (all_archs - [:arm64e, :x86_64h]).select{ |a| buildable_types.include? CPU.type_of a }
-      buildable_archs << :arm32 if MacOS.iPhone_SDK_present?
-      buildable_archs.extend ArchitectureListExtension
-    end # Target⸬tool_cross_archs
 
     def cross_archs
       (MacOS.version   >= :big_sur)  ? universal_archs_2 \
@@ -230,6 +226,8 @@ class Target
       @local_archs ||= all_our_archs.select{ |a|
           CPU.can_run?(a) and (MacOS.version < :lion or _64b_arch?(a))
         }.extend(ArchitectureListExtension)
+      $stderr.puts("Target::local_archs:  result is “#{@local_archs.as_build_archs}”") if DEBUG
+      @local_archs
     end
 
     def native_archs; CPU.native_archs; end

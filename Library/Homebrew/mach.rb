@@ -29,6 +29,9 @@ module ArchitectureListExtension  # applicable to arrays of architecture symbols
   def intel?; intersects? INTEL_ARCHS; end
   def arm?; intersects? ARM_ARCHS; end
 
+  def _32b_subset; reject!{ |a| a != :ppc and a != :i386 }; end
+  def _64b_subset; reject!{ |a| a == :ppc or a == :i386 }; end
+
   def as_arch_flags; map{ |a| "-arch #{a.to_s}" }.join(' '); end
 
   def as_cmake_arch_flags; map(&:to_s).join(';'); end
