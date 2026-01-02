@@ -6,8 +6,7 @@ class Cctools < Formula
     url 'https://github.com/apple-oss-distributions/cctools/archive/refs/tags/cctools-855.tar.gz'
     sha256 '7c31652cefde324fd6dc6f4dabbcd936986430039410a65c98d4a7183695f6d7'
   else
-    # CCTools 806, from Xcode 4.1, was the last version where Apple’s build scripts supported Tiger
-    # or PowerPC.
+    # CCTools 806, from Xcode 4.1, was the last version where Apple’s build scripts supported Tiger or PowerPC.
     url 'https://github.com/apple-oss-distributions/cctools/archive/refs/tags/cctools-806.tar.gz'
     sha256 '331b44a2df435f425ea3171688305dcb46aa3b29df2d38b421d82eb27dbd4d2e'
   end
@@ -30,7 +29,7 @@ class Cctools < Formula
     option 'with-llvm', 'Build with Link-Time Optimization support'
     depends_on 'llvm' => :optional
 
-    # These patches apply to cctools 855, for newer OSes
+    # These patches apply to cctools 855, for newer OSes.
     patch :p0 do
       url 'https://trac.macports.org/export/129741/trunk/dports/devel/cctools/files/cctools-829-lto.patch'
       sha256 '8ed90e0eef2a3afc810b375f9d3873d1376e16b17f603466508793647939a868'
@@ -46,20 +45,20 @@ class Cctools < Formula
       sha256 'f49162b5c5d2753cf19923ff09e90949f01379f8de5604e86c59f67441a1214c'
     end
 
-    # Fix building libtool with LTO disabled
+    # Fix building libtool with LTO disabled.
     patch do
       url 'https://gist.githubusercontent.com/mistydemeo/9fc5589d568d2fc45fb5/raw/c752d5c4567809c10b14d623b6c2d7416211b33a/libtool-no-lto.diff'
       sha256 '3b687f2b9388ac6c4acac2b7ba28d9fd07f2a16e7d2dad09aa2255d98ec1632b'
     end
 
-    # strnlen patch only needed on Snow Leopard
+    # strnlen() patch is only needed on Snow Leopard.
     if MacOS.version == :snow_leopard
       patch :p0 do
         url 'https://trac.macports.org/export/129741/trunk/dports/devel/cctools/files/snowleopard-strnlen.patch'
         sha1 '31c083b056d4510702484436fc66f24cc8635060'
       end
     end
-  else  # use patches for version 806, supporting older OSes and PowerPC
+  else  # Use patches for version 806, supporting older OSes and PowerPC.
     depends_on 'cctools-headers' => :build
 
     patch :p0 do
@@ -77,7 +76,7 @@ class Cctools < Formula
       sha1 '65b8e2f7a877716fec82fcd2cd0c6c34adfdece3'
     end
 
-    # Despite the patch name this is needed on 806 too
+    # Despite the patch name, this is needed on 806 too.
     patch :p0 do
       url 'https://trac.macports.org/export/103985/trunk/dports/devel/cctools/files/cctools-822-no-lto.patch'
       sha1 'e58ee836dde4693e90a39579c20df45f067d75a1'
@@ -93,31 +92,7 @@ class Cctools < Formula
       sha1 '3d6cb1ff1443b8c1c68c21c9808833537f7ce48d'
     end
 
-    patch <<'END_OF_PATCH'
---- old/otool/Makefile
-+++ new/otool/Makefile
-# Remove $LIBS, which is set to the names of libraries that simply do not exist on a shipped system.
-# Otherwise, the otool executable somehow gets built with relocation entries in its (__TEXT,__text)
-# section, which ought to be read‐only.
-@@ -19,7 +19,7 @@
- 		     [ "$(RC_RELEASE)" = "SUPanWheat" ]; then \
- 		    echo "-static" ; \
- 	    else if [ "$(RC_RELEASE)" = "Tiger" ]; then \
--		    echo "-static" ; \
-+		    echo "" ; \
- 	    else \
- 		    echo "" ; \
- 	  fi; fi; )
-@@ -113,7 +113,7 @@
- 	$(CC) $(RC_CFLAGS) -nostdlib -r -o $(OBJROOT)/private.o \
- 		$(OBJS) $(LIBSTUFF)
- 	$(CC) $(RC_CFLAGS) $(SDK) -o $(SYMROOT)/$@ $(OBJROOT)/private.o \
--		$(LIBSTUFF) $(LIBS)
-+		$(LIBSTUFF)
- 
- vers.c:
- 	vers_string -c $(VERS_STRING_FLAGS) $(PRODUCT) > $(OFILE_DIR)/$@
-END_OF_PATCH
+    patch :DATA
   end
 
   def install
@@ -146,31 +121,25 @@ END_OF_PATCH
       RC_RELEASE=#{MacOS.version.pretty_name}
     ]
 
-    args << "RC_ARCHS=#{'ppc ppc64 ' if CPU.powerpc?}i386 x86_64"
+    args << "RC_ARCHS=#{Target.local_archs.as_build_archs}"
 
     system 'make', 'install_tools', *args
 
-    # The documentation is in a ridiculous place because it was built for Apple’s Developer/
-    # heirarchy.  Move it into doc/ where it belongs:
+    # The documentation, built for Apple’s Developer/ hierarchy, is in a ridiculous place.  Move it into doc/ where it belongs:
     doc.install prefix/'Developer/Documentation/DocSets/com.apple.ADC_Reference_Library.DeveloperTools.docset/Contents/Resources/Documents/documentation/DeveloperTools/CompilerTools.html'
 
-    # We didn’t build the obsolete `ld` from this package, but (on version 806, at least) `strip`
-    # expects it to be present and when called with certain options, will fail when it isn’t there.
-    # Fill in for it with a symlink to whatever other version we can find.
-    bin.install_symlink_to MacOS.ld
-
-    # cctools installs into a /-style prefix in the supplied DSTROOT,
-    # so need to move the files into the standard paths.
-    # Also merge the /usr and /usr/local trees.
+    # {cctools} installs relative to the supplied DSTROOT as though it were /, so we need to move things to the standard paths.  We
+    # also merge the /usr and /usr/local trees.
     man.install Dir["#{prefix}/usr/local/man/*"]
     prefix.install Dir["#{prefix}/usr/local/*"]
     bin.install Dir["#{prefix}/usr/bin/*"]
+    bin.install Dir["#{prefix}/efi/bin/*"]
     (include/'mach-o').install Dir["#{prefix}/usr/include/mach-o/*"]
-    man1.install Dir["#{prefix}/usr/share/man/man1/*"]
+    man1.install Dir["#{prefix}/{efi,usr}/share/man/man1/*"]
     man3.install Dir["#{prefix}/usr/share/man/man3/*"]
     man5.install Dir["#{prefix}/usr/share/man/man5/*"]
 
-    # These install locations changed between 806 and 855
+    # These install locations changed between 806 and 855.
     if MacOS.version >= :snow_leopard
       (libexec/'as').install Dir["#{prefix}/usr/libexec/as/*"]
     else
@@ -179,9 +148,31 @@ END_OF_PATCH
     end
   end # install
 
-  def caveats; 'cctools’ very obsolete version of ld is not built.'; end
-
   test do
     assert_match '/usr/lib/libSystem.B.dylib', shell_output("#{bin}/otool -L #{bin}/install_name_tool")
   end
 end # Cctools
+
+__END__
+--- old/otool/Makefile
++++ new/otool/Makefile
+# (806 only):  Remove $LIBS, which is set to the names of libraries that simply do not exist on a shipped system.  Otherwise, otool
+# somehow gets built with relocation entries in its (__TEXT,__text) section, which ought to be read‐only.
+@@ -19,7 +19,7 @@
+ 		     [ "$(RC_RELEASE)" = "SUPanWheat" ]; then \
+ 		    echo "-static" ; \
+ 	    else if [ "$(RC_RELEASE)" = "Tiger" ]; then \
+-		    echo "-static" ; \
++		    echo "" ; \
+ 	    else \
+ 		    echo "" ; \
+ 	  fi; fi; )
+@@ -113,7 +113,7 @@
+ 	$(CC) $(RC_CFLAGS) -nostdlib -r -o $(OBJROOT)/private.o \
+ 		$(OBJS) $(LIBSTUFF)
+ 	$(CC) $(RC_CFLAGS) $(SDK) -o $(SYMROOT)/$@ $(OBJROOT)/private.o \
+-		$(LIBSTUFF) $(LIBS)
++		$(LIBSTUFF)
+ 
+ vers.c:
+ 	vers_string -c $(VERS_STRING_FLAGS) $(PRODUCT) > $(OFILE_DIR)/$@
