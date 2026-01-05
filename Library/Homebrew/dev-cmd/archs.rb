@@ -12,32 +12,67 @@
 #:strange things that necessitate examining every last file within their kegs.)
 
 CPU_TYPES = {
-  '00000001' => 'VAX',
-  '00000002' => 'ROMP',
-  '00000004' => 'NS32032',
-  '00000005' => 'NS32332',
-  '00000006' => 'M68k',
-  '01000006' => 'A68k',
-  '00000007' => 'i386',
-  '01000007' => 'x86-64',
-  '00000008' => 'MIPS',
-  '01000008' => 'MIPS64',
-  '00000009' => 'NS32532',
-  '0000000a' => 'M98k',
-  '0000000b' => 'PA',
-  '0100000b' => 'PA64',
-  '0000000c' => 'ARM',
-  '0100000c' => 'ARM64',
-  '0200000c' => 'ARM64/32',
-  '0000000d' => 'M88k',
-  '0000000e' => 'SPARC',
-  '0100000e' => 'SPARC64',
-  '0000000f' => 'i860',
-  '01000010' => 'Alpha',
-  '00000011' => 'RS6000',
-  '00000012' => 'PPC',
-  '01000012' => 'PPC64',
-  '000000ff' => 'VEO',
+  '00000001' => 'VAX',       # DEC (PDP-11 successor; niche; obsolete)
+  '00000002' => 'ROMP',      # (instructional – never implemented?; obsolete)
+  '00000003' => 'secret3',   # ????
+  '00000004' => 'NS32032',   # NatSemi 32k (market failure; obsolete)
+  '00000005' => 'NS32332',   # NatSemi 32k (market failure; obsolete)
+  '00000006' => 'M68k',      # Motorola 680x0 (widely adopted; current; obsolete width)
+  '01000006' => 'A68k',      # (Apollo core [never by NeXT]; niche; current)
+  '00000007' => 'x86',       # Intel x86 (widely adopted; obsolete)
+  '01000007' => 'x86-64',    # AMD64 (widely adopted; current)
+  '00000008' => 'MIPS',      # MIPS (niche; current?; obsolete width)
+  '01000008' => 'MIPS64',    # MIPS (niche; current)
+  '00000009' => 'NS325332',  # NatSemi 32k (market failure; obsolete)
+  '0000000a' => 'M98k',      # Motorola 98601 (very early PowerPC; obsolete)
+  '0000000b' => 'PA',        # HP PA-RISC (market failure; obsolete)
+  '0100000b' => 'PA64',      # HP PA-RISC (market failure; obsolete)
+  '0000000c' => 'ARM',       # ARM (“arm/armel”; widely adopted; current; obsolete width)
+  '0100000c' => 'ARM64',     # ARM (“aarch64”; widely adopted; current)
+  '0200000c' => 'ARM64/32',  # ARM (32b code on 64b hardware; obsolete)
+  '0000000d' => 'M88k',      # Motorola 881x0 (e.g. Data General Aviion; market failure; obsolete)
+  '0000000e' => 'SPARC',     # Sun/OpenSPARC (niche; obsolete)
+  '0100000e' => 'SPARC64',   # Sun/OpenSPARC (niche; current?; obsolete)
+  '0000000f' => 'i860',      # Intel IA64 (technological and market failure; obsolete)
+  '01000010' => 'Alpha',     # DEC (market failure; obsolete)
+  '00000011' => 'RS6000',    # IBM (POWER) (niche; obsolete)
+  '00000012' => 'PPC',       # AIM PowerPC / OpenPOWER (niche; current; obsolete width)
+  '01000012' => 'PPC64',     # AIM PowerPC / OpenPOWER (niche; current)
+  '00000013' => 'secret19',  # ????
+  '00000014' => 'secret20',  # ????
+  '00000015' => 'secret21',  # ????
+  '00000016' => 'secret22',  # ????
+  '00000017' => 'secret23',  # ????
+  '00000018' => 'secret24',  # ????
+  '000000ff' => 'VEO',       # ????
+}.freeze
+
+ARM_SUBTYPES = {
+  '00000000' => 'arm‐*',
+  '00000005' => 'arm4t',
+  '00000006' => 'arm6',
+  '00000007' => 'arm5tej',
+  '00000008' => 'armxscale',
+  '00000009' => 'arm7a|7r',
+  '0000000a' => 'arm7f|cortexA9',
+  '0000000b' => 'arm7s|swift',
+  '0000000c' => 'arm7k',
+  '0000000d' => 'arm8',
+  '0000000e' => '(arm6m)',
+  '0000000f' => '(arm7m)',
+  '00000010' => '(arm7em)',
+  '00000011' => '(arm8m)',
+}.freeze
+
+ARM64_32_SUBTYPES = {
+  '00000000' => 'arm64/32‐*',
+  '00000001' => 'arm64/32_8',
+}.freeze
+
+ARM64_SUBTYPES = {
+  '00000000' => 'arm64‐*',
+  '00000001' => 'arm64_8',
+  '00000002' => 'arm64e',
 }.freeze
 
 PPC_SUBTYPES = {
@@ -53,7 +88,35 @@ PPC_SUBTYPES = {
   '00000009' => 'ppc750',
   '0000000a' => 'ppc7400',
   '0000000b' => 'ppc7450',
-  '00000064' => 'ppc970'
+  '00000064' => 'ppc970',
+}.freeze
+
+X86_SUBTYPES = {
+  '00000003' => 'x86‐*',
+  '00000004' => '486',
+  '00000084' => '486sx',
+  '00000005' => 'pentium',
+  '00000016' => 'pentpro',
+  '00000036' => 'pIIm3',
+  '00000056' => 'pIIm5',
+  '00000067' => 'celeron',
+  '00000077' => 'celeronM',
+  '00000008' => 'pIII',
+  '00000018' => 'pIIIm',
+  '00000028' => 'pIIIxeon',
+  '00000009' => 'pentM',
+  '0000000a' => 'pIV',
+  '0000001a' => 'pIVm',
+  '0000000b' => 'itanium',
+  '0000001b' => 'itanium2',
+  '0000000c' => 'xeon',
+  '0000001c' => 'xeonMP',
+}.freeze
+
+X86_64_SUBTYPES = {
+  '00000003' => 'x86-64-*',
+  '00000004' => 'x86-64arch1',
+  '00000008' => 'x86-64h',
 }.freeze
 
 module TerminalANSI # standard terminal display-control sequences (yes, can be a wrong assumption)
@@ -172,9 +235,13 @@ module Homebrew
 
     def cpu_valid(type, subtype)
       case CPU_TYPES[type]
-        when %r{^ARM}, 'i386', 'x86-64' then CPU_TYPES[type].downcase.gsub(%r{[-/]}, '_')
-        when 'PPC'   then PPC_SUBTYPES[subtype]
-        when 'PPC64' then 'ppc64'
+        when 'ARM'      then ARM_SUBTYPES[subtype]
+        when 'ARM64'    then ARM64_SUBTYPES[subtype]
+        when 'ARM64/32' then ARM64_32_SUBTYPES[subtype]
+        when 'x86'      then X86_SUBTYPES[subtype]
+        when 'PPC'      then PPC_SUBTYPES[subtype]
+        when 'PPC64'    then 'ppc64'
+        when 'x86-64'   then X86_64_SUBTYPES[subtype]
         else nil
       end
     end # cpu_valid
@@ -257,7 +324,7 @@ module Homebrew
         oho "#{in_white("#{keg.name} #{keg.path.basename}")} appears to contain #{in_yellow('no valid Mach-O files')}."
         no_archs_msg = true
       else # there are arch reports
-        machO_count = arch_reports.values.sum
+        machO_count = arch_reports.values.isum
         combo_count = arch_reports.length
         ohey("#{in_white("#{keg.name} #{keg.path.basename}")} appears to contain some foreign code:", alien_reports * '') \
                                                                                                              if alien_reports != []
@@ -291,4 +358,4 @@ module Homebrew
   end # archs
 end # Homebrew
 
-class Array; def sum; total = 0; each{ |e| total += e.to_i }; total; end; end
+class Array; def isum; total = 0; each{ |e| total += e.to_i }; total; end; end
