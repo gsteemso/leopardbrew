@@ -134,6 +134,8 @@ class Cctools < Formula
     prefix.install Dir["#{prefix}/usr/local/*"]
     bin.install Dir["#{prefix}/usr/bin/*"]
     bin.install Dir["#{prefix}/efi/bin/*"]
+    # `strip` expects the presence of `ld`, and under certain conditions will crash if it isn’t there.
+    bin.install_symlink_to MacOS.ld => 'ld'
     (include/'mach-o').install Dir["#{prefix}/usr/include/mach-o/*"]
     man1.install Dir["#{prefix}/{efi,usr}/share/man/man1/*"]
     man3.install Dir["#{prefix}/usr/share/man/man3/*"]
