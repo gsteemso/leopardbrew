@@ -4,14 +4,15 @@ class AppleGcc42 < Formula
   homepage 'http://https://opensource.apple.com/releases/'
   url 'https://github.com/apple-oss-distributions/gcc/archive/refs/tags/gcc-5666.3.tar.gz'
   version '4.2.1-5666.3'
-  revision 1  # For the crt0 fix.
+  revision 1  # For the crt0 & libssp fixes.
   sha256 '2e9889ce0136f5a33298cf7cce5247d31a5fb1856e6f301423bde4a81a5e7ea6'
 
   keg_only :provided_by_osx if MacOS.version > :tiger and MacOS.version < :lion
 
+  option :universal
   option 'with-arm', 'Build with 32‐bit ARM support for iOS, etc' if MacOS.iPhone_SDK_present?
 
-  # Make sure we have a suitable `as` for every target (& don’t do “:cctools”, it won’t necessarily pull in the actual formula).
+  # Make sure we have a suitable `as` for every target (& don’t put as “:cctools”, it won’t necessarily pull in the actual formula).
   depends_on 'cctools' if build.with? 'arm'
 
   enhanced_by :nls
@@ -68,43 +69,52 @@ END_OF_PATCH
   end # :leopard or :snow_leopard?
 
   def croak_no_ios_sdk
-    raise CannotInstallFormulaError, 'Can’t make compilers for ARM; the iPhoneOS SDK was not found.'
+    raise CannotInstallFormulaError, 'Can’t make compilers for ARM; a working iPhoneOS SDK was not found.'
   end
 
   def install
+    ENV.single_arch_binary if build.universal?
+    ENV.without_archflags  # The build script takes care of them.
+
     inreplace 'build_gcc', '@@OPTDIR@@', OPTDIR.to_s
     inreplace 'build_gcc', '@@BREW_CCTOOLBIN@@', (build.with?('arm') ? "#{OPTDIR}/cctools/bin" : '/usr/bin')
     inreplace 'gcc/config.host', '@@RUNNING_32_ON_64@@', ((CPU._64b? and not Target.prefer_64b?) ? 'yes' : 'no')
-    inreplace 'gcc/config/rs6000/t-darwin', 'isysroot/Developer/SDKs/MacOSX10.5.sdk', "isysroot#{MacOS.sdk_path}"
-    inreplace 'gcc/config/rs6000/t-darwin', /mmacosx-version-min=10.\d/, "mmacosx-version-min=#{MacOS.version}"
+    if MacOS.version <= :leopard
+      inreplace 'gcc/config/rs6000/t-darwin', 'isysroot/Developer/SDKs/MacOSX10.5.sdk', ''
+      inreplace 'gcc/config/rs6000/t-darwin', /mmacosx-version-min=10.\d/, "mmacosx-version-min=#{MacOS.version}"
+    end
 
+    arm_archs = nil
     if build.with? 'arm'
       arm_toolroot = MacOS.active_developer_dir/'Platforms/iPhoneOS.platform/Developer'
-      if arm_toolroot.directory? and (arm_toolroot/'SDKs').directory?
-        arm_SDKs = Dir.glob("#{arm_toolroot}/SDKs/iPhoneOS*.sdk")
-        if arm_SDKs.empty? then croak_no_ios_sdk
-        else
-          highest_SDK_version = (arm_SDKs.map{ |f| File.basename(f, '.sdk').sub(/^iPhoneOS/, '') }.sort)[-1]
-          ENV['ARM_TOOLROOT'] = arm_toolroot.to_s
-          ENV['ARM_SYSROOT'] = "#{arm_toolroot}/SDKs/iPhoneOS#{highest_SDK_version}.sdk"
-        end
-      else croak_no_ios_sdk; end
+      croak_no_ios_sdk unless arm_toolroot.directory? and (arm_toolroot/'SDKs').directory?
+      arm_SDKs = Dir.glob("#{arm_toolroot}/SDKs/iPhoneOS*.sdk")
+      croak_no_ios_sdk if arm_SDKs.empty?
+      highest_SDK_version = (arm_SDKs.map{ |f| File.basename(f, '.sdk').sub(/^iPhoneOS/, '') }.sort)[-1]
+      ENV['ARM_TOOLROOT'] = arm_toolroot.to_s
+      ENV['ARM_SYSROOT'] = "#{arm_toolroot}/SDKs/iPhoneOS#{highest_SDK_version}.sdk"
+      # This does pick up the correct `lipo` (in {cctools}), thanks to it being in the $PATH.
+      lipo_command_line = "lipo -info \"$ARM_SYSROOT/usr/lib/libSystem.dylib\" | cut -d ':' -f 3 -s"
+      arm_archs = Utils.popen_read(lipo_command_line).split(' ').select{ |a| a =~ %r{^arm} }.join(' ')
+      croak_no_ios_sdk if arm_archs.empty?
     end # build.with? 'arm'
-    ENV['FORCE_64b_BUILD'] = 'TRUE' if Target.prefer_64b?
+
     ENV['LOCAL_MAKEFLAGS'] = ENV['MAKEFLAGS']
     ENV['Build_Root']      = "#{buildpath}/build"
-    ENV['NON_ARM_SYSROOT'] = MacOS.sdk_path.to_s
 
-    arg1_host_archs      = Target.archset.as_build_archs
-    arg2_target_archs    = (MacOS.version >= :tiger ? (build.with?('arm') ? 'ppc i386 arm' : 'ppc i386') : 'ppc')
-    arg3_source_root     = buildpath.to_s
+    # Apple’s modifications to GCC presuppose always building with multilib, to an extent that is needlessly awkward to disentangle.
+    # Further, building 64‐bit produces unstable results, at best.  As a result, we must always build in 32‐bit mode with multilibs.
+    arg1_host_archs      = Target.tool_host_archset._32b_subset.as_build_archs
+    arg2_target_archs    = Target.tool_target_archset._32b_subset.as_build_archs
+    arg2_target_archs    += " #{arm_archs}" if build.with? 'arm'
+    arg3_source_root     = buildpath
     arg4_prefix_2_unused = ''
     arg5_install_prefix  = prefix
-    arg6_debugsym_unused = "#{buildpath}/build/sym"
+    arg6_debugsym_unused = buildpath/'build/sym'
 
     # With relatively minor patching, Apple’s build_gcc builds & installs right into #prefix for us.
-    system "#{buildpath}/build_gcc", arg1_host_archs, arg2_target_archs, arg3_source_root,
-      arg4_prefix_2_unused, arg5_install_prefix, arg6_debugsym_unused
+    system buildpath/'build_gcc', arg1_host_archs, arg2_target_archs, arg3_source_root, arg4_prefix_2_unused, arg5_install_prefix,
+                                  arg6_debugsym_unused
   end # install
 
   def caveats
@@ -113,7 +123,7 @@ END_OF_PATCH
       (the last available from Apple’s open‐source distributions).  All compilers have
       a “-4.2” suffix.
     EOS
-    caveat_text += <<-_.undent if MacOS.version >= '10.5' and (build.with? 'arm' or not installed?)
+    caveat_text += <<-_.undent if CPU.powerpc? and (build.with? 'arm' or not installed?)
 
       Building the ARM compilers on PowerPC can be problematic.  The only releases of
       the SDK that ran on Power Macs were removed from Apple’s servers years ago, and
@@ -286,19 +296,18 @@ __END__
 +++ new/build_gcc
 # - Make a way to detranslate GCC architecture names back to Apple ones.
 # - Improve the filtering of architecture names.
-# - Accommodate non-default native builds (such as ppc64).
 # - Since we aren’t using the feature that puts two prefixes on everything, set the “inner” one to the null string.
 # - Allow setting the working build directory by environment variable, rather than by having to cd to it before running this script.
 # - Use the `lipo` from cctools when building for ARM – it’s newer and can handle ARM slices.
 # - Don’t look in weird places for the C++ standard library.
+# - Do not set an include directory for outputting the C++ standard library headers.
 # - Since older xcodebuild knows nothing of “Path” or “PlatformPath” (and there’s no clue as to what exactly $ARM_SDK ought to hold
 #   even if those would be understood), bypass them via an environment variable.
 # - Reörder the arm configuration so it is consistent across all methods of setting its initial values.
-# - Use the correct $*_CONFIGFLAGS for the build architecture, without referencing the 10.5 SDK on Tiger.
+# - Use the correct $*_CONFIGFLAGS for the build architecture, and reference the 10.5 SDK if building for PPC on a later Darwin.
 # - Use the part of the split prefix that we DIDN’T set to the null string.
 # - Put shared libraries in the correct location.
-# - Use the architecture‐specific tools from cctools, if we are building for ARM and so know they are available (except the unbuilt
-#  “classic” ld, which we must configure separately).
+# - Use the architecture‐specific tools from cctools, if we are building for ARM and so know they are available.
 # - Let our `as` interposer scripts rewrite mistaken -arch flags, and symlink the relevant one as just “as” for each added compiler
 #   we build.
 # - When building the cross‐hosted compilers and we know cctools are available, make sure they are in $COMPILER_PATH, & set $prefix
@@ -311,7 +320,7 @@ __END__
 # - Don’t bother generating debugging data.  It gets discarded.
 # - Don’t try to strip libgcc.*.dylib, nor anything in cctools, nor anything under /usr.
 # - Don’t chgrp.  It does nothing useful, and as we aren’t in the destination group (“wheel”), it fails messily.
-@@ -5,9 +5,11 @@
+@@ -5,9 +5,10 @@
  
  # -arch arguments are different than configure arguments. We need to
  # translate them.
@@ -319,48 +328,45 @@ __END__
 -TRANSLATE_ARCH="sed -e s/ppc/powerpc/ -e s/i386/i686/ -e s/armv6/arm/"
 -OMIT_X86_64="sed -e s/x86_64//"
 +TRANSLATE_ARCH='sed -e s/ppc64/powerpc64/ -e s/ppc[0-9]*/powerpc/g -e s/i386/i686/ -e s/arm[a-z0-9]*/arm/g'
-+DETRANSLATE_ARCH='sed -e s/powerpc/ppc/g -e s/i686/i386/'  # arm doesn’t need detranslation
-+Chomp () { [ -z $1 ] && return 0; case "${1:${#1}-1:1}" in ([[:blank:]]) echo "${1:0:${#1}-1}"; return 0;; esac; echo "$1"; }
-+Uniq_Word_Sort () { local Argv="$*"; echo "$(Chomp "$(echo $Argv | tr -s ' ' $'\n' | sort -u | tr -s $'\n' ' ')")"; }
-+UN_64='sed -e s/x86_64/i686/ -e s/powerpc64/powerpc/'  # can't have 64b platform names in certain places
++DETRANSLATE_ARCH='sed -e s/powerpc/ppc/g -e s/i686/i386/'  # arm & x86_64 don’t need detranslation
++UN_64='sed -e s/powerpc64/powerpc/ -e s/x86_64/i686/'      # we’re going to be `uniq`ing anyway; make sure nothing gets missed
++Uniq_Word_Sort () { local Argv="$*"; echo "$(echo $Argv | tr -s ' ' $'\n' | sort -u | tr -s $'\n' ' ')"; }
  
  # Build GCC the "Apple way".
  # Parameters:
-@@ -15,13 +17,13 @@
+@@ -15,13 +16,13 @@
  # The first parameter is a space-separated list of the architectures
  # the compilers will run on.  For instance, "ppc i386".  If the
  # current machine isn't in the list, it will (effectively) be added.
 -HOSTS=`echo $1 | $TRANSLATE_ARCH `
-+HOSTS="$(Uniq_Word_Sort "$(echo "$1" | $TRANSLATE_ARCH)")"
+#`
++HOSTS="$(Uniq_Word_Sort "$(echo "$1" | $TRANSLATE_ARCH | $UN_64)")"
  
  # The second parameter is a space-separated list of the architectures the
  # compilers will generate code for.  If the current machine isn't in
  # the list, a compiler for it will get built anyway, but won't be
  # installed.
 -TARGETS=`echo $2 | $TRANSLATE_ARCH | $OMIT_X86_64`
-+TARGETS="$(Uniq_Word_Sort "$(echo "$2" | $TRANSLATE_ARCH | $UN_64)")"   # this`s much more elegant
+#`
++TARGETS="$(Uniq_Word_Sort "$(echo "$2" | $TRANSLATE_ARCH | $UN_64)")"
  
  # The GNU makefile target ('bootstrap' by default).
  BOOTSTRAP=${BOOTSTRAP-bootstrap}
-@@ -38,10 +40,16 @@
+@@ -38,10 +39,10 @@
  # $RC_NONARCH_CFLAGS (and mysteriously prepends '-pipe' thereto).
  # We will allow this to override the default $CFLAGS and $CXXFLAGS.
  
 -CFLAGS="-g -O2 ${RC_NONARCH_CFLAGS/-pipe/}"
-+cF='-g -Os' export CFLAGS="$cF" CXXFLAGS="$cF"  # no `as`-bug '-pipe' needed (interposed script does it)
++cF='-g -Os'; export CFLAGS="$cF" CXXFLAGS="$cF"  # no `as`-bug '-pipe' needed (interposed script does it)
  
  # This isn't a parameter; it is the architecture of the current machine.
- BUILD=`arch | $TRANSLATE_ARCH`
-+if [ "x$FORCE_64b_BUILD" != 'x' ]; then case $BUILD in   # this`s a curiously overlooked use case
-+  powerpc) BUILD=powerpc64; export XCFLAGS='-m64'; CFLAGS="$cF -m64"; CFLAGS_FOR_BUILD="$cF -m64"; CPPFLAGS='-m64';;
-+  i686)    BUILD=x86_64   ; export XCFLAGS='-m64'; CFLAGS="$cF -m64"; CFLAGS_FOR_BUILD="$cF -m64"; CPPFLAGS='-m64';;
-+  arm|*64) ;;
-+  *) echo 'Unrecognized build-machine architecture'; exit 1;;
-+esac; fi
+-BUILD=`arch | $TRANSLATE_ARCH`
+#`
++BUILD="$(arch | $TRANSLATE_ARCH | $UN_64)  # With everything multilib’d, building both i686 & x86_64 compilers’d be inefficient.
  
  # The third parameter is the path to the compiler sources.  There should
  # be a shell script named 'configure' in this directory.  This script
-@@ -51,7 +59,7 @@
+@@ -51,7 +52,7 @@
  # The fourth parameter is the location where the compiler will be installed,
  # normally "/usr".  You can move it once it's built, so this mostly controls
  # the layout of $DEST_DIR.
@@ -369,20 +375,22 @@ __END__
  
  # The fifth parameter is the place where the compiler will be copied once
  # it's built.
-@@ -65,7 +73,7 @@
+@@ -65,7 +66,7 @@
  # The current working directory is where the build will happen.
  # It may already contain a partial result of an interrupted build,
  # in which case this script will continue where it left off.
 -DIR=`pwd`
-+DIR="${Build_Root:-$(pwd)}"; if ! [ -d "$DIR" ]; then mkdir -p "$DIR"; fi   # this`s easier than having to chdir first
+#`
++DIR="${Build_Root:-$(pwd)}"; if ! [ -d "$DIR" ]; then mkdir -p "$DIR"; fi
  
  # This isn't a parameter; it's the version of the compiler that we're
  # about to build.  It's included in the names of various files and
-@@ -79,25 +87,23 @@
+@@ -79,25 +80,24 @@
  # to be built.  It's VERS but only up to the second '.' (if there is one).
  MAJ_VERS=`echo $VERS | sed 's/\([0-9]*\.[0-9]*\)[.-].*/\1/'`
+#`
  
-+LIPO=@@BREW_CCTOOLBIN@@/lipo  # Varies according to whether we`re accommodating ARM.
++LIPO=@@BREW_CCTOOLBIN@@/lipo  # Varies according to whether we’re accommodating ARM.
 +
  # This is the libstdc++ version to use.
  LIBSTDCXX_VERSION=4.2.1
@@ -391,41 +399,44 @@ __END__
    LIBSTDCXX_VERSION=4.0.0
  fi
 -NON_ARM_CONFIGFLAGS="--with-gxx-include-dir=\${prefix}/include/c++/$LIBSTDCXX_VERSION"
-+NON_ARM_CONFIGFLAGS="--with-gxx-include-dir=/usr/include/c++/$LIBSTDCXX_VERSION"
-+NON_ARM_CONFIGFLAGS="$NON_ARM_CONFIGFLAGS --with-build-sysroot=\"${NON_ARM_SYSROOT:-/}\""
++NON_ARM_CONFIGFLAGS="--with-build-sysroot=\"${NON_ARM_SYSROOT:-/}\""
  
 -# Build against the MacOSX10.5 SDK for PowerPC.
 -PPC_SYSROOT=/Developer/SDKs/MacOSX10.5.sdk
 -PPC_CONFIGFLAGS="$NON_ARM_CONFIGFLAGS --with-build-sysroot=\"$PPC_SYSROOT\""
-+PPC_CONFIGFLAGS="$NON_ARM_CONFIGFLAGS"
  
  DARWIN_VERS=`uname -r | sed 's/\..*//'`
+#`
  echo DARWIN_VERS = $DARWIN_VERS
  
++if [ "$DARWIN_VERS" -gt '9' ]; then PPC_root=/Developer/SDKs/MacOSX10.5.sdk; else PPC_root=/; fi
++PPC_CONFIGFLAGS="--with-build-sysroot=${PPC_SYSROOT:-$PPC_root}"
++
  # APPLE LOCAL begin ARM
 -ARM_LIBSTDCXX_VERSION=4.2.1
 -ARM_CONFIGFLAGS="--with-gxx-include-dir=/usr/include/c++/$ARM_LIBSTDCXX_VERSION"
 -
 -if [ -n "$ARM_SDK" ]; then
-+if [ -n "$ARM_TOOLROOT" ] && [ -n "$ARM_SYSROOT" ]; then : ; elif [ -n "$ARM_SDK" ]; then
++if [ -z "$ARM_TOOLROOT" -o -z "$ARM_SYSROOT" ]; then if [ -n "$ARM_SDK" ]; then
  
    ARM_PLATFORM=`xcodebuild -version -sdk $ARM_SDK PlatformPath`
    ARM_SYSROOT=`xcodebuild -version -sdk $ARM_SDK Path`
-@@ -127,22 +133,34 @@
+#`
+@@ -127,22 +127,33 @@
    ARM_TOOLROOT=/
  
  fi
-+
-+ARM_LIBSTDCXX_VERSION='4.2.1'   # this`s more wishful thinking than anything real
+-ARM_CONFIGFLAGS="$ARM_CONFIGFLAGS --with-build-sysroot=\"$ARM_SYSROOT\""
++fi
++ARM_LIBSTDCXX_VERSION='4.2.1'
 +if ! [ -d "$ARM_SYSROOT/usr/include/c++/$ARM_LIBSTDCXX_VERSION" ]; then
 +  ARM_LIBSTDCXX_VERSION='4.0.0'
 +fi
-+ARM_CONFIGFLAGS="--with-gxx-include-dir=$ARM_SYSROOT/usr/include/c++/$ARM_LIBSTDCXX_VERSION"
- ARM_CONFIGFLAGS="$ARM_CONFIGFLAGS --with-build-sysroot=\"$ARM_SYSROOT\""
++ARM_CONFIGFLAGS="--with-build-sysroot=\"$ARM_SYSROOT\""
 +
 +case $BUILD in
-+  powerpc*) BUILD_CONFIGFLAGS="$PPC_CONFIGFLAGS";;
-+  i686|x86_64) BUILD_CONFIGFLAGS="$NON_ARM_CONFIGFLAGS";;
++  powerpc) BUILD_CONFIGFLAGS="$PPC_CONFIGFLAGS";;
++  i686) BUILD_CONFIGFLAGS="$NON_ARM_CONFIGFLAGS";;
 +  arm) BUILD_CONFIGFLAGS="$ARM_CONFIGFLAGS";;
 +esac
  
@@ -445,11 +456,21 @@ __END__
    fi
    if [ "x$ARM_MULTILIB_ARCHS" = "x" ] ; then
 -    ARM_MULTILIB_ARCHS=`/usr/bin/lipo -info $ARM_SYSROOT/usr/lib/libSystem.dylib | cut -d':' -f 3 | sed -e 's/x86_64//' -e 's/i386//' -e 's/ppc7400//' -e 's/ppc64//' -e 's/^ *//' -e 's/ $//'`
-+    ARM_MULTILIB_ARCHS="$($LIPO -info $ARM_SYSROOT/usr/lib/libSystem.dylib | cut -d':' -f 3 | sed -E -e 's/x86_64//' -e 's/i386//' -e 's/ppc[0-9]*//g' -e 's/^ *//' -e 's/ *$//')"   # this`s more comprehensive than the original
+#`
++    ARM_MULTILIB_ARCHS="$($LIPO -info $ARM_SYSROOT/usr/lib/libSystem.dylib | cut -d':' -f 3 | sed -E -e 's/x86_64//' -e 's/i386//' -e 's/ppc[0-9]*//g' -e 's/^ *//' -e 's/ *$//')"
    fi;
    if [ "x$ARM_MULTILIB_ARCHS" == "x" ] ; then
      echo "Error: missing ARM slices in $ARM_SYSROOT"
-@@ -174,11 +192,12 @@
+@@ -166,19 +177,21 @@
+ rm -rf $SRC_DIR || exit 1
+ mkdir $SRC_DIR || exit 1
+ ln -s $ORIG_SRC_DIR/* $SRC_DIR/ || exit 1
++offset="${DIR#${ORIG_SRC_DIR}/}"; if "$offset" != "$DIR"; then rm "$SRC_DIR/${offset%%/*}" || exit 1; fi  # avoid symlink loop
+ rm -rf $SRC_DIR/tcl $SRC_DIR/expect $SRC_DIR/dejagnu || exit 1
+ # Also remove libstdc++ since it is built from a separate project.
+ # rm -rf $SRC_DIR/libstdc++-v3 || exit 1
+ # Clean out old specs files
+ rm -f /usr/lib/gcc/*/4.0.0/specs
  
  # These are the configure and build flags that are used.
  CONFIGFLAGS="--disable-checking --enable-werror \
@@ -464,7 +485,7 @@ __END__
    --build=$BUILD-apple-darwin$DARWIN_VERS"
  
  # Figure out how many make processes to run.
-@@ -215,62 +234,62 @@
+@@ -215,62 +228,62 @@
  mkdir -p $DIR/obj-$BUILD-$BUILD $DIR/dst-$BUILD-$BUILD || exit 1
  cd $DIR/obj-$BUILD-$BUILD || exit 1
  if [ \! -f Makefile ]; then
@@ -481,7 +502,7 @@ __END__
 -make $MAKEFLAGS html CFLAGS="$CFLAGS" CXXFLAGS="$CFLAGS" || exit 1
 -make $MAKEFLAGS DESTDIR=$DIR/dst-$BUILD-$BUILD install-gcc install-target \
 -  CFLAGS="$CFLAGS" CXXFLAGS="$CFLAGS" || exit 1
-+make $MAKEFLAGS || exit 1;     make $MAKEFLAGS html || exit 1       # don`t need CFLAGS et al when exported
++make $MAKEFLAGS || exit 1; make $MAKEFLAGS html || exit 1  # don’t need CFLAGS et al when exported
 +make $MAKEFLAGS prefix=$DIR/dst-$BUILD-$BUILD install-gcc install-target || exit 1
  
  # Add the compiler we just built to the path, giving it appropriate names.
@@ -501,7 +522,7 @@ __END__
  mkdir $DIR/bin || exit 1
 -for prog in ar nm ranlib strip lipo ld ; do
 -  for t in `echo $TARGETS $HOSTS | sort -u`; do
-+for prog in ar nm ranlib strip lipo ; do
++for prog in ar nm ranlib strip lipo; do
 +  for t in $UNIQUE_ARCHS; do
      P=$DIR/bin/${t}-apple-darwin$DARWIN_VERS-${prog}
 -    # APPLE LOCAL begin toolroot
@@ -520,6 +541,7 @@ __END__
  done
 -for t in `echo $1 $2 | sort -u`; do
 -  gt=`echo $t | $TRANSLATE_ARCH`
+#`
 -  P=$DIR/bin/${gt}-apple-darwin$DARWIN_VERS-as
 -  # APPLE LOCAL begin toolroot
 -  if [ $gt = "arm" ]; then
@@ -533,7 +555,7 @@ __END__
 -  # APPLE LOCAL insert toolroot below
 -  echo 'for a; do case $a in -arch) exec '${toolroot}'/usr/bin/as "$@";;  esac; done' >> $P || exit 1
 -  echo 'exec '${toolroot}'/usr/bin/as -arch '${t}' "$@"' >> $P || exit 1
-+for t in $UNIQUE_ARCHS; do   # this`s much simpler when precalculated
++for t in $UNIQUE_ARCHS; do
 +  P=$DIR/bin/${t}-apple-darwin$DARWIN_VERS-ld
 +  if [ $t = "arm" ]; then toolroot="$ARM_TOOLROOT"; else toolroot= ; fi
 +  echo '#!/bin/sh' >$P || exit 1; echo 'exec '${toolroot}'/usr/bin/ld "$@"' >>$P || exit 1
@@ -560,18 +582,19 @@ __END__
    chmod a+x $P || exit 1
  done
  PATH=$DIR/bin:$PATH
-@@ -279,15 +298,17 @@
+@@ -279,15 +292,16 @@
  # one of our hosts, add all of the targets to the list.
  if echo $HOSTS | grep $BUILD
  then
 -  CROSS_TARGETS=`echo $TARGETS $HOSTS | tr ' ' '\n' | sort -u`
-+  CROSS_TARGETS="$UNIQUE_ARCHS"   # this`s much simpler when precalculated
+#`
++  CROSS_TARGETS="$UNIQUE_ARCHS"
  else
-   CROSS_TARGETS="$HOSTS"
+-  CROSS_TARGETS="$HOSTS"
++  CROSS_TARGETS="$TARGETS"
  fi
  
  # Build the cross-compilers, using the compiler we just built.
-+CFLAGS="$cF"; CXXFLAGS="$cF"; CPPFLAGS= ; XCFLAGS=
  for t in $CROSS_TARGETS ; do
   if [ $t != $BUILD ] ; then
    mkdir -p $DIR/obj-$BUILD-$t $DIR/dst-$BUILD-$t || exit 1
@@ -579,20 +602,16 @@ __END__
     cd $DIR/obj-$BUILD-$t || exit 1
     if [ \! -f Makefile ]; then
      # APPLE LOCAL begin ARM ARM_CONFIGFLAGS
-@@ -302,25 +323,29 @@
+@@ -302,25 +316,25 @@
        LD_FOR_TARGET=$DIR/bin/${t}-apple-darwin$DARWIN_VERS-ld \
        $SRC_DIR/configure $T_CONFIGFLAGS $ARM_CONFIGFLAGS || exit 1
      elif [ $t = 'powerpc' ] ; then
 -      $SRC_DIR/configure $T_CONFIGFLAGS $PPC_CONFIGFLAGS || exit 1
 -    else
 -      $SRC_DIR/configure $T_CONFIGFLAGS $NON_ARM_CONFIGFLAGS || exit 1
-+      CFLAGS_FOR_TARGET="$cF -m32" $SRC_DIR/configure $T_CONFIGFLAGS $PPC_CONFIGFLAGS || exit 1
-+    elif [ $t = 'powerpc64' ]; then
-+      CFLAGS_FOR_TARGET="$cF -m64" $SRC_DIR/configure $T_CONFIGFLAGS $PPC_CONFIGFLAGS || exit 1
++      TCFLAGS="$cF -m32"; $SRC_DIR/configure $T_CONFIGFLAGS $PPC_CONFIGFLAGS || exit 1
 +    elif [ $t = 'i686' ]; then
-+      CFLAGS_FOR_TARGET="$cF -m32" $SRC_DIR/configure $T_CONFIGFLAGS $NON_ARM_CONFIGFLAGS || exit 1
-+    elif [ $t = 'x86_64' ]; then
-+      CFLAGS_FOR_TARGET="$cF -m64" $SRC_DIR/configure $T_CONFIGFLAGS $NON_ARM_CONFIGFLAGS || exit 1
++      TCFLAGS="$cF -m32"; $SRC_DIR/configure $T_CONFIGFLAGS $NON_ARM_CONFIGFLAGS || exit 1
 +    else echo 'unrecognized target architecture!' >2; exit 1
      fi
      # APPLE LOCAL end ARM ARM_CONFIGFLAGS
@@ -613,11 +632,12 @@ __END__
  for t in $CROSS_TARGETS ; do
    DT=$DIR/dst-$BUILD-$t
 -  D=`echo $DT/usr/lib/gcc/$t-apple-darwin$DARWIN_VERS/$VERS`
-+  D=$(echo $DT$DEST_ROOT/lib/gcc/$t-apple-darwin$DARWIN_VERS/$VERS)   # don`t hard-code /usr
+#`
++  D=$(echo $DT$DEST_ROOT/lib/gcc/$t-apple-darwin$DARWIN_VERS/$VERS)
    mv $D/static/libgcc.a $D/libgcc_static.a || exit 1
    mv $D/kext/libgcc.a $D/libcc_kext.a || exit 1
    rm -r $D/static $D/kext || exit 1
-@@ -337,6 +362,7 @@
+@@ -337,6 +351,7 @@
    if [ $h != $BUILD ] ; then
      for t in $TARGETS ; do
        mkdir -p $DIR/obj-$h-$t $DIR/dst-$h-$t || exit 1
@@ -625,7 +645,7 @@ __END__
        cd $DIR/obj-$h-$t || exit 1
        if [ $h = $t ] ; then
  	pp=
-@@ -360,27 +386,24 @@
+@@ -360,27 +375,24 @@
  	# APPLE LOCAL end ARM ARM_CONFIGFLAGS
        fi
  
@@ -659,7 +679,7 @@ __END__
      done
    fi
  done
-@@ -395,7 +418,7 @@
+@@ -395,7 +407,7 @@
  rm -rf * || exit 1
  
  # HTML documentation
@@ -668,7 +688,7 @@ __END__
  mkdir -p ".$HTMLDIR" || exit 1
  cp -Rp $DIR/obj-$BUILD-$BUILD/gcc/HTML/* ".$HTMLDIR/" || exit 1
  
-@@ -420,36 +443,35 @@
+@@ -420,36 +432,35 @@
    done
    for f in $LIBEXEC_FILES ; do
      if file $DIR/dst-*-$t$DL/$f | grep -q 'Mach-O executable' ; then
@@ -687,14 +707,16 @@ __END__
  # The native drivers ('native' is different in different architectures).
  BIN_FILES=`ls $DIR/dst-$BUILD-$BUILD$DEST_ROOT/bin | grep '^[^-]*-[0-9.]*$' \
    | grep -v gccbug | grep -v gcov || exit 1`
+#`
  mkdir .$DEST_ROOT/bin
  for f in $BIN_FILES ; do
 -  lipo -output .$DEST_ROOT/bin/$f -create $DIR/dst-*$DEST_ROOT/bin/$f || exit 1
-+  $LIPO -output .$DEST_ROOT/bin/$f -create $DIR/dst-*$DEST_ROOT/bin/$f || exit 1   # don`t use the wrong lipo
++  $LIPO -output .$DEST_ROOT/bin/$f -create $DIR/dst-*$DEST_ROOT/bin/$f || exit 1
  done
  # gcov, which is special only because it gets built multiple times and lipo
  # will complain if we try to add two architectures into the same output.
  TARG0=`echo $TARGETS | cut -d ' ' -f 1`
+#`
 -lipo -output .$DEST_ROOT/bin/gcov-$MAJ_VERS -create \
 +$LIPO -output .$DEST_ROOT/bin/gcov-$MAJ_VERS -create \
    $DIR/dst-*-$TARG0$DEST_ROOT/bin/*gcov* || exit 1
@@ -712,7 +734,7 @@ __END__
      $DIR/dst-*-$t$DEST_ROOT/bin/$t-apple-darwin$DARWIN_VERS-g++* || exit 1
    fi
  done
-@@ -460,7 +482,16 @@
+@@ -460,7 +471,16 @@
    cp -Rp $DIR/dst-$BUILD-$t$DEST_ROOT/lib/gcc/$t-apple-darwin$DARWIN_VERS \
      .$DEST_ROOT/lib/gcc || exit 1
  done
@@ -729,15 +751,16 @@ __END__
  # APPLE LOCAL begin native compiler support
  # libgomp is not built for ARM
  LIBGOMP_TARGETS=`echo $TARGETS | sed -E -e 's/(^|[[:space:]])arm($|[[:space:]])/ /'`
-@@ -489,6 +519,7 @@
+#`
+@@ -489,6 +509,7 @@
      done
  done
  # APPLE LOCAL end native compiler support
-+fi   # didn`t need any of that cruft
++fi
  
  if [ $BUILD_CXX -eq 1 ]; then
  for t in $TARGETS ; do
-@@ -518,7 +550,7 @@
+@@ -518,7 +539,7 @@
  # providing them.
  cd $SRC_DIR/more-hdrs
  for h in `echo *.h` ; do
@@ -746,7 +769,7 @@ __END__
      cp -R $h $DEST_DIR$HEADERPATH/$h || exit 1
      for t in $TARGETS ; do
        THEADERPATH=$DEST_DIR$DEST_ROOT/lib/gcc/${t}-apple-darwin$DARWIN_VERS/$VERS/include
-@@ -555,16 +587,16 @@
+@@ -555,16 +576,16 @@
  	-liberty -L$DIR/dst-$BUILD-$h$DEST_ROOT/lib/                           \
  	-L$DIR/dst-$BUILD-$h$DEST_ROOT/$h-apple-darwin$DARWIN_VERS/lib/                    \
          -L$DIR/obj-$h-$BUILD/libiberty/                                        \
@@ -765,7 +788,7 @@ __END__
      if [ $BUILD_CXX -eq 1 ]; then
  	$DIR/dst-$BUILD-$h$DEST_ROOT/bin/$h-apple-darwin$DARWIN_VERS-gcc-$VERS     \
  	    $ORIG_SRC_DIR/driverdriver.c                               \
-@@ -574,28 +606,26 @@
+@@ -574,28 +595,26 @@
  	    -liberty -L$DIR/dst-$BUILD-$h$DEST_ROOT/lib/                           \
  	    -L$DIR/dst-$BUILD-$h$DEST_ROOT/$h-apple-darwin$DARWIN_VERS/lib/                    \
              -L$DIR/obj-$h-$BUILD/libiberty/                                        \
@@ -804,7 +827,7 @@ __END__
  ########################################
  # Create SYM_DIR with information required for debugging.
  
-@@ -614,20 +644,17 @@
+@@ -614,20 +633,17 @@
    | cpio -pdml $SYM_DIR || exit 1
  # Save source files.
  mkdir $SYM_DIR/src || exit 1
@@ -850,51 +873,9 @@ __END__
  
  # For hosts after darwin10 we want to pass in -no-pie
 -BOOT_LDFLAGS=`case ${host} in *-*-darwin[1][1-9]*) echo -Wl,-no_pie ;; esac;`
-+BOOT_LDFLAGS := $(shell case ${host} in (*-*-darwin[1][1-9]*) echo -Wl,-no_pie ;; esac)
+#`
++BOOT_LDFLAGS := $(shell case ${host} in *-*-darwin1[1-9]*|*-*-darwin[2-9][0-9]*) echo -Wl,-no_pie;; esac)
  LDFLAGS=$(BOOT_LDFLAGS)
---- old/configure
-+++ new/configure
-# `Fix omission of ppc64 from PowerPC Darwin configuration, and improve 32/64‐bit Darwin support in general.
-@@ -1802,7 +1802,7 @@
-     tentative_cc="/usr/cygnus/progressive/bin/gcc"
-     host_makefile_frag="config/mh-lynxrs6k"
-     ;;
--  powerpc-*-darwin*)
-+  powerpc*-*-darwin*)   # don`t forget ppc64
-     host_makefile_frag="config/mh-ppc-darwin"
-     ;;
-   # APPLE LOCAL begin dynamic-no-pic
-@@ -7365,12 +7365,16 @@
-       yes) stage1_cflags="-g -Wa,-J" ;;
-       *) stage1_cflags="-g -J" ;;
-     esac ;;
--  powerpc-*-darwin*)
-+  *-*-darwin*)
-+    case "$build" in (powerpc*-*-darwin*)
-     # The spiffy cpp-precomp chokes on some legitimate constructs in GCC
-     # sources; use -no-cpp-precomp to get to GNU cpp.
-     # Apple's GCC has bugs in designated initializer handling, so disable
-     # that too.
-     stage1_cflags="-g -no-cpp-precomp -DHAVE_DESIGNATED_INITIALIZERS=0"
-+        ;; esac
-+    case "$build" in *64-*-darwin*)  stage1_cflags="$stage1_cflags -m64";;
-+            i[3456789]86-*-darwin*)  stage1_cflags="$stage1_cflags -m32";; esac
-     ;;
- esac
- 
---- old/driverdriver.c
-+++ new/driverdriver.c
-# For some reason, on Panther and Tiger, CPU_TYPE_ARM is commented out.
-@@ -28,6 +28,9 @@
- #include <unistd.h>
- #include <errno.h>
- #include <mach-o/arch.h>
-+#ifndef CPU_TYPE_ARM
-+# define CPU_TYPE_ARM ((cpu_type_t) 12)
-+#endif
- #include <limits.h>
- #include <sys/types.h>
- #include <sys/stat.h>
 --- old/gcc/c-incpath.c
 +++ new/gcc/c-incpath.c
 # Fix a signedness mismatch that only becomes apparent with uniformly 64‐bit values.
@@ -952,16 +933,17 @@ __END__
  #endif
 --- old/gcc/config/darwin.h
 +++ new/gcc/config/darwin.h
-# Remove all mentions of “crt0” from option specifications.  No such file exists on Darwin systems, & GCC not finding it will cause
-# compilation failures at _best_.
+# Remove all mentions of “crt0” from option specifications.  No such file exists on the Darwin systems we target, & GCC not finding
+# it will cause compilation failures at _best_.
 @@ -481,9 +481,7 @@
         %:version-compare(>< 10.5 10.6 mmacosx-version-min= -lgcc_s.10.5)   \
+#:"
         -lgcc}"
  
 -/* We specify crt0.o as -lcrt0.o so that ld will search the library path.
 -
 -   crt3.o provides __cxa_atexit on systems that don't have it.  Since
-+/* crt3.o provides __cxa_atexit on systems that don't have it.  Since
++/* crt3.o provides __cxa_atexit on systems that don’t have it.  Since
     it's only used with C++, which requires passing -shared-libgcc, key
     off that to avoid unnecessarily adding a destructor to every
     powerpc program built.  */
@@ -983,10 +965,10 @@ __END__
    %{shared-libgcc:							    \
      %{!miphoneos-version-min=*:						    \
        %:version-compare(< 10.5 mmacosx-version-min= crt3.o%s)}}"
-# :Remove bug‐workaround “-pipe” flags to let our `as` interposer script work properly.
 --- old/gcc/config/i386/t-darwin
 +++ new/gcc/config/i386/t-darwin
-@@ -17,6 +17,6 @@
+# Remove bug‐workaround “-pipe” flag to let our `as` interposer script work properly.
+@@ -17,6 +19,6 @@
  # it to not properly process the first # directive, causing temporary
  # file names to appear in stabs, causing the bootstrap to fail.  Using -pipe
  # works around this by not having any temporary file names.
@@ -996,7 +978,8 @@ __END__
  # APPLE LOCAL end gcov 5573505
 --- old/gcc/config/i386/t-darwin64
 +++ new/gcc/config/i386/t-darwin64
-@@ -7,6 +7,6 @@
+# Remove bug‐workaround “-pipe” flag to let our `as` interposer script work properly.
+@@ -7,6 +11,6 @@
  # it to not properly process the first # directive, causing temporary
  # file names to appear in stabs, causing the bootstrap to fail.  Using -pipe
  # works around this by not having any temporary file names.
@@ -1006,6 +989,7 @@ __END__
  # APPLE LOCAL end gcov 5573505
 --- old/gcc/config/rs6000/t-darwin
 +++ new/gcc/config/rs6000/t-darwin
+# Remove bug‐workaround “-pipe” flag to let our `as` interposer script work properly.
 @@ -21,7 +21,7 @@
  # file names to appear in stabs, causing the bootstrap to fail.  Using -pipe
  # works around this by not having any temporary file names.
@@ -1017,33 +1001,85 @@ __END__
  
 --- old/gcc/config/t-darwin
 +++ new/gcc/config/t-darwin
-# - Set $T_CFLAGS to -m64 when building for x86_64 or ppc64 targets, and to -m32 when building for i386 or ppc targets.
-# - Remove bug‐workaround “-pipe” flag to let our `as` interposer script work properly.
-@@ -1,3 +1,5 @@
-+T_CFLAGS:=$(shell case ${target} in (*64-*-darwin*) echo '-m64';; (i[3456789]86-*-darwin*|powerpc-*-darwin*) echo '-m32';; esac)
-+
- # APPLE LOCAL constant CFStrings
- darwin.o: $(HASHTAB_H) toplev.h
- 
+# Remove bug‐workaround “-pipe” flag to let our `as` interposer script work properly.
 @@ -50,4 +52,4 @@
  # it to not properly process the first # directive, causing temporary
  # file names to appear in stabs, causing the bootstrap to fail.  Using -pipe
  # works around this by not having any temporary file names.
 -TARGET_LIBGCC2_CFLAGS = -fPIC -pipe
 +TARGET_LIBGCC2_CFLAGS = -fPIC  # “-pipe” moved to interposer script
---- old/gcc/config/x-darwin
-+++ new/gcc/config/x-darwin
-# Set $XCFLAGS to -m64 when building for x86_64 / ppc64 hosts & to -m32 when building for i386 / ppc hosts.  This is inserted after
-# $T_CFLAGS (overriding it) when compiling for the host, and not used when compiling for the target.
-@@ -1,3 +1,5 @@
-+XCFLAGS:=$(shell case ${host} in (*64-*-darwin*) echo '-m64';; (i[3456789]86-*-darwin*|powerpc-*-darwin*) echo '-m32';; esac)
-+
- host-darwin.o : $(srcdir)/config/host-darwin.c $(CONFIG_H) $(SYSTEM_H) \
-   coretypes.h toplev.h config/host-darwin.h
- 	$(CC) -c $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) $<
+--- old/gcc/config/t-slibgcc-darwin
++++ new/gcc/config/t-slibgcc-darwin
+# Remove a redundant operation.
+@@ -55,8 +55,6 @@
+ 	  rm -f $${mlib}/$@ || exit 1 ; \
+ 	  $(LN_S) ../$@ $${mlib}/$@ || exit 1 ; \
+ 	done
+-	MLIBS=`$(GCC_FOR_TARGET) --print-multi-lib \
+-		| sed -e 's/;.*$$//' -e '/^\.$$/d'` ; \
+#`
+ 	for mlib in '' $$MLIBS ; do \
+ 	  $(STRIP_FOR_TARGET) -o $(@)_T$${mlib} \
+ 	    -s $(SHLIB_VERPFX).$(*).ver -c -u \
+--- old/gcc/config.gcc
++++ new/gcc/config.gcc
+# Consolidate needless redundancy.
+@@ -391,7 +391,7 @@
+   # APPLE LOCAL 5681645
+   tmake_file="t-darwin ${cpu_type}/t-darwin"
+   target_gtfiles="\$(srcdir)/config/darwin.c"
+-  extra_options="${extra_options} darwin.opt"
++  extra_options="${extra_options} darwin.opt ${cpu_type}/darwin.opt"
+   c_target_objs="darwin-c.o"
+   cxx_target_objs="darwin-c.o"
+   extra_objs="darwin.o"
+@@ -779,7 +779,6 @@
+ 	;;
+ # APPLE LOCAL begin ARM darwin target
+ arm*-*-darwin*)
+-	extra_options="${extra_options} arm/darwin.opt"
+         tm_file="${tm_file} arm/darwin.h"
+         tmake_file="${tmake_file} arm/t-slibgcc-iphoneos"
+ 	extra_headers="arm_neon.h"
+@@ -1047,17 +1046,15 @@
+ 	# APPLE LOCAL mainline
+ 	with_cpu=${with_cpu:-core2}
+ 	# APPLE LOCAL Macintosh alignment 2002-2-19 --ff
+-	extra_options="${extra_options} i386/darwin.opt"
+ 	# APPLE LOCAL 4099000 5681645
+-	tmake_file="${tmake_file} t-slibgcc-darwin i386/t-darwin"
++	tmake_file="${tmake_file} t-slibgcc-darwin"
+ 	;;
+ x86_64-*-darwin*)
+ 	# APPLE LOCAL mainline
+ 	# Deleted with_arch
+ 	# APPLE LOCAL mainline
+ 	with_cpu=${with_cpu:-core2}
+ 	# APPLE LOCAL Macintosh alignment 2002-2-19 --ff
+-	extra_options="${extra_options} i386/darwin.opt"
+ 	tmake_file="t-darwin ${cpu_type}/t-darwin64 t-slibgcc-darwin"
+ 	tm_file="${tm_file} ${cpu_type}/darwin64.h"
+ 	;;
+@@ -1746,7 +1743,6 @@
+ powerpc-*-darwin*)
+ 	# APPLE LOCAL ARM 5681645
+ 	tmake_file="${tmake_file} t-slibgcc-darwin"
+-	extra_options="${extra_options} rs6000/darwin.opt"
+ 	# APPLE LOCAL mainline candidate 2006-06-22 4512244
+ 	extra_parts="${extra_parts} crt2.o"
+ 	case ${target} in
+# Consolidate needless redundancy.
+@@ -1766,7 +1762,6 @@
+ 	tm_file="${tm_file} ${cpu_type}/darwin8.h ${cpu_type}/darwin64.h"
+ 	# APPLE LOCAL ARM 5681645
+ 	tmake_file="${tmake_file} t-slibgcc-darwin"
+-	extra_options="${extra_options} ${cpu_type}/darwin.opt"
+ 	# We're omitting t-darwin8 to avoid building any multilibs
+ 	extra_headers=altivec.h
+ 	;;
 --- old/gcc/config.host
 +++ new/gcc/config.host
-# Set use_long_long_for_widest_fast_int to [a value which shall be determined at brewing time].  It must equal 'yes' instead of 'no'
+# Set use_long_long_for_widest_fast_int to [a value which shall be determined at brewing time].  It must equal “yes” instead of “no”
 # if, and only if, we are building 32‐bit on 64‐bit hardware.
 @@ -95,6 +95,7 @@
      # Default size of memory to set aside for precompiled headers
@@ -1063,16 +1099,19 @@ __END__
    # the assembler.  Perhaps it's better to figure out whether
    # arbitrary sections are supported and try the test.
 -  as_ver=`$gcc_cv_as --version 2>/dev/null | sed 1q`
+#`
 +  as_ver=`echo '' | $gcc_cv_as -v 2>/dev/null | sed 1q` # Apple`s as hangs waiting for input, even with -v
    if echo "$as_ver" | grep GNU > /dev/null; then
      as_ver=`echo $as_ver | sed -e 's/GNU assembler \([0-9.][0-9.]*\).*/\1/'`
+#`
      as_major=`echo $as_ver | sed 's/\..*//'`
+#`
 @@ -14365,7 +14365,7 @@
  fi
    elif test x$gcc_cv_as != x; then
      echo '.section .rodata.str, "aMS", @progbits, 1' > conftest.s
 -    if { ac_try='$gcc_cv_as --fatal-warnings -o conftest.o conftest.s >&5'
-+    if { ac_try='$gcc_cv_as -o conftest.o conftest.s >&5'  # Apple`s as does not grok long options
++    if { ac_try='$gcc_cv_as -o conftest.o conftest.s >&5'  # Apple’s as does not grok long options
    { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
    (eval $ac_try) 2>&5
    ac_status=$?
@@ -1105,15 +1144,18 @@ __END__
    ac_status=$?
 @@ -14612,7 +14612,7 @@
  	leal	foo@NTPOFF(%ecx), %eax'
+#'
  	tls_first_major=2
  	tls_first_minor=14
 -	tls_as_opt=--fatal-warnings
-+	tls_as_opt=  # Apple's as does not grok long options
++	tls_as_opt=  # Apple’s as does not grok long options
  	;;
    x86_64-*-*)
      conftest_s='
+#'
 @@ -14627,7 +14627,7 @@
  	movq	$foo@TPOFF, %rax'
+#'
  	tls_first_major=2
  	tls_first_minor=14
 -	tls_as_opt=--fatal-warnings
@@ -1121,8 +1163,10 @@ __END__
  	;;
    ia64-*-*)
      conftest_s='
+#'
 @@ -14688,7 +14688,7 @@
  	addi 9,9,x2@tprel@l'
+#'
  	tls_first_major=2
  	tls_first_minor=14
 -	tls_as_opt="-a32 --fatal-warnings"
@@ -1130,8 +1174,10 @@ __END__
  	;;
    powerpc64-*-*)
      conftest_s='
+#'
 @@ -14722,7 +14722,7 @@
  	nop'
+#'
  	tls_first_major=2
  	tls_first_minor=14
 -	tls_as_opt="-a64 --fatal-warnings"
@@ -1139,30 +1185,41 @@ __END__
  	;;
    s390-*-*)
      conftest_s='
+#'
 @@ -15718,7 +15718,7 @@
  fi
    elif test x$gcc_cv_as != x; then
      echo "$conftest_s" > conftest.s
 -    if { ac_try='$gcc_cv_as -a32 -o conftest.o conftest.s >&5'
-+    if { ac_try='$gcc_cv_as -o conftest.o conftest.s >&5'  # Apple's as does not grok “-a32”
++    if { ac_try='$gcc_cv_as -o conftest.o conftest.s >&5'  # Apple’s as does not grok “-a32”
    { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
    (eval $ac_try) 2>&5
    ac_status=$?
 --- old/gcc/gcc.c
 +++ new/gcc/gcc.c
-# Remove all references to libssp, which Apple had removed but not cleaned out after.
-@@ -721,7 +721,7 @@
-     %{static:} %{L*} %(mfwrap) %(link_libgcc) %o\
-     %{fopenmp:%:include(libgomp.spec)%(link_gomp)} %(mflib)\
-     %{fprofile-arcs|fprofile-generate|coverage|fcreate-profile:-lgcov}\
--    %{!nostdlib:%{!nodefaultlibs:%(link_ssp) %(link_gcc_c_sequence)}}\
-+    %{!nostdlib:%{!nodefaultlibs:%(link_gcc_c_sequence)}}\
-     %{!A:%{!nostdlib:%{!nostartfiles:%E}}} %{T*} }}}}}}"
+# Erase all attempts to load libssp, which Apple had removed but not cleaned up after.  Leopard et seq. provide SSP internally.
+@@ -694,7 +694,7 @@
+ #ifdef TARGET_LIBC_PROVIDES_SSP
+ #define LINK_SSP_SPEC "%{fstack-protector:}"
+ #else
+-#define LINK_SSP_SPEC "%{fstack-protector|fstack-protector-all:-lssp_nonshared -lssp}"
++#define LINK_SSP_SPEC "%{fstack-protector|fstack-protector-all:%eApple GCC only supports -fstack-protector et al on newer OS versions.}"
  #endif
- /* APPLE LOCAL end add fcreate-profile */
+ #endif
+ 
+# Prevent a spurious equals sign from being prefixed to printed lists of default search directories.
+@@ -2634,7 +2634,7 @@
+   info.first_time = true;
+ 
+   obstack_grow (&collect_obstack, prefix, strlen (prefix));
+-  obstack_1grow (&collect_obstack, '=');
++  if (prefix[0]) obstack_1grow (&collect_obstack, '=');
+ 
+   for_each_path (paths, do_multi, 0, add_to_obstack, &info);
+ 
 --- old/gcc/local-alloc.c
 +++ new/gcc/local-alloc.c
-# "Fix some variable‐size mismatches that only become apparent with 64‐bit pointers.
+# Fix some variable‐size mismatches that only become apparent with 64‐bit pointers.
 @@ -901,7 +901,7 @@
  	  /* APPLE LOCAL begin 5695218 */
  	  if (reg_inheritance_matrix)
@@ -1186,20 +1243,34 @@ __END__
      Ugly special case: When moving a DI/SI/mode constant into an FP
 --- old/gcc/Makefile.in
 +++ new/gcc/Makefile.in
+# Improve the consistency of CFLAGS across stages.
+@@ -157,7 +157,7 @@
+ LDFLAGS = @LDFLAGS@
+ STAGE1_CFLAGS = -g @stage1_cflags@
+ STAGE1_CHECKING_CFLAGS = -DENABLE_CHECKING -DENABLE_ASSERT_CHECKING
+-BOOT_CFLAGS = -g -O2
++BOOT_CFLAGS = -g -Os
+ 
+ # Flags to determine code coverage. When coverage is disabled, this will
+ # contain the optimization flags, as you normally want code coverage
 # Adjust for not using the split‐prefix feature (and correct an overlooked bare `pwd`).
 @@ -3302,8 +3302,7 @@
  	-chmod a+rx include
  	if [ -d ../prev-gcc ]; then \
  	  cd ../prev-gcc && \
 -	  $(MAKE) real-$(INSTALL_HEADERS_DIR) DESTDIR=`pwd`/../gcc/ \
+#`
 -	    libsubdir=. ; \
 +	  $(MAKE) real-$(INSTALL_HEADERS_DIR) libsubdir=`${PWD_COMMAND}`/../gcc/ ; \
+#`
  	else \
  	  (TARGET_MACHINE='$(target)'; srcdir=`cd $(srcdir); ${PWD_COMMAND}`; \
+#`
  	    SHELL='$(SHELL)'; MACRO_LIST=`${PWD_COMMAND}`/macro_list ; \
-# `Initialize variable declarations that otherwise cause spurious compiler warnings under “warnings are fatal” mode.
+#`
 --- old/gcc/tree-if-conv.c
 +++ new/gcc/tree-if-conv.c
+# Initialize variable declarations that otherwise cause spurious compiler warnings under “warnings are fatal” mode.
 @@ -857,7 +857,7 @@
    /* Replace phi nodes with cond. modify expr.  */
    for (i = 1; i < orig_loop_num_nodes; i++)
@@ -1211,6 +1282,7 @@ __END__
        bb = ifc_bbs[i];
 --- old/libcpp/traditional.c
 +++ new/libcpp/traditional.c
+# Initialize variable declarations that otherwise cause spurious compiler warnings under “warnings are fatal” mode.
 @@ -346,7 +346,7 @@
    cpp_context *context;
    const uchar *cur;
@@ -1220,42 +1292,29 @@ __END__
    unsigned int c, paren_depth = 0, quote;
    enum ls lex_state = ls_none;
    bool header_ok;
---- old/libgomp/configure
-+++ new/libgomp/configure
-# Make libgomp build with suitable -m32/-m64 flags, despite it totally ignoring the carefully balanced $CFLAGS variants in ../gcc.
-@@ -694,6 +694,11 @@
-     cross_compiling=yes
-   fi
- fi
-+
-+#case "$target" in  # make it use some of the carefully balanced flags from ../gcc that it ignores
-+#  *64-*-darwin*) CFLAGS="$CFLAGS -m64";;
-+#  i[3456789]86-*-darwin*|powerpc-*-darwin*) CFLAGS="$CFLAGS -m32";;
-+#esac
- 
- ac_tool_prefix=
- test -n "$host_alias" && ac_tool_prefix=$host_alias-
-# Include GCC’s `fixinclude`d header directory when compiling; else, `#include-next` can’t find any
-# next header to include.  (This only seems to happen in multilib sub-builds.)
 --- old/libgomp/Makefile.in
 +++ new/libgomp/Makefile.in
+# Include GCC’s `fixinclude`d target‐header directory (which is located relative to a point two to three levels up in the directory
+# hierarchy) when compiling; otherwise, `#include-next` can’t find any “next” header during multilib sub-builds.
 @@ -263,7 +263,7 @@
  ACLOCAL_AMFLAGS = -I ../config
  SUBDIRS = testsuite
  gcc_version := $(shell cat $(top_srcdir)/../gcc/BASE-VER)
 -search_path = $(addprefix $(top_srcdir)/config/, $(config_path)) $(top_srcdir)
-+search_path = $(addprefix $(top_srcdir)/config/, $(config_path)) $(top_srcdir) ../../../gcc/include
++search_path = $(addprefix $(top_srcdir)/config/, $(config_path)) $(top_srcdir) $(MULTISRCTOP)../../gcc/include
  fincludedir = $(libdir)/gcc/$(target_alias)/$(gcc_version)/finclude
  libsubincludedir = $(libdir)/gcc/$(target_alias)/$(gcc_version)/include
  empty = 
 --- old/libiberty/Makefile.in
 +++ new/libiberty/Makefile.in
+# Include GCC’s `fixinclude`d target‐header directory (which is located relative to a point two to three levels up in the directory
+# hierarchy) when compiling; otherwise, `#include-next` can’t find any “next” header during multilib sub-builds.
 @@ -116,7 +116,7 @@
  
  INCDIR=$(srcdir)/$(MULTISRCTOP)../include
  
 -COMPILE.c = $(CC) -c @DEFS@ $(LIBCFLAGS) -I. -I$(INCDIR) $(HDEFINES) @ac_libiberty_warn_cflags@
-+COMPILE.c = $(CC) -c @DEFS@ $(LIBCFLAGS) -I. -I$(INCDIR) -I../../../gcc/include $(HDEFINES) @ac_libiberty_warn_cflags@
++COMPILE.c = $(CC) -c @DEFS@ $(LIBCFLAGS) -I. -I$(INCDIR) -I$(MULTISRCTOP)../../gcc/include $(HDEFINES) @ac_libiberty_warn_cflags@
  
  # Just to make sure we don't use a built-in rule with VPATH
  .c.o:
