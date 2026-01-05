@@ -54,13 +54,11 @@ class Target
     # This architecture set is for the end targets of tools we build (e.g. compilers).  It ought to encompass absolutely everything
     # we have the information to build for.
     def tool_target_archset
-      archs = (MacOS.sdk_path/'usr/include/architecture').subdirs.map{ |pn| pn.basename.to_s.to_sym }.select{ |a|
-        all_archs.include? a }.map{ |a| CPU.type_of a }.map{ |t| CPU.archs_of_type t }.flatten.extend ArchitectureListExtension
+      (MacOS.sdk_path/'usr/include/architecture').subdirs.map{ |d| d.basename.to_s.to_sym }.select{ |a| all_archs.include? a
+        }.map{ |a| CPU.type_of a }.map{ |t| CPU.base_archs t }.flatten.extend ArchitectureListExtension
       # Ideally, in the presence of the iPhoneOS SDK, we would also incorporate the list of available arm32 subarchitectures.  Alas,
-      # computing that set is non‐trivial, and derives several constants in passing that are also required by certain formulæ which
-      # would be able to act on the information.  The additional computation is better done locally therein.
-      $stderr.puts("Target::tool_target_archset:  result is “#{archs.as_build_archs}”") if DEBUG
-      archs
+      # computing that set is non‐trivial, & derives several constants in passing which are also required by certain of the formulæ
+      # which would use the list.  The additional computation is better done locally therein.
     end # Target⸬tool_target_archset
 
     # What CPU type are we building for?  Either one corresponding to a value explicitly passed using --bottle-arch=, or our native
@@ -104,7 +102,7 @@ class Target
           if ENV.compiler != :clang # assume is some variant of GCC
             if (vers = CPU.which_gcc_knows_about(m))
               (ENV.compiler_version >= vers ? CPU.model_data(m)[:gcc][:flags] \
-                                            : CPU.gcc_flags_for_post_(gcc_version, CPU.type_of(m)))
+                                            : CPU.gcc_flags_for_post_(vers, CPU.type_of(m)))
             end
           end
         end
@@ -226,8 +224,6 @@ class Target
       @local_archs ||= all_our_archs.select{ |a|
           CPU.can_run?(a) and (MacOS.version < :lion or _64b_arch?(a))
         }.extend(ArchitectureListExtension)
-      $stderr.puts("Target::local_archs:  result is “#{@local_archs.as_build_archs}”") if DEBUG
-      @local_archs
     end
 
     def native_archs; CPU.native_archs; end

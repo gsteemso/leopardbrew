@@ -19,44 +19,46 @@ class CPU
 
     def model
       @@model ||= \
-        case type
-          when :arm, :intel
-            case sysctl_int('hw.cpufamily')
-              when 0x07d34b9f then :a12z        # arm    0. (Aruba?) developer‐transition Minis (Vortex & Tempest cores)
-              when 0x0f817246 then :kabylake    # intel 10. Kaby Lake
-              when 0x10b282dc then :haswell     # intel  7. Haswell
-              when 0x1b588bb3 then :m1          # arm    1. A14/M1, most variants (Firestorm & Icestorm cores)
-              when 0x1cf8a03e then :cometlake   # intel 12. Comet Lake
-              when 0x1f65e835 then :ivybridge   # intel  6. Ivy Bridge
-              when 0x204526d0 then :m4          # arm    8. Tupai (probably m4?)
-              when 0x2876f5b5 then :m3          # arm    ?. Coll (probably m3?)
-              when 0x37fc219f then :skylake     # intel  9. Sky Lake
-              when 0x38435547 then :icelake     # intel 11. Ice Lake
-              when 0x426f69ef then :core2       # intel  1. Merom et al:  Core 2 Duo  (Ex600, P7x00, T5600, T7x00, X7900)
-              when 0x5490b78c then :sandybridge # intel  5. Sandy Bridge
-              when 0x573b5eec then :arrandale   # intel  4. Arrandale (on Wikipedia see under “Westmere”)
-              when 0x582ed09c then :broadwell   # intel  8. Broadwell
-              when 0x5f4dea93 then :m3          # arm    4. Lobos (M3 Pro:  Everest & Sawtooth cores)
-              when 0x6b5a4cd2 then :nehalem     # intel  3. Nehalem
-              when 0x6f5129ac then :m4          # arm    6. Donan
-              when 0x72015832 then :m3          # arm    5. Palma (M3 Max:  Everest & Sawtooth cores)
-              when 0x73d67300 then :core        # intel  0. Yonah et al:  Core Solo/Duo  (T1200, T2x00, L2400)
-              when 0x75d4acb9 then :m4          # arm    7. Tahiti (probably m4?)
-              when 0x78ea4fbc then :penryn      # intel  2. Penryn  (E8x35, P7x50, P8x00, SL9x00, SU9x00, T8x00, T9x00, T9550)
-              when 0xda33d83d then :m2          # arm    2. A15/M2, most variants (Avalanche & Blizzard cores)
-              when 0xfa33415e then :m3          # arm    3. Ibiza (base M3:  Everest & Sawtooth cores)
-              else type == :arm ? :m1 : :core
-            end
-          when :powerpc
+        case sysctl_int('hw.cpufamily')
+          when 0x07d34b9f then :a12z        # arm      0. (Aruba?) developer‐transition Minis (Vortex & Tempest cores)
+          when 0x0f817246 then :kabylake    # intel   11. Kaby Lake
+          when 0x10b282dc then :haswell     # intel    8. Haswell
+          when 0x1b588bb3 then :m1          # arm      1. A14/M1, most variants (Firestorm & Icestorm cores)
+          when 0x1cf8a03e then :cometlake   # intel   13. Comet Lake
+          when 0x1f65e835 then :ivybridge   # intel    7. Ivy Bridge
+          when 0x204526d0 then :m4          # arm      8. Tupai (probably m4?)
+          when 0x2876f5b5 then :m3          # arm      ?. Coll (probably m3?)
+          when 0x37fc219f then :skylake     # intel   10. Sky Lake
+          when 0x38435547 then :icelake     # intel   12. Ice Lake
+          when 0x426f69ef then :core2       # intel    2. Merom et al:  Core 2 Duo  (Ex600, P7x00, T5600, T7x00, X7900)
+          when 0x5490b78c then :sandybridge # intel    6. Sandy Bridge
+          when 0x573b5eec then :arrandale   # intel    5. Arrandale (on Wikipedia see under “Westmere”)
+          when 0x582ed09c then :broadwell   # intel    9. Broadwell
+          when 0x5f4dea93 then :m3          # arm      4. Lobos (M3 Pro:  Everest & Sawtooth cores)
+          when 0x6b5a4cd2 then :nehalem     # intel    4. Nehalem
+          when 0x6f5129ac then :m4          # arm      6. Donan
+          when 0x72015832 then :m3          # arm      5. Palma (M3 Max:  Everest & Sawtooth cores)
+          when 0x73d67300 then :core        # intel    1. Yonah et al:  Core Solo/Duo  (T1200, T2x00, L2400)
+          when 0x75d4acb9 then :m4          # arm      7. Tahiti (probably m4?)
+          when 0x77c184ae
             case sysctl_int('hw.cpusubtype')  # always has flags masked out
-              when 0x09 then :g3  # powerpc 0. PPC 750
-              when 0x0a then :g4  # powerpc 1. PPC 7400
-              when 0x0b then :g4e # powerpc 2. PPC 7450
-              when 0x64 then :g5  # powerpc 3. PPC 970
-              else :g3
+              when 0x0000000a then :g4      # powerpc  1. 7400
+              when 0x0000000b then :g4e     # powerpc  2. 7450
+              else                 :dunno
             end
-          else :dunno
-        end # case type
+          when 0x78ea4fbc then :penryn      # intel    3. Penryn  (E8x35, P7x50, P8x00, SL9x00, SU9x00, T8x00, T9x00, T9550)
+          when 0xaa33392b then :intel_dev   # intel    0. ???? (developer transition model?)
+          when 0xcee41549 then :g3          # powerpc  0. 750
+          when 0xed76d8aa then :g5          # powerpc  3. 970
+          when 0xda33d83d then :m2          # arm      2. A15/M2, most variants (Avalanche & Blizzard cores)
+          when 0xfa33415e then :m3          # arm      3. Ibiza (base M3:  Everest & Sawtooth cores)
+          else case type
+              when :arm     then :a12z
+              when :intel   then _64b? ? :core2 : :core
+              when :powerpc then _64b? ? :g5    : :g3
+              else :dunno
+            end
+        end # case sysctl hw.cpufamily
     end # CPU⸬Sysctl⸬model
 
     def cores; sysctl_int('hw.physicalcpu_max'); end
@@ -189,27 +191,26 @@ class CPU
 
     def known_models; MODEL_DATA.keys; end
 
-    def archs_of_type(t = type); (type_data(t)[:archs]).dup.extend ArchitectureListExtension; end
+    def archs(t = type); (type_data(t)[:archs]).dup.extend ArchitectureListExtension; end
+    alias :archs_of_type :archs
 
-    def native_archs_of_type(t = type)
-      result = archs_of_type(t)
-      return result if t == :powerpc
-      (if t == type
-         o = model_data[:oldest]
-         result.reject do |a|
-           next if _32b_arch?(a)
-           case a
-             when :arm64   then o == :m1
-             when :arm64e  then o == :a12z
-             when :x86_64  then o == :haswell
-             when :x86_64h then o == :core2
-           end # Anything else is false and thus not rejected.
-         end # do reject |a|
-       else result - [:arm64e, :x86_64h]; end
-      ).extend ArchitectureListExtension
-    end # CPU⸬native_archs_of_type
+    def base_archs(t = type); archs(t).reject{ |a| a == :arm64e or a == :x86_64h }; end
+    alias :base_archs_of_type :base_archs
 
-    def native_archs; native_archs_of_type; end
+    def native_archs(t = type)
+      result = archs(t)
+      o = model_data[:oldest]
+      case t
+        when :powerpc then result
+        when :intel
+          if type == :intel then result.reject{ |a| (a == :x86_64 and o == :haswell) or (a == :x86_64h and o == :core2) }
+          else result.reject{ |a| a == :x86_64h }; end
+        when :arm
+          if type == :arm then result.reject{ |a| (a == :arm64 and o == :m1) or (a == :arm64e and o == :a12z) }
+          else result.reject{ |a| a == :arm64e }; end
+      end # case t
+    end # CPU⸬native_archs
+    alias :native_archs_of_type :native_archs
 
     def which_gcc_knows_about(m = model); model_data(m)[:gcc][:vrsn] if model_data(m); end
 
