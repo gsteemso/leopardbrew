@@ -1,4 +1,4 @@
-/* Apple-originated file:  driver driver
+/* Apple-originated file:  GCC driver driver
 
 Darwin driver program that handles -arch commands and invokes appropriate compiler driver.
 
@@ -36,7 +36,7 @@ typedef int tree;
 typedef int rtx;
 #define GTY(x) /* nothing */
 #define USED_FOR_TARGET 1
-#include "darwin.h"  /* For WORD_SWITCH_TAKES_ARG, and, at one time, SWITCH_TAKES_ARG. */
+#include "darwin.h"  /* For WORD_SWITCH_TAKES_ARG, and, formerly, SWITCH_TAKES_ARG. */
 #ifndef SWITCH_TAKES_ARG
 # define SWITCH_TAKES_ARG(CHAR) DEFAULT_SWITCH_TAKES_ARG(CHAR)
 #endif
@@ -74,6 +74,7 @@ struct name_map arch_config_map[] = {
     {"xscale", "arm"},
     {"armv6",  "arm"},
     {"armv7",  "arm"},
+    {"armv8",  "arm"},
     {NULL, NULL}
 };
 
