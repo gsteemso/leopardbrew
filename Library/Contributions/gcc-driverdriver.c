@@ -2,7 +2,7 @@
 
 Darwin driver program that handles -arch commands and invokes appropriate compiler driver.
 
-Copyright (C) 2004, 2005 Free Software Foundation, Inc.  Modified 2025 by G. Steemson.
+Copyright (C) 2004, 2005 Free Software Foundation, Inc.  Modified 2025–2026 by G. Steemson.
 
 This file is an optional addendum to GCC.
 
@@ -13,8 +13,6 @@ GCC is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.  You should have
 received a copy of the GNU General Public License along with GCC; see the file COPYING.  If not, it is available from the GNU
 website at <http://www.gnu.org/>. */
-
-#define DEBUG 1
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -44,8 +42,8 @@ typedef int rtx;
 #endif
 #include "gcc.h"     /* For DEFAULT_SWITCH_TAKES_ARG and DEFAULT_WORD_SWITCH_TAKES_ARG. */
 
-/* Support at most 10 architectures at a time.  This is a historical limit. */
-#define MAX_ARCHS 10
+/* Support up to this many architectures at a time.  The historical limit was 10. */
+#define MAX_ARCHS 20
 
 struct infile {
     const    char *name;
@@ -1003,18 +1001,6 @@ main (int argc, const char **argv) {
     /* Before we get too far, rewrite the command line with any requested overrides. */
     if ((override_option_str = getenv ("QA_OVERRIDE_GCC3_OPTIONS")) != NULL)
         rewrite_command_line(override_option_str, &argc, (char***)&argv);
-    else /* quietly make command line editable */
-        rewrite_command_line("#", &argc, (char***)&argv);
-
-    int leftmost_m32 = find_arg("-m32"); int leftmost_m64 = find_arg("-m64");
-    while (leftmost_m32 > -1 && leftmost_m64 > -1)
-        if (leftmost_m32 < leftmost_m64) {
-            delete_arg(leftmost_m32);
-            leftmost_m32 = find_arg("-m32");
-        } else {
-            delete_arg(leftmost_m64);
-            leftmost_m64 = find_arg("-m64");
-        }
 
     initial_argc = argc;
     initialize;
