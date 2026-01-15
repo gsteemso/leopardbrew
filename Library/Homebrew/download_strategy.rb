@@ -23,8 +23,7 @@ class AbstractDownloadStrategy
   # The path to the cached file or directory associated with the resource.
   def cached_location; end
 
-  # Remove {#cached_location} and any other files associated with the resource
-  # from the cache.
+  # Remove {#cached_location} and any other files associated with the resource from the cache.
   def clear_cache; rm_rf(cached_location); end
 
   def expand_safe_system_args(args)
@@ -176,8 +175,8 @@ class AbstractFileDownloadStrategy < AbstractDownloadStrategy
     end
   end
 
-  # gunzip and bunzip2 write the output file in the same directory as the input file regardless of
-  # the current working directory, so we need to write it to the correct location ourselves.
+  # gunzip & bunzip2 write the output file in the same directory as the input file, regardless of the current working directory, so
+  # we need to write it to the correct location ourselves.
   def buffered_write(tool)
     target = File.basename(basename_without_params, cached_location.extname)
     Utils.popen_read(tool, '-f', cached_location.to_s, '-c') do |pipe|
@@ -188,9 +187,8 @@ class AbstractFileDownloadStrategy < AbstractDownloadStrategy
   # Strip any ?thing=wad out of .c?thing=wad style extensions
   def basename_without_params; File.basename(@url)[/[^?]+/]; end
 
-  # We need a Pathname because we’ve monkeypatched extname to support double extensions (e.g.
-  # tar.gz).  We can’t use basename_without_params, because given a URL pathname like
-  # (.../download.php?file=foo-1.0.tar.gz), the extension we want is “.tar.gz”, not “.php”.
+  # We need a Pathname because we’ve monkeypatched extname to handle double extensions like tar.gz.  #basename_without_params won’t
+  # work, because given a URL pathname like (.../download.php?file=foo-1.0.tar.gz), the extension we want is “.tar.gz”, not “.php”.
   def ext
     Pathname.new(@url).extname[/[^?]+/]
   end # AbstractFileDownloadStrategy#ext
@@ -233,8 +231,7 @@ class CurlDownloadStrategy < AbstractFileDownloadStrategy
       begin
         _fetch
       rescue ErrorDuringExecution
-        # 33 == range not supported
-        # try wiping the incomplete download and retrying once
+        # 33 == range not supported.  Try wiping the incomplete download and retrying once.
         if $?.exitstatus == 33 and had_incomplete_download
           ohai 'Trying a full download'
           temporary_path.unlink
@@ -315,8 +312,7 @@ class CurlApacheMirrorDownloadStrategy < CurlDownloadStrategy
   end # CurlApacheMirrorDownloadStrategy#_fetch
 end # CurlApacheMirrorDownloadStrategy
 
-# Download via an HTTP POST.
-# Query parameters on the URL are converted into POST parameters
+# Download via an HTTP POST.  Query parameters on the URL are converted into POST parameters.
 class CurlPostDownloadStrategy < CurlDownloadStrategy
   def _fetch
     base_url, data = @url.split('?')
@@ -324,8 +320,7 @@ class CurlPostDownloadStrategy < CurlDownloadStrategy
   end
 end # CurlPostDownloadStrategy
 
-# Use this strategy to download but not unzip a file.
-# Useful for installing jars.
+# Use this strategy to download but not unzip a file.  Useful for installing jars.
 class NoUnzipCurlDownloadStrategy < CurlDownloadStrategy
   def stage; cp cached_location, basename_without_params; end
 end
@@ -341,14 +336,15 @@ class LocalBottleDownloadStrategy < AbstractFileDownloadStrategy
 
   def initialize(path); @cached_location = path; end
 
+  def clear_cache; end  # Obviously, we do not want to arbitrarily delete anything from the user’s filesystem.
+
   def stage; ohai "Pouring #{cached_location.basename}"; super; end
 end # LocalBottleDownloadStrategy
 
-# S3DownloadStrategy downloads tarballs from AWS S3.  To use it, add “:using => S3DownloadStrategy”
-# to the URL section of your formula.  This download strategy uses AWS access tokens (in the
-# environment variables AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY) to sign the request.  This
-# strategy is good in a corporate setting, because it lets you use a private S3 bucket as a repo
-# for internal distribution.  (It will work for public buckets as well.)
+# S3DownloadStrategy downloads tarballs from AWS S3.  To use it, add “:using => S3DownloadStrategy” to the formula’s URL.  This
+# download strategy uses AWS access tokens (in the environment variables AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY) to sign the
+# request.  This strategy is good in a corporate setting, because it lets you use a private S3 bucket as a repo for internal
+# distribution.  (It will work for public buckets as well.)
 class S3DownloadStrategy < CurlDownloadStrategy
   def _fetch
     # Put the aws gem requirement here (vs top of file) so it’s only a dependency of S3 users, not all ’brew users.
@@ -384,7 +380,7 @@ class SubversionDownloadStrategy < VCSDownloadStrategy
     if svnf.installed? then @svn_cmd = svnf.bin/'svn'
     elsif `svn --version` =~ /version (\d+)\.(\d+)/ and $1.to_i > 1 or $1.to_i == 1 and $2.to_i > 10
       @svn_cmd = which('svn')                              # “10” is arbitrary, what should this be?
-    else raise 'Your stock subversion client is obsolete.  Brew the `subversion` formula.'
+    else raise 'Your stock subversion client is obsolete.  Brew the {subversion} formula.'
     end
     @url = @url.sub('svn+http://', '')
   end # SubversionDownloadStrategy#initialize
@@ -408,8 +404,8 @@ class SubversionDownloadStrategy < VCSDownloadStrategy
   end # SubversionDownloadStrategy#get_externals
 
   def fetch_repo(target, url, revision = nil, ignore_externals = false)
-    # Use “svn up” when the repository already exists locally.  It saves on bandwidth and will have
-    # a similar effect to verifying the cache as it will make any changes to get the right revision.
+    # Use “svn up” when the repository already exists locally.  It saves on bandwidth & will have a similar effect to verifying the
+    # cache, as it will make any changes to get the right revision.
     svncommand = target.directory? ? 'up' : 'checkout'
     args = [svn_cmd, svncommand]
     args << url unless target.directory?
@@ -426,8 +422,7 @@ class SubversionDownloadStrategy < VCSDownloadStrategy
   def clone_repo
     case @ref_type
       when :revision  then fetch_repo cached_location, @url, @ref
-      when :revisions then # nil is OK for main_revision, as fetch_repo will then get latest
-                           main_revision = @ref[:trunk]
+      when :revisions then main_revision = @ref[:trunk]  # nil is OK for main_revision, as fetch_repo will then get latest.
                            fetch_repo cached_location, @url, main_revision, true
                            get_externals do |external_name, external_url|
                              fetch_repo cached_location+external_name, external_url, @ref[external_name], true

@@ -3,27 +3,25 @@
 module ArchitectureConstants
   POWERPC_ARCHS = [:ppc, :ppc64].freeze;
 
-  INTEL_ARCHS = [:i386, :x86_64, :x86_64h].freeze;
+  INTEL_ARCHS = [:i386, :x86_64].freeze;
 
-  INTEL_ARCHS_64 = [:x86_64, :x86_64h].freeze;
-
-  ARM_ARCHS = [:arm64, :arm64e].freeze
+  ARM_ARCHS = [:arm64].freeze
 end # ArchitectureConstants
 
-module ArchitectureListExtension  # applicable to arrays of architecture symbols
+module ALE  # ArchitectureListExtension:  Applicable to arrays of architecture symbols.
   include ArchitectureConstants
 
   def fat?; length > 1; end
   alias_method :universal?, :fat?
 
-  def fat_intel?; includes? :i386 and intersects? INTEL_ARCHS_64; end
+  def fat_intel?; includes? :i386 and includes? :x86_64; end
   def fat_powerpc?; includes? :ppc and includes? :ppc64; end
 
   # Universal Binaries, original flavour:  Usually old-style 32-bit PowerPC/Intel, e.g. ppc + i386, but might also be Leopard‐style
   # quad fat binaries, or Snow‐Leopard‐style triple fat binaries with no ppc64 slice.  (Other combinations are not usually found in
   # the wild, unless you count iOS binaries with multiple 32‐bit ARM slices.)
   def universal_1?; includes? :i386 and includes? :ppc; end
-  def universal_2?; intersects_all?(INTEL_ARCHS_64, ARM_ARCHS); end
+  def universal_2?; includes? :x86_64 and includes? :arm64; end
 
   def powerpc?; intersects? POWERPC_ARCHS; end
   def intel?; intersects? INTEL_ARCHS; end
@@ -32,12 +30,14 @@ module ArchitectureListExtension  # applicable to arrays of architecture symbols
   def _32b_subset; reject!{ |a| a != :ppc and a != :i386 }; end
   def _64b_subset; reject!{ |a| a == :ppc or a == :i386 }; end
 
-  def as_arch_flags; map{ |a| "-arch #{a.to_s}" }.join(' '); end
+  def as_arch_flag_array; flat_map{ |a| ['-arch', a.to_s] }; end
+
+  def as_arch_flags; as_arch_flag_array.join(' '); end
 
   def as_cmake_arch_flags; map(&:to_s).join(';'); end
 
   def as_build_archs; map(&:to_s).join(' '); end
-end # ArchitectureListExtension
+end # ALE
 
 module MachO  # only useable when included in Pathname
   # @private
@@ -76,6 +76,7 @@ module MachO  # only useable when included in Pathname
         if candidate = ar_sigseek_from(0) then offsets << candidate
         elsif sig = mach_o_signature_at?(0)
           if sig == :FAT_MAGIC
+            @fat_container = true
             if (fct = fat_count_at(0)) and fct > 0
               fct.times do |i|
                 # The second uint32 is the number of `struct fat_arch` in the file.  Each `struct fat_arch` is 5 uint32 (net 20
@@ -85,7 +86,9 @@ module MachO  # only useable when included in Pathname
                 offsets << (ar_sigseek_from(candidate) or candidate)
               end
             end
-          else offsets << 0 # single arch (:MH_MAGIC or :MH_MAGIC_64)
+          else
+            @fat_container = false
+            offsets << 0 # single arch (:MH_MAGIC or :MH_MAGIC_64)
           end # mach-O signature?
         end # signatures?
         offsets.each do |offset|
@@ -99,8 +102,8 @@ module MachO  # only useable when included in Pathname
                      case cputype
                        when 0x00000007 then :i386
                        when 0x00000012 then :ppc
-                       when 0x01000007 then cpu_subtype & 0x00ffffff == 8 ? :x86_64h : :x86_64
-                       when 0x0100000c then cpu_subtype & 0x00ffffff == 2 ? :arm64e : :arm64
+                       when 0x01000007 then :x86_64
+                       when 0x0100000c then :arm64
                        when 0x01000012 then :ppc64
                        else :dunno
                      end
@@ -118,7 +121,7 @@ module MachO  # only useable when included in Pathname
   end # mach_data
 
   def archs
-    @archs ||= mach_data.map{ |m| m.fetch :arch, :dunno }.uniq.extend(ArchitectureListExtension)
+    @archs ||= mach_data.map{ |m| m.fetch :arch, :dunno }.uniq.extend(ALE)
   end
 
   def arch
@@ -129,6 +132,7 @@ module MachO  # only useable when included in Pathname
               end
   end # arch
 
+  def fat_container?; m = mach_data; @fat_container; end  # Generate @mach_data to ensure @fat_container is set correctly.
   def fat?; archs.fat?; end
   def powerpc?; archs.powerpc?; end
   def intel?; archs.intel?; end
@@ -144,16 +148,14 @@ module MachO  # only useable when included in Pathname
   def mach_o_bundle?; mach_data.any?{ |m| m.fetch(:type) == :MH_BUNDLE }; end
 
   def tracked_mach_o?
-    mach_data.any?{ |m| mtype = m.fetch(:type)
-      [:MH_EXECUTE, :MH_DYLIB, :MH_BUNDLE].any?{ |mh| mh == mtype }
-    }
+    mach_data.any?{ |m| mtype = m.fetch(:type); [:MH_EXECUTE, :MH_DYLIB, :MH_BUNDLE].any?{ |mh| mh == mtype } }
   end
 
   # The universal‐binary file signature is the same as that of a Java file, so we do extra sanity‐checking for that case.  If there
   # are an implausibly large number of architectures, it is unlikely to be a real fat binary; Java files, for example, will produce
   # a figure well in excess of 60 thousand.  Assume up to MAX_FAT_COUNT architectures, allowing for both things like ARM binaries –
   # some system‐library stubs contain one slice for each possible iPhone architecture! – & future expansion in general.  At present
-  # we only expect:  ppc, i386, ppc64, x86_64, x86_64h, arm64, arm64e.
+  # we only expect:  ppc, i386, ppc64, x86_64, arm64.
   def mach_o_signature_at?(offset)
     sig = FILE_SIGNATURES[binread(4, offset).unpack('N').first] if file? and size >= (offset + 4)
     sig if sig and sig != :FAT_MAGIC or (fct = fat_count_at(offset) and fct <= MAX_FAT_COUNT)

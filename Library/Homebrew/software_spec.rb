@@ -31,8 +31,8 @@ class SoftwareSpec
     #   - two native archs == two local archs; four cross archs     (:ppc64,   :tiger…:leopard)
     #   - two native archs; three local archs; four cross archs     (:x86_64,  :tiger…:snow_leopard, GCC)
     :universal => (Target.cross_archs.fat? \
-                    ? (CPU.native_archs.fat? \
-                      ? ((Target.local_archs != Target.cross_archs and Target.local_archs != CPU.native_archs) \
+                    ? (Target.native_archs.fat? \
+                      ? ((Target.local_archs != Target.cross_archs and Target.local_archs != Target.native_archs) \
                         ? [ # The native, local, and cross architecture‐sets all differ.
                             Option.new('cross', 'Build a universal binary for every possible target architecture'),
                             Option.new('local', 'Build a universal binary for every target architecture this computer can run'),

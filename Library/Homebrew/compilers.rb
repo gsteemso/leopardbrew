@@ -44,12 +44,10 @@ module CompilerConstants
 
   ARCH_COMPILER_MINIMUM = {
     :arm64   => {:gcc => 15.0, :clang => nil},
-    :arm64e  => {:gcc => 15.0, :clang => nil},
     :i386    => {:gcc =>  4.0, :clang => 0.0},
-    :ppc     => {:gcc =>  4.0, :clang => 0.0},
+    :ppc     => {:gcc =>  3.3, :clang => 0.0},
     :ppc64   => {:gcc =>  4.0, :clang => nil},
     :x86_64  => {:gcc =>  4.0, :clang => 0.0},
-    :x86_64h => {:gcc =>  nil, :clang => nil},
   }
 
   COMPILER_SYMBOL_MAP = {

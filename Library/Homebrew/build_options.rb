@@ -1,6 +1,9 @@
 class BuildOptions
   attr_accessor :s_args, :options
 
+  # Note that argument options not actually defined by the formula may be carried by a BuildOptions object.  This allows techniques
+  # such as inserting --universal flags for a formula that always builds :universal and so does not define a :universal option.
+
   # @private
   def initialize(arg_options, defined_options)
     @o_args = arg_options
@@ -58,15 +61,12 @@ class BuildOptions
 
   # Like ARGV#build_mode, but validated against the actual options on offer.
   def mode
-    option_defined?('universal') ? case s_args.build_mode
-                                     when :cross then :cross
-                                     when :local then option_defined?('local')                     ? :local \
-                                                        : Target.local_archs == Target.cross_archs ? :cross \
-                                                        : option_defined?('native')                ? :native \
-                                                                                                   : bottle_or_plain
-                                     when :native then option_defined?('native') ? :native : bottle_or_plain
-                                     else bottle_or_plain
-                                   end : bottle_or_plain
+    if option_defined?('universal')
+      bm = s_args.build_mode
+      return bm if option_defined?(bm.to_s)
+      return :cross if bm == :local and Target.local_archs == Target.cross_archs
+    end
+    bottle_or_plain
   end # mode
 
   # True if a {Formula} is being built as a universal binary, whether native‐only, locally‐oriented, or cross‐compiled.
@@ -112,6 +112,9 @@ class BuildOptions
 
   # @private
   def used_options; options & @o_args; end
+
+  # @private
+  def used_options__modeless; used_options - Options.create(%w[cross local native universal]); end
 
   # @private
   def unused_options; options - @o_args; end

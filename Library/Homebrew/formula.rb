@@ -37,8 +37,6 @@ class Formula
   include Utils::Inreplace
   extend Enumerable
 
-  TIMEFILE = 'brew-checkpoint-@.timestamp'
-
   # @!method inreplace(paths, before = nil, after = nil)
   # Implemented in {Utils⸬Inreplace.inreplace}.  Sometimes we have to change a bit before we install.  Generally we prefer a patch;
   #   but if you need the {prefix} of this formula in the patch, you have to resort to `inreplace`, because in the patch there’s no
@@ -109,7 +107,7 @@ class Formula
 
   # The count of {#checkpoint} blocks that have been encountered during the {#install} method.  Ought to be nil outside that method.
   attr_accessor :checkpoints  # For some reason, this is not catching some accesses made to the bare name “checkpoints”.  I have as
-                              # a result written all references within this file to use “@checkpoints”.
+                              # a result changed all references within this file to use “@checkpoints”.
 
   # Compare formulæ by their names.  If their names are equal, use their full names instead.
   def <=>(other); r = (name <=> other.name).to_s.nope || full_name <=> other.full_name; r.to_i; end
@@ -542,36 +540,44 @@ class Formula
   #   bottles are supported.
   def pour_bottle?; true; end
 
-  protected
+  def checkpoint_prefix; @checkpt_pfx ||= CHECKPOINTS/name/pkg_version.to_s/(build.used_options__modeless.as_names.sort * '_'); end
 
-  def checkpoint_prefix; CHECKPOINTS/name/pkg_version.to_s; end
+  def checkpoint_entry(name); checkpoint_prefix/"checkpoint-#{name}-entry.timestamp"; end
+
+  def checkpoint_exit(name); checkpoint_prefix/"checkpoint-#{name}-exit.timestamp"; end
+
+  def checkpoint_archive(name); checkpoint_prefix/"checkpoint-#{name}.tbz2"; end
+
+  protected
 
   # Got a formula which takes hours to build?  Does it keep screwing up right before it finishes, wasting all that effort?  Write a
   #   checkpoint block at a suitable point, and all progress made within it will be archived for you automatically, so installation
   #   can resume therefrom.  Be warned that this will consume a horrifying amount of disk space if you are careless with it.
   def checkpoint(checkpoint_name = nil)
-    timestamp = Time.now
     raise FormulaSyntaxError.new(full_name, 'A checkpoint must have a code block – things created within it are what get saved') \
                                                                                                                 unless block_given?
     raise FormulaSyntaxError.new(full_name, 'A checkpoint can only be set from within `install`') unless @checkpoints
     @checkpoints += 1
-    checkpoint_name ||= "anonymous-checkpoint-number-#{@checkpoints}"
-    checkpoint_timestamp_file = Pathname.getwd/TIMEFILE.sub('@', checkpoint_name)
-    unless (checkpoint_archive_file = checkpoint_prefix/"#{checkpoint_name}.tbz2").exists?
+    checkpoint_name ||= "_anonymous_-number-#{@checkpoints}"
+    entry_file = checkpoint_entry(checkpoint_name)
+    exit_file = checkpoint_exit(checkpoint_name)
+    unless (archive_file = checkpoint_archive(checkpoint_name)).exists?
+      entry_timestamp = Time.now
       yield
       oh1 "Packing up the checkpoint “#{checkpoint_name}”" if VERBOSE
-      checkpoint_timestamp_file.atomic_write(timestamp.to_i.to_s)
-      # Find everything in the current directory that’s newer than <timestamp>.  This won’t include anything whose name starts with
-      #   a dot, but should include the timestamp file and anything that gets created or modified in the block.  Of course, it does
-      #   require that such creations/modifications be visible from the initial working directory.  Switching directories mid‐block
-      #   is likely to cause trouble.
-      files_etc = []; Dir['*'].each{ |f| files_etc << f if File.stat(f).mtime - timestamp >= 0 }
       checkpoint_prefix.mkpath unless checkpoint_prefix.exists?
+      entry_file.atomic_write(entry_timestamp.to_i.to_s)
+      # Find every item in the current directory newer than ⟨entry_timestamp⟩.  This won’t see dotfiles, but ought to snag anything
+      #   else created and/or modified in the block.  It does require that all such creations and modifications be visible from the
+      #   initial working directory; and switching directories mid‐block is likely ill‐advised.
+      files_etc = []; Dir['*'].each{ |f| files_etc << f if File.stat(f).mtime - entry_timestamp >= 0 }
       # c:  Create a tarchive
       # j:  filter it through bzip2
       # f:  pack into this tarFile
-      silent_system TAR_PATH, '-cjf', checkpoint_archive_file, *files_etc
-      oh1 "This checkpoint was created between #{timestamp} and #{Time.now}" if VERBOSE and not QUIETER
+      silent_system TAR_PATH, '-cjf', archive_file, *files_etc
+      exit_timestamp = Time.now
+      exit_file.atomic_write(exit_timestamp.to_i.to_s)
+      oh1 "This checkpoint was created between #{entry_timestamp} and #{exit_timestamp}" if VERBOSE and not QUIETER
     else # checkpoint already exists
       oh1 "Unpacking the checkpoint “#{checkpoint_name}”" if VERBOSE
       # x:  eXtract a tarchive
@@ -580,12 +586,24 @@ class Formula
       #     random makefile.
       # p:  preserve Permissions
       # f:  unpack from this tarFile
-      silent_system TAR_PATH, '-xjmpf', checkpoint_archive_file
-      oh1 "This checkpoint was created #{Time.at(checkpoint_timestamp_file.binread.to_i)}" if VERBOSE and not QUIETER
+      silent_system TAR_PATH, '-xjmpf', archive_file
+      if VERBOSE and not QUIETER
+        entry_time = Time.at(entry_file.binread.to_i) if entry_file.exists?
+        exit_time = Time.at(exit_file.binread.to_i) if exit_file.exists?
+        oh1 "This checkpoint was created between #{entry_time} and #{exit_time}" if entry_time and exit_time
+      end
     end # create checkpoint, or unpack it?
   end # checkpoint
 
   public
+
+  # Get a list of saved checkpoints, in the form of an array of checkpoint names.  With those, the timestamp & archive files’ names
+  #   can be fetched using the utility routines above.
+  def checkpoint_names
+    result = []
+    cd checkpoint_prefix do result = Dir['checkpoint-*.tbz2'].map{ |f| f.sub(/^checkpoint-/, '').sub(/\.tbz2$/, '') }; end
+    result
+  end
 
   # Can be overridden to run commands on both source and bottle installation.
   def post_install; end

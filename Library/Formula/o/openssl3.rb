@@ -28,11 +28,11 @@ class Openssl3 < Formula
 
   def arg_format(arch)
     case arch
-      when :arm64, :arm64e   then 'darwin64-arm64'
-      when :i386             then 'darwin-i386'
-      when :ppc              then 'darwin-ppc'
-      when :ppc64            then 'darwin64-ppc'
-      when :x86_64, :x86_64h then 'darwin64-x86_64'
+      when :arm64  then 'darwin64-arm64'
+      when :i386   then 'darwin-i386'
+      when :ppc    then 'darwin-ppc'
+      when :ppc64  then 'darwin64-ppc'
+      when :x86_64 then 'darwin64-x86_64'
     end
   end
 

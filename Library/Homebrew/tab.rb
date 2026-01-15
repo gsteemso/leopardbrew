@@ -185,7 +185,7 @@ class Tab < OpenStruct
                                               when :plain then Target.preferred_arch_as_list
                                             end
                          else Target.preferred_arch_as_list; end
-    else super.map(&:to_sym).extend ArchitectureListExtension; end
+    else super.map(&:to_sym).extend ALE; end
   end # built_archs
 
   def compiler; super or MacOS.default_compiler; end

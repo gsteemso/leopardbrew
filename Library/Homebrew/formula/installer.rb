@@ -30,7 +30,6 @@ class FormulaInstaller
   end
 
   attr_reader :formula
-  attr_accessor :options
   mode_attr_accessor :show_install_heading, :show_summary_heading,
     :build_from_source, :build_bottle, :force_bottle, :ignore_deps,
     :only_deps, :interactive, :git, :verbose, :debug, :quieter
@@ -50,12 +49,15 @@ class FormulaInstaller
     @verbose = false
     @quieter = false
     @debug = false
-    @options = Options.new
     @poured_bottle = false
     @pour_failed   = false
 
     @@attempted ||= Set.new
   end # initialize
+
+  def options; formula.build.used_options; end
+
+  def options=(opts); formula.build = BuildOptions.new(opts, formula.options); end
 
   def skip_deps_check?; ignore_deps?; end
 
@@ -268,13 +270,13 @@ class FormulaInstaller
   def expand_dependencies(deps)
     inherited_options = {}
     expanded_deps = Dependency.expand(formula, deps) do |dependent, dep|
-        options = inherited_options[dep.name] = inherited_options_for(dep)
+        opts = inherited_options[dep.name] = inherited_options_for(dep)
         build = effective_build_options_for(dependent, inherited_options.fetch(dependent.name, []))
         if (dep.optional? or dep.recommended?) and build.without?(dep)
           Dependency.prune
         elsif dep.build? and install_bottle_for?(dependent, build)
           Dependency.prune
-        elsif dep.satisfied?(options)
+        elsif dep.satisfied?(opts)
           Dependency.skip
         end
       end # do expand |dependent, dep|
@@ -296,13 +298,8 @@ class FormulaInstaller
     inherited_opts = Options.new
     f = dep.to_formula
     u = Option.new('universal')
-    if not dep.build? and f.option_defined?(u)
-      if f.option_defined?(x = Option.new('cross')) and (ARGV.build_cross? or formula.require_universal_deps?)
-        inherited_opts << x
-      elsif (options.include?(u) or ARGV.build_fat? or formula.require_universal_deps?)
-        inherited_opts << u
-      end
-    end
+    inherited_opts << u if not dep.build? and f.build.universal? and \
+                                                        (options.include?(u) or ARGV.build_fat? or formula.require_universal_deps?)
     inherited_opts
   end # inherited_options_for
 
@@ -313,7 +310,7 @@ class FormulaInstaller
       puts "All dependencies for #{formula.full_name} are satisfied."
     else
       oh1 "Installing dependencies for #{formula.full_name}: #{TTY.green}#{deps.map(&:first)*", "}#{TTY.reset}" unless deps.empty?
-      deps.each { |dep, options| install_dependency(dep, options) }
+      deps.each{ |dep, opts| install_dependency(dep, opts) }
     end
     @show_install_heading = true unless deps.empty?
   end # install_dependencies
@@ -431,7 +428,22 @@ class FormulaInstaller
     s
   end # summary
 
-  def build_time; @build_time ||= Time.now - @start_time if @start_time and not interactive?; end
+  def build_time
+    if @start_time and not interactive?
+      @build_time ||= Time.now - @start_time + checkpoint_times
+    end
+  end
+
+  # Returns a raw count of seconds, as logged when the checkpoints were saved.
+  def checkpoint_times
+    sum = 0
+    formula.checkpoint_names.each do |name|
+      entry = formula.checkpoint_entry(name); exit = formula.checkpoint_exit(name)
+      next unless entry.exists? and exit.exists?
+      sum += exit.binread.to_i - entry.binread.to_i
+    end
+    sum
+  end # checkpoint_times
 
   def sanitized_ARGV_options
     args = Options.new

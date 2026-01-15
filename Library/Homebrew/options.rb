@@ -21,6 +21,8 @@ class Option
 
   def to_s; value.choke ? "#{flag}#{value}" : flag; end
 
+  def to_name_s; value.choke ? "#{name}#{value}" : name; end
+
   def <=>(o); return unless Option === o; (name <=> o.name).nope || value <=> o.value; end
 
   def ==(o); instance_of?(o.class) and name == o.name and value = o.value; end
@@ -73,6 +75,8 @@ class Options
   def empty?; @options.empty?; end
 
   def as_flags; map(&:to_s); end
+
+  def as_names; map(&:to_name_s); end
 
   def include?(other)
     other_name = case other.class.to_s

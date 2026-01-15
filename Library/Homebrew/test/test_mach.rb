@@ -116,9 +116,7 @@ class MachOPathnameTests < Homebrew::TestCase
 end
 
 class ArchitectureListExtensionTests < MachOPathnameTests
-  def setup
-    @archs = [:i386, :x86_64, :ppc7400, :ppc64].extend(ArchitectureListExtension)
-  end
+  def setup; @archs = [:i386, :x86_64, :ppc7400, :ppc64].extend ALE; end
 
   def test_architecture_list_extension_universal_checks
     assert_predicate @archs, :universal?
@@ -127,20 +125,20 @@ class ArchitectureListExtensionTests < MachOPathnameTests
     assert_predicate @archs, :cross_universal?
     assert_predicate @archs, :fat?
 
-    non_universal = [:i386].extend ArchitectureListExtension
+    non_universal = [:i386].extend ALE
     refute_predicate non_universal, :universal?
 
-    intel_only = [:i386, :x86_64].extend ArchitectureListExtension
+    intel_only = [:i386, :x86_64].extend ALE
     assert_predicate intel_only, :universal?
     refute_predicate intel_only, :ppc_universal?
     refute_predicate intel_only, :cross_universal?
 
-    ppc_only = [:ppc970, :ppc64].extend ArchitectureListExtension
+    ppc_only = [:ppc970, :ppc64].extend ALE
     assert_predicate ppc_only, :universal?
     refute_predicate ppc_only, :intel_universal?
     refute_predicate ppc_only, :cross_universal?
 
-    cross = [:ppc7400, :i386].extend ArchitectureListExtension
+    cross = [:ppc7400, :i386].extend ALE
     assert_predicate cross, :universal?
     refute_predicate cross, :intel_universal?
     refute_predicate cross, :ppc_universal?

@@ -105,12 +105,7 @@ module HomebrewArgvExtension
 
   def casks; @casks ||= downcased_unique_named.grep HOMEBREW_CASK_TAP_FORMULA_REGEX; end
 
-  def racks
-    @racks ||= downcased_unique_named.map{ |name|
-        if (r = HOMEBREW_CELLAR/name).directory? then r
-        else raise NoSuchRackError, name; end
-      }
-  end # racks
+  def racks; @racks ||= downcased_unique_named.map{ |name| if (r = HOMEBREW_CELLAR/name).directory? then r; end }.compact; end
 
   # Also gathers “kegs” that have no install receipt, so the uninstall command still sees them.
   def kegs

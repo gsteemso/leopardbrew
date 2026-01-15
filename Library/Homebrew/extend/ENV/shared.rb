@@ -118,7 +118,7 @@ module SharedEnvExtension
 
   def fcflags; self['FCFLAGS']; end
 
-  def homebrew_built_archs; self['HOMEBREW_BUILT_ARCHS'].to_s.split(' ').map(&:to_sym).extend ArchitectureListExtension; end
+  def homebrew_built_archs; self['HOMEBREW_BUILT_ARCHS'].to_s.split(' ').map(&:to_sym).extend ALE; end
 
   def reset_built_archs; self['HOMEBREW_BUILT_ARCHS'] = ''; end
 
@@ -275,6 +275,7 @@ module SharedEnvExtension
     end # no opt/ prefix
   end # warn_about_non_apple_gcc
 
+  # For when a :universal build is indicated, but the build about to be done isn’t to be part of it.
   def single_arch_binary; Target.no_universal_binary; set_build_archs(Target.archset); end
 
   def universal_binary
@@ -288,7 +289,7 @@ module SharedEnvExtension
   end
 
   def set_build_archs(archset)
-    archset = Array(archset).extend ArchitectureListExtension unless archset.responds_to?(:fat?)
+    archset = Array(archset).extend ALE unless archset.responds_to?(:fat?)
     clear_compiler_archflags
     if @without_archflags then @without_archflags = false; end
     @build_archs = archset

@@ -7,7 +7,7 @@ class CPUTests < Homebrew::TestCase
   end
 
   def test_cpu_arch
-    assert_includes [:arm64, :arm64e, :i386, :ppc, :ppc64, :x86_64, :x86_64h], CPU.arch
+    assert_includes [:arm64, :i386, :ppc, :ppc64, :x86_64], CPU.arch
   end
 
   def test_cpu_intel_model
