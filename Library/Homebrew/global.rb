@@ -68,10 +68,9 @@ HOMEBREW_TAP_FORMULA_REGEX        = %r{^([\w-]+)/([\w-]+)/([\w+-.@]+)$}
 VERSIONED_NAME_REGEX              = %r{^([^-=][^=]*)=([^=]+)$}      # Matches a formula‐name‐including‐version specification.
 
 # Other predefined values:
-# CompilerConstants::ARCH_COMPILER_MINIMUM
-                                    # Lists the minimum compiler to target a given architecture.
-# CompilerConstants::COMPILER_DEFAULT # Lists the default language versions for a given compiler version.
-# CompilerConstants::COMPILER_SUPPORT # Lists the greatest supported language versions for a given compiler version.
+# CompilerConstants::ARCH_MINIMUM   # Lists the minimum compiler to target a given architecture.
+# CompilerConstants::LANG_DEFAULT   # Lists the default language versions for a given compiler version.
+# CompilerConstants::LANG_SUPPORT   # Lists the greatest supported language versions for a given compiler version.
 # CompilerConstants::COMPILERS      # Lists the known compilers.
 HOMEBREW_CURL_ARGS       = '-f#LA'
 HOMEBREW_INTERNAL_COMMAND_ALIASES = { 'ls'          => 'list',
@@ -132,9 +131,9 @@ require 'compat' unless ENV['HOMEBREW_NO_COMPAT'] or ARGV.include?('--no-compat'
 # $HOMEBREW_MAKE_JOBS            # Used in $MAKEFLAGS, prefixed by “-j”
 # $HOMEBREW_NO_GITHUB_API        # Used by GitHub.open & GitHub.print_pull_requests_matching in `utils.rb`
 # $HOMEBREW_NO_INSECURE_REDIRECT # Tested in CurlDownloadStrategy#fetch if an https → http redirect is encountered.
-# $HOMEBREW_PREFER_64_BIT        # Build 64‐bit by default (req’d for Leopard :universal; see `macos.rb`)
+# $HOMEBREW_PREFER_64_BIT        # Build 64‐bit by default (req’d for Leopard :universal; see `macos.rb`) – “force” to use on Tiger
 # $HOMEBREW_SANDBOX              # hells if I know (see `extend/ARGV.rb`)
-# $HOMEBREW_UNIVERSAL_MODE       # “local” | “cross”; if there’s a :universal option, use it this way (see `extend/ARGV.rb`)
+# $HOMEBREW_UNIVERSAL_MODE       # “native” | “local” | “cross”; if building :universal, do it this way (see `extend/ARGV.rb`)
 # $HOMEBREW_VERBOSE_USING_DOTS   # Print heartbeat dots during long system calls (see `formula.rb`)
 
 # Superenv environment variables:
@@ -143,14 +142,18 @@ require 'compat' unless ENV['HOMEBREW_NO_COMPAT'] or ARGV.include?('--no-compat'
 # $HOMEBREW_CCCFG              # A set of flags governing things like argument refurbishment
 # $HOMEBREW_DISABLE__W         # Enable warnings by not inserting “-w”
 # $HOMEBREW_FORCE_FLAGS        # Always inserted during argument refurbishment
-ENV['HOMEBREW_GIT'] = "#{OPTDIR}/git/bin/git" if (OPTDIR/'git/bin/git').executable?  # see `ENV/scm/git`
+temp_pn = OPTDIR/'git/bin/git'  # see `ENV/scm/git`
+temp_pn = which 'git' unless temp_pn.executable?
+ENV['HOMEBREW_GIT'] = temp_pn.to_s if temp_pn and temp_pn.executable?
 # $HOMEBREW_INCLUDE_PATHS      # These are how -I flags reach ENV/super/cc
 # $HOMEBREW_ISYSTEM_PATHS      # These are how -isystem flags reach ENV/super/cc
 # $HOMEBREW_LIBRARY_PATHS      # These are how -L flags reach ENV/super/cc
 # $HOMEBREW_OPTFLAGS           # Set to the compiler optimization flags suiting HOMEBREW_BUILD_ARCHS
 # $HOMEBREW_OPTIMIZATION_LEVEL # This is how an -O flag reaches ENV/super/cc
 # $HOMEBREW_SDKROOT            # Set to MacOS.sdk_path iff we have Xcode without command‐line tools
-ENV['HOMEBREW_SVN'] = "#{OPTDIR}/subversion/bin/svn" if (OPTDIR/'subversion/bin/svn').executable?  # see `ENV/scm/git`
+temp_pn = OPTDIR/'subversion/bin/svn'  # see `ENV/scm/git`
+temp_pn = which 'svn' unless temp_pn.executable?
+ENV['HOMEBREW_SVN'] = temp_pn.to_s if temp_pn and temp_pn.executable?
 
 # Other environment variables used in brewing:
 # $CC/$CXX/$FC/$OBJC/$OBJCXX # These combine $HOMEBREW_CC et al with ENV.build_archs.as_archflags
