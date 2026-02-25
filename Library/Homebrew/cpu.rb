@@ -232,7 +232,8 @@ class CPU
 
     def _32b?; not _64b?; end
 
-    # Can the current CPU and Mac OS combination can run an executable of “this” architecture?
+    # Can the current CPU and Mac OS combination can run an executable of “this” architecture?  Note that this question is distinct
+    # from whether it _will_ run it for policy reasons; see Target⸬will_run?() for that answer.
     def can_run?(this)
       case type
         when :arm     then arm_can_run? this
@@ -249,16 +250,17 @@ class CPU
 
     def arm_can_run?(this)
       case this
-        when :arm64, :x86_64 then true
+        when :arm64 then true
+        when x86_64 then MacOS.darwin <= 27
         else false  # :i386, :ppc, :ppc64, :dunno
       end
     end # CPU⸬arm_can_run?
 
     def intel_can_run?(this)
       case this
-        when :arm64, :ppc64 then false  # No fwd compatibility, & Rosetta never did PPC64.
+        when :arm64, :ppc64 then false  # No forwards compatibility, & Rosetta never did PPC64.
         when :ppc           then MacOS.version < :lion  # Rosetta still available?
-        when :i386          then MacOS.version < :catalina
+        when :i386          then MacOS.version < :catalina  # Mojave was the last OS with 32‐bit infrastructure.
         when :x86_64        then _64b?
         else false  # :dunno
       end
