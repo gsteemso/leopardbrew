@@ -27,18 +27,22 @@ module HomebrewArgvExtension
   U_MODE_FLAGS = %w[ --cross
                      --local
                      --native
-                     --universal ].freeze
+                     --plain
+                     --universal
+                     --single-arch ].freeze
 
-  U_MODE_OPTS = { '--cross'     => :cross,
-                  '--local'     => :local,
-                  '--native'    => :native,
-                  '-x'          => :cross,  }.freeze
+  U_MODE_OPTS = { '--cross'       => :cross,
+                  '-x'            => :cross,
+                  '--local'       => :local,
+                  '--native'      => :n8ive,
+                  '--plain'       => :plain,
+                  '--single-arch' => :plain, }.freeze
 
-  BREW_SYSTEM_EQS = %w[ --bottle-arch=
-                        --cc=
-                        --env=
-                        --json=
-                        --mode=        ].freeze
+  BREW_SYSTEM_EQS = %w[ --bottle-arch
+                        --cc
+                        --env
+                        --json
+                        --mode        ].freeze
 
   BREW_SYSTEM_FLAGS = %w[ --force-bottle
                           --ignore-dependencies
@@ -61,10 +65,10 @@ module HomebrewArgvExtension
   def flags_only; select{ |arg| arg.to_s.starts_with?('--') }; end
 
   # Constructs a list of all the flags which would have needed to be passed to convey every datum which either really was passed as
-  # a flag, or was actually passed as a switch or through an environment variable.  There is a special case here, in that universal
-  # (& plain) builds of any type are conveyed to the build and test scripts by the “--mode=” flag, but that information can also be
-  # relayed by other means, which must be filtered out.  Those parts of our infrastructure which must distinguish amongst the types
-  # of build do so via the argument to --mode=.
+  # a flag, or was actually passed as a switch or through an environment variable.  There is a special case here, in that all build
+  # types (universal and otherwise) are conveyed to the build and test scripts by the “--mode=” flag, but that information can also
+  # be relayed by other means, which must be filtered out.  Those parts of our infrastructure which must distinguish the build type
+  # do so via the argument to --mode=.
   def effective_flags
     @effl ||= begin
                 flags = flags_only.reject{ |flag| flag =~ %r{^--mode=} } - U_MODE_FLAGS
@@ -80,12 +84,11 @@ module HomebrewArgvExtension
 
   # Constructs a list of all user-supplied flags not specific to the brewing system; i.e. only those flags that were (or might have
   # been) defined by a specific formula.  This does involve the special case that the assorted flavours of universal build might be
-  # specified in any of several ways, but are always signalled by a “--universal” flag as far as the Formula is concerned.
+  # specified in any of several ways, but from the Formula’s perspective, are notionally always signalled by a “--universal” flag.
   def effective_formula_flags
     @efffl ||= begin
-                 flags = flags_only.reject{ |flag| BREW_SYSTEM_EQS.any?{ |eq| flag =~ /^#{eq}/ }} - U_MODE_FLAGS
-                 flags << '--universal' if build_universal?
-                 flags << "--#{build_mode}" unless build_mode == :plain or build_mode == :bottle
+                 flags = flags_only.reject{ |flag| BREW_SYSTEM_EQS.any?{ |eq| flag =~ /^#{eq}=/ }} - U_MODE_FLAGS
+                 flags << "--mode=#{build_mode}"
                  flags - BREW_SYSTEM_FLAGS - SWITCHES.values - ENV_FLAGS.map{ |ef| "--#{ef.chop.gsub('_', '-')}" }
                end
   end # effective_formula_flags
@@ -93,15 +96,14 @@ module HomebrewArgvExtension
   def formulae
     require 'formula'
     @fae ||= (downcased_unique_named - casks).map{ |name|
-        if name.includes?('/') or File.exists?(name) then Formulary.factory(name, spec)
-        else Formulary.find_with_priority(name, spec); end
+        (name.includes?('/') or File.exists? name) ? Formulary.factory(name, spec) : Formulary.find_with_priority(name, spec)
       }
   end # formulae
 
   def resolved_formulae
     require 'formula'
     @res_fae ||= racks.map{ |r| Formulary.from_rack(r) }.select{ |f| f.any_version_installed? or f.oldname_installed? }
-  end # resolved_formulae
+  end
 
   def casks; @casks ||= downcased_unique_named.grep HOMEBREW_CASK_TAP_FORMULA_REGEX; end
 
@@ -115,7 +117,7 @@ module HomebrewArgvExtension
             keg_path = HOMEBREW_CELLAR/$1/$2
             raise NoSuchKegError, name unless keg_path.directory?
             Keg.new(keg_path)
-          elsif (f, ss = attempt_factory(name)) != nil
+          elsif (f, ss = attempt_factory name) != nil
             if (pn = f.opt_prefix).symlink? and pn.directory? then Keg.new(pn.resolved_path)
             elsif (pn = f.linked_keg).symlink? and pn.directory? then Keg.new(pn.resolved_path)
             elsif (pn = f.spec_prefix(ss)) and pn.directory? then Keg.new(pn)
@@ -123,10 +125,8 @@ module HomebrewArgvExtension
               case (dirs = rack.subdirs).length
                 when 0 then raise FormulaNotInstalledError, rack.basename   # not necessarily “name”
                 when 1 then Keg.new(dirs.first)
-                else
-                  if (k = f.greatest_installed_keg) then k        # can fail if no install receipts
-                  else raise MultipleVersionsInstalledError, rack.basename  # not necessarily “name”
-                  end
+                else # Note that Formula#greatest_installed_keg can fail if there are no install receipts.
+                  (k = f.greatest_installed_keg) ? k : raise(MultipleVersionsInstalledError, rack.basename)  # not always “name”
               end
             end
           else # no formula
@@ -141,15 +141,12 @@ module HomebrewArgvExtension
       end.compact  # end of kegs = ...collect do
   end # kegs
 
-  def includes?(arg); @n = index arg; end
+  def includes?(arg); @n = find_rindex arg; end  # In the case of conflicting options, we only care about the last one.
   alias_method :include?, :includes?
 
-  def next1; @n and at(@n + 1) or raise ARGVSyntaxError, 'Missing datum at end of command line'; end
+  def next1; @n and (at(@n + 1) or raise ARGVSyntaxError, 'Missing datum at end of command line'); end
 
-  def value(arg)
-    if find{ |o| o =~ /^--#{arg}=(.+)$/ } then $1
-    elsif includes?("--#{arg}") then next1; end
-  end
+  def value(arg); (@n = find_index{ |o| o =~ /^--#{arg}=(.+)$/ }) ? $1 : includes?("--#{arg}") ? next1 : nil; end
 
   def debug?; flag? '--debug' or ENV['HOMEBREW_DEBUG'].choke; end
 
@@ -171,9 +168,13 @@ module HomebrewArgvExtension
 
   def ignore_aids?; includes? '--no-enhancements'; end
 
-  def ignore_deps?; includes? '--ignore-dependencies'; end
+  def dep_treatment
+    none = ignore_deps?; only = includes?('--only-dependencies')
+    raise ArgumentError, '“--ignore-dependencies” and “--only-dependencies” are mutually exclusive' if none and only
+    none ? :ignore : only ? :only : false
+  end
 
-  def only_deps?; includes? '--only-dependencies'; end
+  def ignore_deps?; includes? '--ignore-dependencies'; end
 
   def sandbox?; includes? '--sandbox' or ENV['HOMEBREW_SANDBOX'].choke; end
 
@@ -191,54 +192,61 @@ module HomebrewArgvExtension
 
   def build_local?;  build_mode == :local; end
 
-  def build_native?; build_mode == :native; end
+  def build_native?; build_mode == :n8ive; end
 
-  def build_plain?;  build_mode == :bottle or build_mode == :plain; end
+  def build_plain?;  build_mode == :bottL or build_mode == :plain; end
 
   def build_fat?; not build_plain?; end
   alias_method :build_universal?, :build_fat?
 
   def build_mode
-    @mode ||= if build_bottle?                               then :bottle
-              elsif includes?('--universal') or
-                    value('mode') or
-                    intersects?(U_MODE_OPTS.keys)            then universal_mode_with_priority
-              elsif m = ENV['HOMEBREW_UNIVERSAL_MODE'].choke then validate_universal_mode(m)
-              else                                                :plain; end
+    @mode ||= build_bottle?                            ? :bottL                       : \
+              includes?('--universal') or
+                value('mode') or
+                intersects?(U_MODE_OPTS.keys)          ? universal_mode_with_priority : \
+              m = ENV['HOMEBREW_UNIVERSAL_MODE'].choke ? validate_universal_mode(m)   : :plain
   end # build_mode
 
   def force_universal_mode  # This needs to be kept in sync with BuildOptions#force_universal_mode
-    return if build_mode != :plain  # Either it’s already universal & we’ve finished, or it’s :bottle & we can’t in the first place.
-    unshift '--universal' unless includes?('--universal')  # putting it at the front should let the user override it.
+    return if build_mode != :plain  # Either it’s already universal & we’ve finished, or it’s :bottL & we can’t in the first place.
     empty_caches
-    insert(index('--universal') + 1, "--#{build_mode}") unless includes?(build_mode.to_s)
-    insert(index("--#{build_mode}") + 1, "--mode=#{build_mode}") unless includes_eq?('mode')
+    unshift "--mode=#{build_mode}" unless value('mode')
   end # force_universal_mode
-
-  # Request a 32-bit only build.  Needed for some use-cases.  Building Universal is preferable.
-  def build_32_bit?; includes? '--32-bit'; end
 
   def build_bottle?; includes? '--build-bottle' or ENV['HOMEBREW_BUILD_BOTTLE'].choke or bottle_arch; end
 
   def bottle_arch
     unless @btl_chk
       @btl_chk = true
-      @btl_arch ||= if (arch = value 'bottle-arch') then arch.to_sym; end
+      @btl_arch ||= (arch = value 'bottle-arch') ? arch.to_sym : nil
     end
     @btl_arch
   end # bottle_arch
 
-  def build_from_source?; switch? 's' or includes? '--build-from-source' or ENV['HOMEBREW_BUILD_FROM_SOURCE'].choke; end
+  def build_from_source?
+    indices = [switch?('s'), includes?('--build-from-source'), (-1 if ENV['HOMEBREW_BUILD_FROM_SOURCE'].choke)].compact
+    indices.max unless indices.empty?
+  end
 
   def flag?(flag); includes? flag or switch? flag[2, 1]; end
 
   def force_bottle?; includes? '--force-bottle'; end
 
+  def forced_install_type
+    bfs = build_from_source? || -2; fb = force_bottle? || -2
+    # These can only be equal if they’re both absent (i.e. nil → -2) – and if --build-from-source is only indicated via environment
+    # variable (-1), --force-bottle being present in any position will override it.
+    (bfs > fb) ? :source : (fb > bfs) ? :bottle : false
+  end
+
   # eg. `foo -ns -i --bar` has three switches, n, s and i
   def switch?(char)
     return false if char.length > 1
-    options_only.any?{ |arg| arg[1, 1] != '-' and arg.includes? char }
-  end
+    ropts = options_only.reverse
+    if n = ropts.find_index{ |arg| arg[1, 1] != '-' and arg.includes? char } then length - n - 1; end
+  end  # reverse before find_index because in the case of conflicting options, we only care about the last one.  (When incompatible
+       # switches get passed in the same bundle thereof, it’s the caller’s problem.)  find_rindex inexplicably fails here and can’t
+       # be used (something to do with the block being passed).
 
   def usage; require 'cmd/help'; Homebrew.help_s; end
 
@@ -252,7 +260,6 @@ module HomebrewArgvExtension
     build_flags = []
     build_flags << '--HEAD' if build_head?
     build_flags << '--universal' << "--mode=#{build_mode}" if build_fat?
-    build_flags << '--32-bit' if build_32_bit?
     build_flags << '--build-bottle' if build_bottle?
     build_flags << '--build-from-source' if build_from_source?
     build_flags
@@ -276,14 +283,14 @@ module HomebrewArgvExtension
       }.compact.uniq
   end # downcased_unique_named
 
-  def includes_eq?(eq); find{ |o| o.starts_with? "--#{eq}=" } or includes?("--#{eq}"); end
-
   def spec(default = :stable); build_head? ? :head : build_devel? ? :devel : default; end
 
   def universal_mode_with_priority
     options_only.reverse_each do |opt|
       case opt
-        when '--universal', '-u' then return ((m = ENV['HOMEBREW_UNIVERSAL_MODE'].choke) ? validate_universal_mode(m) : :native)
+        when '--universal', '-u' then return (m = ENV['HOMEBREW_UNIVERSAL_MODE'].choke) \
+                                               ? validate_universal_mode(m) \
+                                               : Target.default_universal_mode
         when *U_MODE_OPTS.keys   then return U_MODE_OPTS[opt]
         when %r{^--mode=(.+)$}   then return validate_universal_mode($1)
       end
@@ -295,7 +302,7 @@ module HomebrewArgvExtension
     case m.to_s.downcase
       when 'cross'  then :cross
       when 'local'  then :local
-      when 'native' then :native
+      when 'native' then :n8ive
       else               :plain
     end
   end # validate_universal_mode

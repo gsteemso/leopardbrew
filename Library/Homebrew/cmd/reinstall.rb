@@ -19,7 +19,6 @@ module Homebrew
   def reinstall
     raise FormulaUnspecifiedError if ARGV.named.empty?
     raise 'Specify “--HEAD” in uppercase to build from the latest source code.' if ARGV.include? '--head'
-    raise '--ignore-dependencies and --only-dependencies are mutually exclusive.' if ARGV.ignore_deps? and ARGV.only_deps?
     FormulaInstaller.prevent_build_flags unless MacOS.has_apple_developer_tools?
     named_spec = (ARGV.build_head? ? :head : (ARGV.build_devel? ? :devel : (ARGV.includes?('--stable') ? :stable : nil)))
     puts "Named spec = #{named_spec or '[none]'}" if DEBUG
@@ -78,16 +77,14 @@ module Homebrew
 
     fi = FormulaInstaller.new(f)
     fi.options             = options
-    fi.ignore_deps         = ARGV.ignore_deps?
-    fi.only_deps           = ARGV.only_deps?
-    fi.build_from_source   = ARGV.build_from_source?
-    fi.build_bottle        = ARGV.build_bottle? or (!f.bottled? and tab.build_bottle?)
-    fi.force_bottle        = ARGV.force_bottle?
-    fi.interactive         = ARGV.interactive? or ARGV.git?
-    fi.git                 = ARGV.git?
-    fi.verbose             = VERBOSE or QUIETER
-    fi.quieter             = QUIETER
+    fi.build_bottle        = ARGV.build_bottle? || (!f.bottled? && tab.build_bottle?)
     fi.debug               = DEBUG
+    fi.git                 = ARGV.git?
+    fi.ignore_aids         = ARGV.ignore_aids?
+    fi.interactive         = ARGV.interactive? || ARGV.git?
+    fi.deps_do             = ARGV.dep_treatment
+    fi.force               = ARGV.forced_install_type
+    fi.verbosity           = QUIETER ? :less : VERBOSE ? :full : nil
     fi.prelude
     fi.install
     fi.finish  # this links the new keg

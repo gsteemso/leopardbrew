@@ -31,8 +31,6 @@ module Homebrew
   def install
     raise FormulaUnspecifiedError if ARGV.named.empty?
     raise 'Specify “--HEAD” in uppercase to build from the latest source code.' if ARGV.include? '--head'
-    raise '--ignore-dependencies and --only-dependencies are mutually exclusive.' \
-                                                           if ARGV.ignore_deps? and ARGV.only_deps?
     # if the user's flags will prevent bottle only-installations when no
     # developer tools are available, we need to stop them early on
     FormulaInstaller.prevent_build_flags unless MacOS.has_apple_developer_tools?
@@ -189,17 +187,14 @@ module Homebrew
     f.print_tap_action
 
     fi = FormulaInstaller.new(f)
-    fi.options             = f.build.used_options
-    fi.ignore_deps         = ARGV.ignore_deps?
-    fi.only_deps           = ARGV.only_deps?
-    fi.build_from_source   = ARGV.build_from_source?
     fi.build_bottle        = ARGV.build_bottle?
-    fi.force_bottle        = ARGV.force_bottle?
-    fi.interactive         = ARGV.interactive? or ARGV.git?
-    fi.git                 = ARGV.git?
-    fi.verbose             = VERBOSE
-    fi.quieter             = QUIETER
     fi.debug               = DEBUG
+    fi.git                 = ARGV.git?
+    fi.ignore_aids         = ARGV.ignore_aids?
+    fi.interactive         = ARGV.interactive? || ARGV.git?
+    fi.deps_do             = ARGV.dep_treatment
+    fi.force               = ARGV.forced_install_type
+    fi.verbosity           = QUIETER ? :less : VERBOSE ? :full : nil
     fi.prelude
     fi.install
   rescue FormulaInstallationAlreadyAttemptedError

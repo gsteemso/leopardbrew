@@ -63,8 +63,11 @@ class BuildOptions
   def mode
     if option_defined?('universal')
       bm = s_args.build_mode
-      return bm if option_defined?(bm.to_s)
-      return :cross if bm == :local and Target.local_archs == Target.cross_archs
+      return bm if option_defined?(bm.to_s) or (bm == :n8ive and option_defined? 'native')
+      if bm == :local
+        return :n8ive if Target.local_archs == Target.native_archs
+        return :cross if Target.local_archs == Target.cross_archs
+      end
     end
     bottle_or_plain
   end # mode
@@ -83,30 +86,23 @@ class BuildOptions
 
   # True if a {Formula} is being built for native architectures only (those which can be run without emulation).
   # e.g. on Intel under Tiger through Snow Leopard this means a combined i386/x86_64 binary or library.
-  def native?; universal? and mode == :native; end
+  def native?; universal? and mode == :n8ive; end
 
   # What it says.  Must be kept in sync with the version in extend/ARGV.  For formulæ that always build universal, and as such have
   # never needed to provide a --universal option.
   def force_universal_mode
+    return if mode != :plain  # Either it’s already universal & we’ve finished, or it’s :bottL & we can’t in the first place.
     universal_option_already_defined = option_defined?('universal')
-    already_got_a_universal = includes?('universal')
-    already_got_the_mode = includes?(mode.to_s)
     already_got_a_mode_eq = @o_args.include?('mode')
     s_args.force_universal_mode
     @options << Option.new('universal') unless universal_option_already_defined
-    @o_args << 'universal' unless already_got_a_universal
-    @o_args << mode.to_s unless already_got_the_mode
     @o_args << "mode=#{mode}" unless already_got_a_mode_eq
   end
-
-  # True if a {Formula} is being built in 32-bit (i386 and/or ppc) mode.
-  # This is needed for some use-cases though we prefer to define Universal builds wherever possible.
-  def build_32_bit?; s_args.build_32_bit? and option_defined?('32-bit'); end
 
   # Like ARGV#effective_formula_flags, but validated against the actual options on offer.
   def effective_formula_flags
     efffl = s_args.effective_formula_flags - ["--#{s_args.build_mode}"]
-    efffl << "--#{mode}" unless mode == :plain or mode == :bottle
+    efffl << "--#{mode}" unless mode == :plain or mode == :bottL
     efffl
   end
 
@@ -121,7 +117,7 @@ class BuildOptions
 
   private
 
-  def bottle_or_plain; bottle? ? :bottle : :plain; end
+  def bottle_or_plain; bottle? ? :bottL : :plain; end
 
   def option_defined?(val); options.include? val; end
 end # BuildOptions

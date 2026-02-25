@@ -94,16 +94,14 @@ module Homebrew
 
     fi = FormulaInstaller.new(f)
     fi.options             = options
-    fi.ignore_deps         = ARGV.ignore_deps?
-    fi.only_deps           = ARGV.only_deps?
-    fi.build_from_source   = ARGV.build_from_source?
     fi.build_bottle        = ARGV.build_bottle?
-    fi.force_bottle        = ARGV.force_bottle?
-    fi.interactive         = ARGV.interactive? or ARGV.git?
-    fi.git                 = ARGV.git?
-    fi.verbose             = VERBOSE or QUIETER
-    fi.quieter             = QUIETER
     fi.debug               = DEBUG
+    fi.git                 = ARGV.git?
+    fi.ignore_aids         = ARGV.ignore_aids?
+    fi.interactive         = ARGV.interactive? || ARGV.git?
+    fi.deps_do             = ARGV.dep_treatment
+    fi.force               = ARGV.forced_install_type
+    fi.verbosity           = QUIETER ? :less : VERBOSE ? :full : nil
     fi.prelude
     fi.install
   rescue FormulaInstallationAlreadyAttemptedError

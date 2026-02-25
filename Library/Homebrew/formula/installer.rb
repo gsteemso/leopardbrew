@@ -27,30 +27,31 @@ class FormulaInstaller
       define_method(predicate) { !!send(name) }
       private(predicate)
     end
-  end
+  end # FormulaInstaller⸬mode_attr_accessor()
 
   attr_reader :formula
-  mode_attr_accessor :show_install_heading, :show_summary_heading,
-    :build_from_source, :build_bottle, :force_bottle, :ignore_deps,
-    :only_deps, :interactive, :git, :verbose, :debug, :quieter
+  mode_attr_accessor :build_bottle, :debug, :git, :ignore_aids, :interactive, :show_install_heading, :show_summary_heading
+  n_state_attr :deps_do       => [false, :ignore, :only],    # was ignore_deps / only_deps
+               :force         => [false, :source, :bottle],  # was build_from_source / force_bottle
+               :poured_bottle => [false, :done, :fail],      # was poured_bottle / pour_failed
+               :verbosity     => [false, :full, :less]       # was verbose / quieter
 
   # “formula” is a {Formula}‐subclass instance.
   def initialize(formula)
     @formula = formula
+
+    # These are expected to be overridden individually by the caller.
+    @build_bottle = false
+    @debug = false
+    @git = false
+    @ignore_aids = false
+    @interactive = false
+    # The n-state variables @deps_do, @force, and @verbosity are already set to false.
+
+    # These are state flags that are manipulated below as installation progresses.
     @show_install_heading = false
     @show_summary_heading = false
-    @ignore_deps = false
-    @only_deps = false
-    @build_from_source = false
-    @build_bottle = false
-    @force_bottle = false
-    @interactive = false
-    @git = false
-    @verbose = false
-    @quieter = false
-    @debug = false
-    @poured_bottle = false
-    @pour_failed   = false
+    # The n-state variable @pour_bottle is already set to false.
 
     @@attempted ||= Set.new
   end # initialize
@@ -59,7 +60,7 @@ class FormulaInstaller
 
   def options=(opts); formula.build = BuildOptions.new(opts, formula.options); end
 
-  def skip_deps_check?; ignore_deps?; end
+  def skip_deps_check?; deps_do_ignore?; end
 
   # When no build tools are available but build flags appear in ARGV, the user must be interrupted before a doomed installation can
   # be attempted.  Only invoked when the user has no developer tools.
@@ -70,11 +71,11 @@ class FormulaInstaller
 
   # “install_bottle_options” is a {Hash} with only one possible key, “:warn”, with a Boolean value.
   def pour_bottle?(install_bottle_options = { :warn => false })
+    return false if poured_bottle_fail?
     return true if Homebrew::Hooks::Bottles.formula_has_bottle?(formula)
-    return false if @pour_failed
     bottle = formula.bottle
     return true  if force_bottle? and bottle
-    return false if build_from_source? or build_bottle? or interactive?
+    return false if force_source? or build_bottle? or interactive?
     return false unless options.empty?
     return true  if formula.local_bottle_path
     return false unless bottle && formula.pour_bottle?
@@ -89,7 +90,7 @@ class FormulaInstaller
   # “build” is a {BuildOptions} instance.
   def install_bottle_for?(dep, build)
     return pour_bottle? if dep == formula
-    !build_from_source? && dep.bottle && dep.pour_bottle? && build.used_options.empty? && dep.bottle.compatible_cellar?
+    !force_source? && dep.bottle && dep.pour_bottle? && build.used_options.empty? && dep.bottle.compatible_cellar?
   end
 
   def prelude; verify_deps_exist unless skip_deps_check?; lock; check_install_sanity; end
@@ -144,7 +145,7 @@ class FormulaInstaller
       check_dependencies_bottled(deps) if pour_bottle? and not MacOS.has_apple_developer_tools?
       install_dependencies(deps)
     end
-    return if only_deps?
+    return if deps_do_only?
     raise "Invalid target for --bottle-arch:  #{ARGV.bottle_arch}" if build_bottle? and not bottle_arch_is_valid?
     formula.deprecated_args.each do |deprecated_option|
       old_flag = deprecated_option.old_flag
@@ -163,7 +164,7 @@ class FormulaInstaller
           formula.prefix.rmtree if formula.prefix.directory?
           formula.rack.rmdir_if_possible
         end
-        @pour_failed = true
+        poured_bottle = :fail
         if DEBUG
           onoe e.message, e.backtrace
         else
@@ -172,13 +173,13 @@ class FormulaInstaller
         opoo "Bottle installation failed:  Building from source."
         raise BuildToolsError.new([formula]) unless MacOS.has_apple_developer_tools?
       else
-        @poured_bottle = true
+        poured_bottle = :done
       end
     end # if pouring bottle
     build_bottle_preinstall if build_bottle?
     # Build from source:
-    unless @poured_bottle
-      install_dependencies(compute_dependencies) if @pour_failed and not skip_deps_check?
+    unless poured_bottle_done?
+      install_dependencies(compute_dependencies) if poured_bottle_fail? and not skip_deps_check?
       build
       clean
     end
@@ -306,7 +307,7 @@ class FormulaInstaller
   # “deps” is a {Hash} whose keys are {Dependency} instances and values are {Options} instances, which might contain a “--universal”
   # {Option}.
   def install_dependencies(deps)
-    if deps.empty? and only_deps?
+    if deps.empty? and deps_do_only?
       puts "All dependencies for #{formula.full_name} are satisfied."
     else
       oh1 "Installing dependencies for #{formula.full_name}: #{TTY.green}#{deps.map(&:first)*", "}#{TTY.reset}" unless deps.empty?
@@ -346,9 +347,8 @@ class FormulaInstaller
     di.options           |= tab.used_options
     di.options           |= Tab.remap_deprecated_options(df.deprecated_options, dep.options)
     di.options           |= inherited_options
-    di.build_from_source  = build_from_source?
-    di.verbose            = verbose? and not quieter?
-    di.debug              = debug?
+    di.force              = force_source? ? :source : false
+    di.verbosity          = verbosity_full? ? :full : false
     di.prelude
     oh1 "Installing #{formula.full_name} dependency: #{TTY.green}#{dep.name}#{TTY.reset}"
     di.install
@@ -373,7 +373,7 @@ class FormulaInstaller
   end # install_dependency
 
   def caveats
-    return if only_deps?
+    return if deps_do_only?
 
     audit_installed if DEVELOPER and not formula.keg_only?
 
@@ -386,16 +386,16 @@ class FormulaInstaller
   end # caveats
 
   def finish
-    return if only_deps?
+    return if deps_do_only?
 
-    ohai "Finishing up" if verbose?
+    ohai "Finishing up" if verbosity?
 
     install_plist
 
     keg = Keg.new(formula.prefix)
     link(keg)
 
-    unless @poured_bottle and formula.bottle_specification.skip_relocation?
+    unless poured_bottle_done? and formula.bottle_specification.skip_relocation?
       fix_install_names(keg)
     end
 
@@ -410,7 +410,7 @@ class FormulaInstaller
 
     caveats
 
-    ohai "Summary" if verbose? or show_summary_heading?
+    ohai "Summary" if verbosity? or show_summary_heading?
     puts summary
 
     # let's reset Utils.git_available? if we just installed git
@@ -447,19 +447,17 @@ class FormulaInstaller
 
   def sanitized_ARGV_options
     args = Options.new
-    args << "--ignore-dependencies" if ignore_deps?
+    args << "--mode=#{case (bm = ARGV.build_mode); when :bottL then 'plain'; when :n8ive then 'native'; else bm; end}"
 
-    if build_bottle?
-      args << "--build-bottle"
-      args << "--bottle-arch=#{ARGV.bottle_arch}" if ARGV.bottle_arch
-    end
+    args << (ARGV.bottle_arch ? "--bottle-arch=#{Target.arch}" : '--build-bottle') if build_bottle?
 
-    args << "--git" if git?
-    args << "--interactive" if interactive?
-    args << "--verbose" if verbose?
-    args << "--debug" if debug?
+    args << '--ignore-dependencies' if deps_do_ignore?
+    args << '--git' if git?
+    args << '--interactive' if interactive?
+    args << '--verbose' if verbosity?
+    args << '--debug' if debug?
     args << "--cc=#{ARGV.cc}" if ARGV.cc
-    args << '--no-enhancements' if ARGV.ignore_aids?
+    args << '--no-enhancements' if ignore_aids?
 
     if ARGV.env
       args << "--env=#{ARGV.env}"
@@ -639,7 +637,7 @@ class FormulaInstaller
   end # fix_install_names
 
   def clean
-    ohai "Cleaning" if verbose?
+    ohai "Cleaning" if verbosity?
     Cleaner.new(formula).clean
   rescue Exception => e
     opoo "The cleaning step did not complete successfully"
@@ -723,7 +721,7 @@ class FormulaInstaller
     if (@@locked ||= []).empty?
       formula.recursive_dependencies.each do |dep|
         @@locked << dep.to_formula
-      end unless ignore_deps?
+      end unless deps_do_ignore?
       @@locked.unshift(formula)
       @@locked.uniq!
       @@locked.each(&:lock)
