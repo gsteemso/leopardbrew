@@ -20,7 +20,7 @@ class Requirement
       @download ||= tag[:download]
     end
     @tags = tags
-#    @tags << :build if self.class.build
+    raise 'obsolete build method in requirement – use a :build tag instead' if self.class.method_defined? :build
     @name ||= infer_name
     @option_name = opt_name || name
   end # Requirement#initialize
@@ -129,10 +129,8 @@ class Requirement
     include BuildEnvironmentDSL
 
     attr_reader :env_proc
-    attr_rw :fatal, :default_formula
-    attr_rw :cask, :download
-#    # build is deprecated, use `depends_on <requirement> => :build` instead
-#    attr_rw :build
+    attr_rw :cask, :default_formula, :download, :fatal
+    # :build is deprecated; use “depends_on ⟨requirement⟩ => :build” instead
 
     def satisfy(options = {}, &block); @satisfied ||= Requirement::Satisfier.new(options, &block); end
 
