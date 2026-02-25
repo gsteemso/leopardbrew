@@ -92,10 +92,11 @@ module SharedEnvExtension
   end
 
   def remove(keys, value, sep = ' ')
+    sep_ = Regexp.escape sep
     Array(keys).each do |key|
       next unless self[key]
-      # Make sure to only delete whole entries – not from the middle of one.
-      self[key] = self[key].sub(/(^|\W)#{value}(?!\w)/, $1 || '').gsub(/#{sep}{2,}/, sep).lchomp(sep).chomp(sep)
+      # Make sure to only delete whole entries – not from the middle of one.  Assumes sep doesn’t start with a character from \w.
+      self[key] = self[key].sub(%r{(^|#{sep_})#{value}(?!\w)}, '').gsub(%r{(?:#{sep_}){2,}}, sep).xlchomp(sep).xchomp(sep)
       delete(key) if self[key].empty?
     end if value
   end # remove
@@ -145,7 +146,7 @@ module SharedEnvExtension
   def compiler_path
     @compiler_path ||= \
       if compiler.to_s =~ GNU_GCC_REGEXP
-        Formula[compiler.gsub(/[-.]/, '')].opt_bin/compiler
+        Formula[compiler.gsub(%r{[-.]}, '')].opt_bin/compiler
       elsif compiler == :gcc
         if (gccpath = Pathname.new '/usr/bin/gcc-4.2').exists?
           gccpath
@@ -168,18 +169,18 @@ module SharedEnvExtension
     end
   end # Define a method for each |compiler| in COMPILERS, for use exactly once during setup.
 
+  # lang is a symbol from the list {:c, :cxx, :fortran}.  This returns a language-revision symbol like :c11, :cxx95, or :f2003.
   def default_language_version(lang)
-    if ary = COMPILER_DEFAULT[compiler != :clang ? :gcc : :clang][lang] and
-      i = ary.find_index{ |h| h.keys.first > compiler_version }
-        ary[i - 1].values.first
-    end
-  end # default_language_version
+    if ary = LANG_DEFAULT[compiler == :clang ? :clang : :gcc].fetch(lang) \
+      and i = ary.find_index{ |h| k = h.keys.first and Version.new(k) > compiler_version }
+    then ary[i - 1].values.first; end
+  end
 
-# TODO:  Fix this to check the correct _version_ of clang
+  # revision is a symbol such as :c23, cxx11, or :f2008.
   def supports?(revision)
     lang = revision.to_s.match(%r{^([^0-9]+)})[1].to_sym
-    (hsh = COMPILER_SUPPORT[compiler == :clang ? :clang : :gcc][lang]) and
-      (min_version = hsh[:revision]) and (compiler_version >= min_version)
+    (hsh = LANG_SUPPORT[compiler == :clang ? :clang : :gcc].fetch lang) and
+      (min_v = Version.new hsh[revision]) and (compiler_version >= min_v)
   end
 
   # Snow Leopard defines an NCURSES value the opposite of most distros.
@@ -189,7 +190,7 @@ module SharedEnvExtension
 
   def make_jobs
     self['HOMEBREW_MAKE_JOBS'].nope \
-      || (self['MAKEFLAGS'].nope and (self['MAKEFLAGS'] =~ %r{-\w*j(\d+)})[1].nope) \
+      || (self['MAKEFLAGS'].choke and (self['MAKEFLAGS'] =~ %r{-\w*j(\d+)})[1].nope) \
       || 4 * CPU.cores
   end
 
@@ -280,7 +281,7 @@ module SharedEnvExtension
 
   def universal_binary
     formula.active_spec.option(:universal) unless formula.options.include?('universal')
-    if ARGV.build_mode == :plain  # Note that this does nothing if the build mode is :bottle.
+    if ARGV.build_mode == :plain  # Note that this does nothing if the build mode is :bottL.
       ARGV.force_universal_mode
       formula.build.force_universal_mode
     end

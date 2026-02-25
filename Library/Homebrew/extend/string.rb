@@ -1,4 +1,8 @@
 class String
+  alias_method :includes?,    :include?    unless method_defined? :includes?
+  alias_method :starts_with?, :start_with? unless method_defined? :starts_with?
+  alias_method :ends_with?,   :end_with?   unless method_defined? :ends_with?
+
   def undent; gsub(%r{^[ \t]{#{(slice(%r{^[ \t]+}) || '').length}}}, ''); end
   # eg:
   #   if foo then <<-EOS.undent_________________________________________________________72
@@ -36,23 +40,36 @@ class String
     lines * "\n"
   end # String#rewrap
 
-  # String.chomp, but if result is empty, returns nil instead.
-  # Allows `choke || foo` short-circuits.
+  # #chomp, but if the result is empty, returns nil instead.  Allows `choke or foo` short-circuits.
   def choke; s = chomp; s unless s.empty?; end
 
-  # Similar, but for number strings.  If the string does not represent a
-  # number, or otherwise evaluates to zero, return nil.
-  def nope; n = to_i; n unless n == 0; end
+  # #chomp, but for the leading end of the string, instead of the back.
+  def lchomp; starts_with?("\n") ? lchop : self; end
 
-  # String#chop, but for the leading end of the string instead of the back.
+  # #chop, but for the leading end of the string instead of the back.
   def lchop; self[1..-1]; end
 
-  # String#chomp, but for the leading end of the string instead of the back.
-  def lchomp(kill_this = " "); (self[0] == kill_this.to_s[0]) ? lchop : self; end
+  # Like #choke, but for number strings.  If the string does not represent a number, or otherwise evaluates to zero, return nil.
+  def nope; n = to_i; n unless n == 0; end
 
-  alias_method :includes?,    :include?    unless method_defined? :includes?
-  alias_method :starts_with?, :start_with? unless method_defined? :starts_with?
-  alias_method :ends_with?,   :end_with?   unless method_defined? :ends_with?
+  # #chomp, but capable of chopping off longer substrings.
+  def xchomp(kill_this = "\n")
+    kill_this = kill_this.to_s unless String === kill_this
+    (ends_with? kill_this) ? xchop(kill_this.length) : self
+  end
+
+  # #chop, but capable of chopping off longer substrings.
+  def xchop(n = 1); self[0, length - n]; end
+
+  # #xchomp, but for the leading end of the string instead of the back.  Note that there is no default “thing that gets chopped”; a
+  # value must be provided.
+  def xlchomp(kill_this)
+    kill_this = kill_this.to_s unless String === kill_this
+    (starts_with? kill_this) ? xlchop(kill_this.length) : self
+  end
+
+  # #xchop, but for the leading end of the string instead of the back.
+  def xlchop(n = 1); self[n..-1]; end
 end # String
 
 class NilClass
@@ -69,24 +86,19 @@ module StringInreplaceExtension
   def self.extended(str); str.errors = []; end
 
   def sub!(before, after)
-    result = super
-    unless result
-      errors << "expected replacement of #{before.inspect} with #{after.inspect}"
-    end
+    unless (result = super) then errors << "expected replacement of #{before.inspect} with #{after.inspect}"; end
     result
-  end # StringInreplaceExtension#sub!
+  end
 
-  # Warn if nothing was replaced
+  # Warn if nothing was replaced.
   def gsub!(before, after, audit_result = true)
-    result = super(before, after)
-    if audit_result && result.nil?
+    if (result = super(before, after)).nil? and audit_result
       errors << "expected replacement of #{before.inspect} with #{after.inspect}"
     end
     result
   end # StringInreplaceExtension#gsub!
 
-  # Looks for Makefile style variable defintions and replaces the
-  # value with "new_value", or removes the definition entirely.
+  # Looks for Makefile style variable defintions and replaces the value with "new_value", or removes the definition entirely.
   def change_make_var!(flag, new_value)
     unless gsub!(/^#{Regexp.escape(flag)}[ \t]*=[ \t]*(.*)$/, "#{flag}=#{new_value}", false)
       errors << "expected to change #{flag.inspect} to #{new_value.inspect}"
@@ -95,14 +107,11 @@ module StringInreplaceExtension
 
   # Removes variable assignments completely.
   def remove_make_var!(flags)
-    Array(flags).each do |flag|
-      # Also remove trailing \n, if present.
-      unless gsub!(/^#{Regexp.escape(flag)}[ \t]*=.*$\n?/, "", false)
-        errors << "expected to remove #{flag.inspect}"
-      end
+    Array(flags).each do |flag|  # Also remove trailing \n, if present.
+      unless gsub!(/^#{Regexp.escape(flag)}[ \t]*=.*$\n?/, "", false) then errors << "expected to remove #{flag.inspect}"; end
     end
-  end # StringInreplaceExtension#remove_make_var!
+  end
 
-  # Finds the specified variable
+  # Find the specified variable.
   def get_make_var(flag); self[/^#{Regexp.escape(flag)}[ \t]*=[ \t]*(.*)$/, 1]; end
 end # StringInreplaceExtension

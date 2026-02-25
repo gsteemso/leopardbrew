@@ -1,12 +1,13 @@
-# The four substantive C revisions are [ :c89, :c99, :c11, :c23 ].
-#   (GCC support for C99 was so laid‐back that the default went from :c89 in GCC 4.9 to :c11 in GCC 5, and C17 didn’t really change
-#   much that was noticeable.)
+# The four substantive C revisions are [ :c89, :c99, :c11, :c23 ].  Earlier, there was K&R C, but no one supports that any more.
+#   (GCC support for C99 was so laid‐back that the default went from :c89 in GCC 4.9 to :c11 in GCC 5; and C17 didn’t really change
+#   much of note, so we won’t track it even though it was the default from GCC 8 through 12.)  Preliminary support for the expected
+#   C2y standard exists, but won’t be ABI‐stable any time soon.
 # The six substantive C++ revisions are [ :cxx98, :cxx11, :cxx14, :cxx17, :cxx20, :cxx23 ].
 #   (GCC’s C++11 support took so long that the default implementation went from C++98 in GCC 6.0 to C++14 in GCC 6.1.)  Preliminary
 #   support for the expected C++26 standard exists, but will not be ABI‐stable any time soon.
-# According to GCC Fortran’s wiki, revisions of that language date from 2023 all the way back to 1956, but it only supports a chunk
-#   from the middle of that range.  The nine most‐substantive revisions are probably [ :f57, :f66, :f77, :f90, :f95, :f2003, :f2008,
-#   :f2018, :f2023 ].  Support in LLVM for Fortran is via the third‐party “Flang”, which is its own bizarre beast.
+# According to GCC Fortran’s wiki, revisions of that language date from 2023 all the way back to 1956, but no one supports the most
+#   outdated of them any more.  The seven most‐substantive revisions, starting from 1977’s, are probably [ :f77, :f90, :f95, :f2003,
+#   :f2008, :f2018, :f2023 ].  Fortran support in LLVM is via (for example) the third‐party “Flang”, which is its own bizarre beast.
 # Additional nominal revisions of each language exist, but are largely redundant.
 
 # @private
@@ -14,40 +15,40 @@ module CompilerConstants
   GNU_GCC_VERSIONS = %w[4.3 4.4 4.5 4.6 4.7 4.8 4.9 5 6 7 8]
   GNU_GCC_REGEXP = /^gcc-(4\.[3-9]|[5-9]|1[0-5])$/
 
-  COMPILER_SUPPORT = {
+  LANG_SUPPORT = {
     :clang => {
-      :c   => {  :c89 =>  0.0,   :c99 => 0.0,   :c11 => nil,   :c23 => nil,                                 },
-      :cxx => {:cxx98 =>  0.0, :cxx11 => 5.0, :cxx14 => nil, :cxx17 => nil,  :cxx20 => nil,  :cxx23 => nil, },
-      :f   => {  :f57 => nil,    :f66 => nil,   :f77 => nil,   :f90 => nil,    :f95 => nil,  :f2003 => nil,
-               :f2008 => nil,  :f2018 => nil, :f2023 => nil,                                                },
+      :c   => {  :c89 => '0.0',   :c99 => '0.0',     :c11 =>  nil,    :c23 =>   nil,                                     },
+      :cxx => {:cxx98 => '0.0', :cxx11 => '5.0',   :cxx14 =>  nil,  :cxx17 =>   nil,  :cxx20 =>   nil,  :cxx23 =>   nil, },
+      :f   => {  :f77 =>  nil,    :f90 =>  nil,      :f95 =>  nil,  :f2003 =>   nil,  :f2008 =>   nil,  :f2018 =>   nil,
+               :f2023 =>  nil,                                                                                           },
     },
     :gcc => {
-      :c   => {  :c89 =>  0.0,   :c99 => 4.0,   :c11 => 4.9,   :c23 => 13.0,                                },
-      :cxx => {:cxx98 =>  0.0, :cxx11 => 4.8, :cxx14 => 5.2, :cxx17 =>  9.0, :cxx20 => 13.0, :cxx23 => 15.0,},
-      :f   => {  :f57 => nil,    :f66 => nil,   :f77 => 0.0,   :f90 =>  4.0,   :f95 =>  4.0, :f2003 => 12.0,
-               :f2008 => 12.0, :f2018 => nil, :f2023 => nil,                                                },
+      :c   => {  :c89 => '0.0',   :c99 => '4.0',     :c11 => '4.9',   :c23 => '13.0',                                    },
+      :cxx => {:cxx98 => '0.0', :cxx11 => '4.8.1', :cxx14 => '5.2', :cxx17 =>  '9.0', :cxx20 => '13.0', :cxx23 => '15.0',},
+      :f   => {  :f77 => '0.0',   :f90 => '4.0',     :f95 => '4.0', :f2003 => '12.0', :f2008 => '12.0', :f2018 =>   nil,
+               :f2023 =>  nil,                                                                                           },
     },
   }
 
-  COMPILER_DEFAULT = {
+  LANG_DEFAULT = {
     :clang => {
-      :c       => [{0.0 =>   :c89},],
-      :cxx     => [{0.0 => :cxx98},],
+      :c       => [{'0.0' =>   :c89},],
+      :cxx     => [{'0.0' => :cxx98},],
       :fortran => nil,
     },
     :gcc => {
-      :c       => [{0.0 =>   :c89}, {5.0 =>   :c11}, { 8.0 =>   :c17}, {15.0 =>   :c23},],
-      :cxx     => [{0.0 => :cxx98}, {6.1 => :cxx14}, {11.0 => :cxx17},                  ],
-      :fortran => [{0.0 =>   :f77}, {4.0 =>   :f95},                                    ],
+      :c       => [{'0.0' =>   :c89}, {'5.0' =>   :c11}, {'15.0' =>   :c23},                    ],
+      :cxx     => [{'0.0' => :cxx98}, {'6.1' => :cxx14}, {'11.0' => :cxx17}, {'16.0' => :cxx20},],
+      :fortran => [{'0.0' =>   :f77}, {'4.0' =>   :f95},                                        ],
     },
   }
 
-  ARCH_COMPILER_MINIMUM = {
-    :arm64   => {:gcc => 15.0, :clang => nil},
-    :i386    => {:gcc =>  4.0, :clang => 0.0},
-    :ppc     => {:gcc =>  3.3, :clang => 0.0},
-    :ppc64   => {:gcc =>  4.0, :clang => nil},
-    :x86_64  => {:gcc =>  4.0, :clang => 0.0},
+  ARCH_MINIMUM = {
+    :arm64   => {:gcc => '15.0', :clang =>  nil },  # TODO find the correct value for this
+    :i386    => {:gcc =>  '4.0', :clang => '0.0'},
+    :ppc     => {:gcc =>  '3.3', :clang => '0.0'},
+    :ppc64   => {:gcc =>  '4.0', :clang =>  nil },
+    :x86_64  => {:gcc =>  '4.0', :clang => '0.0'},
   }
 
   COMPILER_SYMBOL_MAP = {
@@ -65,7 +66,7 @@ class CompilerFailure
   attr_reader :name
   attr_rw :version
 
-  # Allow Apple compiler `fails_with` statements to keep using `build` even though `build` and `version` are the same internally.
+  # Allow Apple compiler “fails_with” statements to keep using “build” even though “build” and “version” are the same internally.
   alias_method :build, :version
 
   # The cause is no longer used, so we need not hold a reference to the string.
@@ -78,35 +79,35 @@ class CompilerFailure
   def self.create(spec, &block)
     # Non-Apple compilers are in the format fails_with compiler => version
     if spec.is_a?(Hash)
-      spec.each do |name, build_or_major_version|
-        case name
+      spec.each do |compiler_name, build_or_major_version|
+        case compiler_name
           when :gcc
             if Array === build_or_major_version
-              build_or_major_version.each{ |bv| create(name => bv) }
+              build_or_major_version.each{ |bv| create(compiler_name => bv) }
             else
-              name = "gcc-#{build_or_major_version}"
+              compiler_name = "gcc-#{build_or_major_version}"
               # so fails_with :gcc => '4.8' simply marks all 4.8 releases incompatible
-              version = "#{build_or_major_version}.999"
+              compiler_version = "#{build_or_major_version}.999"
             end
           when :clang, :gcc_4_0, :llvm
-            version = build_or_major_version
+            compiler_version = build_or_major_version
           else
-            raise AlienCompilerError.new(name)
-        end # case |name|
-      end # each spec |name & build/version|
+            raise AlienCompilerError.new(compiler_name)
+        end # case |compiler_name|
+      end # each spec |compiler name & build/version|
     elsif spec.is_a?(Array)
       raise ArgumentError, 'Can’t use a block when listing multiple compiler versions.' if block_given?
       spec.each{ |s| create(s) }
     else
-      name = spec
-      version = 9999
+      compiler_name = spec
+      compiler_version = 9999
     end
-    new(name, version, &block)
+    new(compiler_name, compiler_version, &block)
   end # CompilerFailure⸬create
 
-  def initialize(name, version, &block)
-    @name = name
-    @version = version
+  def initialize(compiler_name, compiler_version, &block)
+    @name = compiler_name
+    version(compiler_version)
     instance_eval(&block) if block_given?
   end
 
@@ -125,14 +126,14 @@ class CompilerFailure
       create(:clang => 425,
              :gcc => ['4.3', '4.4', '4.5', '4.6', '4.7']),
       # the very last features of C++11 were not stable until GCC 4.8.1
-      create(:gcc => '4.8') { version = '4.8.0' }
+      create(:gcc => '4.8') { version('4.8.0') }
     ],
     :cxx14 => [
       create([:gcc_4_0, :gcc, :llvm]),
       create(:clang),  # build unknown
       create(:gcc => ['4.3', '4.4', '4.5', '4.6', '4.7', '4.8', '4.9']),
       # the very last features of C++14 were not stable until GCC 5.2:
-      create(:gcc => '5') { version = '5.1' }
+      create(:gcc => '5') { version('5.1') }
     ],
     :openmp => [
       create(:clang),  # build unknown

@@ -65,66 +65,55 @@ module MacOS
 
   def default_compiler
     case default_cc
-      # if GCC 4.2 is installed, e.g. via Leopardbrew, prefer it
-      # over the system's GCC 4.0
-      when /^gcc-4.0/ then gcc_42_build_version ? :gcc : :gcc_4_0
-      when /^gcc-4.2/ then :gcc
-      when /^llvm/ then :llvm
-      when "clang" then :clang
-      else # guess :(
-        if    Xcode.version >= "4.3" then :clang
-        elsif Xcode.version >= "4.2" then :llvm
-        else :gcc
-        end
+      # if GCC 4.2 is installed, e.g. via Leopardbrew, prefer it over the system's GCC 4.0
+      when %r{^gcc-4.0} then gcc_42_build_version ? :gcc : :gcc_4_0
+      when %r{^gcc-4.2} then :gcc
+      when %r{^llvm}    then :llvm
+      when %r{^clang}   then :clang
+      else  # Make assumptions and then blindly guess.
+        Xcode.version >= "4.3" ? :clang : \
+        Xcode.version >= "4.2" ? :llvm  : gcc_42_build_version ? :gcc : :gcc_4_0
     end
   end # default_compiler
 
   def gcc_40_build_version
-    @gcc_40_build_version ||= if (gcc = locate 'gcc-4.0')
-                                `#{gcc} --version`[/build (\d{4,})/, 1].to_i
-                              end
-  end # gcc_40_build_version
+    @gcc_40_build_version ||= if (gcc = locate 'gcc-4.0') then Version.new(`#{gcc} --version`[/build (\d{4,})/, 1]); end
+  end
   alias_method :gcc_4_0_build_version, :gcc_40_build_version
 
   def gcc_42_build_version
     @gcc_42_build_version ||= if (gcc = locate("gcc-4.2") || OPTDIR/'apple-gcc42/bin/gcc-4.2') \
                                   and gcc.exists? and gcc.realpath.basename.to_s !~ /^llvm/
-                                `#{gcc} --version`[/build (\d{4,})/, 1].to_i
+                                Version.new(`#{gcc} --version`[/build (\d{4,})/, 1])
                               end
   end # gcc_42_build_version
   alias_method :gcc_build_version, :gcc_42_build_version
 
   def llvm_build_version
-    @llvm_build_version ||=
-      if (path = locate 'llvm-gcc') and path.realpath.basename.to_s !~ /^clang/
-        `#{path} --version`[/LLVM build (\d{4,})/, 1].to_i
-      end
-  end # llvm_build_version
+    @llvm_build_version ||= if (path = locate 'llvm-gcc') and path.realpath.basename.to_s !~ /^clang/
+                              Version.new(`#{path} --version`[/LLVM build (\d{4,})/, 1])
+                            end
+  end
 
   def clang_version
-    @clang_version ||= if (path = locate 'clang')
-                         `#{path} --version`[/(?:clang|LLVM) version (\d\.\d)/, 1]
-                       end
-  end # clang_version
+    @clang_version ||= if (path = locate 'clang') then Version.new(`#{path} --version`[/(?:clang|LLVM) version (\d\.\d)/, 1]); end
+  end
 
   def clang_build_version
-    @clang_build_version ||= if (path = locate 'clang')
-                               `#{path} --version`[/clang-(\d{2,})/, 1].to_i
-                             end
-  end # clang_build_version
+    @clang_build_version ||= if (path = locate 'clang') then Version.new(`#{path} --version`[/clang-(\d{2,})/, 1]); end
+  end
 
   def non_apple_gcc_version(cc)
     (@non_apple_gcc_version ||= {}).fetch(cc) do
-        path = OPTDIR/'gcc/bin/cc'
+        path = OPTDIR/"#{cc.gsub %r{[-.]}, ''}/bin/#{cc}"  # For example, `gcc-4.8` becomes {gcc48}.
         path = locate(cc) unless path.exists?
         version = `#{path} --version`[/gcc(?:-\d\d?(?:\.\d)? \(.+\))? (\d\d?\.\d\.\d)/, 1] if path
-        @non_apple_gcc_version[cc] = version
+        @non_apple_gcc_version[cc] = Version.new(version)
       end
   end # non_apple_gcc_version
 
   def clear_version_cache
-    @gcc_40_build_version = @gcc_42_build_version = @llvm_build_version = nil
-    @clang_version = @clang_build_version = nil
+    @gcc_40_build_version = @gcc_42_build_version = @llvm_build_version = @clang_version = @clang_build_version = nil
     @non_apple_gcc_version = {}
   end
 
