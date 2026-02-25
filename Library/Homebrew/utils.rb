@@ -190,13 +190,13 @@ end # shell_profile
 def silent_system(cmd, *args); do_system([:silent, :nostdout, :nostderr], cmd, *args); end
 alias :quiet_system :silent_system
 
-def which(cmd, path = ENV['PATH'])
+def which(cmd, path = ENV['PATH'], restrict = false)
   path.split(File::PATH_SEPARATOR).each do |p|
+    next if restrict and p.starts_with? HOMEBREW_LIBRARY.to_s
     begin
       pcmd = File.expand_path(cmd, p)
     rescue ArgumentError
-      # File.expand_path will raise an ArgumentError if the path is malformed.
-      # See https://github.com/Homebrew/homebrew/issues/32789
+      # File::expand_path raises an ArgumentError if the path is malformed; see (https://github.com/Homebrew/homebrew/issues/32789).
       next
     end
     return Pathname.new(pcmd) if File.file?(pcmd) && File.executable?(pcmd)
@@ -216,20 +216,6 @@ def which_editor
     EOS
   editor
 end # which_editor
-
-def which_for_users(cmd, path = ENV['PATH'])
-  path.split(File::PATH_SEPARATOR).each do |p|
-    next if p.starts_with? HOMEBREW_LIBRARY.to_s
-    begin
-      pcmd = File.expand_path(cmd, p)
-    rescue ArgumentError
-      # File.expand_path raises an ArgumentError if the path is malformed.  See (https://github.com/Homebrew/homebrew/issues/32789).
-      next
-    end
-    return Pathname.new(pcmd) if File.file?(pcmd) and File.executable?(pcmd)
-  end
-  nil
-end # which_for_users
 
 def with_system_path
   old_path = ENV['PATH']
