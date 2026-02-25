@@ -82,20 +82,20 @@ class Openssl3 < Formula
     end
     args << 'sctp'       if MacOS.version >  :leopard  # Pre‐Snow Leopard lacks these system headers.
     args << 'enable-tfo' if MacOS.version >= :mojave   # Pre-Mojave doesn’t support TCP Fast Open.
-    if enhanced_by? 'brotli'
+    if active_enhancements.include? 'brotli'
       brotli = Formula['brotli']
       args += ['enable-brotli-dynamic',
                "--with-brotli-include=#{brotli.opt_include}",
                "--with-brotli-lib=#{brotli.opt_lib}"
         ]
     end
-    if enhanced_by? 'zlib'
+    if active_enhancements.include? 'zlib'
       zlib = Formula['zlib']
       args += ["--with-zlib-include=#{zlib.opt_include}", "--with-zlib-lib=#{zlib.opt_lib}"]
     else
       args += ['--with-zlib-include=/usr/include', '--with-zlib-lib=/usr/lib']
     end
-    if enhanced_by? 'zstd'
+    if active_enhancements.include? 'zstd'
       zstd = Formula['zstd']
       args += ['enable-zstd-dynamic',
                "--with-zstd-include=#{zstd.opt_include}",

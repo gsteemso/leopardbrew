@@ -2,6 +2,7 @@ require 'extend/pathname'
 require 'keg_relocate'
 require 'formula/lock'
 require 'ostruct'
+require 'tab'
 
 class Keg
   class AlreadyLinkedError < RuntimeError
@@ -223,6 +224,9 @@ class Keg
     dir and dir.directory? and dir.children.any?
   end # completion_installed?
 
+  # This tests the enhancement state of an already‐installed {Keg}.  For current affairs, examine Formula#active_enhancements.
+  def enhanced_by?(aid); (path/Tab::FILENAME).file? and Tab.for_keg(path).active_aids.include?(aid); end
+
   def plist_installed?; Dir["#{path}/*.plist"].any?; end
 
   def python2_site_packages_installed?; (path/'lib/python2.7/site-packages').directory?; end
@@ -336,7 +340,7 @@ class Keg
     built_set = built_sets.select{ |_, ct| ct == max_count }.keys.flatten.uniq.sort
     built_set.length > 1 ? (built_set.all?{ |a| CPU.can_run? a } \
                              ? (built_set.all?{ |a| CPU.type_of(a) == CPU.type } \
-                                 ? :native \
+                                 ? :n8ive \
                                  : :local) \
                              : :cross) \
                          : :plain

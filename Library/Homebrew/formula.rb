@@ -257,11 +257,6 @@ class Formula
   # @private
   def requirements; active_spec.requirements; end
 
-  # This tests the enhancement state of an already‐installed {Keg}.  For current affairs, examine #active_enhancements().
-  def enhanced_by?(aid)
-    installed?(active_spec_sym) && Tab.for_keg(Keg.new(spec_prefix(active_spec_sym)).path).active_aids.include?(aid)
-  end
-
   # The list of formulæ that are known to be installed and could therefore enhance the active {SoftwareSpec}.
   # @private
   def active_enhancements; active_spec.active_enhancements; end
@@ -601,7 +596,9 @@ class Formula
   #   can be fetched using the utility routines above.
   def checkpoint_names
     result = []
-    cd checkpoint_prefix do result = Dir['checkpoint-*.tbz2'].map{ |f| f.sub(/^checkpoint-/, '').sub(/\.tbz2$/, '') }; end
+    if checkpoint_prefix.directory?
+      cd checkpoint_prefix do result = Dir['checkpoint-*.tbz2'].map{ |f| f.sub(/^checkpoint-/, '').sub(/\.tbz2$/, '') }; end
+    end
     result
   end
 

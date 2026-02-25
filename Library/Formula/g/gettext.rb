@@ -37,7 +37,7 @@ class Gettext < Formula
         '--without-git', # Don't use a VCS to create the infrastructure archive.
         '--without-xz'   # Avoid a dependency loop.
       ]
-    args << "--with-libiconv-prefix=#{Formula['libiconv'].opt_prefix}" if enhanced_by? 'libiconv'
+    args << "--with-libiconv-prefix=#{Formula['libiconv'].opt_prefix}" if active_enhancements.include? 'libiconv'
     args << '--enable-year2038' if Target.pure_64b?
     system './configure', *args
     system 'make'

@@ -196,7 +196,7 @@ class Curl < Formula
       args << '--with-libssh2' if build.with? 'libssh2'
     end
 
-    args << '--without-brotli' if build.without? 'frills' or not enhanced_by? 'brotli'
+    args << '--without-brotli' if build.without? 'frills' or not active_enhancements.include? 'brotli'
     args << '--without-librtmp' if build.without? 'frills' or build.without? 'rtmpdump'
     args << '--without-zstd' if build.without? 'frills' or build.without? 'zstd'
 

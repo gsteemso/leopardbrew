@@ -1,8 +1,8 @@
-require "formula"
+#:`brew uses foo bar` returns formulæ that use both foo and bar.
+#:If you want the union, run the command twice and concatenate the results.  The
+#:intersection is harder to achieve with shell tools.
 
-# `brew uses foo bar` returns formulae that use both foo and bar
-# If you want the union, run the command twice and concatenate the results.
-# The intersection is harder to achieve with shell tools.
+require "formula"
 
 module Homebrew
   def uses
@@ -20,28 +20,23 @@ module Homebrew
         begin
           if recursive
             deps = f.recursive_dependencies do |dependent, dep|
-              Dependency.prune if ignores.any? { |ignore| dep.send(ignore) } && !dependent.build.with?(dep)
+              Dependency.prune if ignores.any?{ |ignore| dep.send(ignore) } and not dependent.build.with?(dep)
             end
             reqs = f.recursive_requirements do |dependent, req|
-              Requirement.prune if ignores.any? { |ignore| req.send(ignore) } && !dependent.build.with?(req)
+              Requirement.prune if ignores.any?{ |ignore| req.send(ignore) } and not dependent.build.with?(req)
             end
-            deps.any? { |dep| dep.to_formula.full_name == ff.full_name rescue dep.name == ff.name } ||
-            reqs.any? { |req| req.name == ff.name || [ff.name, ff.full_name].include?(req.default_formula) } ||
-            (f.installed? && f.enhanced_by?(ff))
+            deps.any?{ |dep| dep.to_formula.full_name == ff.full_name rescue dep.name == ff.name } or
+              reqs.any?{ |req| req.name == ff.name or [ff.name, ff.full_name].include?(req.default_formula) } or
+              (f.installed? and Keg.new(f.prefix).enhanced_by?(ff))
           else
-            deps = f.deps.reject do |dep|
-              ignores.any? { |ignore| dep.send(ignore) }
-            end
-            reqs = f.requirements.reject do |req|
-              ignores.any? { |ignore| req.send(ignore) }
-            end
-            deps.any? { |dep| dep.to_formula.full_name == ff.full_name rescue dep.name == ff.name } ||
-            reqs.any? { |req| req.name == ff.name || [ff.name, ff.full_name].include?(req.default_formula) } ||
-            (f.installed? && f.enhanced_by?(ff))
+            deps = f.deps.reject{ |dep| ignores.any?{ |ignore| dep.send(ignore) } }
+            reqs = f.requirements.reject{ |req| ignores.any?{ |ignore| req.send(ignore) } }
+            deps.any?{ |dep| dep.to_formula.full_name == ff.full_name rescue dep.name == ff.name } or
+              reqs.any?{ |req| req.name == ff.name or [ff.name, ff.full_name].include?(req.default_formula) } or
+              (f.installed? and Keg.new(f.prefix).enhanced_by?(ff))
           end
         rescue FormulaUnavailableError
-          # Silently ignore this case as we don't care about things used in
-          # taps that aren't currently tapped.
+          # Silently ignore this case, as we don't care about things used in taps that aren't currently tapped.
         end
       end
     end

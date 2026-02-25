@@ -52,8 +52,8 @@ class Libxml2 < Formula
           --enable-static
         ]
 #      args << '--with-docs' if build.head?  # docs require Doxygen
-      args << "--with-iconv=#{Formula['libiconv'].opt_prefix}" if enhanced_by? 'libiconv'
-      args << "--with-lzma=#{Formula['xz'].opt_prefix}" if enhanced_by? 'xz'
+      args << "--with-iconv=#{Formula['libiconv'].opt_prefix}" if active_enhancements.include? 'libiconv'
+      args << "--with-lzma=#{Formula['xz'].opt_prefix}" if active_enhancements.include? 'xz'
       args << (build.with?('python') ? '--with-python' : '--without-python')
       system "#{buildpath}/configure", *args
       inreplace ['Makefile', 'python/Makefile'], '-lpython2.7', '-undefined dynamic_lookup' if build.with? 'python'

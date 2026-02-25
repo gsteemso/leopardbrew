@@ -32,16 +32,13 @@ class Libnghttp2 < Formula
   def install
     ENV.universal_binary if build.universal?
     system 'autoreconf', '-ivf' if build.head?
-
     args = %W[
         --prefix=#{prefix}
         --disable-dependency-tracking
         --disable-silent-rules
         --enable-lib-only
       ]
-    ENV['PYTHON'] = "#{Formula['python3'].bin}/python3" \
-                                  if enhanced_by? 'python3'
-
+    ENV['PYTHON'] = "#{Formula['python3'].bin}/python3" if active_enhancements.include? 'python3'
     system './configure', *args
     cd 'lib' do
       system 'make'

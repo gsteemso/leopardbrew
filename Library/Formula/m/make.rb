@@ -28,7 +28,7 @@ class Make < Formula
     ]
     args << '--program-prefix=g' if build.without? 'default-names'
     args << '--disable-nls' if build.without? 'nls'
-    args << '--with-guile' if enhanced_by? 'guile'
+    args << '--with-guile' if active_enhancements.include? 'guile'
     system './configure', *args
     system 'make'
     begin

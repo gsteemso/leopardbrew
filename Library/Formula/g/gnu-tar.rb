@@ -47,11 +47,11 @@ END_OF_PATCH
     args << (build.with?('nls') ? "--with-libintl-prefix=#{Formula['gettext'].opt_prefix}" : '--disable-nls')
     args << '--program-prefix=g' if build.without? 'default-names'
     args << '--disable-year2038' unless Target.pure_64b?
-    args << "--with-bzip2=#{Formula['bzip2'].opt_bin}/bzip2" if enhanced_by? 'bzip2'
-    args << "--with-lzip=#{Formula['lzip'].opt_bin}/lzip" if enhanced_by? 'lzip'
-    args << "--with-lzop=#{Formula['lzop'].opt_bin}/lzop" if enhanced_by? 'lzop'
-    args << "--with-lzma=#{Formula['xz'].opt_bin}/lzma" << "--with-xz=#{Formula['xz'].opt_bin}/xz" if enhanced_by? 'xz'
-    args << "--with-zstd=#{Formula['zstd'].opt_bin}/zstd" if enhanced_by? 'zstd'
+    args << "--with-bzip2=#{Formula['bzip2'].opt_bin}/bzip2" if active_enhancements.include? 'bzip2'
+    args << "--with-lzip=#{Formula['lzip'].opt_bin}/lzip" if active_enhancements.include? 'lzip'
+    args << "--with-lzop=#{Formula['lzop'].opt_bin}/lzop" if active_enhancements.include? 'lzop'
+    args << "--with-lzma=#{xzob = Formula['xz'].opt_bin}/lzma" << "--with-xz=#{xzob}/xz" if active_enhancements.include? 'xz'
+    args << "--with-zstd=#{Formula['zstd'].opt_bin}/zstd" if active_enhancements.include? 'zstd'
 
     system './configure', *args
     system 'make'
