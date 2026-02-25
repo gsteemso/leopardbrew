@@ -174,19 +174,14 @@ class Tab < OpenStruct
   def active_aids; super || []; end
 
   # Older tabs won’t have this field, so compute the most probable value.
-  def build_mode; (super.to_sym if super) || (:plain if poured_from_bottle) || ((tabfile and tabfile.exists?) ? Keg.for(tabfile).reconstruct_build_mode : nil); end
+  def build_mode
+    super                         ? super.to_sym                            : \
+    poured_from_bottle            ? :plain                                  : \
+    (tabfile and tabfile.exists?) ? Keg.for(tabfile).reconstruct_build_mode : nil
+  end
 
-  def built_archs
-    # Older tabs won’t have this field, so compute a plausible default.
-    if super.empty? then if universal? then case build_mode
-                                              when :cross then Target.cross_archs
-                                              when :local then Target.local_archs
-                                              when :native then CPU.native_archs
-                                              when :plain then Target.preferred_arch_as_list
-                                            end
-                         else Target.preferred_arch_as_list; end
-    else super.map(&:to_sym).extend ALE; end
-  end # built_archs
+  # Older tabs won’t have this field, so compute a plausible default.
+  def built_archs; super.empty? ? Target.send("#{build_mode}_archs".to_sym) : super.map(&:to_sym).extend(ALE); end
 
   def compiler; super or MacOS.default_compiler; end
 
@@ -228,10 +223,10 @@ class Tab < OpenStruct
            else 'Installed'
          end
     bm = case build_mode
-           when :cross  then ' [cross-build mode]'
-           when :local  then ' [local build mode]'
-           when :native then ' [native build mode]'
-           when nil     then ' [unknown build mode]'
+           when :cross then ' [cross-build mode]'
+           when :local then ' [local build mode]'
+           when :n8ive then ' [native build mode]'
+           when nil    then ' [unknown build mode]'
            else ''
          end
     s << "(for #{built_archs.map(&:to_s).list}#{bm})"
