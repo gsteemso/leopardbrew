@@ -27,8 +27,8 @@ module ALE  # ArchitectureListExtension:  Applicable to arrays of architecture s
   def intel?; intersects? INTEL_ARCHS; end
   def arm?; intersects? ARM_ARCHS; end
 
-  def _32b_subset; reject!{ |a| a != :ppc and a != :i386 }; end
-  def _64b_subset; reject!{ |a| a == :ppc or a == :i386 }; end
+  def _32b_subset; reject{ |a| a != :ppc and a != :i386 }.extend ALE; end
+  def _64b_subset; reject{ |a| a == :ppc or a == :i386 }.extend ALE; end
 
   def as_arch_flag_array; flat_map{ |a| ['-arch', a.to_s] }; end
 
