@@ -15,53 +15,56 @@ require 'version'
 class SoftwareSpec
   extend Forwardable
 
+  CROSS_OPTION_TEXT = 'Build a universal binary for every possible target architecture'.freeze
+  LOCAL_OPTION_TEXT = 'Build a universal binary for every target architecture this computer can run'.freeze
+  NATIVE_OPTION_TEXT = 'Build a universal binary for the architectures native to this computer'.freeze
+  UNIVERSAL_OPTION_TEXT = 'Build a universal binary for the default set of architectures'.freeze
+
   PREDEFINED_OPTIONS = {
     # The cross architecture‐set is always equal to or a superset of the local architecture‐set, which itself is always equal to or
     # a superset of the native architecture‐set, which is guaranteed to contain either one or two architectures exactly.
     # The possibilities are, from newest to oldest:
-    #   - one native arch == one local arch == one cross arch       (:arm,     28…)
-    #                                                               (:intel,   :catalina)
-    #                                                               (:powerpc, …:panther)
-    #   - one native arch; two local archs == two cross archs       (:arm,     :big_sur…27)
-    #   - one native arch == one local arch; two cross archs        (:intel,   :big_sur…:tahoe)
-    #                                                               (:intel,   :lion…:mohave)
-    #                                                               (:i386,    :tiger…:snow_leopard)
-    #                                                               (:ppc,     :tiger…:snow_leopard)
-    #   - two native archs; three local archs == three cross archs  (:x86_64,  :tiger…:snow_leopard, Clang)
-    #   - two native archs == two local archs; four cross archs     (:ppc64,   :tiger…:leopard)
-    #   - two native archs; three local archs; four cross archs     (:x86_64,  :tiger…:snow_leopard, GCC)
+    #   - one native arch == one local arch == one cross arch       (:arm64/ " / "             28…)
+    #                                                               (:x86_64/ " / "            :lion…:catalina)
+    #                                                               (:ppc/ " / "               …:panther)
+    #   - one native arch; two local archs == two cross archs       (arm64/:universal_2/ "     :big_sur…27)
+    #   - one native arch == one local arch; two cross archs        (:x86_64/ " /:universal_2  :big_sur…:sequoia)
+    #                                                               (:i386/ " /:universal_1    :tiger…:snow_leopard)
+    #                                                               (:ppc/ " /:universal_1     :tiger…:snow_leopard)
+    #   - two native archs; three local archs; four cross archs     (:intel/triple/quad        :tiger…:snow_leopard, GCC)
+    #   - two native archs; three local archs == three cross archs  (:intel/triple/ "          :tiger…:snow_leopard, Clang)
+    #   - two native archs == two local archs; four cross archs     (:powerpc/ " /quad         :tiger…:snow_leopard)
     :universal => (Target.cross_archs.fat? \
                     ? (Target.native_archs.fat? \
                       ? ((Target.local_archs != Target.cross_archs and Target.local_archs != Target.native_archs) \
                         ? [ # The native, local, and cross architecture‐sets all differ.
-                            Option.new('cross', 'Build a universal binary for every possible target architecture'),
-                            Option.new('local', 'Build a universal binary for every target architecture this computer can run'),
-                            Option.new('native', 'Build a universal binary for the architectures native to this computer'),
-                            Option.new('universal', 'Build a universal binary for the default set of architectures'),
+                            [ 'universal', UNIVERSAL_OPTION_TEXT ],
+                            [ 'cross',     CROSS_OPTION_TEXT ],
+                            [ 'local',     LOCAL_OPTION_TEXT ],
+                            [ 'native',    NATIVE_OPTION_TEXT ],
                           ] \
-                        : [ # The native and cross architecture‐sets differ, but the local set is the same as one of them.
-                            Option.new('cross', 'Build a universal binary for every possible target architecture'),
-                            Option.new('native', 'Build a universal binary for the architectures native to this computer'),
-                            Option.new('universal', 'Build a universal binary for the default set of architectures'),
+                        : [ # The native and cross architecture‐sets differ, and the local set is redundant with one of them.
+                            [ 'universal', UNIVERSAL_OPTION_TEXT ],
+                            [ 'cross',     CROSS_OPTION_TEXT ],
+                            [ 'native',    NATIVE_OPTION_TEXT ],
                           ] \
                         ) \
-                      : [ # The cross archset ≠ the single native arch, and the local arch(set) equals one of them.
-                          Option.new('cross', 'Build a universal binary for every possible target architecture'),
-                          Option.new('universal', 'Build a universal binary for the default set of architectures'),
-                        ] \
-                      ) \
-                    : [ # No architecture‐sets are fat.
-                      ] \
+                      : (Target.local_archs.fat? \
+                        ? [ # The cross archset ≠ the single native arch, and the local archset is redundant with it.
+                            [ 'universal', UNIVERSAL_OPTION_TEXT ],
+                            [ 'cross',     CROSS_OPTION_TEXT ],
+                          ] \
+                        : # Only the cross architecture‐set is fat.
+                          [ [ 'cross',     CROSS_OPTION_TEXT ] ] \
+                      ) ) \
+                    : # No architecture‐sets are fat.
+                      [] \
                   ),
-    :tests     => [Option.new('with-tests', 'Run the build-time unit tests (can be slow)')],
-    :longtests => [Option.new('with-tests', 'Run the normal build-time unit tests (can be slow)'),
-                   Option.new('with-long-tests', 'Run even the long build-time unit tests (very slow)')
+    :tests     => [ [ 'with-tests', 'Run the build-time unit tests (can be slow)' ] ],
+    :longtests => [ [ 'with-tests',      'Run the normal build-time unit tests (can be slow)' ],
+                    [ 'with-long-tests', 'Run even the long build-time unit tests (very slow)' ],
                   ],
-    :head      => [Option.new('HEAD', 'Build the version from the head of the development series')],
-    :devel     => [Option.new('devel', 'Build the development version')],
-    :cxx11     => [],  # This is obsolete, and should be replaced by a “needs” clause in any formula that won’t build without it.
-    '32-bit'   => [Option.new('32-bit', 'Build 32-bit only')]
-  }
+  }.freeze
 
   attr_reader :name, :full_name, :owner
   attr_reader :bottle_specification, :build, :compiler_failures, :dependency_collector, :deprecated_actuals, :deprecated_options,
@@ -111,14 +114,10 @@ class SoftwareSpec
 
   def bottle_disable_reason; @bottle_disable_reason; end
 
-  def bottled?
-    bottle_specification.tag?(bottle_tag) and
-      (bottle_specification.compatible_cellar? or ARGV.force_bottle?)
-  end
+  def bottled?; bottle_specification.tag?(bottle_tag) and (bottle_specification.compatible_cellar? or ARGV.force_bottle?); end
 
   def bottle(disable_type = nil, disable_reason = nil, &block)
-    if disable_type
-      @bottle_disable_reason = BottleDisableReason.new(disable_type, disable_reason)
+    if disable_type then @bottle_disable_reason = BottleDisableReason.new(disable_type, disable_reason)
     else bottle_specification.instance_eval(&block); end
   end
 
@@ -139,19 +138,31 @@ class SoftwareSpec
 
   def option(name, description = '')
     opts = PREDEFINED_OPTIONS.fetch(name) do
+        raise ArgumentError, <<-_.undent if name == :cxx11
+          The :cxx11 option is obsolete, and should be replaced by a “needs” clause in
+          formulæ that won’t build without it.
+        _
+        raise ArgumentError, <<-_.undent if name == '32-bit'
+          The “32-bit” option is obsolete, & should be replaced by an ArchRequirement in
+          formulæ that won’t build without it.
+        _
         if Symbol === name
-          opoo "Passing arbitrary symbols to `option` is deprecated:  #{name.inspect}"
-          puts 'Symbols are reserved for future use, please pass a string instead'
+          opoo "Passing arbitrary symbols to `option` is deprecated:  #{name.inspect}",
+            'Symbols are reserved for future use – please pass a string instead'
           name = name.to_s
         elsif not String === name
           raise ArgumentError, 'option name in Formula (as passed to SoftwareSpec) is not a String'
         end
         raise ArgumentError, 'option name is required' if name.empty?
         raise ArgumentError, 'option name must be longer than one character' unless name.length > 1
-        raise ArgumentError, 'option name must not start with dashes' if name.starts_with?('-')
-        [Option.new(name, description)]
-      end
-    build.options += opts unless opts.empty?
+        raise ArgumentError, 'option name must not start with a dash' if name.starts_with?('-')
+        [ [ name, description ] ]
+      end # PREDEFINED_OPTIONS fetch‐failure block
+    unless opts.empty?
+      opts_ = []
+      opts.each_with_index{ |args, i| opts_ << Option.new(args[0], (i == 0 and description != '') ? description : args[1]) }
+      build.options += opts_
+    end
   end # SoftwareSpec#option
 
   def deprecated_option(hash)
@@ -161,7 +172,6 @@ class SoftwareSpec
         new_optstring = Array(new_optstrings).first
         d_o = DeprecatedOption.new(old_optstring, new_optstring)
         deprecated_options << d_o
-
         if @flags.include? d_o.old_flag
           @flags -= [d_o.old_flag]
           @flags |= [d_o.current_flag]
@@ -208,15 +218,14 @@ class SoftwareSpec
     #   as one large array of small, usually single-element, arrays of formulæ.  The active enhancements are merely a flat array of
     #   formulæ.  All of these are kept sorted for convenience.
     # Note:  The “active” enhancements describe what would be true of a new build done at run time.  They do not describe the state
-    #   of any installed keg – use Formula#enhanced_by?() for that.
+    #   of any installed keg – use Keg#enhanced_by?() for that.
     aids = Array(aid).map{ |name| Formula[name == :nls ? 'gettext' : name] rescue nil }.compact
     unless aids.empty?
       @named_enhancements << aids.sort{ |a, b| a.full_name <=> b.full_name }
       @named_enhancements = named_enhancements.sort{ |a, b| sort_named_enhancements(a, b) }
     end
-    @active_enhancements = active_enhancements.concat(aids).uniq.sort{ |a, b|
-        a.full_name <=> b.full_name
-      } if aids.all?{ |f| f and f.installed? }
+    @active_enhancements = active_enhancements.concat(aids).uniq.sort{ |a, b| a.full_name <=> b.full_name } \
+      if aids.all?{ |f| f and f.installed? }
   end # enhanced_by
 
   def deps; dependency_collector.deps; end
@@ -350,9 +359,9 @@ class BottleSpecification
   attr_reader :checksum, :collector
 
   def initialize
-    @revision = 0
-    @prefix = DEFAULT_PREFIX
-    @cellar = DEFAULT_CELLAR
+    revision(0)
+    prefix(DEFAULT_PREFIX)
+    cellar(DEFAULT_CELLAR)
     @collector = BottleCollector.new
   end # BottleSpecification#initialize
 
