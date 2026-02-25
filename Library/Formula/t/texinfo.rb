@@ -30,11 +30,9 @@ class Texinfo < Formula
     ENV['PERL'] = "#{Formula['perl'].opt_bin}/perl"
     system './configure', *args
     system 'make'
-    # At least on Tiger, `make check`’s many apparently‐legitimate failures are completely obscured
-    # by the tests’ inability to start properly in the first place due to fork(2) being temporarily
-    # unavailable, as Tiger’s per‐user process limit is only 100.  If you manually raise it (2/3 of
-    # the system maximum, as used in later versions, of 532 would be 354), you could run the tests;
-    # but by that point it’s more trouble than it’s worth.
+    # At least on Tiger, `make check` yields many (apparently legitimate) failures.  However, it also gets numerous failures wholly
+    # due to the system not being able to run enough processes in parallel, even after Leopardbrew has raised the limit.  In effect,
+    # running `make check` is more trouble than it’s worth.
     system 'make', 'install'
     doc.install Dir['doc/refcard/txirefcard*']
   end
