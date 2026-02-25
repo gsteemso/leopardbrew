@@ -10,9 +10,5 @@ class MaximumMacOSRequirement < Requirement
 
   satisfy(:build_env => false) { MacOS.version <= @version }
 
-  def message
-    <<-EOS.undent
-      Mac OS #{@version.pretty_name} or older is required.
-    EOS
-  end
-end
+  def message; "Mac OS #{@version.pretty_name} or older is required."; end
+end # MaximumMacOSRequirement
