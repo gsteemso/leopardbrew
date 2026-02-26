@@ -20,26 +20,34 @@ class CPU
     def model
       @@model ||= \
         case sysctl_int('hw.cpufamily')
-          when 0x07d34b9f then :a12z        # arm      0. (Aruba?) developer‐transition Minis (Vortex & Tempest cores)
+          when 0x07d34b9f then :a12         # arm      0. [Cyprus/]Aruba (developer‐tx’n Minis; A12[X|Z̲]:  Vortex & Tempest cores)
+          when 0x0cc90e64 then :arm13       # arm      —  (A(?))
           when 0x0f817246 then :kabylake    # intel   11. Kaby Lake
           when 0x10b282dc then :haswell     # intel    8. Haswell
-          when 0x1b588bb3 then :m1          # arm      1. A14/M1, most variants (Firestorm & Icestorm cores)
+          when 0x17d5b93a then :m4_2        # arm      7. Brava xxx (M4 Pro/Max)
+          when 0x1b588bb3 then :m1          # arm      1. Sicily/Tonga/Jade xxx (most A14/M1:  Firestorm & Icestorm cores)
           when 0x1cf8a03e then :cometlake   # intel   13. Comet Lake
+          when 0x1e2d6381 then :a6          # arm      —  Bali (armv7s – A6[X]:  Swift core)
           when 0x1f65e835 then :ivybridge   # intel    7. Ivy Bridge
-          when 0x204526d0 then :m4          # arm      8. Tupai (probably m4?)
-          when 0x2876f5b5 then :m3          # arm      ?. Coll (probably m3?)
+          when 0x204526d0 then :a18         # arm      —  Tupai
+          when 0x2876f5b5 then :a17pro      # arm      —  Coll
+          when 0x2c91a47e then :a8          # arm      —  Fiji/Capri (A8[X]:  Typhoon core)
+          when 0x37a09642 then :a7          # arm      —  Alcatraz (A7:  Cyclone core)
           when 0x37fc219f then :skylake     # intel   10. Sky Lake
           when 0x38435547 then :icelake     # intel   12. Ice Lake
           when 0x426f69ef then :core2       # intel    2. Merom et al:  Core 2 Duo  (Ex600, P7x00, T5600, T7x00, X7900)
+          when 0x462504d2 then :a13         # arm      —  Cebu (A13:  Lightning & Thunder cores)
+          when 0x53b005f5 then :xscale      # arm      —  (A(?))
           when 0x5490b78c then :sandybridge # intel    6. Sandy Bridge
           when 0x573b5eec then :arrandale   # intel    5. Arrandale (on Wikipedia see under “Westmere”)
           when 0x582ed09c then :broadwell   # intel    9. Broadwell
-          when 0x5f4dea93 then :m3          # arm      4. Lobos (M3 Pro:  Everest & Sawtooth cores)
+          when 0x5f4dea93 then :m3_2        # arm      4. Lobos (M3 Pro:  Everest & Sawtooth cores)
+          when 0x67ceee93 then :a10         # arm      —  Cayman/Myst/Gibraltar (A10[X]/T2:  Hurricane & Zephyr cores)
           when 0x6b5a4cd2 then :nehalem     # intel    4. Nehalem
-          when 0x6f5129ac then :m4          # arm      6. Donan
-          when 0x72015832 then :m3          # arm      5. Palma (M3 Max:  Everest & Sawtooth cores)
+          when 0x6f5129ac then :m4_1        # arm      6. Donan (base M4)
+          when 0x72015832 then :m3_3        # arm      5. Palma (M3 Max:  Everest & Sawtooth cores)
           when 0x73d67300 then :core        # intel    1. Yonah et al:  Core Solo/Duo  (T1200, T2x00, L2400)
-          when 0x75d4acb9 then :m4          # arm      7. Tahiti (probably m4?)
+          when 0x75d4acb9 then :a18pro      # arm      —  Tahiti
           when 0x77c184ae
             case sysctl_int('hw.cpusubtype')  # always has flags masked out
               when 0x0000000a then :g4      # powerpc  1. 7400
@@ -47,13 +55,21 @@ class CPU
               else                 :dunno
             end
           when 0x78ea4fbc then :penryn      # intel    3. Penryn  (E8x35, P7x50, P8x00, SL9x00, SU9x00, T8x00, T9x00, T9550)
+          when 0x8765edea then :a16         # arm      —  Crete? (Everest & Sawtooth cores)
+          when 0x8ff620d8 then :arm11       # arm      —  (A(?))
+          when 0x92fb37c8 then :a9          # arm      —  Maui/Malta/Elba:  A9[X] (Twister core)
+          when 0x96077ef1 then :arm14       # arm      —  (A(?))
+          when 0xa8511bca then :arm15       # arm      —  (A(?))
           when 0xaa33392b then :intel_dev   # intel    0. ???? (developer transition model?)
+          when 0xbd1b0ae9 then :arm12       # arm      —  (A(?))
           when 0xcee41549 then :g3          # powerpc  0. 750
+          when 0xda33d83d then :m2          # arm      2. Ellis/Staten/Rhodes xxx (A15/M2:  Avalanche & Blizzard cores)
+          when 0xe73283ae then :arm09       # arm      —  (A(?))
+          when 0xe81e7ef6 then :a11         # arm      —  Skye (A11:  Monsoon & Mistral cores)
           when 0xed76d8aa then :g5          # powerpc  3. 970
-          when 0xda33d83d then :m2          # arm      2. A15/M2, most variants (Avalanche & Blizzard cores)
-          when 0xfa33415e then :m3          # arm      3. Ibiza (base M3:  Everest & Sawtooth cores)
+          when 0xfa33415e then :m3_1        # arm      3. Ibiza (base M3:  Everest & Sawtooth cores)
           else case type
-              when :arm     then :a12z
+              when :arm     then :a12
               when :intel   then _64b? ? :core2 : :core
               when :powerpc then _64b? ? :g5    : :g3
               else :dunno
@@ -131,7 +147,7 @@ class CPU
       :ppc64   => {:bits => 64, :type => :powerpc, :oldest => :g5},
       :i386    => {:bits => 32, :type => :intel,   :oldest => :core},
       :x86_64  => {:bits => 64, :type => :intel,   :oldest => :core2},
-      :arm64   => {:bits => 64, :type => :arm,     :oldest => :a12z},
+      :arm64   => {:bits => 64, :type => :arm,     :oldest => :a12},
     }.freeze
 
     # TODO:  Properly account for optflags under Clang
@@ -153,11 +169,11 @@ class CPU
       :kabylake    => {:bits => 64, :type => :intel,   :arch => :x86_64, :oldest => :core2, :gcc => {:vrsn =>  6,   :flags => '-march=skylake'       }, :clang => {:vrsn => nil, :flags => '-march=skylake'       },},
       :icelake     => {:bits => 64, :type => :intel,   :arch => :x86_64, :oldest => :core2, :gcc => {:vrsn =>  8,   :flags => '-march=icelake-client'}, :clang => {:vrsn => nil, :flags => '-march=icelake-client'},},
       :cometlake   => {:bits => 64, :type => :intel,   :arch => :x86_64, :oldest => :core2, :gcc => {:vrsn =>  6,   :flags => '-march=skylake'       }, :clang => {:vrsn => nil, :flags => '-march=skylake'       },},
-      :a12z        => {:bits => 64, :type => :arm,     :arch => :arm64,  :oldest => :a12z,  :gcc => {:vrsn => 15,   :flags => '-mcpu=apple-m1'       }, :clang => {:vrsn => nil, :flags => '-mcpu=apple-m1'       },},
-      :m1          => {:bits => 64, :type => :arm,     :arch => :arm64,  :oldest => :a12z,  :gcc => {:vrsn => 15,   :flags => '-mcpu=apple-m1'       }, :clang => {:vrsn => nil, :flags => '-mcpu=apple-m1'       },},
-      :m2          => {:bits => 64, :type => :arm,     :arch => :arm64,  :oldest => :a12z,  :gcc => {:vrsn => 15,   :flags => '-mcpu=apple-m2'       }, :clang => {:vrsn => nil, :flags => '-mcpu=apple-m2'       },},
-      :m3          => {:bits => 64, :type => :arm,     :arch => :arm64,  :oldest => :a12z,  :gcc => {:vrsn => 15,   :flags => '-mcpu=apple-m3'       }, :clang => {:vrsn => nil, :flags => '-mcpu=apple-m3'       },},
-      :m4          => {:bits => 64, :type => :arm,     :arch => :arm64,  :oldest => :a12z,  :gcc => {:vrsn => 15,   :flags => '-mcpu=apple-m3'       }, :clang => {:vrsn => nil, :flags => '-mcpu=apple-m3'       },},
+      :a12         => {:bits => 64, :type => :arm,     :arch => :arm64,  :oldest => :a12,   :gcc => {:vrsn => 15,   :flags => '-mcpu=apple-m1'       }, :clang => {:vrsn => nil, :flags => '-mcpu=apple-m1'       },},
+      :m1          => {:bits => 64, :type => :arm,     :arch => :arm64,  :oldest => :a12,   :gcc => {:vrsn => 15,   :flags => '-mcpu=apple-m1'       }, :clang => {:vrsn => nil, :flags => '-mcpu=apple-m1'       },},
+      :m2          => {:bits => 64, :type => :arm,     :arch => :arm64,  :oldest => :a12,   :gcc => {:vrsn => 15,   :flags => '-mcpu=apple-m2'       }, :clang => {:vrsn => nil, :flags => '-mcpu=apple-m2'       },},
+      :m3          => {:bits => 64, :type => :arm,     :arch => :arm64,  :oldest => :a12,   :gcc => {:vrsn => 15,   :flags => '-mcpu=apple-m3'       }, :clang => {:vrsn => nil, :flags => '-mcpu=apple-m3'       },},
+      :m4          => {:bits => 64, :type => :arm,     :arch => :arm64,  :oldest => :a12,   :gcc => {:vrsn => 15,   :flags => '-mcpu=apple-m3'       }, :clang => {:vrsn => nil, :flags => '-mcpu=apple-m3'       },},
     }.freeze
 
     # What flags do you use when your CPU is newer than your compiler knows about?
