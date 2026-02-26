@@ -64,6 +64,8 @@ class SoftwareSpec
     :longtests => [ [ 'with-tests',      'Run the normal build-time unit tests (can be slow)' ],
                     [ 'with-long-tests', 'Run even the long build-time unit tests (very slow)' ],
                   ],
+    :head      => [ [ 'HEAD', 'Build the version from the head of the development tree' ] ],
+    :devel     => [ [ 'devel', 'Build the development version' ] ],
   }.freeze
 
   attr_reader :name, :full_name, :owner
