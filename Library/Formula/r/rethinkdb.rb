@@ -16,10 +16,7 @@ class Rethinkdb < Formula
   depends_on "openssl"
   depends_on "icu4c"
 
-  fails_with :gcc do
-    build 5666 # GCC 4.2.1
-    cause "RethinkDB uses C++0x"
-  end
+  needs :cxx11
 
   def install
     args = ["--prefix=#{prefix}"]

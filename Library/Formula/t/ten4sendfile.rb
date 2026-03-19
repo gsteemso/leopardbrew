@@ -3,7 +3,7 @@ class Ten4sendfile < Formula
   homepage 'https://github.com/gsteemso/ten4sendfile/'
   head 'https://github.com/gsteemso/ten4sendfile.git', :branch => 'main'
 
-  keg_only 'installs an overriding <sys/socket.h> header'
+  keg_only 'It installs an overriding <sys/socket.h> header.'
 
   depends_on MaximumMacOSRequirement.new(:tiger)
 

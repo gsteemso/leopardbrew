@@ -34,7 +34,7 @@ class CompilerSelectorTests < Homebrew::TestCase
     @cc = :clang
     @versions = CompilerVersions.new
     @selector = CompilerSelector.new(
-      @f, @versions, [:clang, :gcc, :llvm, :gnu]
+      @f, @versions, [:clang, :gcc_4_2, :llvm, :gnu]
     )
   end
 
@@ -43,7 +43,7 @@ class CompilerSelectorTests < Homebrew::TestCase
   end
 
   def test_all_compiler_failures
-    @f << :clang << :llvm << :gcc << { :gcc => "4.8" } << { :gcc => "4.7" }
+    @f << :clang << :llvm << :gcc_4_2 << { :gcc => "4.8" } << { :gcc => "4.7" }
     assert_raises(CompilerSelectionError) { actual_cc }
   end
 
@@ -53,7 +53,7 @@ class CompilerSelectorTests < Homebrew::TestCase
 
   def test_fails_with_clang
     @f << :clang
-    assert_equal :gcc, actual_cc
+    assert_equal :gcc_4_2, actual_cc
   end
 
   def test_fails_with_llvm
@@ -61,8 +61,8 @@ class CompilerSelectorTests < Homebrew::TestCase
     assert_equal :clang, actual_cc
   end
 
-  def test_fails_with_gcc
-    @f << :gcc
+  def test_fails_with_gcc_4_2
+    @f << :gcc_4_2
     assert_equal :clang, actual_cc
   end
 
@@ -72,32 +72,32 @@ class CompilerSelectorTests < Homebrew::TestCase
   end
 
   def test_mixed_failures_1
-    @f << :clang << :gcc
+    @f << :clang << :gcc_4_2
     assert_equal :llvm, actual_cc
   end
 
   def test_mixed_failures_2
     @f << :clang << :llvm
-    assert_equal :gcc, actual_cc
+    assert_equal :gcc_4_2, actual_cc
   end
 
   def test_mixed_failures_3
-    @f << :gcc << :llvm
+    @f << :gcc_4_2 << :llvm
     assert_equal :clang, actual_cc
   end
 
   def test_mixed_failures_4
     @f << :clang << { :gcc => "4.8" }
-    assert_equal :gcc, actual_cc
+    assert_equal :gcc_4_2, actual_cc
   end
 
   def test_mixed_failures_5
-    @f << :clang << :gcc << :llvm << { :gcc => "4.8" }
+    @f << :clang << :gcc_4_2 << :llvm << { :gcc => "4.8" }
     assert_equal "gcc-4.7", actual_cc
   end
 
   def test_llvm_precedence
-    @f << :clang << :gcc
+    @f << :clang << :gcc_4_2
     assert_equal :llvm, actual_cc
   end
 

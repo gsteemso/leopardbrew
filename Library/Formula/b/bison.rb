@@ -15,7 +15,7 @@ class Bison < Formula
   option :tests
 
   if MacOS.version < :leopard
-    # GNU M4 1.4.6 or later is required; 1.4.16 or newer is recommended.  Tiger comes with 1.4.2.
+    # GNU M4 1.4.6 or later is required; 1.4.16 or newer is recommended.  Tiger comes with 1.4.2, and Leopard with 1.4.6.
     depends_on 'm4'
   end
   if build.with? 'tests'
@@ -32,12 +32,12 @@ class Bison < Formula
         --disable-dependency-tracking
         --disable-silent-rules
       ]
-    args << '--disable-year2038' unless Target.pure_64b?
+    args << '--disable-year2038' unless Target._64b?
     system './configure', *args
     system 'make'
-    system 'make', 'check' if build.with? 'tests'
+    ENV.deparallelize { system 'make', 'check' } if build.with? 'tests'
     system 'make', 'install'
-  end
+  end # install
 
   test do
     (testpath/'test.y').write <<-EOS.undent

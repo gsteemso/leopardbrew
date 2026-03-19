@@ -10,7 +10,7 @@ module Utils
     # /usr/bin/git is a popup stub when Xcode/CLT aren't installed, so bail out
     return @git = false if git == "/usr/bin/git" && !MacOS.has_apple_developer_tools?
     @git = true
-  end # Utils⸬git_available?
+  end # Utils::git_available?
 
   def ensure_git_installed!
     return if git_available?
@@ -25,7 +25,7 @@ module Utils
     end
 
     raise "Git is unavailable" unless git_available?
-  end # Utils⸬ensure_git_installed!
+  end # Utils::ensure_git_installed!
 
   def clear_git_available_cache
     remove_instance_variable(:@git) if instance_variable_defined?(:@git)

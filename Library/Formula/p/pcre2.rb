@@ -1,11 +1,12 @@
+# stable release 2025-10-21; checked 2026-03-08
 class Pcre2 < Formula
   desc 'Perl-compatible regular expressions library with revised API'
   homepage 'https://www.pcre.org/'
-  url 'https://github.com/PCRE2Project/pcre2/releases/download/pcre2-10.45/pcre2-10.45.tar.bz2'
-  sha256 '21547f3516120c75597e5b30a992e27a592a31950b5140e7b8bfde3f192033c4'
+  url 'https://github.com/PCRE2Project/pcre2/releases/download/pcre2-10.47/pcre2-10.47.tar.bz2'
+  sha256 '47fe8c99461250d42f89e6e8fdaeba9da057855d06eb7fc08d9ca03fd08d7bc7'
 
   head do
-    url 'https://github.com/PCRE2Project/pcre2'
+    url 'https://github.com/PCRE2Project/pcre2.git'
 
     depends_on 'autoconf' => :build
     depends_on 'automake' => :build
@@ -30,9 +31,7 @@ class Pcre2 < Formula
       --enable-pcre2grep-libbz2
       --enable-pcre2test-libedit
     ]
-    # PPC64 JIT is explicitly supported in the package’s source code, but for reasons yet to be
-    # determined, fails to build properly under Mac OS 10.5.  It probably requires a newer GCC.
-    args << '--enable-jit' unless [:gcc_4_0, :gcc, :llvm].include? ENV.compiler
+    args << '--enable-jit' if ENV.supports_feature? :jit
 
     system './configure', *args
     system 'make'
@@ -41,6 +40,6 @@ class Pcre2 < Formula
   end # install
 
   test do
-    arch_system bin/'pcre2grep', 'regular expression', share/'doc/pcre2/README'
+    arch_system bin/'pcre2grep', 'regular\s+expression', share/'doc/pcre2/README'
   end
 end # Pcre2

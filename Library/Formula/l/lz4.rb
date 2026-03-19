@@ -20,7 +20,9 @@ class Lz4 < Formula
     input_file = testpath/'in'
     input_file.write input
     output_file = testpath/'out'
-    system 'sh', '-c', "cat\ #{input_file}\ |\ #{bin}/lz4\ |\ #{bin}/lz4\ -d\ >#{output_file}"
-    assert_equal output_file.read, input
+    for_archs(bin/'lz4') do |_, cmd_array|
+      system 'sh', '-c', (['cat', input_file, '|'] + cmd_array + ['|', cmd_array, '-d', '>', output_file]).join(' ')
+      assert_equal output_file.read, input
+    end
   end
 end

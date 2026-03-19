@@ -150,7 +150,7 @@ class Ffmpeg28 < Formula
 
     # For 32-bit compilation under gcc 4.2, see:
     # https://trac.macports.org/ticket/20938#comment:22
-    ENV.append_to_cflags "-mdynamic-no-pic" if Target.intel? and not Target.pure_64b? and ENV.compiler == :clang
+    ENV.append_to_cflags "-mdynamic-no-pic" if Target.intel? and not Target._64b? and ENV.compiler == :clang
 
     system "./configure", *args
 

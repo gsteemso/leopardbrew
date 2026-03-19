@@ -1,32 +1,20 @@
-require "set"
+require 'set'
 
 class BuildEnvironment
-  def initialize(*settings)
-    @settings = Set.new(*settings)
-  end
+  def initialize(*settings); @settings = Set.new(*settings); end
 
-  def merge(*args)
-    @settings.merge(*args)
-    self
-  end
+  def merge(*args); @settings.merge(*args); self; end
 
-  def <<(o)
-    @settings << o
-    self
-  end
+  def <<(o); @settings << o; self; end
 
-  def std?
-    @settings.include? :std
-  end
+  def std?; @settings.include? :std; end
 
-  def userpaths?
-    @settings.include? :userpaths
-  end
-end
+  def userpaths?; @settings.include? :userpaths; end
+end # BuildEnvironment
 
 module BuildEnvironmentDSL
   def env(*settings)
     @env ||= BuildEnvironment.new
     @env.merge(settings)
   end
-end
+end # BuildEnvironmentDSL

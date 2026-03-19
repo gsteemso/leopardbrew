@@ -20,7 +20,7 @@ class Expat < Formula
       --disable-dependency-tracking
       --disable-silent-rules
     ]
-    args << '--without-tests' unless ENV.supports? :cxx11
+    args << '--without-tests' unless ENV.supports_language? :cxx11
 
     system './configure', *args
     system 'make', 'install'

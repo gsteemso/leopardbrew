@@ -23,7 +23,7 @@ module Homebrew
     else
       outdated = print_outdated(formulae)
     end
-    Homebrew.failed = ARGV.resolved_formulae.any? && outdated.any?
+    if ARGV.resolved_formulae.any? and outdated.any? then Homebrew.failed; else ohai 'No outdated formulæ'; end
   end # outdated
 
   def outdated_brews(formulae)

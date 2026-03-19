@@ -1,4 +1,4 @@
-# GnuTLS has current stable and next stable branches, we use current.
+# GnuTLS has current, stable, and next‐stable branches; we use current.
 class Gnutls < Formula
   desc 'GNU Transport Layer Security (TLS) Library'
   homepage 'http://gnutls.org'
@@ -6,14 +6,12 @@ class Gnutls < Formula
   mirror 'https://www.mirrorservice.org/sites/ftp.gnupg.org/gcrypt/gnutls/v3.7/gnutls-3.7.11.tar.xz'
   sha256 '90e337504031ef7d3077ab1a52ca8bac9b2f72bc454c95365a1cd1e0e81e06e9'
 
-  # Threads can’t be disabled, but thread-local storage was unsupported on Macs
-  # until OS 10.7, and GCC 4.2 did not yet contain the eventual workaround.
+  # Thread-local storage was not supported natively on Macs until OS 10.7, & GCC did not get a workaround until release 4.3? 4.4?
   needs :tls
 
   option :universal
   option 'with-guile', 'Enable extensions written in Scheme'
   option 'with-more-compressors', 'Enable the Brotli and ZStandard compression schemes'
-  option 'with-unbound', 'Use the Unbound secure domain‐name resolver'
 
   depends_on 'pkg-config' => :build
   depends_on 'curl-ca-bundle'
@@ -27,9 +25,11 @@ class Gnutls < Formula
   depends_on 'p11-kit'
   depends_on 'python3'
   depends_on 'zlib'
-  depends_on 'guile'   => :optional
-  depends_on 'unbound' => :optional
-  depends_group ['more-compressors', ['brotli', 'zstd'] => :optional]
+  depends_on 'guile' => :optional
+  depends_on 'zstd'  => :optional
+  # The following use Cmake, which is circularly (albeit optionally) dependent on GnuTLS via Curl.
+  enhanced_by 'brotli'
+  enhanced_by 'unbound'
 
   # Availability.h appeared in Leopard
   patch :DATA

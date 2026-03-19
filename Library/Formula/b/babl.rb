@@ -28,7 +28,7 @@ class Babl < Formula
   def install
     if build.universal?
       ENV.universal_binary
-      opoo "Compilation may fail at babl-cpuaccel.c using gcc for a universal build" if ENV.compiler == :gcc
+      opoo "Compilation may fail at babl-cpuaccel.c using gcc-4.2 for a universal build" if ENV.compiler == :gcc_4_2
     end
 
     system "./autogen.sh" if build.head?

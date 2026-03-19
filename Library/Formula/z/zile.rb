@@ -12,16 +12,8 @@ class Zile < Formula
   end
 
   # https://github.com/mistydemeo/tigerbrew/issues/215
-  fails_with :gcc_4_0 do
-    cause "src/funcs.c:1128: error: #pragma GCC diagnostic not allowed inside functions"
-  end
-
-  fails_with :gcc do
-    cause "src/funcs.c:1128: error: #pragma GCC diagnostic not allowed inside functions"
-  end
-
-  fails_with :llvm do
-    cause "src/funcs.c:1128: error: #pragma GCC diagnostic not allowed inside functions"
+  fails_with [:gcc_4_0, :gcc_4_2, :llvm] do
+    cause "src/funcs.c:1128:  error:  #pragma GCC diagnostic not allowed inside functions"
   end
 
   depends_on "pkg-config" => :build

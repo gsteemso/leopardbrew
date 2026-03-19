@@ -1,6 +1,7 @@
 require "vendor/backports/enumerable"  # provides #max_by
 require "digest"
 require "formula/renames"
+require 'macos'
 
 # The Formulary is responsible for creating instances of Formula.
 # It is not meant to be used directly from formulæ.

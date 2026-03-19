@@ -25,22 +25,22 @@ class X264 < Formula
     when 'l-smash' then depends_on 'l-smash'
   end
 
-  # For whatever reason, GCC doesn’t like the specific builtin names used in the source.
-  patch :DATA if Target.powerpc? and [:gcc, :llvm, :gcc_4_0].include? ENV.compiler
+  # For whatever reason, Apple GCC doesn’t like the specific builtin names used in the source.
+  patch :DATA if Target.powerpc? and [:gcc_4_0, :gcc_4_2, :llvm].include? ENV.compiler
 
   def install
     ENV.universal_binary if build.universal?
 
     # On PPC Darwin, x264 always uses -fastf, which isn't supported by FSF GCC.
     # On the other hand, -fno-lto isn’t known to Apple GCC.
-    if [:gcc, :llvm, :gcc_4_0].include? ENV.compiler
+    if [:gcc_4_0, :gcc_4_2, :llvm].include? ENV.compiler
       inreplace 'configure', '-fno-lto', ''
     else
       inreplace 'configure', '-fastf', ''
     end
 
-    # On powerpc/powerpc64, the configure script hard-codes a G4 CPU.  We must change it, unless of
-    # course we actually are running on a G4.
+    # On powerpc/powerpc64, the configure script hard-codes a G4 CPU.  We must change it, unless of course we really are running on
+    # a G4.
     if Target.powerpc? and (m_for_ppc = Target.model_for_arch(:ppc)) != :g4
       inreplace 'configure', '-mcpu=G4', Target.model_optflags(m_for_ppc)
     end

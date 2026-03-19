@@ -23,16 +23,12 @@ class BoostPython < Formula
   end
 
   option :universal
-  option :cxx11
 
-  option "without-python", "Build without python 2 support"
+  depends_on :python2 => :recommended
   depends_on :python3 => :optional
+  depends_on "boost"
 
-  if build.cxx11?
-    depends_on "boost" => "c++11"
-  else
-    depends_on "boost"
-  end
+  needs :cxx11
 
   fails_with :llvm do
     build 2335
@@ -53,18 +49,6 @@ class BoostPython < Formula
             "link=shared,static"]
 
     args << "address-model=32_64" << "architecture=x86" << "pch=off" if build.universal?
-
-    # Build in C++11 mode if boost was built in C++11 mode.
-    # Trunk starts using "clang++ -x c" to select C compiler which breaks C++11
-    # handling using ENV.cxx11. Using "cxxflags" and "linkflags" still works.
-    if build.cxx11?
-      args << "cxxflags=-std=c++11"
-      if ENV.compiler == :clang
-        args << "cxxflags=-stdlib=libc++" << "linkflags=-stdlib=libc++"
-      end
-    elsif Tab.for_name("boost").cxx11?
-      odie "boost was built in C++11 mode so boost-python must be built with --c++11."
-    end
 
     # disable python detection in bootstrap.sh; it guesses the wrong include directory
     # for Python 3 headers, so we configure python manually in user-config.jam below.

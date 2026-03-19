@@ -13,6 +13,7 @@ class Tab < OpenStruct
     def create(formula, compiler, stdlib, archs)
       attributes = {
         'active_aids'        => formula.active_enhancements,
+        'brew_sys_version'   => LEOPARDBREW_VERSION,
         'build_mode'         => formula.build.mode.to_s,
         'built_archs'        => archs,
         'built_as_bottle'    => formula.build.bottle?,
@@ -36,6 +37,7 @@ class Tab < OpenStruct
     def empty
       attributes = {
         'active_aids'        => [],
+        'brew_sys_version'   => LEOPARDBREW_VERSION,
         'build_mode'         => 'plain',
         'built_archs'        => [],
         'built_as_bottle'    => false,
@@ -121,6 +123,7 @@ class Tab < OpenStruct
       attrs = Utils::JSON.load(content)
       attrs['active_aids'] ||= (attrs['active_aid_sets'] ? attrs['active_aid_sets'].flatten(1) : [])
       attrs['active_aids'].map!{ |fa| Formulary.from_keg(HOMEBREW_CELLAR/fa[0]/fa[1]) }.compact!  # can be nil if missing
+      attrs['brew_sys_version'] ||= 'before 0.6.3pre3'
       attrs['built_archs'] ||= []
       attrs['source'] ||= {}
       pn = Pathname.new(attrs['source']['path'])
@@ -153,9 +156,8 @@ class Tab < OpenStruct
   def includes?(opt); used_options.include? opt; end
   alias_method :include?, :includes?
 
-  def build_32_bit?; includes?('32-bit'); end
-
   # Deprecated
+  def build_32_bit?; includes?('32-bit'); end
   def cxx11?; includes?('c++11'); end
 
   def cross?; includes?('cross'); end
@@ -181,7 +183,10 @@ class Tab < OpenStruct
   end
 
   # Older tabs won’t have this field, so compute a plausible default.
-  def built_archs; super.empty? ? Target.send("#{build_mode}_archs".to_sym) : super.map(&:to_sym).extend(ALE); end
+  def built_archs
+    super.empty? ? ((tabfile and tabfile.exists?) ? Keg.for(tabfile).reconstruct_built_archs : []) \
+                 : super.map(&:to_sym).extend(ALE)
+  end
 
   def compiler; super or MacOS.default_compiler; end
 
@@ -200,6 +205,7 @@ class Tab < OpenStruct
   def to_json
     attributes = {
       'active_aids'        => active_aids.compact.map{ |f| [f.full_name, f.pkg_version.to_s] },
+      'brew_sys_version'   => brew_sys_version,
       'build_mode'         => build_mode.to_s.choke,
       'built_archs'        => built_archs.map(&:to_s),
       'built_as_bottle'    => built_as_bottle,
@@ -217,16 +223,17 @@ class Tab < OpenStruct
 
   def to_s
     s = []
-    s << case poured_from_bottle
-           when true  then 'Poured from bottle'
-           when false then 'Built from source'
-           else 'Installed'
-         end
+    src = case poured_from_bottle
+            when true  then 'Poured from bottle'
+            when false then 'Built from source'
+            else 'Installed'
+          end
+    s << "#{src} by Leopardbrew #{brew_sys_version}"
     bm = case build_mode
-           when :cross then ' [cross-build mode]'
-           when :local then ' [local build mode]'
-           when :n8ive then ' [native build mode]'
-           when nil    then ' [unknown build mode]'
+           when :cross  then ' [cross-build mode]'
+           when :local  then ' [local build mode]'
+           when :native then ' [native build mode]'
+           when nil     then ' [unknown build mode]'
            else ''
          end
     s << "(for #{built_archs.map(&:to_s).list}#{bm})"

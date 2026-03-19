@@ -12,7 +12,7 @@ module Homebrew
     if ARGV.json == 'v1'
       print_json
     elsif ARGV.flag? '--github'
-      exec_browser(*ARGV.formulae.map { |f| github_info(f) })
+      exec_browser(*ARGV.formulae.map{ |f| github_info(f) })
     else
       print_info
     end
@@ -20,7 +20,7 @@ module Homebrew
 
   def print_info
     if ARGV.named.empty?
-      if HOMEBREW_CELLAR.exists?
+      if HOMEBREW_CELLAR.directory?
         count = Formula.racks.length
         puts "#{count} keg#{plural(count)}, #{HOMEBREW_CELLAR.abv}"
       end
@@ -46,24 +46,17 @@ module Homebrew
   end # print_info
 
   def print_json
-    ff = if ARGV.includes? '--all'
-      Formula
-    elsif ARGV.includes? '--installed'
-      Formula.installed
-    else
-      ARGV.formulae
-    end
-    json = ff.map(&:to_hash)
-    puts Utils::JSON.dump(json)
+    ff = ARGV.includes?('--all')       ? Formula           \
+       : ARGV.includes?('--installed') ? Formula.installed \
+       :                                 ARGV.formulae
+    puts Utils::JSON.dump ff.map(&:to_hash)
   end # print_json
 
   def github_remote_path(remote, path)
     if remote =~ %r{^(?:https?://|git(?:@|://))github\.com[:/](.+)/(.+?)(?:\.git)?$}
       "https://github.com/#{$1}/#{$2}/blob/master/#{path}"
-    else
-      "#{remote}/#{path}"
-    end
-  end # github_remote_path
+    else "#{remote}/#{path}"; end
+  end
 
   def github_info(f)
     if f.tap?
@@ -72,19 +65,11 @@ module Homebrew
       if remote = tap.remote
         path = f.path.relative_path_from(tap.path)
         github_remote_path(remote, path)
-      else
-        f.path
-      end
-    elsif f.core_formula?
-      if remote = git_origin
-        path = f.path.relative_path_from(HOMEBREW_REPOSITORY)
-        github_remote_path(remote, path)
-      else
-        f.path
-      end
-    else
-      f.path
-    end
+      else f.path; end
+    elsif f.core_formula? and remote = git_origin
+      path = f.path.relative_path_from(HOMEBREW_REPOSITORY)
+      github_remote_path(remote, path)
+    else f.path; end
   end # github_info
 
   def info_formula(f)
@@ -120,24 +105,22 @@ module Homebrew
         tab = Tab.for_keg(keg).to_s
         puts tab.indent(3) unless tab.empty?
       end
-    else
-      puts "Not installed"
-    end
+    else puts "Not installed"; end
 
     history = github_info(f)
     puts "From:  #{history}" if history
 
     aid_groups = f.named_enhancements
-    deps = reqdeps f
+    deps = all_deps f
     unless deps.empty? and aid_groups.empty?
       ohai "Dependencies"
-      %w[required recommended optional].map do |type|
+      %w[required recommended optional].each do |type|
         _deps = deps.send("build_#{type}").uniq.sort
         puts "Build (#{type}):  #{decorate_dependencies _deps}" unless _deps.empty?
       end
       _deps = deps.required.uniq.sort
       puts "Required:  #{decorate_dependencies _deps}" unless _deps.empty?
-      %w[recommended optional].map do |type|
+      %w[recommended optional].each do |type|
         _deps = deps.send("run_#{type}").uniq.sort
         puts "#{type.capitalize}:  #{decorate_dependencies _deps}" unless _deps.empty?
       end
@@ -175,9 +158,5 @@ module Homebrew
     clump ? deps_status * ' + ' : deps_status.list
   end # decorate_dependencies
 
-  def reqdeps(formula)
-    rd = formula.deps.dup
-    formula.requirements.reject{ |rq| rq.default_formula.nil? or rq.satisfied? }.map(&:to_dependency).each{ |dp| rd << dp }
-    rd
-  end
+  def all_deps(formula); (formula.deps + formula.requirements.to_dependencies).uniq; end
 end # Homebrew

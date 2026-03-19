@@ -22,17 +22,15 @@ class Ledger < Formula
 
   option "with-debug", "Build with debugging symbols enabled"
   option "with-docs", "Build HTML documentation"
-  option "without-python", "Build without python support"
 
   depends_on "cmake" => :build
   depends_on "gmp"
   depends_on "mpfr"
-  depends_on :python => :recommended if MacOS.version <= :snow_leopard
+  depends_on :python2 => :recommended if MacOS.version <= :snow_leopard
 
-  boost_opts = []
-  boost_opts << "c++11" if MacOS.version < "10.9"
-  depends_on "boost" => boost_opts
-  depends_on "boost-python" => boost_opts if build.with? "python"
+  # These require C++11 if built under OS 10.8 or earlier.  That should be specified there, what was it doing here?
+  depends_on "boost"
+  depends_on "boost-python" if build.with? "python2"
 
   stable do
     # library shouldn't explicitly link a python framework
@@ -71,7 +69,7 @@ class Ledger < Formula
       --boost=#{Formula["boost"].opt_prefix}
     ]
 
-    args << "--python" if build.with? "python"
+    args << "--python" if build.with? "python2"
 
     args += %w[-- -DBUILD_DOCS=1]
     args << "-DBUILD_WEB_DOCS=1" if build.with? "docs"
@@ -81,7 +79,7 @@ class Ledger < Formula
     system "./acprep", flavor, "make", "install", *args
     (share+"ledger/examples").install Dir["test/input/*.dat"]
     (share+"ledger").install "contrib"
-    (share+"ledger").install "python/demo.py" if build.with? "python"
+    (share+"ledger").install "python/demo.py" if build.with? "python2"
     (share/"emacs/site-lisp/ledger").install Dir["lisp/*.el", "lisp/*.elc"]
   end
 
@@ -95,8 +93,8 @@ class Ledger < Formula
     assert_equal "          $-2,500.00  Equity", balance.read.chomp
     assert_equal 0, $?.exitstatus
 
-    if build.with? "python"
-      system "python", "#{share}/ledger/demo.py"
+    if build.with? "python2"
+      system "python2", "#{share}/ledger/demo.py"
     end
   end
 end

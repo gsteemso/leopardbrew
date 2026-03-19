@@ -2,7 +2,7 @@ class RubyRequirement < Requirement
   fatal true
   default_formula "ruby"
 
-  def initialize(tags, opt_name = nil)
+  def initialize(tags)
     @version = tags.shift if /(\d\.)+\d/ === tags.first
     raise "RubyRequirement requires a version!" unless @version
     super

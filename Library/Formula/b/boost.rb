@@ -20,24 +20,18 @@ class Boost < Formula
   option "without-single", "Disable building single-threading variant"
   option "without-static", "Disable building static library variant"
   option "with-mpi", "Build with MPI support"
-  option :cxx11
 
   deprecated_option "with-icu" => "with-icu4c"
 
-  if build.cxx11?
-    depends_on "icu4c" => [:optional, "c++11"]
-    depends_on "open-mpi" => "c++11" if build.with? "mpi"
-  else
-    depends_on "icu4c" => :optional
-    depends_on :mpi => [:cc, :cxx, :optional]
-  end
+  depends_on "icu4c" => :optional
+  depends_on :mpi => [:cc, :cxx, :optional]
 
   fails_with :llvm do
     build 2335
     cause "Dropped arguments to functions when linking with boost"
   end
 
-  needs :cxx11 if build.cxx11?
+  needs :cxx11 if MacOS.version <= :mountain_lion  # according to the {ledger} formula, anyway
 
   def install
     # https://svn.boost.org/trac/boost/ticket/8841
@@ -70,18 +64,16 @@ class Boost < Formula
     # Handle libraries that will not be built.
     without_libraries = ["python"]
 
-    # The context library is implemented as x86_64 ASM, so it
-    # won't build on PPC or 32-bit builds
+    # The context library is implemented as x86_64 ASM, so it won't build on PPC or 32-bit builds
     # see https://github.com/Homebrew/homebrew/issues/17646
-    if Target.typeset != [:intel] or not Target.pure_64b?
+    if Target.typeset != [:intel] or not Target._64b?
       without_libraries << "context"
       # The coroutine library depends on the context library.
       without_libraries << "coroutine"
     end
 
-    # Boost.Log cannot be built using Apple GCC at the moment. Disabled
-    # on such systems.
-    without_libraries << "log" if ENV.compiler == :gcc || ENV.compiler == :llvm
+    # Boost.Log cannot be built using Apple GCC at the moment.  Disabled on such systems.
+    without_libraries << "log" if ENV.compiler == :gcc_4_2 || ENV.compiler == :llvm
     without_libraries << "mpi" if build.without? "mpi"
 
     bootstrap_args << "--without-libraries=#{without_libraries.join(",")}"
@@ -113,15 +105,6 @@ class Boost < Formula
 
     args << "address-model=32_64" << "architecture=x86" << "pch=off" if build.universal?
 
-    # Trunk starts using "clang++ -x c" to select C compiler which breaks C++11
-    # handling using ENV.cxx11. Using "cxxflags" and "linkflags" still works.
-    if build.cxx11?
-      args << "cxxflags=-std=c++11"
-      if ENV.compiler == :clang
-        args << "cxxflags=-stdlib=libc++" << "linkflags=-stdlib=libc++"
-      end
-    end
-
     system "./bootstrap.sh", *bootstrap_args
     system "./b2", "headers"
     system "./b2", *args
@@ -129,8 +112,7 @@ class Boost < Formula
 
   def caveats
     s = ""
-    # ENV.compiler doesn't exist in caveats. Check library availability
-    # instead.
+    # ENV.compiler doesn't exist in caveats. Check library availability instead.
     if Dir["#{lib}/libboost_log*"].empty?
       s += <<-EOS.undent
 

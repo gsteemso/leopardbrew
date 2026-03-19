@@ -28,7 +28,7 @@ module CompilerConstants
       :f   => {  :f77 => '0.0',   :f90 => '4.0',     :f95 => '4.0', :f2003 => '12.0', :f2008 => '12.0', :f2018 =>   nil,
                :f2023 =>  nil,                                                                                           },
     },
-  }
+  }.freeze  # CompilerConstants::LANG_SUPPORT
 
   LANG_DEFAULT = {
     :clang => {
@@ -41,22 +41,22 @@ module CompilerConstants
       :cxx     => [{'0.0' => :cxx98}, {'6.1' => :cxx14}, {'11.0' => :cxx17}, {'16.0' => :cxx20},],
       :fortran => [{'0.0' =>   :f77}, {'4.0' =>   :f95},                                        ],
     },
-  }
+  }.freeze  # CompilerConstants::LANG_DEFAULT
 
   ARCH_MINIMUM = {
     :arm64   => {:gcc => '15.0', :clang =>  nil },  # TODO find the correct value for this
-    :i386    => {:gcc =>  '4.0', :clang => '0.0'},
+    :i386    => {:gcc =>  '4.0', :clang => '0.0'},  # TODO and the correct Clang values for all of these
     :ppc     => {:gcc =>  '3.3', :clang => '0.0'},
     :ppc64   => {:gcc =>  '4.0', :clang =>  nil },
     :x86_64  => {:gcc =>  '4.0', :clang => '0.0'},
-  }
+  }.freeze  # CompilerConstants::ARCH_MINIMUM
 
   COMPILER_SYMBOL_MAP = {
     "gcc-4.0"  => :gcc_4_0,
-    "gcc-4.2"  => :gcc,
+    "gcc-4.2"  => :gcc_4_2,
     "llvm-gcc" => :llvm,
-    "clang"    => :clang
-  }
+    "clang"    => :clang,
+  }.freeze  # CompilerConstants::COMPILER_SYMBOL_MAP
 
   COMPILERS = COMPILER_SYMBOL_MAP.values +
               GNU_GCC_VERSIONS.map { |n| "gcc-#{n}" }
@@ -64,7 +64,9 @@ end # CompilerConstants
 
 class CompilerFailure
   attr_reader :name
-  attr_rw :version
+
+  # attr_rw with an extra step:
+  def version(val = nil); val.nil? ? @version : @version = Version.new(val); end
 
   # Allow Apple compiler “fails_with” statements to keep using “build” even though “build” and “version” are the same internally.
   alias_method :build, :version
@@ -73,37 +75,41 @@ class CompilerFailure
   def cause(_); end
 
   def self.for_standard(std)
-    COLLECTIONS.fetch(std) { raise ArgumentError, "“#{std}” is not a recognized standard." }
+    failures = COLLECTIONS.fetch(std) { raise ArgumentError, "“#{std}” is not a recognized standard." }
+    failures.flatten
   end
 
   def self.create(spec, &block)
-    # Non-Apple compilers are in the format fails_with compiler => version
+    results = []; nested = false; comp_name = ''; comp_vers = ''
     if spec.is_a?(Hash)
+      # Non-Apple compilers are in the format fails_with compiler => version
       spec.each do |compiler_name, build_or_major_version|
         case compiler_name
           when :gcc
-            if Array === build_or_major_version
-              build_or_major_version.each{ |bv| create(compiler_name => bv) }
+            if build_or_major_version.is_a?(Array)
+              nested = true
+              build_or_major_version.each{ |bmv| results << create(:gcc => bmv, &block) }
             else
-              compiler_name = "gcc-#{build_or_major_version}"
-              # so fails_with :gcc => '4.8' simply marks all 4.8 releases incompatible
-              compiler_version = "#{build_or_major_version}.999"
+              comp_name = "gcc-#{build_or_major_version}"
+              comp_vers = "#{build_or_major_version}.999"  # So “fails_with :gcc => '4.8'” marks all 4.8.x incompatible.
             end
-          when :clang, :gcc_4_0, :llvm
-            compiler_version = build_or_major_version
+          when :clang, :gcc_4_0, :gcc_4_2, :llvm
+            comp_name = compiler_name
+            comp_vers = build_or_major_version
           else
             raise AlienCompilerError.new(compiler_name)
         end # case |compiler_name|
       end # each spec |compiler name & build/version|
     elsif spec.is_a?(Array)
-      raise ArgumentError, 'Can’t use a block when listing multiple compiler versions.' if block_given?
-      spec.each{ |s| create(s) }
+      nested = true
+      spec.each{ |s| results << create(s, &block) }
     else
-      compiler_name = spec
-      compiler_version = 9999
+      comp_name = spec
+      comp_vers = '9999'
     end
-    new(compiler_name, compiler_version, &block)
-  end # CompilerFailure⸬create
+    results << new(comp_name, comp_vers, &block) unless nested
+    results.flatten
+  end # CompilerFailure::create
 
   def initialize(compiler_name, compiler_version, &block)
     @name = compiler_name
@@ -117,34 +123,39 @@ class CompilerFailure
 
   COLLECTIONS = {
     :c11 => [
-      create([:gcc_4_0, :gcc, :llvm]),
+      create([:gcc_4_0, :gcc_4_2, :llvm]),
       create(:clang),  # build unknown
-      create(:gcc => ['4.3', '4.4', '4.5', '4.6', '4.7', '4.8'])
+      create(:gcc => ['4.3', '4.4', '4.5', '4.6', '4.7', '4.8']),
     ],
     :cxx11 => [
-      create([:gcc_4_0, :gcc, :llvm]),
-      create(:clang => 425,
+      create([:gcc_4_0, :gcc_4_2, :llvm]),
+      create(:clang => '425',
              :gcc => ['4.3', '4.4', '4.5', '4.6', '4.7']),
       # the very last features of C++11 were not stable until GCC 4.8.1
-      create(:gcc => '4.8') { version('4.8.0') }
+      create(:gcc => '4.8') { version('4.8.0') },
     ],
     :cxx14 => [
-      create([:gcc_4_0, :gcc, :llvm]),
+      create([:gcc_4_0, :gcc_4_2, :llvm]),
       create(:clang),  # build unknown
       create(:gcc => ['4.3', '4.4', '4.5', '4.6', '4.7', '4.8', '4.9']),
       # the very last features of C++14 were not stable until GCC 5.2:
-      create(:gcc => '5') { version('5.1') }
+      create(:gcc => '5') { version('5.1') },
+    ],
+    :jit => [
+      create(:clang),  # build unknown
+      create([:gcc_4_0, :gcc_4_2, :llvm]),
+      create(:gcc => %w[4.3 4.4 4.5 4.6 4.7 4.8 4.9]),
     ],
     :openmp => [
       create(:clang),  # build unknown
-      create(:llvm)
+      create(:llvm),
     ],
     :tls => [
-      create([:gcc_4_0, :gcc, :llvm]),
-      create(:clang => 421)  # exact build unknown
+      create([:gcc_4_0, :gcc_4_2, :llvm]),
+      create(:clang => '421'),  # exact build unknown
       # not sure when GCC gained its workaround... version 4.3? 4.4? at latest 4.9, as required by C11
-    ]
-  }
+    ],
+  }.freeze  # CompilerFailure::COLLECTIONS
 end # CompilerFailure
 
 class CompilerSelector
@@ -153,11 +164,11 @@ class CompilerSelector
   Compiler = Struct.new(:name, :version)
 
   COMPILER_PRIORITY = {
-    :clang   => [:clang, :gcc, :llvm, :gnu, :gcc_4_0],
-    :gcc     => [:gcc, :llvm, :gnu, :clang, :gcc_4_0],
-    :llvm    => [:llvm, :gcc, :gnu, :clang, :gcc_4_0],
-    :gcc_4_0 => [:gcc_4_0, :gcc, :llvm, :gnu, :clang]
-  }
+    :clang   => [:clang, :gcc_4_2, :llvm, :gnu, :gcc_4_0],
+    :gcc_4_2 => [:gcc_4_2, :llvm, :gnu, :clang, :gcc_4_0],
+    :llvm    => [:llvm, :gcc_4_2, :gnu, :clang, :gcc_4_0],
+    :gcc_4_0 => [:gcc_4_0, :gcc_4_2, :llvm, :gnu, :clang],
+  }.freeze  # CompilerSelector::COMPILER_PRIORITY
 
   class << self
     def select_for(formula, compilers = self.compilers); new(formula, compilers).compiler; end
@@ -165,9 +176,13 @@ class CompilerSelector
     def compilers; COMPILER_PRIORITY.fetch(MacOS.default_compiler); end
 
     def compiler_version(name)
-      name =~ CompilerConstants::GNU_GCC_REGEXP ? MacOS.non_apple_gcc_version(name) \
-                                                : MacOS.send("#{name}_build_version")
-    end
+      case name.to_s
+        when CompilerConstants::GNU_GCC_REGEXP then MacOS.non_apple_gcc_version(name)
+        when %r{^gcc_4_([02])$}                then Version.new "4.#{$1}.1.#{MacOS.send("#{name}_build_version").to_s}"
+        when :clang, :llvm                     then MacOS.send("#{name}_build_version")
+             else                                   false
+      end
+    end # CompilerSelector::compiler_version()
 
     def validate_user_compiler(formula, sym); new(formula, [sym]).validate_user_compiler(sym); end
   end # << self
@@ -193,7 +208,7 @@ class CompilerSelector
         end
       raise ChosenCompilerError.new(formula, name)
     else sym; end
-  end
+  end # CompilerSelector#validate_user_compiler()
 
   private
 
@@ -210,7 +225,7 @@ class CompilerSelector
         yield Compiler.new(compiler, version) if version
       end
     end
-  end # find_compiler
+  end # CompilerSelector#find_compiler
 
   def fails_with?(compiler); failures.any? { |failure| failure === compiler }; end
 end # CompilerSelector

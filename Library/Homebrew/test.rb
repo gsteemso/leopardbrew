@@ -1,12 +1,12 @@
 old_trap = trap('INT') { exit! 130 }
 
-require 'global'
-require 'extend/ENV'
-require 'timeout'
-require 'debrew'
-require 'formula/assertions'
 require 'fcntl'
 require 'socket'
+require 'timeout'
+
+require 'global'
+require 'debrew'
+require 'formula/assertions'
 
 TEST_TIMEOUT_SECONDS = 5*60
 
@@ -18,14 +18,12 @@ begin
 
   normal_path = ENV['PATH']
 
-  # Set up all the stuff for 64‐bit, universal and cross builds.  Also change
-  # to our $PATH that ensures all our tools are where they ought to be.
+  # Set up all the machinery for universal builds.  Also change to our $PATH that ensures all our tools are where they ought to be.
   f = ARGV.formulae.first
   f.set_active_spec(ARGV.build_head? ? :head : (ARGV.build_devel? ? :devel : :stable))
   t = Tab.from_file(f.prefix/Tab::FILENAME)
   f.build = BuildOptions.new(t.used_options + Options.create(ARGV.effective_formula_flags), f.options)
   f.extend(Homebrew::Assertions)
-  ENV.activate_extensions!
   ENV.set_active_formula(f)
   ENV.setup_build_environment(t.built_archs)
 

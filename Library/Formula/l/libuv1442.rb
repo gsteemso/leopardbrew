@@ -15,7 +15,7 @@ class Libuv1442 < Formula
     depends_on LanguageModuleRequirement.new(:python3, 'sphinx') => :build
   end
 
-  patch <<'END_OF_PATCH' if [:gcc_4_0, :gcc, :gcc_llvm].include? ENV.compiler
+  patch <<'END_OF_PATCH' if [:gcc_4_0, :gcc_4_2, :gcc_llvm].include? ENV.compiler
 # Older GCC can’t handle having “#pragma GCC diagnostic” inside of a function.
 --- old/src/unix/core.c
 +++ new/src/unix/core.c
@@ -65,7 +65,7 @@ END_OF_PATCH
         --disable-dependency-tracking
         --disable-silent-rules
       ]
-    args << '--enable-year2038' if Target.pure_64b?
+    args << '--enable-year2038' if Target._64b?
     system './configure', *args
     system 'make'
     system 'make', 'check' if build.with? 'tests'

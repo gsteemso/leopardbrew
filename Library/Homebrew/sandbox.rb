@@ -14,14 +14,14 @@ class Sandbox
       opoo "The sandbox cannot be used in debug or interactive mode."
       @printed_autodisable_warning = true
     end
-  end # Sandbox⸬print_autodisable_warning
+  end # Sandbox::print_autodisable_warning
 
   def self.print_sandbox_message
     unless @printed_sandbox_message
       ohai "Using the sandbox"
       @printed_sandbox_message = true
     end
-  end # Sandbox⸬print_sandbox_message
+  end # Sandbox::print_sandbox_message
 
   def initialize; @profile = SandboxProfile.new; end
 

@@ -17,7 +17,7 @@ module Language
         block.call python, version if block
       end
       ENV["PYTHONPATH"] = original_pythonpath
-    end # Language⸬Python⸬each_python
+    end # Language::Python::each_python
 
     def reads_brewed_pth_files?(python)
       version = major_minor_version python
@@ -30,7 +30,7 @@ module Language
       ensure
         probe_file.unlink if probe_file.exists?
       end
-    end # Language⸬Python⸬reads_brewed_pth_files?
+    end # Language::Python::reads_brewed_pth_files?
 
     def user_site_packages(python)
       Pathname.new(`#{python} -c "import site; print(site.getusersitepackages())"`.chomp)
@@ -42,7 +42,7 @@ module Language
         [os.path.realpath(p) for p in sys.path].index(os.path.realpath("#{path}"))
       EOS
       quiet_system python, "-c", script
-    end # Language⸬Python⸬in_sys_path?
+    end # Language::Python::in_sys_path?
 
     # deprecated; use system python, *setup_install_args(prefix) instead
     def setup_install(python, prefix, *args)
@@ -52,7 +52,7 @@ module Language
         instead.
       EOS
       system python, *setup_install_args(prefix), *args
-    end # Language⸬Python⸬setup_install
+    end # Language::Python::setup_install
 
     def setup_install_args(prefix)
       # Force-import setuptools, which monkey-patches distutils, to make sure we always call a setuptools setup.py.  Trick borrowed
@@ -64,7 +64,7 @@ module Language
           .replace('\\r\\n', '\\n'), __file__, 'exec'))
       EOS
       %W[-c #{shim} --no-user-cfg install --prefix=#{prefix} --single-version-externally-managed --record=installed.txt]
-    end # Language⸬Python⸬setup_install_args
+    end # Language::Python::setup_install_args
 
     def package_available?(python, module_name); quiet_system python, "-c", "import #{module_name}"; end
   end # Python

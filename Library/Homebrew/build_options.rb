@@ -2,8 +2,10 @@ class BuildOptions
   attr_accessor :s_args, :options
 
   # Note that argument options not actually defined by the formula may be carried by a BuildOptions object.  This allows techniques
-  # such as inserting --universal flags for a formula that always builds :universal and so does not define a :universal option.
+  # such as the (now obsolete) insertion of --universal flags for formulæ that define no universal option because they always build
+  # :universal.
 
+  # This method expects two Options objects.
   # @private
   def initialize(arg_options, defined_options)
     @o_args = arg_options
@@ -12,11 +14,14 @@ class BuildOptions
   end
 
   def fix_deprecation(deprecated_option)
-    old_val, new_val = deprecated_option.old, deprecated_option.current
-    if i = s_args.index("--#{old_val}") then @o_args[i] = Option.new(new_val); s_args[i] = "--#{new_val}"; end
-  end
+    if i = s_args.index(deprecated_option.old_flag)
+      s_args[i] = deprecated_option.current_flag
+      @o_args = @o_args - Option.new(deprecated_option.old)
+      @o_args << Option.new(deprecated_option.current)
+    end
+  end # fix_deprecation()
 
-  # True if a {Formula}’s being built with a specific option, that’s not necessarily named “with-*” or “without-*”.
+  # True if a {Formula} is being built with a specific option, one not necessarily named “with-*” or “without-*”.
   # @deprecated
   def include?(val); s_args.include?("--#{val}"); end
   alias_method :includes?, :include?
@@ -27,9 +32,11 @@ class BuildOptions
   # If a formula presents a user with a choice, but the choice must be fulfilled:
   #   args << (build.with?('example2') ? '--with-example2' : '--with-example1')
   def with?(val)
-    if (Dependency === val or Requirement === val) then name = val.option_name
-    elsif Option === val then name = val.name
-    else name = val.to_s; end
+    name = case val
+        when Dependency, Requirement then val.option_name
+        when Option                  then val.name
+        else                              val.to_s
+      end
     if option_defined?("with-#{name}") then includes?("with-#{name}")
     elsif option_defined?("without-#{name}") then not includes?("without-#{name}")
     else false; end
@@ -59,22 +66,22 @@ class BuildOptions
   #   args << '--some-beta' if build.devel?
   def stable?; s_args.build_stable?; end
 
+  def cxx11?; opoo 'The BuildOptions#cxx11? method is obsolete.  Something needs adjustment.'; false; end
+
   # Like ARGV#build_mode, but validated against the actual options on offer.
   def mode
-    if option_defined?('universal')
-      bm = s_args.build_mode
-      return bm if option_defined?(bm.to_s) or (bm == :n8ive and option_defined? 'native')
-      if bm == :local
-        return :n8ive if Target.local_archs == Target.native_archs
-        return :cross if Target.local_archs == Target.cross_archs
+    if option_defined?('cross')  # The only option defined in every fat‐build environment.
+      if option_defined?((bm = s_args.build_mode).to_s) then bm
+      elsif bm == :local
+        if Target.local_archs == Target.native_archs then (option_defined? 'native') ? :native : :plain
+        elsif Target.local_archs == Target.cross_archs then :cross; end
       end
-    end
-    bottle_or_plain
+    else bottle? ? :bottle : :plain; end
   end # mode
 
   # True if a {Formula} is being built as a universal binary, whether native‐only, locally‐oriented, or cross‐compiled.
   #   ENV.universal_binary if build.universal?
-  def universal?; s_args.build_universal? and option_defined?('universal'); end
+  def universal?; s_args.build_universal? and option_defined?('cross'); end
   alias_method :fat?, :universal?
 
   # True if a {Formula} is being built for multiple platforms.
@@ -86,25 +93,18 @@ class BuildOptions
 
   # True if a {Formula} is being built for native architectures only (those which can be run without emulation).
   # e.g. on Intel under Tiger through Snow Leopard this means a combined i386/x86_64 binary or library.
-  def native?; universal? and mode == :n8ive; end
+  def native?; universal? and mode == :native; end
 
-  # What it says.  Must be kept in sync with the version in extend/ARGV.  For formulæ that always build universal, and as such have
-  # never needed to provide a --universal option.
+  # What it says.  Must be kept in sync with the version in extend/ARGV.  For formulæ that always build universal, & as such do not
+  # actually provide a --universal option.
+  # The caller must have previously both arranged for the formula to have some sort of :universal option, artificially if necessary,
+  # and called ARGV#force_universal_mode to ensure the appropriate environment variables are adjusted correctly.
   def force_universal_mode
-    return if mode != :plain  # Either it’s already universal & we’ve finished, or it’s :bottL & we can’t in the first place.
-    universal_option_already_defined = option_defined?('universal')
-    already_got_a_mode_eq = @o_args.include?('mode')
-    s_args.force_universal_mode
-    @options << Option.new('universal') unless universal_option_already_defined
-    @o_args << "mode=#{mode}" unless already_got_a_mode_eq
+    return if mode != :plain  # Either it’s already universal & we’ve finished, or it’s :bottle & we can’t in the first place.
+    s_args.force_universal_mode  # Note that this call’s receiver is not ARGV, so it doesn’t affect the environment.
   end
 
-  # Like ARGV#effective_formula_flags, but validated against the actual options on offer.
-  def effective_formula_flags
-    efffl = s_args.effective_formula_flags - ["--#{s_args.build_mode}"]
-    efffl << "--#{mode}" unless mode == :plain or mode == :bottL
-    efffl
-  end
+  def effective_formula_flags; s_args.effective_formula_flags; end
 
   # @private
   def used_options; options & @o_args; end
@@ -116,8 +116,6 @@ class BuildOptions
   def unused_options; options - @o_args; end
 
   private
-
-  def bottle_or_plain; bottle? ? :bottL : :plain; end
 
   def option_defined?(val); options.include? val; end
 end # BuildOptions

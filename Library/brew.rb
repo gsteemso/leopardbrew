@@ -56,10 +56,7 @@ begin
   Dir["#{HOMEBREW_LIBRARY}/Taps/*/*/cmd"].each{ |tap_cmd_dir| ENV['PATH'] += "#{File::PATH_SEPARATOR}#{tap_cmd_dir}" }
   ENV['PATH'] += "#{File::PATH_SEPARATOR}#{HOMEBREW_LIBRARY}/ENV/scm"
 
-  if cmd
-    internal_cmd = require? "cmd/#{cmd}"
-    if DEVELOPER and not internal_cmd then internal_cmd = require? "dev-cmd/#{cmd}"; end
-  end
+  if cmd then (internal_cmd = require? "cmd/#{cmd}") or (DEVELOPER and (internal_cmd = require? "dev-cmd/#{cmd}")); end
 
   # Usage instructions should be displayed if and only if one of:
   # - a help flag is passed AND an internal command is matched
@@ -73,17 +70,16 @@ begin
     else  # Handle both internal ruby and shell commands
       require 'cmd/help'
       help_text = Homebrew.help_for_command(cmd)
-      if help_text.nil?  # External command, let it handle help by itself
+      if help_text.nil?  # Do nothing – let external command handle help by itself.
       elsif help_text.empty? then puts "No help available for #{cmd}"; exit 1
-      else puts help_text; exit 0
-      end
+      else puts help_text; exit 0; end
     end
   end
 
   if internal_cmd then Homebrew.send cmd.to_s.gsub('-', '_').downcase
   elsif which "brew-#{cmd}" then exec "brew-#{cmd}", *ARGV
   elsif (path = which("brew-#{cmd}.rb")) and require?(path) then exit Homebrew.failed? ? 1 : 0
-  else onoe "Unknown command: #{cmd}"; exit 1; end
+  else onoe "Unknown command:  #{cmd}"; exit 1; end
 
 rescue FormulaUnspecifiedError
   abort 'This command requires a formula argument.'

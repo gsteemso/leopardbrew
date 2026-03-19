@@ -148,7 +148,7 @@ END_OF_PATCH
     end
 
     # G5 build under Tiger failed to recognize “vector” keyword in a system header.
-    cflags << '-mpim-altivec' if MacOS.version == :tiger and CPU.altivec? and [:gcc, :gcc_4_0, :llvm].include? ENV.compiler
+    cflags << '-mpim-altivec' if MacOS.version == :tiger and CPU.altivec? and [:gcc_4_0, :gcc_4_2, :llvm].include? ENV.compiler
 
     f = Formula['tcl-tk']
     cppflags << "-I#{f.opt_include}"

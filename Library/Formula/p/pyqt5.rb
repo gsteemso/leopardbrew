@@ -15,10 +15,10 @@ class Pyqt5 < Formula
   option "with-docs", "Install HTML documentation and python examples"
 
   depends_on :python3 => :recommended
-  depends_on :python => :optional
+  depends_on :python2 => :optional
 
-  if build.without?("python3") && build.without?("python")
-    odie "pyqt5: --with-python3 must be specified when using --without-python"
+  if build.without?("python3") && build.without?("python2")
+    raise ArgvSyntaxError, 'pyqt5: --with-python3 must be specified when using --without-python2'
   end
 
   depends_on "qt5"

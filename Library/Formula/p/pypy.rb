@@ -39,7 +39,7 @@ class Pypy < Formula
   end
 
   # https://bugs.launchpad.net/ubuntu/+source/gcc-4.2/+bug/187391
-  fails_with :gcc
+  fails_with :gcc_4_2
 
   def install
     # Having PYTHONPATH set can cause the build to fail if another

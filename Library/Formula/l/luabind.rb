@@ -53,7 +53,7 @@ class Luabind < Formula
       args << "--toolset=clang"
     elsif ENV.compiler == :llvm
       args << "--toolset=llvm"
-    elsif ENV.compiler == :gcc
+    elsif ENV.compiler == :gcc_4_0 or ENV.compiler == :gcc_4_2
       args << "--toolset=darwin"
     end
     args << "--prefix=#{prefix}"

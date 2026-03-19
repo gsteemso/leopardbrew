@@ -156,8 +156,9 @@ temp_pn = which 'svn' unless temp_pn.executable?
 ENV['HOMEBREW_SVN'] = temp_pn.to_s if temp_pn and temp_pn.executable?
 
 # Other environment variables used in brewing:
-# $CC/$CXX/$FC/$OBJC/$OBJCXX # These combine $HOMEBREW_CC et al with ENV.build_archs.as_archflags
+# $CC/$CXX/$FC/$OBJC/$OBJCXX # These combine $HOMEBREW_CC et al with $HOMEBREW_BUILD_ARCHS
 # $HOMEBREW_BUILD_ARCHS      # Tracks the architectures being built for
+# $HOMEBREW_BUILD_MODE       # Set for child processes (see `extend/ARGV.rb`, `extend/ENV/shared.rb`, & `formula/installer.rb`)
 # $HOMEBREW_CC               # Tracks the selected compiler (see `extend/ENV/*.rb`)
 # $HOMEBREW_CC_LOG_PATH      # This is set by `formula.rb` whenever it executes a Superenv build tool
 # $HOMEBREW_DEBUG_INSTALL    # ← These two track the current formula during ::interactive_shell() (see `utils.rb`).

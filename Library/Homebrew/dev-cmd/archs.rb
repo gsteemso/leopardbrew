@@ -12,12 +12,12 @@
 #:strange things that necessitate examining every last file within their kegs.)
 
 CPU_TYPES = {
-  '00000001' => 'VAX',       # DEC (PDP-11 successor; niche; obsolete)
+  '00000001' => 'VAX',       # DEC (PDP-11 successor; out of production; obsolete)
   '00000002' => 'ROMP',      # (instructional – never implemented?; obsolete)
   '00000003' => 'secret3',   # ????
   '00000004' => 'NS32032',   # NatSemi 32k (market failure; obsolete)
   '00000005' => 'NS32332',   # NatSemi 32k (market failure; obsolete)
-  '00000006' => 'M68k',      # Motorola 680x0 (widely adopted; current; obsolete width)
+  '00000006' => 'M68k',      # Motorola 680x0 (widely adopted; current)
   '01000006' => 'A68k',      # (Apollo core [never by NeXT]; niche; current)
   '00000007' => 'x86',       # Intel x86 (widely adopted; obsolete)
   '01000007' => 'x86-64',    # AMD64 (widely adopted; current)
@@ -25,16 +25,16 @@ CPU_TYPES = {
   '01000008' => 'MIPS64',    # MIPS (niche; current)
   '00000009' => 'NS325332',  # NatSemi 32k (market failure; obsolete)
   '0000000a' => 'M98k',      # Motorola 98601 (very early PowerPC; obsolete)
-  '0000000b' => 'PA',        # HP PA-RISC (market failure; obsolete)
-  '0100000b' => 'PA64',      # HP PA-RISC (market failure; obsolete)
+  '0000000b' => 'PA',        # HP PA-RISC (out of production; obsolete)
+  '0100000b' => 'PA64',      # HP PA-RISC (out of production; obsolete)
   '0000000c' => 'ARM',       # ARM (“arm/armel”; widely adopted; current; obsolete width)
   '0100000c' => 'ARM64',     # ARM (“aarch64”; widely adopted; current)
   '0200000c' => 'ARM64/32',  # ARM (32b code on 64b hardware; obsolete)
   '0000000d' => 'M88k',      # Motorola 881x0 (e.g. Data General Aviion; market failure; obsolete)
-  '0000000e' => 'SPARC',     # Sun/OpenSPARC (niche; obsolete)
-  '0100000e' => 'SPARC64',   # Sun/OpenSPARC (niche; current?; obsolete)
+  '0000000e' => 'SPARC',     # Sun/OpenSPARC (niche; obsolete as workstation CPU)
+  '0100000e' => 'SPARC64',   # Sun/OpenSPARC (niche; technically current, but not for workstations)
   '0000000f' => 'i860',      # Intel IA64 (technological and market failure; obsolete)
-  '01000010' => 'Alpha',     # DEC (market failure; obsolete)
+  '00000010' => 'Alpha',     # DEC (always 64b but not flagged as such; out of production; obsolete)
   '00000011' => 'RS6000',    # IBM (POWER) (niche; obsolete)
   '00000012' => 'PPC',       # AIM PowerPC / OpenPOWER (niche; current; obsolete width)
   '01000012' => 'PPC64',     # AIM PowerPC / OpenPOWER (niche; current)
@@ -44,7 +44,7 @@ CPU_TYPES = {
   '00000016' => 'secret22',  # ????
   '00000017' => 'secret23',  # ????
   '00000018' => 'secret24',  # ????
-  '000000ff' => 'VEO',       # ????
+  '000000ff' => 'VEO',       # WTF is a VEO?
 }.freeze
 
 ARM_SUBTYPES = {
@@ -119,95 +119,97 @@ X86_64_SUBTYPES = {
   '00000008' => 'x86-64h',
 }.freeze
 
-module TerminalANSI # standard terminal display-control sequences (yes, can be a wrong assumption)
-  # - In the 7‐bit environment UTF‐8 imposes, the Control Sequence Introducer (ᴄꜱɪ) is “ᴇꜱᴄ ‘[’”.
+module TerminalANSI  # Standard terminal display-control sequences.  (Yes, this can be a wrong assumption.)
+  # In the 7‐bit environment imposed by ᴜᴛꜰ‐8, the 8‐bit C₁ character “Control Sequence Introducer” (ᴄꜱɪ) gets encoded as “ᴇꜱᴄ ‘[’”.
+  # (The ᴜᴛꜰ‐8 sequence encoding that character, 0xC2 0x9B, would not be recognized by any terminal ever made; nor, most likely, by
+  # any terminal emulator ever written.  Why would it?)
   def csi ; "\033[" ; end
-  # - Control sequences containing multiple parameters separate them by ‘;’.
-  # - The Select Graphic Rendition (ꜱɢʀ) sequence is “ᴄꜱɪ ⟨Pₛ⟩ ... ‘m’”.
+  # Control sequences generally delimit parameters by ‘;’.  The Select Graphic Rendition (ꜱɢʀ) sequence is “ᴄꜱɪ ⟨Pₛ⟩ ... ‘m’”.
   def sgr(*list) ; "#{csi}#{list.join(';')}m" ; end
-  # - The ꜱɢʀ selector‐parameters are:
-  def rst    ;   '0' ; end # cancels everything.
-  def boldr  ;   '1' ; end # } in theory, these two stack and unstack with each other, but most terminal emulators don’t support 2.
-  def fntr   ;   '2' ; end # }
-             #    3 was for Italic face, and cancelled 20.
-  def undr   ;   '4' ; end # cancels 21.
-             #    5–6 were for slow vs. fast blink; don’t care whether they work, flashing is vile.
-  def rvs    ;   '7' ; end # inverse video; cancels 27.
-  def hidn   ;   '8' ; end # no display; cancels 28.
-  def strk   ;   '9' ; end # strikethrough (“shown as deleted”).
-             #   10–19 selected the default font 0, or alternate fonts 1–9.
-             #   20 was for Gothic face, and cancelled 3.
-  def d_undr ;  '21' ; end # cancels 4; probably unsupported by Terminal.app on Tiger or Leopard.
-  def reg_wt ;  '22' ; end # cancels 1–2; probably unsupported by Terminal.app on Tiger or Leopard.
-             #   23 was for returning to Roman face (cancelled 3 & 20).
-  def noundr ;  '24' ; end # cancels 4 & 21.
-             #   25 cancelled blinking (5–6).
-             #   26 was reserved for proportional‐width characters.
-  def no_rvs ;  '27' ; end # cancels 7.
-  def nohidn ;  '28' ; end # cancels 8.
-  def nostrk ;  '29' ; end # cancels 9.
-  def blk    ;  '30' ; end # }
-  def red    ;  '31' ; end # }
-  def grn    ;  '32' ; end # }
-  def ylw    ;  '33' ; end # } "display" (foreground) colours.
-  def blu    ;  '34' ; end # }
-  def mag    ;  '35' ; end # }
-  def cyn    ;  '36' ; end # }
-  def wht    ;  '37' ; end # }
-             #   38:  Higher‐bit‐depth foreground‐colour extensions.  Unsupported on Tiger/Leopard.
-  def dflt   ;  '39' ; end # default display (foreground) colour.
-  def on_blk ;  '40' ; end # }
-  def on_red ;  '41' ; end # }
-  def on_grn ;  '42' ; end # }
-  def on_ylw ;  '43' ; end # } background colours.
-  def on_blu ;  '44' ; end # }
-  def on_mag ;  '45' ; end # }
-  def on_cyn ;  '46' ; end # }
-  def on_wht ;  '47' ; end # }
-             #   48:  Higher‐bit‐depth background‐colour extensions.  Unsupported on Tiger/Leopard.
-  def ondflt ;  '49' ; end # default background colour.
-             #   50 was reserved to cancel 26.
-             #   51–53:  “Framed”, “circled”, & “overlined”.  54 cancelled 51–52; 55 cancelled 53.
-             #   56–59 were unused.
-             #   60–64 were for ideographs:  Under/right‐line; doubly so; over/left‐line; doubly so;
-             #         stress mark.  65 cancelled them; 66–89 were unused.
-  def br_blk ;  '90' ; end # }
-  def br_red ;  '91' ; end # }
-  def br_grn ;  '92' ; end # }
-  def br_ylw ;  '93' ; end # } “Display” (foreground) colours.  No different in Tiger’s Terminal.app; brighter in Leopard’s et seq.
-  def br_blu ;  '94' ; end # }
-  def br_mag ;  '95' ; end # }
-  def br_cyn ;  '96' ; end # }
-  def br_wht ;  '97' ; end # } ___
-  def onbblk ; '100' ; end # }
-  def onbred ; '101' ; end # }
-  def onbgrn ; '102' ; end # }
-  def onbylw ; '103' ; end # } Background colours.  Undifferentiated in Tiger’s Terminal.app; brighter in Leopard’s et seq.
-  def onbblu ; '104' ; end # }
-  def onbmag ; '105' ; end # }
-  def onbcyn ; '106' ; end # }
-  def onbwht ; '107' ; end # }
+  # The ꜱɢʀ selector‐parameters are:
+  def rst   ;   '0'; end # Cancels everything.
+  def bolder;   '1'; end # Brighter (heavier). } In theory, these stack & unstack with each other within seven levels, of which the
+  def faintr;   '2'; end # Dimmer (lighter).   } least is not visible, but most terminal emulators don’t support dimming (2).
+            #    3 was for Italic face, and cancelled Gothic face (20).
+  def s_undr;   '4'; end # Underscore.  Cancelled double underscore (21).
+            #    5–6 were respectively for slow and fast blink; don’t care whether they work, flashing is vile.
+  def rvs   ;   '7'; end # Inverse video.
+  def hidn  ;   '8'; end # Do not display.
+  def strk  ;   '9'; end # Strikethrough (“shown as deleted”).
+            #   10–19 selected the default font 0, or alternate fonts 1–9.
+            #   20 was for Gothic face, and cancelled Italic face (3).
+  def d_undr;  '21'; end # Double underline; cancels single underline (4).  Likely unsupported by Terminal.app on Tiger or Leopard.
+  def reg_wt;  '22'; end # Cancels brightness (weight) modification (1–2).  May be unsupported by Terminal.app on Tiger or Leopard.
+            #   23 was for returning to Roman face (cancelled 3 & 20).
+  def noundr;  '24'; end # Cancels single and double underlining (4 & 21).
+            #   25 cancelled blinking (5–6).
+            #   26 was reserved for proportional‐width characters.
+  def no_rvs;  '27'; end # Cancels inverse video (7).
+  def nohidn;  '28'; end # Cancels hidden mode (8).
+  def nostrk;  '29'; end # Cancels strikethrough (9).
+  def blk   ;  '30'; end # }
+  def red   ;  '31'; end # }
+  def grn   ;  '32'; end # }
+  def ylw   ;  '33'; end # } "Display" (foreground) colours.
+  def blu   ;  '34'; end # }
+  def mag   ;  '35'; end # }
+  def cyn   ;  '36'; end # }
+  def wht   ;  '37'; end # }
+            #   38:  Higher‐bit‐depth foreground‐colour extensions.  Unsupported on Tiger/Leopard.
+  def dflt  ;  '39'; end # Default display (foreground) colour.
+  def on_blk;  '40'; end # }
+  def on_red;  '41'; end # }
+  def on_grn;  '42'; end # }
+  def on_ylw;  '43'; end # } Background colours.
+  def on_blu;  '44'; end # }
+  def on_mag;  '45'; end # }
+  def on_cyn;  '46'; end # }
+  def on_wht;  '47'; end # }
+            #   48:  Higher‐bit‐depth background‐colour extensions.  Unsupported on Tiger/Leopard.
+  def ondflt;  '49'; end # Default background colour.
+            #   50 was reserved to cancel proportional‐width mode (26).
+            #   51–53:  “Framed”, “circled”, & “overlined”.
+            #   54 cancelled framing and circling (51–52).
+            #   55 cancelled overlining (53).
+            #   56–59 were unused.
+            #   60–64 were for ideographs:  Under/right‐line; doubly so; over/left‐line; doubly so; stress mark.
+            #   65 cancelled the ideographic modifiers (60–64).
+            #   66 and up were unused.
+  def br_blk;  '90'; end # }
+  def br_red;  '91'; end # }
+  def br_grn;  '92'; end # }
+  def br_ylw;  '93'; end # } Nonstandard brighter “display” (foreground) colours.
+  def br_blu;  '94'; end # } Same as the plain colours, in Tiger’s Terminal.app; brighter in Leopard’s et seq.
+  def br_mag;  '95'; end # }
+  def br_cyn;  '96'; end # }
+  def br_wht;  '97'; end # } ___
+  def onbblk; '100'; end # }
+  def onbred; '101'; end # }
+  def onbgrn; '102'; end # }
+  def onbylw; '103'; end # } Nonstandard brighter background colours.
+  def onbblu; '104'; end # } Same as the plain colours, in Tiger’s Terminal.app; brighter in Leopard’s et seq.
+  def onbmag; '105'; end # }
+  def onbcyn; '106'; end # }
+  def onbwht; '107'; end # }
 
-  # - ꜱɢʀ is affected by the Graphic Rendition Combination Mode (ɢʀᴄᴍ).  The default (off) ɢʀᴄᴍ state, REPLACING, causes any ꜱɢʀ
-  #   sequence to reset all parameters it doesn’t explicitly mention; enabling the CUMULATIVE state allows effects to persist until
-  #   cancelled.  Luckily, OS X’s Terminal app seems to ignore the standard and default this to the more sensible CUMULATIVE state,
-  #   at least under Leopard.
-  # - If ɢʀᴄᴍ is in the REPLACING state and needs to be set CUMULATIVE, the Set Mode (ꜱᴍ) sequence is “ᴄꜱɪ ⟨Pₛ⟩ ... ‘h’” and the
-  #   parameter value for ɢʀᴄᴍ is 21.  Should it for some reason need to be changed back to REPLACING, the Reset Mode (ʀᴍ) sequence
-  #   is “ᴄꜱɪ ⟨Pₛ⟩ ... ‘l’”.
-  def set_grcm_cumulative ; "#{csi}21h" ; end
-  def set_grcm_replacing  ; "#{csi}21l" ; end
+  # ꜱɢʀ is affected by the Graphic Rendition Combination Mode (ɢʀᴄᴍ).  In the default (off) ɢʀᴄᴍ state, REPLACING, any ꜱɢʀ sequence
+  #   resets all parameters it doesn’t explicitly mention; in the CUMULATIVE state, effects last until cancelled.  Mac OS’ Terminal
+  #   app seems to default the ɢʀᴄᴍ to the more sensible CUMULATIVE state, disregarding this aspect of the standard.
+  # To change the ɢʀᴄᴍ, the Set Mode (ꜱᴍ) sequence is “ᴄꜱɪ ⟨Pₛ⟩ ... ‘h’” & the Reset Mode (ʀᴍ) sequence is “ᴄꜱɪ ⟨Pₛ⟩ ... ‘l’”.  The
+  #   parameter value for ɢʀᴄᴍ is 21.  To change REPLACING to CUMULATIVE, use ꜱᴍ(21); for the inverse operation, use ʀᴍ(21).
+  def set_grcm_cumulative; "#{csi}21h"; end
+  def set_grcm_replacing ; "#{csi}21l"; end
 
-  def bolder_on_black   ; sgr(boldr, on_blk) ; end
-  def in_yellow(msg)    ; sgr(ylw)    + msg.to_s + sgr(dflt) ; end
-  def in_cyan(msg)      ; sgr(cyn)    + msg.to_s + sgr(dflt) ; end
-  def in_white(msg)     ; sgr(wht)    + msg.to_s + sgr(dflt) ; end
-  def in_br_red(msg)    ; sgr(br_red) + msg.to_s + sgr(dflt) ; end
-  def in_br_yellow(msg) ; sgr(br_ylw) + msg.to_s + sgr(dflt) ; end
-  def in_br_blue(msg)   ; sgr(br_blu) + msg.to_s + sgr(dflt) ; end
-  def in_br_cyan(msg)   ; sgr(br_cyn) + msg.to_s + sgr(dflt) ; end
-  def in_br_white(msg)  ; sgr(br_wht) + msg.to_s + sgr(dflt) ; end
-  def resetgr           ; sgr(rst); end
+  def bolder_on_black  ; sgr(bolder, on_blk); end
+  def in_yellow(msg)   ; sgr(ylw)    + msg.to_s + sgr(dflt); end
+  def in_cyan(msg)     ; sgr(cyn)    + msg.to_s + sgr(dflt); end
+  def in_white(msg)    ; sgr(wht)    + msg.to_s + sgr(dflt); end
+  def in_br_red(msg)   ; sgr(br_red) + msg.to_s + sgr(dflt); end
+  def in_br_yellow(msg); sgr(br_ylw) + msg.to_s + sgr(dflt); end
+  def in_br_blue(msg)  ; sgr(br_blu) + msg.to_s + sgr(dflt); end
+  def in_br_cyan(msg)  ; sgr(br_cyn) + msg.to_s + sgr(dflt); end
+  def in_br_white(msg) ; sgr(br_wht) + msg.to_s + sgr(dflt); end
+  def resetgr          ; sgr(rst); end
 end # TerminalANSI
 
 module Homebrew
@@ -323,7 +325,7 @@ module Homebrew
       if arch_reports == {}
         oho "#{in_white("#{keg.name} #{keg.path.basename}")} appears to contain #{in_yellow('no valid Mach-O files')}."
         no_archs_msg = true
-      else # there are arch reports
+      else
         machO_count = arch_reports.values.isum
         combo_count = arch_reports.length
         ohey("#{in_white("#{keg.name} #{keg.path.basename}")} appears to contain some foreign code:", alien_reports * '') \
@@ -334,7 +336,7 @@ module Homebrew
           if arch_reports.length > 1
             arch_count = arch_reports.keys.map{ |k| k.length }.max  # How many archs appear in the most complex combos?
             arch_reports.select!{ |k, _| k.length == arch_count }  # only report those most‐complex combos
-          end # more than one arch report?
+          end
           if arch_reports.length > 1 and not arch_reports.all?{ |k, _| k.includes? 'ppc‐*' }
             arch_reports.reject!{ |k, _| k.any?{ |a| a =~ /ppc‐\*/ } }
           end # still more than one arch report?

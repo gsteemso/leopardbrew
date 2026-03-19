@@ -33,13 +33,7 @@ module MacOS
     # our only option.  See (https://superuser.com/questions/390757).
     def bundle_path; MacOS.app_with_bundle_id(V4_BUNDLE_ID, V3_BUNDLE_ID); end
 
-    def default_prefix?
-      if version < "4.3"
-        %r{^/Developer} === prefix
-      else
-        %r{^/Applications/Xcode.app} === prefix
-      end
-    end # default_prefix?
+    def default_prefix?; version < "4.3" ? %r{^/Developer} === prefix : %r{^/Applications/Xcode.app} === prefix; end
 
     def installed?; not prefix.nil?; end
 
@@ -49,21 +43,18 @@ module MacOS
 
     def prefix
       dir = MacOS.active_developer_dir
-      @prefix ||= (dir.nil? or dir.to_s == CLT::MAVERICKS_PKG_PATH or not dir.directory?) \
-        ? if (path = bundle_path) then path/'Contents/Developer'; end \
-        : dir
+      @prefix ||= (dir.nil? or dir.to_s == MacOS::CLT::MAVERICKS_PKG_PATH or not dir.directory?) \
+                    ? if (path = bundle_path) then path/'Contents/Developer'; end \
+                    : dir
     end # prefix
 
-    def provides_autotools?; (version < "4.3") && (version > "2.5"); end
-    # Xcode 2.5's autotools are too old to rely on at this point
+    def provides_autotools?; (version < "4.3") && (version > "2.5"); end  # Xcode 2.5's autotools are now too old to rely on.
 
     def provides_gcc?; version < "4.3"; end
 
     def provides_cvs?; version < "5.0"; end
 
-    def toolchain_path
-      Pathname.new("#{prefix}/Toolchains/XcodeDefault.xctoolchain") if installed? and version >= "4.3"
-    end
+    def toolchain_path; Pathname.new("#{prefix}/Toolchains/XcodeDefault.xctoolchain") if installed? and version >= "4.3"; end
 
     # This may return nil or a version string guessed based on the compiler, so don’t use it to check if Xcode is installed.
     def version; @version ||= uncached_version; end
@@ -89,9 +80,9 @@ module MacOS
         end
       end
     end # uncached_version
-  end # Xcode
+  end # MacOS::Xcode
 
-  module CLT
+  module MacOS::CLT
     extend self
 
     STANDALONE_PKG_ID = "com.apple.pkg.DeveloperToolsCLILeo"
@@ -147,6 +138,6 @@ module MacOS
         version = MacOS.pkgutil_info(id)[/version: (.+)$/, 1]
         return version if version
       end
-    end # CLT::detect_version
-  end # CLT
+    end # MacOS::CLT::detect_version
+  end # MacOS::CLT
 end # MacOS

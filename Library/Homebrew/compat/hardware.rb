@@ -9,7 +9,7 @@ class Hardware
     def ppc?;            ::CPU.powerpc?;       end
     def type;            ::CPU.type;           end
     def universal_archs; ::Target.local_archs; end
-  end # Hardware⸬CPU
+  end # Hardware::CPU
 
   class << self
     # We won't change the name because of backward compatibility.

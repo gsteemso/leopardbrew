@@ -130,7 +130,7 @@ class Wine < Formula
 
     # The Mac driver uses blocks and must be compiled with an Apple compiler
     # even if the rest of Wine is built with A GNU compiler.
-    unless ENV.compiler == :clang || ENV.compiler == :llvm || ENV.compiler == :gcc
+    unless [:clang, :llvm, :gcc_4_2].include? ENV.compiler
       system "make", "dlls/winemac.drv/Makefile"
       inreplace "dlls/winemac.drv/Makefile" do |s|
         # We need to use the real compiler, not the superenv shim, which will exec the

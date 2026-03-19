@@ -3,7 +3,7 @@ require 'set'
 OPTION_RX = %r{^(--)?([^=]+=?)(.+)?$}
 
 # Note that settable Options have a name and flag that end with an equals sign.  This is intentional.  To get one bare (without its
-# equals sign), just use String#chomp('=').
+# equals sign), just use String#xchomp('=').
 class Option
   attr_reader :name, :description, :flag
   attr_accessor :value
@@ -25,7 +25,7 @@ class Option
 
   def <=>(o); return unless Option === o; (name <=> o.name).nope || value <=> o.value; end
 
-  def ==(o); instance_of?(o.class) and name == o.name and value = o.value; end
+  def ==(o); instance_of?(o.class) and name == o.name; end
   alias_method :eql?, :==
 
   def hash; name.hash; end

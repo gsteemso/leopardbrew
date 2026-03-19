@@ -26,27 +26,21 @@ class Cmd
   end # initialize
 
   def mode
-    @mode ||= if @arg0 == 'cpp' or @arg0 == 'ld'
-                @arg0.to_sym
-              elsif @given_args.include? '-c'
-                @arg0 =~ /(?:c|g|clang)\+\+/ ? :cxx : :cc
-              elsif @given_args.include? '-E'
-                :ccE
-              elsif @arg0 =~ /(?:c|g|clang)\+\+/
-                :cxxld
-              else
-                :ccld
+    @mode ||= if @arg0 == 'cpp' or @arg0 == 'ld' then @arg0.to_sym
+              elsif @given_args.include? '-c'    then @arg0 =~ /(?:c|g|clang)\+\+/ ? :cxx : :cc
+              elsif @given_args.include? '-E'    then :ccE
+              else                                    @arg0 =~ /(?:c|g|clang)\+\+/ ? :cxxld : :ccld
               end
   end # mode
 
   def tool
     @tool ||= case @arg0
-                when 'ld' then 'ld'
+                when 'ld'  then 'ld'
                 when 'cpp' then 'cpp'
                 when /\w\+\+(-\d+(\.\d)?)?$/
                   case ENV['HOMEBREW_CC']
-                    when /clang/ then 'clang++'
-                    when /llvm-gcc/ then 'llvm-g++-4.2'
+                    when /clang/              then 'clang++'
+                    when /llvm-gcc/           then 'llvm-g++-4.2'
                     when /gcc(-\d+(\.\d)?)?$/ then 'g++' + $1.to_s
                   end
                 else ENV['HOMEBREW_CC']  # Universal fallback, regardless of invocation name.
@@ -55,21 +49,15 @@ class Cmd
 
   def distill_args
     if ['-v', '-V', '-version', '--version'].any? { |a| a == @given_args[-1] }
-      # Don't add linker arguments if -v or similar is passed as sole (or at least last) option.
-      # This stops `gcc -v` et sim, with no other meaningful arguments, from outputting a linker
-      # error.  Some software misuses `gcc -v` to sniff the GCC version; this covers all bases.
-      # This formerly only tested for '-v' and only if it was the only argument, but some software
-      # now erroneously prepends things to that, so testing for it as the last argument will have
-      # to do.  This actually also covers for a bug in some `configure` scripts, which cause `gcc
-      # -V` to wrongly fail by accidentally calling it as `gcc --std=gnu99 -V`.
+      # Don’t add linker arguments if “-v” or similar is the sole (or, at least, last) option.  This stops `gcc -v` et sim, with no
+      # other meaningful arguments, from outputting a linker error.  Some software misuses `gcc -v` to detect the GCC version; this
+      # covers all bases.  This formerly only tested for “-v”, and then only if it was the sole argument – but certain software now
+      # erroneously prepends things to that, so testing for it as the last argument will have to do.  This actually also covers for
+      # a bug in some `configure` scripts, which cause `gcc -V` to wrongly fail by accidentally calling it as `gcc --std=gnu99 -V`.
       return [@given_args[-1]]
     end
 
-    if not(refurbish_args?) or tool == 'ld' or configure?
-      distilled_args = @given_args.dup
-    else
-      distilled_args = refurbished_args
-    end
+    distilled_args = (not refurbish_args? or tool == 'ld' or configure?) ? @given_args.dup : refurbished_args
 
     if sysroot
       if tool == 'ld'
@@ -80,13 +68,13 @@ class Cmd
     end
 
     case mode
-      when :ccld  then cflags + distilled_args + cppflags + ldflags
-      when :cxxld then cxxflags + distilled_args + cppflags + ldflags
-      when :cc    then cflags + distilled_args + cppflags
-      when :cxx   then cxxflags + distilled_args + cppflags
-      when :ccE   then de_archflag(distilled_args) + cppflags
-      when :cpp   then distilled_args + cppflags
-      when :ld    then ldflags + distilled_args
+      when :ccld  then archflags + cflags   + distilled_args + cppflags + ldflags
+      when :cxxld then archflags + cxxflags + distilled_args + cppflags + ldflags
+      when :cc    then archflags + cflags   + distilled_args + cppflags
+      when :cxx   then archflags + cxxflags + distilled_args + cppflags
+      when :ccE   then                        distilled_args + cppflags
+      when :cpp   then archflags +            distilled_args + cppflags
+      when :ld    then archflags +            distilled_args +            ldflags
     end
   end # distill_args
 
@@ -99,22 +87,14 @@ class Cmd
 
     loop do
       case arg = enum.next
-        when '-arch'
-          if permit_arch_flags?
-            refurbed_args << arg << enum.next
-          else
-            enum.next
-          end
-        when '-m32', '-m64'
-          refurbed_args << arg if permit_arch_flags?
-        when /^-Xarch_/
-          refurbished = refurbish_arg(enum.next, enum)
-          unless refurbished.empty?
-            refurbed_args << arg
-            refurbed_args += refurbished
-          end
-        else
-          refurbed_args += refurbish_arg(arg, enum)
+        when '-arch'        then enum.next
+        when '-m32', '-m64' then refurbed_args << arg if permit_arch_flags?
+        when /^-Xarch_/     then refurbished = refurbish_arg(enum.next, enum)
+                                 unless refurbished.empty?
+                                   refurbed_args << arg
+                                   refurbed_args += refurbished
+                                 end
+        else                refurbed_args += refurbish_arg(arg, enum)
       end # case arg
     end # loop
 
@@ -175,13 +155,6 @@ class Cmd
     refurb_arg_parts
   end # refurbish_arg
 
-  def de_archflag(these)
-    while i = these.index('-arch')
-      these.slice!(i, (i + 1) < these.length ? 2 : 1)
-    end
-    these
-  end # de_archflag
-
   def keep?(path)
     path.start_with?(prefix, cellar, tmpdir) or not path.start_with?('/opt', '/sw', '/usr/X11')
   end
@@ -189,7 +162,7 @@ class Cmd
   def cflags
     cflag_args = []
 
-    return cflag_args unless refurbish_args? || configure?
+    return cflag_args unless refurbish_args? or configure?
 
     cflag_args << '-pipe'
     cflag_args << '-w' unless configure? or ENV['HOMEBREW_DISABLE__W'] or tool =~ /^g..-4.0/

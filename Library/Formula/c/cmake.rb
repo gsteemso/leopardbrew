@@ -150,13 +150,14 @@ class Cmake < Formula
       --mandir=/share/man
     ]
     args << '--sphinx-man' << "--sphinx-build=#{buildpath}/sphinx/bin/sphinx-build" if build.with? 'docs'
-    args << '--' << '-DCMAKE_OSX_SYSROOT=/'  # GCC 4.2 does not find stdarg.h if the sysroot is set to an SDK
+    # GCC 4.2 does not find stdarg.h if the sysroot is set to an SDK.
+    args << '--' << '-DCMAKE_OSX_SYSROOT=/' if ENV.compiler == :gcc_4_2
 
     system './bootstrap', *args
     system 'make'
     system 'make', 'install'
 
-    cd 'Auxiliary/bash-completion/' { bash_completion.install 'ctest', 'cmake', 'cpack' } if build.with? 'completion'
+    cd 'Auxiliary/bash-completion/' do bash_completion.install 'ctest', 'cmake', 'cpack'; end if build.with? 'completion'
 
     (share/'emacs/site-lisp/cmake').install 'Auxiliary/cmake-mode.el'
   end

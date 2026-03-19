@@ -1,21 +1,22 @@
+# Stable release 2025-03-30; checked 2026-03-14.
 class Gsasl < Formula
   desc 'Simple Authentication and Security Layer library command-line interface'
   homepage 'https://www.gnu.org/software/gsasl/'
-  url 'http://ftpmirror.gnu.org/gsasl/gsasl-2.2.1.tar.gz'
-  mirror 'https://ftp.gnu.org/gsasl/gsasl-2.2.1.tar.gz'
-  sha256 'd45b562e13bd13b9fc20b372f4b53269740cf6279f836f09ce11b9d32bcee075'
+  url 'http://ftpmirror.gnu.org/gsasl/gsasl-2.2.2.tar.gz'
+  mirror 'https://ftp.gnu.org/gsasl/gsasl-2.2.2.tar.gz'
+  sha256 '41e8e442648eccaf6459d9ad93d4b18530b96c8eaf50e3f342532ef275eff3ba'
 
   option :universal
 
   option 'with-gnutls',  'Build with STARTTLS support'
   option 'with-libntlm', 'Interoperate with some versions of Windows'
 
+  depends_on 'pkg-config' => :build
+  depends_on 'libidn'
+  depends_on :nls
   depends_on 'gnutls'  => :optional
   depends_on 'libntlm' => :optional
-  depends_on 'gettext'
-  depends_on 'libidn'
   depends_on 'openssl3' if build.without? 'gnutls'
-  depends_on 'pkg-config' => :build
 
   def install
     ENV.universal_binary if build.universal?
@@ -35,5 +36,5 @@ class Gsasl < Formula
 
   test do
     assert_match /#{version}/, shell_output("#{bin}/gsasl -V")
-  end # test
+  end
 end # Gsasl

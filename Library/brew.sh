@@ -1,6 +1,6 @@
 #!/bin/sh
 
-LEOPARDBREW_VERSION='0.6.2'  # new ArgvSyntaxError exception type.
+LEOPARDBREW_VERSION='0.6.3'  # Revamped {Dependency} construction.
 
 ###### Convenience functions ######
 
@@ -39,7 +39,7 @@ case "$*" in
   --cellar) echo "$HOMEBREW_CELLAR"; exit 0 ;;
   --repository|--repo) echo "$HOMEBREW_REPOSITORY"; exit 0 ;;
 esac
-# Note – if ARGV also contains anything else, the relevant `brew` subcommand is executed instead of one of these shortcuts.
+# Note – if $ARGV also contains anything else, the relevant `brew` subcommand is executed instead of one of these shortcuts.
 
 # Where we keep the Homebrew Ruby libraries.
 HOMEBREW_RUBY_LIBRARY="${HOMEBREW_LIBRARY}/Homebrew"

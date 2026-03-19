@@ -13,16 +13,15 @@ class Swig < Formula
   depends_on 'pcre2'
   depends_on 'ruby'
 
-  # it will configure itself for these things if they are present, which requires that they appear
-  # in the $PATH during the build; so, only require them if they're already installed
-  depends_on 'boost'   if Formula['boost'].installed?
-  depends_on 'guile'   if Formula['guile'].installed?
-  depends_on 'lua'     if Formula['lua'].installed?
-  depends_on 'lua51'   if Formula['lua51'].installed?
-  depends_on 'perl'    if Formula['perl'].installed?
-  depends_on 'python'  if Formula['python'].installed?
-  depends_on 'python3' if Formula['python3'].installed?
-  depends_on 'tcl-tk'  if Formula['tcl-tk'].installed?
+  # It will configure itself for these things if they are present, which requires that they appear in the $PATH during the build.
+  enhanced_by 'boost'
+  enhanced_by 'guile'
+  enhanced_by 'lua'
+  enhanced_by 'lua51'
+  enhanced_by 'perl'
+  enhanced_by 'python2'
+  enhanced_by 'python3'
+  enhanced_by 'tcl-tk'
 
   def install
     ENV.universal_binary if build.universal?

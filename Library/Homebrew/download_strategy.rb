@@ -11,7 +11,7 @@ class AbstractDownloadStrategy
     @url = resource.url
     @version = resource.version
     @meta = resource.specs
-  end # AbstractDownloadStrategy#initialize
+  end # AbstractDownloadStrategy#initialize()
 
   # Download and cache the resource as {#cached_location}.
   def fetch; end
@@ -38,7 +38,7 @@ class AbstractDownloadStrategy
     # 2 as default because commands are eg. svn up, git pull
     args.insert(2, '-q') unless VERBOSE
     args
-  end # AbstractDownloadStrategy#expand_safe_system_args
+  end # AbstractDownloadStrategy#expand_safe_system_args()
 
   def quiet_safe_system(*args); safe_system(*expand_safe_system_args(args)); end
 
@@ -94,7 +94,7 @@ class VCSDownloadStrategy < AbstractDownloadStrategy
     @ref_type, @ref = extract_ref(meta)
     @revision = meta[:revision]
     @clone = HOMEBREW_CACHE.join(cache_filename)
-  end # VCSDownloadStrategy#initialize
+  end # VCSDownloadStrategy#initialize()
 
   def fetch
     ohai "Cloning #{@url}"
@@ -182,16 +182,14 @@ class AbstractFileDownloadStrategy < AbstractDownloadStrategy
     Utils.popen_read(tool, '-f', cached_location.to_s, '-c') do |pipe|
       File.open(target, 'wb') { |f|; buf = ''; f.write(buf) while pipe.read(16384, buf); }
     end
-  end # AbstractFileDownloadStrategy#buffered_write
+  end # AbstractFileDownloadStrategy#buffered_write()
 
   # Strip any ?thing=wad out of .c?thing=wad style extensions
   def basename_without_params; File.basename(@url)[/[^?]+/]; end
 
   # We need a Pathname because we’ve monkeypatched extname to handle double extensions like tar.gz.  #basename_without_params won’t
   # work, because given a URL pathname like (.../download.php?file=foo-1.0.tar.gz), the extension we want is “.tar.gz”, not “.php”.
-  def ext
-    Pathname.new(@url).extname[/[^?]+/]
-  end # AbstractFileDownloadStrategy#ext
+  def ext; Pathname.new(@url).extname[/[^?]+/]; end
 end # AbstractFileDownloadStrategy
 
 class FileCopyStrategy < AbstractDownloadStrategy
@@ -200,7 +198,7 @@ class FileCopyStrategy < AbstractDownloadStrategy
   def clear_cache; end  # Obviously, we do not want to arbitrarily delete anything from the user’s filesystem.
 
   def stage; cp cached_location, Pathname.getwd/File.basename(@url); end
-end
+end # FileCopyStrategy
 
 class CurlDownloadStrategy < AbstractFileDownloadStrategy
   attr_reader :mirrors, :tarball_path, :temporary_path
@@ -210,7 +208,7 @@ class CurlDownloadStrategy < AbstractFileDownloadStrategy
     @mirrors = resource.mirrors.dup
     @tarball_path = HOMEBREW_CACHE/"#{name}-#{version}#{ext}"
     @temporary_path = Pathname.new("#{cached_location}.incomplete")
-  end
+  end # CurlDownloadStrategy#initialize()
 
   def fetch
     ohai "Downloading #{@url}"
@@ -220,7 +218,7 @@ class CurlDownloadStrategy < AbstractFileDownloadStrategy
       unless urls.empty?
         ohai "Downloading from #{urls.last}"
         if not ENV['HOMEBREW_NO_INSECURE_REDIRECT'].nil? and @url.starts_with?('https://') and
-            urls.any? { |u| !u.start_with? 'https://' }
+            urls.any? { |u| !u.starts_with? 'https://' }
           puts 'HTTPS to HTTP redirect detected & HOMEBREW_NO_INSECURE_REDIRECT is set.'
           raise CurlDownloadStrategyError, @url
         end
@@ -250,7 +248,7 @@ class CurlDownloadStrategy < AbstractFileDownloadStrategy
     puts 'Trying a mirror...'
     @url = mirrors.shift
     retry
-  end
+  end # CurlDownloadStrategy#fetch
 
   def cached_location; tarball_path; end
 
@@ -265,18 +263,16 @@ class CurlDownloadStrategy < AbstractFileDownloadStrategy
   def _curl_opts; copts = []; copts << '--user' << meta.fetch(:user) if meta.key?(:user); copts; end
 
   def actual_urls
-    urls = []
+    u = []
     curl_args = _curl_opts << '-I' << '-L' << @url
-    Utils.popen_read('curl', *curl_args).scan(/^Location: (.+)$/).map do |m|
-      urls << URI.join(urls.last || @url, m.first.chomp).to_s
-    end
-    urls
-  end
+    Utils.popen_read('curl', *curl_args).scan(/^Location: (.+)$/).map{ |m| u << URI.join(u.last || @url, m.first.chomp).to_s }
+    u
+  end # CurlDownloadStrategy#actual_urls
 
   def downloaded_size; temporary_path.size? || 0; end
 
   def curl(*args); args.concat _curl_opts; args << '--connect-timeout' << '5' unless mirrors.empty?; super; end
-end
+end # CurlDownloadStrategy
 
 # Detect and download from Apache Mirror
 class CurlApacheMirrorDownloadStrategy < CurlDownloadStrategy
@@ -383,7 +379,7 @@ class SubversionDownloadStrategy < VCSDownloadStrategy
     else raise 'Your stock subversion client is obsolete.  Brew the {subversion} formula.'
     end
     @url = @url.sub('svn+http://', '')
-  end # SubversionDownloadStrategy#initialize
+  end # SubversionDownloadStrategy#initialize()
 
   def fetch
     clear_cache unless @url.chomp('/') == repo_url || quiet_system(svn_cmd, 'switch', @url, cached_location)
@@ -413,7 +409,7 @@ class SubversionDownloadStrategy < VCSDownloadStrategy
     args << '-r' << revision if revision
     args << '--ignore-externals' if ignore_externals
     quiet_safe_system(*args)
-  end # SubversionDownloadStrategy#fetch_repo
+  end # SubversionDownloadStrategy#fetch_repo()
 
   def cache_tag; head? ? 'svn-HEAD' : 'svn'; end
 
@@ -446,7 +442,7 @@ class GitDownloadStrategy < VCSDownloadStrategy
     @ref_type ||= :branch
     @ref ||= 'master'
     @shallow = meta.fetch(:shallow) { true }
-  end # GitDownloadStrategy#initialize
+  end # GitDownloadStrategy#initialize()
 
   def stage; super; cp_r File.join(cached_location, '.'), Dir.pwd; end
 
@@ -548,7 +544,7 @@ class CVSDownloadStrategy < VCSDownloadStrategy
     elsif @url !~ %r{:[^/]+$} then @module = name
     else @module, @url = split_url(@url)
     end
-  end # CVSDownloadStrategy#initialize
+  end # CVSDownloadStrategy#initialize()
 
   def stage; cp_r File.join(cached_location, '.'), Dir.pwd; end
 
@@ -633,58 +629,60 @@ class FossilDownloadStrategy < VCSDownloadStrategy
 end # FossilDownloadStrategy
 
 class DownloadStrategyDetector
-  def self.detect(url, strategy = nil)
-    if strategy.nil? then detect_from_url(url)
-    elsif Class === strategy && strategy < AbstractDownloadStrategy then strategy
-    elsif Symbol === strategy then detect_from_symbol(strategy)
-    else raise TypeError, "Unknown download strategy specification #{strategy.inspect}"; end
-  end # DownloadStrategyDetector⸬detect
+  class << self
+    def detect(url, strategy = nil)
+      if strategy.nil? then detect_from_url(url)
+      elsif Class === strategy && strategy < AbstractDownloadStrategy then strategy
+      elsif Symbol === strategy then detect_from_symbol(strategy)
+      else raise TypeError, "Unknown download strategy specification #{strategy.inspect}"; end
+    end # DownloadStrategyDetector::detect()
 
-  def self.detect_from_url(url)
-    case url
-      when %r{^file://.+$}
-        FileCopyStrategy
-      when %r{^https?://.+\.git$}, %r{^git://}
-        GitDownloadStrategy
-      when %r{^https?://www\.apache\.org/dyn/closer\.cgi}, %r{^https?://www\.apache\.org/dyn/closer\.lua}
-        CurlApacheMirrorDownloadStrategy
-      when %r{^https?://(.+?\.)?googlecode\.com/svn}, %r{^https?://svn\.}, %r{^svn://}, %r{^https?://(.+?\.)?sourceforge\.net/svnroot/}
-        SubversionDownloadStrategy
-      when %r{^cvs://}
-        CVSDownloadStrategy
-      when %r{^https?://(.+?\.)?googlecode\.com/hg}
-        MercurialDownloadStrategy
-      when %r{^hg://}
-        MercurialDownloadStrategy
-      when %r{^bzr://}
-        BazaarDownloadStrategy
-      when %r{^fossil://}
-        FossilDownloadStrategy
-      when %r{^http://svn\.apache\.org/repos/}, %r{^svn\+http://}
-        SubversionDownloadStrategy
-      when %r{^https?://(.+?\.)?sourceforge\.net/hgweb/}
-        MercurialDownloadStrategy
-      when nil
-        AbstractDownloadStrategy
-      else
-        CurlDownloadStrategy
-    end
-  end # DownloadStrategyDetector⸬detect_from_url
+    def detect_from_url(url)
+      case url
+        when %r{^file://.+$}
+          FileCopyStrategy
+        when %r{^https?://.+\.git$}, %r{^git://}
+          GitDownloadStrategy
+        when %r{^https?://www\.apache\.org/dyn/closer\.cgi}, %r{^https?://www\.apache\.org/dyn/closer\.lua}
+          CurlApacheMirrorDownloadStrategy
+        when %r{^https?://(.+?\.)?googlecode\.com/svn}, %r{^https?://svn\.}, %r{^svn://}, %r{^https?://(.+?\.)?sourceforge\.net/svnroot/}
+          SubversionDownloadStrategy
+        when %r{^cvs://}
+          CVSDownloadStrategy
+        when %r{^https?://(.+?\.)?googlecode\.com/hg}
+          MercurialDownloadStrategy
+        when %r{^hg://}
+          MercurialDownloadStrategy
+        when %r{^bzr://}
+          BazaarDownloadStrategy
+        when %r{^fossil://}
+          FossilDownloadStrategy
+        when %r{^http://svn\.apache\.org/repos/}, %r{^svn\+http://}
+          SubversionDownloadStrategy
+        when %r{^https?://(.+?\.)?sourceforge\.net/hgweb/}
+          MercurialDownloadStrategy
+        when nil
+          AbstractDownloadStrategy
+        else
+          CurlDownloadStrategy
+      end
+    end # DownloadStrategyDetector::detect_from_url()
 
-  def self.detect_from_symbol(symbol)
-    case symbol
-      when :bzr     then BazaarDownloadStrategy
-      when :copy    then FileCopyStrategy
-      when :curl    then CurlDownloadStrategy
-      when :cvs     then CVSDownloadStrategy
-      when :fossil  then FossilDownloadStrategy
-      when :git     then GitDownloadStrategy
-      when :hg      then MercurialDownloadStrategy
-      when :nounzip then NoUnzipCurlDownloadStrategy
-      when :post    then CurlPostDownloadStrategy
-      when :ssl3    then CurlSSL3DownloadStrategy
-      when :svn     then SubversionDownloadStrategy
-      else          raise "Unknown download strategy #{strategy} was requested."
-    end
-  end # DownloadStrategyDetector⸬detect_from_symbol
+    def detect_from_symbol(symbol)
+      case symbol
+        when :bzr     then BazaarDownloadStrategy
+        when :copy    then FileCopyStrategy
+        when :curl    then CurlDownloadStrategy
+        when :cvs     then CVSDownloadStrategy
+        when :fossil  then FossilDownloadStrategy
+        when :git     then GitDownloadStrategy
+        when :hg      then MercurialDownloadStrategy
+        when :nounzip then NoUnzipCurlDownloadStrategy
+        when :post    then CurlPostDownloadStrategy
+        when :ssl3    then CurlSSL3DownloadStrategy
+        when :svn     then SubversionDownloadStrategy
+        else          raise "Unknown download strategy #{strategy} was requested."
+      end
+    end # DownloadStrategyDetector::detect_from_symbol()
+  end # << self
 end # DownloadStrategyDetector

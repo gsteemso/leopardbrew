@@ -38,7 +38,7 @@ class Gettext < Formula
         '--without-xz'   # Avoid a dependency loop.
       ]
     args << "--with-libiconv-prefix=#{Formula['libiconv'].opt_prefix}" if active_enhancements.include? 'libiconv'
-    args << '--enable-year2038' if Target.pure_64b?
+    args << '--enable-year2038' if Target._64b?
     system './configure', *args
     system 'make'
     system 'make', 'check' if build.with? 'tests'

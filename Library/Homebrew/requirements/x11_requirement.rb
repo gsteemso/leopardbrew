@@ -10,7 +10,7 @@ class X11Requirement < Requirement
 
   env { ENV.x11 }
 
-  def initialize(name = "x11", tags = [], opt_name = nil)
+  def initialize(name = "x11", tags = [])
     @name = name
     if /(\d\.)+\d/ === tags.first
       @min_version = Version.new(tags.shift)
@@ -19,7 +19,7 @@ class X11Requirement < Requirement
       @min_version = Version.new("0.0.0")
       @min_version_string = ""
     end
-    super(tags, opt_name)
+    super(tags)
   end
 
   satisfy :build_env => false do

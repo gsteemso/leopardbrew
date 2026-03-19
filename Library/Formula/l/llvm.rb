@@ -88,10 +88,6 @@ class Llvm < Formula
 
   keg_only :provided_by_osx if MacOS.version > :leopard
 
-  # Apple's libstdc++ is too old to build LLVM
-  fails_with :gcc
-  fails_with :llvm
-
   def install
     args = %w[
       -DLLVM_OPTIMIZED_TABLEGEN=On

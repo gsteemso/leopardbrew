@@ -1,8 +1,5 @@
-require "extend/ENV"
-
 module Homebrew
   def __env
-    ENV.activate_extensions!
     ENV.deps = ARGV.formulae if superenv?
     ENV.setup_build_environment
     ENV.universal_binary if ARGV.build_universal?

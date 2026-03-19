@@ -12,7 +12,7 @@ class Migrator
         Please run `brew migrate #{formula.oldname}`
       EOS
     end
-  end # Migrator⸬MigrationNeededError
+  end # Migrator::MigrationNeededError
 
   class MigratorNoOldnameError < RuntimeError
     def initialize(formula); super "#{formula.name} doesn't replace any formula."; end

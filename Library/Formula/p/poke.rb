@@ -20,7 +20,7 @@ class Poke < Formula
   depends_on "readline"
 
   # ../../libpoke/pvm.jitter:6829: error: #pragma GCC diagnostic not allowed inside functions
-  fails_with :gcc do
+  fails_with :gcc_4_2 do
     build 5553
     cause "One test failure on G4"
   end

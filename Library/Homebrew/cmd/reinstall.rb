@@ -84,7 +84,7 @@ module Homebrew
     fi.interactive         = ARGV.interactive? || ARGV.git?
     fi.deps_do             = ARGV.dep_treatment
     fi.force               = ARGV.forced_install_type
-    fi.verbosity           = QUIETER ? :less : VERBOSE ? :full : nil
+    fi.verbosity           = ARGV.verbosity
     fi.prelude
     fi.install
     fi.finish  # this links the new keg
@@ -108,14 +108,6 @@ module Homebrew
   end # reinstall_formula
 
   def blenderize_options(use_opts, formula)
-    def whinge_re_unrecognized(flag)
-      puts "Ignoring unrecognized option:  #{flag}"
-      if flag[-1] == '='
-        alt = flag.chop
-        puts "did you mean “#{alt}”?" if formula.option_defined?(alt)
-      end
-    end # whinge_re_unrecognized
-
     d_o_list = formula.deprecated_options
     anti_opts = Options.new
     use_opts.each do |o|
@@ -145,9 +137,8 @@ module Homebrew
               unrecognized = true
             end # --without-xxxx?
           when '--single-arch'
-            anti_opts << Option.new('universal') << Option.new('cross')
+            anti_opts << Option.new('universal') << Option.new('cross') << Option.new('local') << Option.new('native')
             ENV.delete 'HOMEBREW_BUILD_UNIVERSAL'
-            ENV.delete 'HOMEBREW_CROSS_COMPILE'
           when '--cross', '--local', '--native', '--universal'
             # the formula doesn’t have any of these options; ignore it
           when '--stable'
@@ -160,11 +151,17 @@ module Homebrew
             anti_opts << Option.new('devel')
           when /^--un-([^=]+=?)(.+)?$/, /^--no-([^=]+=?)(.+)?$/
             anti_opts << Option.new($1) if formula.option_defined?($1) or use_opts.include? $1
-            ENV.delete 'HOMEBREW_UNIVERSAL_MODE' if $1 == 'universal' or $1 == 'cross'
+            ENV.delete 'HOMEBREW_UNIVERSAL_MODE' if $1 == 'cross' or $1 == 'universal'
           else
             unrecognized = true
         end # case
-        whinge_re_unrecognized(o.flag) if unrecognized
+        if unrecognized
+          puts "Ignoring unrecognized option:  #{flag}"
+          if flag[-1] == '='
+            alt = flag.chop
+            puts "did you mean “#{alt}”?" if formula.option_defined?(alt)
+          end
+        end # whinge re: unrecognized
       end # option is defined?
     end # each ARGV flag
     use_opts - anti_opts

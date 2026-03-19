@@ -2,7 +2,7 @@ class EmacsRequirement < Requirement
   fatal true
   default_formula "emacs"
 
-  def initialize(tags, opt_name = nil)
+  def initialize(tags)
     @version = tags.shift if /\d+\.*\d*/ === tags.first
     raise "Specify a version for EmacsRequirement" unless @version
     super

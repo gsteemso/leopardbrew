@@ -112,20 +112,19 @@ class Keg
 
   def rack; path.parent; end
 
+  def tab; @tab ||= Tab.for_keg(path) if (path/Tab::FILENAME).file?; end
+
   def versioned_name; "#{name}=#{version_s}"; end
 
   def formula
     if (f = Formulary.from_rack(rack)).installed? then f
-    elsif (path/Tab::FILENAME).file? and (f = Formulary.from_keg(path)) then f
+    elsif tab and (f = Formulary.from_keg(path)) then f
     end
   end
 
   def formula!; formula or raise FormulaVersionUnavailableError.new(name, version_s); end
 
-  def spec
-    (path/Tab::FILENAME).file? ? Tab.for_keg(path).spec \
-                               : (version_s.starts_with? 'HEAD' ? :head : :stable)  # usually correct, :devel is rare
-  end
+  def spec; tab ? tab.spec : (version_s.starts_with? 'HEAD' ? :head : :stable); end  # usually correct, :devel is rare
 
   def inspect; "#<#{self.class.name}:#{path}>"; end
 
@@ -225,7 +224,7 @@ class Keg
   end # completion_installed?
 
   # This tests the enhancement state of an already‐installed {Keg}.  For current affairs, examine Formula#active_enhancements.
-  def enhanced_by?(aid); (path/Tab::FILENAME).file? and Tab.for_keg(path).active_aids.include?(aid); end
+  def enhanced_by?(aid); tab and tab.active_aids.include?(aid); end
 
   def plist_installed?; Dir["#{path}/*.plist"].any?; end
 
@@ -328,28 +327,33 @@ class Keg
 
   def delete_pyc_files!; find { |pn| pn.delete if pn.extname == '.pyc' }; end
 
-  def reconstruct_build_mode
+  def built_archs; (tab and (b_a = tab.built_archs)) ? b_a : reconstruct_built_archs; end
+
+  def built_mode; (tab and (b_m = tab.build_mode)) ? b_m : reconstruct_build_mode(tab ? tab.built_as_bottle : false); end
+
+  def reconstruct_build_mode(built_bottled = false)
+    built_set = built_archs
+    (built_set.length > 1) ? (built_set.all?{ |a| CPU.can_run? a } \
+                               ? (built_set.all?{ |a| CPU.type_of(a) == CPU.type } ? :native : :local ) \
+                               : :cross) \
+                           : built_bottled ? :bottle : :plain
+  end # reconstruct_build_mode()
+
+  def reconstruct_built_archs
     built_sets = {}
     path.find do |pn|
-      if pn.tracked_mach_o?
-        archset = pn.archs.compact.sort
-        if built_sets[archset] then built_sets[archset] += 1; else built_sets[archset] = 1; end
-      end
+      next unless pn.tracked_mach_o?
+      archset = pn.archs.compact.sort
+      if built_sets[archset] then built_sets[archset] += 1; else built_sets[archset] = 1; end
     end
     max_count = built_sets.values.max
-    built_set = built_sets.select{ |_, ct| ct == max_count }.keys.flatten.uniq.sort
-    built_set.length > 1 ? (built_set.all?{ |a| CPU.can_run? a } \
-                             ? (built_set.all?{ |a| CPU.type_of(a) == CPU.type } \
-                                 ? :n8ive \
-                                 : :local) \
-                             : :cross) \
-                         : :plain
-  end # reconstruct_build_mode
+    built_sets.select{ |_, ct| ct == max_count }.keys.flatten.uniq.sort.extend(ALE)
+  end # reconstruct_built_archs
 
   private
 
   def resolve_any_conflicts(lnk, linkage_type, mode)
-    return true if lnk.directory? and not lnk.symlink?  # I.e., a conflict has _already been_ resolved and we need to skip over it.
+    return true if lnk.directory? and not lnk.symlink?  # Means a conflict has _already been_ resolved & we need to skip over it.
     return false unless lnk.symlink?
     tgt = lnk.resolved_path
     # Check lstat to be sure we have a directory, and not a symlink pointing at one (which would need to be treated as a file).  In

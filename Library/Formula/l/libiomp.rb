@@ -15,19 +15,9 @@ class Libiomp < Formula
     sha256 "6a45040d4af6ea384bee226ca99ab97857d60b717f19b8273b935c3ca43e3a19" => :mountain_lion
   end
 
-  fails_with :gcc  do
-    cause "libiomp can only be built with clang."
-  end
-
-  fails_with :gcc_4_0 do
-    cause "libiomp can only be built with clang."
-  end
-
-  ("4.3".."4.9").each do |n|
-    fails_with :gcc => n do
-      cause "libiomp can only be built with clang."
-    end
-  end
+  # libiomp can only be built with Clang.
+  fails_with [:gcc_4_0, :gcc_4_2]
+  fails_with :gcc => CompilerConstants::GNU_GCC_VERSIONS
 
   def install
     intel_arch = Target.prefer_64b? ? "mac_32e" : "mac_32"

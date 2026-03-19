@@ -41,12 +41,8 @@ class Mariadb < Formula
     :because => "both install MySQL client libraries"
 
   fails_with :gcc_4_0
-  fails_with :gcc do
-    cause <<-EOSTRING.undent
-    The __sync_lock_test_and_set atomic builtin does not work as MariaDB
-    expects on PowerPC.
-    EOSTRING
-  end if CPU.powerpc?
+  # The __sync_lock_test_and_set atomic builtin does not work as MariaDB expects on PowerPC.
+  fails_with :gcc_4_2 if CPU.powerpc?
 
   def install
     # Don't hard-code the libtool path. See:

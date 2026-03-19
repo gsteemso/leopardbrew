@@ -30,7 +30,7 @@ class Libuv1510 < Formula
         --disable-dependency-tracking
         --disable-silent-rules
       }
-    args << '--enable-year2038' if Target.pure_64b?
+    args << '--enable-year2038' if Target._64b?
 
     system './autogen.sh'
     system './configure', *args

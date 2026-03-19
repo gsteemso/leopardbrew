@@ -22,7 +22,7 @@ class Sqlite < Formula
 
   def install
     # Sqlite segfaults on Tiger/PPC with our gcc-4.2.
-    ENV.no_optimization if CPU.powerpc? and ENV.compiler == :gcc and MacOS.version == :tiger
+    ENV.no_optimization if CPU.powerpc? and ENV.compiler == :gcc_4_2 and MacOS.version == :tiger
 
     # (The recommended set of optimizations.)
 

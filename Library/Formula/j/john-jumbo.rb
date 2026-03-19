@@ -31,7 +31,7 @@ class JohnJumbo < Formula
   end
 
   # https://github.com/magnumripper/JohnTheRipper/blob/bleeding-jumbo/doc/INSTALL#L133-L143
-  fails_with :gcc do
+  fails_with :gcc_4_2 do
     cause "Upstream have a hacky workaround for supporting gcc that we can't use."
   end
 

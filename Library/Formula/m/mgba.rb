@@ -13,8 +13,8 @@ class Mgba < Formula
   depends_on "libzip"
   depends_on "sdl2"
 
-  # error: stdarg.h: No such file or directory
-  fails_with :gcc if MacOS.version == :tiger
+  # error: stdarg.h:  No such file or directory
+  fails_with :gcc_4_2 if MacOS.version == :tiger
 
   def install
     # Qt is still broken on 10.4, so build with it off by default.
@@ -27,9 +27,7 @@ class Mgba < Formula
     # GCC 4.0 and 4.2 don't support -flto
     # The buildsystem will detect this in the next stable release.
     # GCC also doesn't enable LTO on Tiger.
-    if MacOS.version < :leopard || [:gcc, :gcc_4_0].include?(ENV.compiler)
-      args << "-DBUILD_LTO=OFF"
-    end
+    args << "-DBUILD_LTO=OFF" if MacOS.version < :leopard || [:gcc_4_0, :gcc_4_2].include?(ENV.compiler)
 
     system "cmake", ".", *(std_cmake_args + args)
     system "make", "install"

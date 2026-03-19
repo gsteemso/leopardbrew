@@ -38,7 +38,7 @@ class Formula
   extend Enumerable
 
   # @!method inreplace(paths, before = nil, after = nil)
-  # Implemented in {Utils⸬Inreplace.inreplace}.  Sometimes we have to change a bit before we install.  Generally we prefer a patch;
+  # Implemented in {Utils::Inreplace.inreplace}.  Sometimes we have to tweak a bit before we install.  Generally we prefer a patch;
   #   but if you need the {prefix} of this formula in the patch, you have to resort to `inreplace`, because in the patch there’s no
   #   access to anything defined by the formula.  Only HOMEBREW_PREFIX is available in the embedded patch, and even that only works
   #   thanks to a moderately fragile hack.
@@ -85,7 +85,7 @@ class Formula
   attr_reader :active_spec_sym
 
   # Used for creating new Homebrew versions of software without new upstream versions.
-  # @see ⸬revision.
+  # @see ::revision.
   attr_reader :revision
 
   # The current working directory during builds.  Will only be non-`nil` inside {#install}.
@@ -293,7 +293,7 @@ class Formula
   #   or a full‐blown Option object.
   def option_defined?(o); active_spec.option_defined?(o); end
 
-  # All the {⸬fails_with} for the currently active {SoftwareSpec}.
+  # All the {::fails_with} for the currently active {SoftwareSpec}.
   # @private
   def compiler_failures; active_spec.compiler_failures; end
 
@@ -969,8 +969,8 @@ class Formula
 
   def test_fixtures(file); TEST_FIXTURES/file; end
 
-  # This method is overridden in {Formula} subclasses to define the installation program.  The source (from {⸬url}) is downloaded &
-  #   hash-checked, then Homebrew changes to a temporary directory where the archive was unpacked or repository cloned.
+  # {Formula} subclasses override this method to define the installation program.  The source (from {::url}) is downloaded and hash‐
+  #   checked, then Homebrew changes to a temporary directory where the archive was unpacked or repository cloned.
   #     def install
   #       system './configure', "--prefix=#{prefix}"
   #       system 'make', 'install'
@@ -1222,9 +1222,9 @@ class Formula
     def version(val = nil); stable.version(val); end
 
     # @!attribute [w] mirror
-    # Additional URLs for the {#stable} version of the formula.  Only used if the {⸬url} fails to download.  It is optional & there
-    #   can be more than one.  Generally we add them when the main {⸬url} is unreliable.  If {⸬url} is very unreliable, we may swap
-    #   the {⸬mirror} and the {⸬url}.
+    # Additional URLs for the {#stable} version of the formula.  Only used if the {::url} fails to download.  It’s optional & there
+    #   can be more than one.  Generally we add them when the main {::url} is unreliable.  If the {::url} is very unreliable we may
+    #   swap the {::mirror} and the {::url}.
     #     mirror 'https://in.case.the.host.is.down.example.com'
     #     mirror 'https://in.case.the.mirror.is.down.example.com'
     def mirror(val); stable.mirror(val); end
@@ -1237,7 +1237,7 @@ class Formula
     Checksum::TYPES.each do |type| define_method(type){ |val| stable.send(type, val) }; end
 
     # @!attribute [w] bottle
-    # Adds a {⸬bottle} {SoftwareSpec}.  This provides a binary package pre‐built by the ’brew maintainers for you.  It is installed
+    # Adds a {::bottle} {SoftwareSpec}.  This provides a binary package pre‐built by the ’brew maintainers for you.  It’s installed
     #   automatically if there’s a binary package for your platform and you’ve never specified any options on this formula.  If you
     #   maintain your own repository, you can add your own bottle links.
     # @see $(brew --repository)/share/doc/homebrew/Bottles.md
@@ -1260,8 +1260,8 @@ class Formula
     def build; stable.build; end
 
     # @!attribute [w] stable
-    # Allows {⸬depends_on} and {#patch}es for just the {⸬stable} {SoftwareSpec}.  This is required any place a conditional might be
-    #   used for the same purpose.  It is preferable to also pull the {⸬url} and {⸬sha256} into the block if one is added.
+    # Allows {::depends_on} & {#patch}es for just the {::stable} {SoftwareSpec}.  This is required any place a conditional might be
+    #   used for the same purpose.  It is preferable to also pull the {::url} and {::sha256} into the block if one is added.
     #     stable do
     #       url 'https://example.com/foo-1.0.tar.gz'
     #       sha256 '2a2ba417eebaadcb4418ee7b12fe2998f26d6e6f7fda7983412ff66a741ab6f7'
@@ -1275,7 +1275,7 @@ class Formula
     end
 
     # @!attribute [w] devel
-    # Adds a {⸬devel} {SoftwareSpec}, installable by passing `--devel` to `brew install`.  This accommodates non-stable (e.g. beta)
+    # Adds a {::devel} {SoftwareSpec}, installable by passing “--devel” to `brew install`.  This accommodates non‐stable, e.g. beta,
     #   versions of software.
     #     devel do
     #       url 'https://example.com/archive-2.0-beta.tar.gz'
@@ -1286,29 +1286,35 @@ class Formula
     #     end
     def devel(&block)
       @devel ||= SoftwareSpec.new
-      @devel.option :devel
-      block_given? ? @devel.instance_eval(&block) : @devel
+      if block_given?
+        option :devel
+        @devel.instance_eval(&block)
+      else @devel; end
     end
 
     # @!attribute [w] head
-    # Adds a {⸬head} {SoftwareSpec}, installable by passing `--HEAD` to `brew install`.  This accommodates software directly from a
-    #   branch of a version-control repository.  Called as a method, this provides just the {url} for the {SoftwareSpec}.  If given
-    #   a block, you can also add {⸬depends_on} & {#patch}es just to the {⸬head} {SoftwareSpec}.  The download strategies – such as
-    #  `:using =>` – are the same as for {url}.  `master` is the default branch and doesn’t need stating with a `:branch` parameter.
+    # Adds a {::head} {SoftwareSpec}, installable by passing “--HEAD” to `brew install`.  This accommodates software taken directly
+    #   from a branch of a version-control repository.  Called as a method, this provides just the {url} for the {SoftwareSpec}; if
+    #   given a block, you can also add {::depends_on} & {#patch}es just to the {::head} {SoftwareSpec}.  The download strategies –
+    #   such as `:using =>` – are the same as for {url}.  `master` is the default branch, and needn’t be specified using a `:branch`
+    #   parameter.
     #     head 'https://we.prefer.https.over.git.example.com/.git'
     #     head 'https://example.com/.git', :branch => 'name_of_branch', :revision => 'abc123'
     # or (if autodetect fails):
     #     head 'https://hg.is.awesome.but.git.has.won.example.com/', :using => :hg
     def head(val = nil, txfer_specs = {}, &block)
       @head ||= HeadSoftwareSpec.new
-      @head.option :head
-      block_given? ? @head.instance_eval(&block) \
-                   : val ? @head.url(val, txfer_specs) \
-                   : @head
+      if block_given?
+        option :head
+        @head.instance_eval(&block)
+      elsif val
+        option :head
+        @head.url(val, txfer_specs)
+      else @head; end
     end # head
 
-    # Additional downloads can be defined as {Resource}s and accessed in the install method.  {Resource}s can also be defined in a
-    #   {⸬stable}, {⸬devel}, or {⸬head} block.  This mechanism replaces ad-hoc “subformula” classes.
+    # Additional downloads can be defined as {Resource}s, for access in the {install} method.  {Resource}s can also be defined in a
+    #   {::stable}, {::devel}, or {::head} block.  This mechanism replaces ad-hoc “subformula” classes.
     #     resource 'additional_files' do
     #       url 'https://example.com/additional-stuff.tar.gz'
     #       sha256 'c6bc3f48ce8e797854c4b865f6a8ff969867bbcaebd648ae6fd825683e59fef2'
@@ -1328,32 +1334,34 @@ class Formula
     #     depends_on 'readline' => :recommended
     # `:optional` dependencies are NOT built by default.  A `--with-…` option is generated.
     #     depends_on 'glib' => :optional
-    # If you need to specify that another formula has to be built with/out certain options (note, no `--` needed before the option):
+    # If you need to specify that another formula has to be built with/out certain options (note, given without leading “--”):
     #     depends_on 'zeromq' => 'with-pgm'
     #     depends_on 'qt' => ['with-qtdbus', 'developer'] # Multiple options.
     # Optional and enforce that boost is built with `--with-c++11`:
     #     depends_on 'boost' => [:optional, 'with-c++11']
     # If a dependency is only needed in certain cases:
     #     depends_on 'sqlite' if MacOS.version == :leopard
-    #     depends_on :xcode   # If the formula really needs full Xcode.
-    #     depends_on :tex     # Homebrew does not provide a Tex Distribution.
-    #     depends_on :fortran # Checks that `gfortran` is available or `FC` is set.
+    #     depends_on :xcode            # If the formula really needs full Xcode.
+    #     depends_on :tex              # Homebrew does not provide a Tex Distribution.
+    #     depends_on :fortran          # Checks that `gfortran` is available or `FC` is set.
     #     depends_on :mpi => :cc       # Needs MPI with `cc`
     #     depends_on :mpi => [:cc, :cxx, :optional]  # Is optional.  MPI with `cc` and `cxx`.
     #     depends_on :macos => :lion   # Needs at least Mac OS X 'Lion' (10.7).
-    #     depends_on :apr     # If a formula requires the CLT-provided apr library to exist.
+    #     depends_on :apr              # If a formula requires the CLT-provided apr library to exist.
     #     depends_on :arch => :intel   # If this formula only builds on Intel architecture.
     #     depends_on :arch => :x86_64  # If this formula only builds on Intel x86 64-bit.
     #     depends_on :arch => :ppc     # Only builds on PowerPC?
-    #     depends_on :ld64    # Sometimes ld fails on `MacOS.version <= :leopard`.  Then use this.
-    #     depends_on :x11     # X11/XQuartz components.  Non-optional X11 deps should go in Homebrew/Homebrew-x11
-    #     depends_on :osxfuse  # Permits the use of the upstream signed binary or our source package.
-    #     depends_on :tuntap  # Does the same thing as above. This is vital for Yosemite and above.
+    #     depends_on :ld64             # Sometimes ld fails on `MacOS.version <= :leopard`.  Then use this.
+    #     depends_on :x11              # X11/XQuartz components.  Originally, non-optional X11 deps would go in Homebrew/Homebrew-x11.
+    #     depends_on :osxfuse          # Permits the use of the upstream signed binary or our source package.
+    #     depends_on :tuntap           # Does the same thing as above.  This is vital for Yosemite and above.
     #     depends_on :mysql => :recommended
     # It is possible to only depend on `formula` if `build.with? / build.without? 'other_formula'`:
-    #     depends_on :mysql   # Allows brewed or external mysql to be used.
+    #     depends_on :mysql            # Allows brewed or external mysql to be used.
     #     depends_on :postgresql if build.without? 'sqlite'
-    #     depends_on :hg      # Mercurial (external or brewed) is needed.
+    #     depends_on :hg               # Mercurial (external or brewed) is needed.
+    # If you need NLS and the formula uses libiconv, for it to work reliably you must depend on both.  We’ve a shortcut for that:
+    #     depends_on :nls_iconv        # Creates a group dependency (see below) containing {gettext} and {libiconv}, named “nls”.
     # If any Python >= 2.7 < 3.x is okay (either from OS X or brewed):
     #     depends_on :python2
     # to depend on Python >= 2.7 but use system Python where possible
@@ -1363,11 +1371,11 @@ class Formula
     #`depends_on` also accepts an array of operands.  Internally, it converts it to a series of individual `depends_on` statements.
     def depends_on(dep); specs.each{ |ss| ss.depends_on(dep) }; end
 
-    # Define a set of alternate dependencies, only one of which is to be selectable.  For example,
-    #     depends_1_of ['⟨label⟩', ['⟨first⟩', {'⟨second⟩' => 'with-extra'}, '⟨third⟩']] => :optional
-    #     depends_1_of ['⟨label⟩', ['⟨first⟩', {'⟨second⟩' => 'with-extra'}, '⟨third⟩']] => :recommended
-    #     depends_1_of ['⟨label⟩', ['⟨first⟩', {'⟨second⟩' => 'with-extra'}, '⟨third⟩']]
-    #     depends_1_of ['⟨label⟩', ['⟨first⟩', {'⟨second⟩' => 'with-extra'}, '⟨third⟩']] => [:build, :recommended]
+    # Define a mutually exclusive set of alternate dependencies, i.e., a set where only one member may be selected.  For example,
+    #     depends_1_of ['⟨label⟩', ['⟨first⟩', '⟨second⟩' => 'with-extra', '⟨third⟩'] => :optional]
+    #     depends_1_of ['⟨label⟩', ['⟨first⟩', '⟨second⟩' => 'with-extra', '⟨third⟩'] => :recommended]
+    #     depends_1_of ['⟨label⟩', ['⟨first⟩', '⟨second⟩' => 'with-extra', '⟨third⟩']]
+    #     depends_1_of ['⟨label⟩', ['⟨first⟩', '⟨second⟩' => 'with-extra', '⟨third⟩'] => [:build, :recommended]]
     # These generate a “--with-⟨label⟩=” option.  For :recommended priority, a “--without-⟨label⟩” option is also created.  For any
     #   priority other than :optional, exactly one generated option must be supplied (and where it includes a value, the value must
     #   be one of the formula names listed), or the steps below are taken.  {#with?} & {#without?} will always be able to check for
@@ -1377,8 +1385,14 @@ class Formula
 #    def depends_1_of(group); specs.each { |spec| spec.depends_1_of(group) }; end
 
     # Define a group of dependencies selectable by a single option.  All such groups must be either :optional or :recommended; only
-    #   those autogenerate the build options that this makes more convenient.  This autogenerates a “--without-dns-extras” option:
-    #     depends_group ['dns-extras', ['c-ares', 'ibidn2, 'libpsl'] => :recommended]
+    #   those autogenerate the build options that this makes more convenient.  This autogenerates a “--with-dns-extras” option:
+    #     depends_group ['dns-extras', ['c-ares', 'libidn2, 'libpsl'] => :optional]
+    # The parameter is a two-element {Array}.  The first element is the group name, & the second lists its constituent dependencies.
+    #   The second element, the list, must be in the form of a single‐member {Hash}:  the key is an {Array} of formula names, & the
+    #   value is an {Array} of tags that must include either :optional or :recommended.
+    # A member of the formula‐name array may itself be a one‐element {Hash} – the key is the formula name & the value is an {Array}
+    #   of strings naming what option(s) it must be built with.  This autogenerates a “--with-birthday” option:
+    #     depends_group ['birthday', ['cake' => ['with_name', 'with_icecream'], 'silly_hats', 'gifts' => 'with_bows'] => :optional]
     def depends_group(group); specs.each { |spec| spec.depends_group(group) }; end
 
     # Indicate a soft dependency (one which can be omitted, either to avoid dependency loops or simply to reduce installation time).
@@ -1455,10 +1469,10 @@ class Formula
     # @private
     def skip_clean_paths; @skip_clean_paths ||= Set.new; end
 
-    # Software that will not be symlinked into `brew --prefix` will only live in the Cellar.  If other formulæ should {⸬depends_on}
-    #   a {⸬keg_only} {Formula}, Leopardbrew will add the necessary includes, libs, &c. during their brewing; but such formulæ are
-    #   not normally visible in your PATH, and thus go unseen by compilers if you build your own software outside of Homebrew.  In
-    #   this way, we avoid shadowing software provided by the OS.
+    # Software that will not be symlinked into `brew --prefix` is only found in the Cellar.  If other formulæ should {::depends_on}
+    #   a {::keg_only} {Formula}, Leopardbrew will add the necessary includes, libs, &c. during their brewing; but such formulæ are
+    #   not normally visible in your PATH, and thus go unseen by compilers if you build software outside of Homebrew.  This way, we
+    #   avoid shadowing software provided by the OS.
     #     keg_only :provided_by_osx
     #     keg_only 'because I want it so'
     def keg_only(reason, blurb = ''); @keg_only_reason = KegOnlyReason.new(reason, blurb); end
@@ -1535,9 +1549,9 @@ class Formula
     #     end
     # THESE CODE BLOCKS MUST BE IDEMPOTENT!  It is not only possible, but actively expected, that they may be called more than once
     #   without their counterpart being called in between; in which case, they must not make a mess!
-    # An {⸬insinuate} block can also be called when not all of its formula’s dependencies are functional, or even present.  If this
-    #   may be a problem, it should test its environment & act accordingly.  Further, an {⸬uninsinuate} block must not presume that
-    #   its rack still exists.  It shall be called after the rack’s removal in order for helper scripts to delete themselves.
+    # An {::insinuate} block can be called when not all of its formula’s dependencies are functional, or even present.  If that may
+    #   be a problem, it should test its environment & act accordingly.  Further, an {::uninsinuate} block must not assume that its
+    #   rack still exists.  It shall be called after the rack’s removal in order for helper scripts to delete themselves.
     def insinuate(&block); define_method(:insinuate, &block); end
     def uninsinuate(&block); define_method(:uninsinuate, &block); end
 

@@ -68,7 +68,7 @@ class Libxslt < Formula
       # There are no system Python bindings to LibXML2, so we can install our own even though the
       # library itself has to be keg‐only.
       # Our Python will be missing if system Python was deemed adequate, but even if site_packages is
-      # not there, Pathname⸬binwrite will simply create it before writing to the file.
+      # not there, Pathname::binwrite will simply create it before writing to the file.
       (Formula['python2'].site_packages/'libxslt.pth').binwrite "#{opt_lib}/python2.7/site-packages\n"
       py3 = Formula['python3']
       (py3.site_packages/'libxslt.pth').binwrite "#{opt_lib}/python#{py3.xy}/site-packages\n"

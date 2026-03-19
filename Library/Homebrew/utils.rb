@@ -208,7 +208,7 @@ def which_editor
   editor = ENV.values_at('HOMEBREW_EDITOR', 'VISUAL', 'EDITOR').compact.first
   return editor unless editor.nil?
   # Find Textmate, or BBEdit / TextWrangler, or vim, or default to standard vim
-  editor = which('mate') || which('edit') || which('bbedit') || which('vim') || '/usr/bin/vim'
+  editor = which('mate') || which('edit') || which('bbedit') || which('vim') || which('vi') || '/usr/bin/vi'
   opoo <<-EOS.undent
       Using #{editor} because no editor was set in the environment.
       This may change in the future, so we recommend setting EDITOR, VISUAL,
@@ -359,7 +359,7 @@ module Homebrew
     end
     Process.wait(pid)
     $?.success?
-  end # Homebrew⸬_system
+  end # Homebrew::_system
 
   def git_head
     return unless Utils.git_available?
@@ -392,7 +392,7 @@ module Homebrew
       "#{LEOPARDBREW_VERSION} (git revision #{pretty_revision}; last commit #{last_commit})"
     else "#{LEOPARDBREW_VERSION} (no git repository)"
     end
-  end # Homebrew⸬homebrew_version_string
+  end # Homebrew::homebrew_version_string
 
   def install_gem_setup_path!(gem, version = nil, executable = gem)
     require 'rubygems'
@@ -406,7 +406,7 @@ module Homebrew
       The “#{gem}” gem is installed, but couldn’t find “#{executable}” in the PATH:
           #{ENV['PATH']}
     EOS
-  end # Homebrew⸬install_gem_setup_path!
+  end # Homebrew::install_gem_setup_path!
 
   def system(cmd, *args, &block)
     oh1 "#{cmd} #{args * ' '}".strip if VERBOSE

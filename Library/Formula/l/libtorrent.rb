@@ -23,11 +23,7 @@ class Libtorrent < Formula
   end
 
   # https://trac.macports.org/ticket/27289
-  if MacOS.version < :snow_leopard
-    fails_with :gcc_4_0
-    fails_with :gcc
-    fails_with :llvm
-  end
+  fails_with [:gcc_4_0, :gcc_4_2, :llvm] if MacOS.version < :snow_leopard
 
   # posix_memalign unavailable before Snow Leopard
   patch :p0 do

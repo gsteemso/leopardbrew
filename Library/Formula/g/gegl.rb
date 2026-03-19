@@ -53,7 +53,7 @@ class Gegl < Formula
       # ffmpeg's formula is currently not universal-enabled
       argv << "--without-libavformat"
 
-      opoo "Compilation may fail at gegl-cpuaccel.c using gcc for a universal build" if ENV.compiler == :gcc
+      opoo "Compilation may fail at gegl-cpuaccel.c using gcc-4.2 for a universal build" if ENV.compiler == :gcc_4_2
     end
 
     system "./autogen.sh" if build.head?

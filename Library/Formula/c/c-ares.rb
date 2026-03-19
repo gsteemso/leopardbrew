@@ -21,6 +21,11 @@ class CAres < Formula
 
   option :universal
 
+  if ENV.supports_language? :cxx11
+    option :tests
+    depends_on 'googletest' => :build if build.with? 'tests'
+  end
+
   def install
     ENV.universal_binary if build.universal?
     system 'autoreconf', '-fi' if build.head?
@@ -32,8 +37,7 @@ class CAres < Formula
     args << '--enable-libgcc' unless ENV.compiler == :clang
     system './configure', *args
     system 'make'
-    # Running the unit tests requires both C++11 and `googletest`, which seems a lot more trouble
-    # than it’s probably worth.
+    system 'make', 'test' if build.with? 'tests'
     ENV.deparallelize { system 'make', 'install' }
   end # install
 

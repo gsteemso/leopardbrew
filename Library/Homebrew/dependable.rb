@@ -1,6 +1,8 @@
-require "options"
+require 'options'  # pulls in 'set'
 
 module Dependable
+  attr_reader :name, :tags
+
   RESERVED_TAGS = [:build, :optional, :recommended, :run]
 
   def build?; tags.include? :build; end
@@ -11,17 +13,24 @@ module Dependable
 
   def run?; tags.include? :run; end
 
-  def required?; run? || (!build? && !optional? && !recommended?); end
 
-  def options; Options.create(tags - RESERVED_TAGS); end
+  def discretionary?; optional? or recommended?; end
 
-  def build_optional?; build? && optional?; end
 
-  def build_recommended?; build? && recommended?; end
+  def build_optional?; build? and optional?; end
 
-  def build_required?; build? && !optional? && !recommended? ; end
+  def build_recommended?; build? and recommended?; end
 
-  def run_optional?; !build? && optional?; end
+  def build_required?; build? and not discretionary? ; end
 
-  def run_recommended?; !build? && recommended?; end
+  def required?; run? or not (build? or discretionary?); end
+
+  def run_optional?; not build? and optional?; end
+
+  def run_recommended?; not build? and recommended?; end
+
+
+  def options; Options.create(unreserved_tags); end
+
+  def unreserved_tags; tags - RESERVED_TAGS; end
 end # Dependable

@@ -18,7 +18,7 @@ module MacOS
         elsif (path = HOMEBREW_PREFIX/"bin/#{tool}").executable?
           path
         # xcrun was introduced in Xcode 3 on Leopard
-        elsif MacOS.version >= :leopard
+        elsif version >= :leopard
           path = Utils.popen_read("/usr/bin/xcrun", "-no-cache", "-find", tool).chomp
           Pathname.new(path) if File.executable?(path)
         end
@@ -42,7 +42,7 @@ module MacOS
 
   def active_developer_dir
     # xcode-select was introduced in Xcode 3 on Leopard
-    @active_developer_dir ||= Pathname.new(MacOS.version < :leopard \
+    @active_developer_dir ||= Pathname.new(version < :leopard \
         ? '/Developer' \
         : Utils.popen_read('/usr/bin/xcode-select', '-print-path').strip
       )
@@ -66,41 +66,38 @@ module MacOS
   def default_compiler
     case default_cc
       # if GCC 4.2 is installed, e.g. via Leopardbrew, prefer it over the system's GCC 4.0
-      when %r{^gcc-4.0} then gcc_42_build_version ? :gcc : :gcc_4_0
-      when %r{^gcc-4.2} then :gcc
+      when %r{^gcc-4.0} then gcc_4_2_build_version ? :gcc_4_2 : :gcc_4_0
+      when %r{^gcc-4.2} then :gcc_4_2
       when %r{^llvm}    then :llvm
       when %r{^clang}   then :clang
       else  # Make assumptions and then blindly guess.
         Xcode.version >= "4.3" ? :clang : \
-        Xcode.version >= "4.2" ? :llvm  : gcc_42_build_version ? :gcc : :gcc_4_0
+        Xcode.version >= "4.2" ? :llvm  : gcc_4_2_build_version ? :gcc_4_2 : :gcc_4_0
     end
   end # default_compiler
 
-  def gcc_40_build_version
-    @gcc_40_build_version ||= if (gcc = locate 'gcc-4.0') then Version.new(`#{gcc} --version`[/build (\d{4,})/, 1]); end
+  def gcc_4_0_build_version
+    @gcc_4_0_build_version ||= if (gcc = locate 'gcc-4.0') then ::Version.new(`#{gcc} --version`[/build (\d{4,})/, 1]); end
   end
-  alias_method :gcc_4_0_build_version, :gcc_40_build_version
 
-  def gcc_42_build_version
-    @gcc_42_build_version ||= if (gcc = locate("gcc-4.2") || OPTDIR/'apple-gcc42/bin/gcc-4.2') \
-                                  and gcc.exists? and gcc.realpath.basename.to_s !~ /^llvm/
-                                Version.new(`#{gcc} --version`[/build (\d{4,})/, 1])
-                              end
-  end # gcc_42_build_version
-  alias_method :gcc_build_version, :gcc_42_build_version
+  def gcc_4_2_build_version
+    @gcc_4_2_build_version ||= if (gcc = locate("gcc-4.2") || OPTDIR/'apple-gcc42/bin/gcc-4.2') \
+                                   and gcc.exists? and gcc.realpath.basename.to_s !~ /^llvm/
+                                 ::Version.new(`#{gcc} --version`[/build (\d{4,})/, 1])
+  end;                         end
 
   def llvm_build_version
     @llvm_build_version ||= if (path = locate 'llvm-gcc') and path.realpath.basename.to_s !~ /^clang/
-                              Version.new(`#{path} --version`[/LLVM build (\d{4,})/, 1])
-                            end
-  end
+                              ::Version.new(`#{path} --version`[/LLVM build (\d{4,})/, 1])
+  end;                      end
 
   def clang_version
-    @clang_version ||= if (path = locate 'clang') then Version.new(`#{path} --version`[/(?:clang|LLVM) version (\d\.\d)/, 1]); end
-  end
+    @clang_version ||= if (path = locate 'clang')
+                         ::Version.new(`#{path} --version`[/(?:clang|LLVM) version (\d\.\d)/, 1])
+  end;                 end
 
   def clang_build_version
-    @clang_build_version ||= if (path = locate 'clang') then Version.new(`#{path} --version`[/clang-(\d{2,})/, 1]); end
+    @clang_build_version ||= if (path = locate 'clang') then ::Version.new(`#{path} --version`[/clang-(\d{2,})/, 1]); end
   end
 
   def non_apple_gcc_version(cc)
@@ -108,12 +105,12 @@ module MacOS
         path = OPTDIR/"#{cc.gsub %r{[-.]}, ''}/bin/#{cc}"  # For example, `gcc-4.8` becomes {gcc48}.
         path = locate(cc) unless path.exists?
         version = `#{path} --version`[/gcc(?:-\d\d?(?:\.\d)? \(.+\))? (\d\d?\.\d\.\d)/, 1] if path
-        @non_apple_gcc_version[cc] = Version.new(version)
+        @non_apple_gcc_version[cc] = ::Version.new(version)
       end
   end # non_apple_gcc_version
 
   def clear_version_cache
-    @gcc_40_build_version = @gcc_42_build_version = @llvm_build_version = @clang_version = @clang_build_version = nil
+    @gcc_4_0_build_version = @gcc_4_2_build_version = @llvm_build_version = @clang_version = @clang_build_version = nil
     @non_apple_gcc_version = {}
   end
 
@@ -140,14 +137,14 @@ module MacOS
   end # macports_or_fink
 
   STANDARD_COMPILERS = {
-    "2.0"   => { :gcc_40_build => 4061 },
-    "2.5"   => { :gcc_40_build => 5370 },
-    "3.1.2" => { :gcc_40_build => 5490, :gcc_42_build => 5566 },
-    "3.1.4" => { :gcc_40_build => 5493, :gcc_42_build => 5577 },
-    "3.2.6" => { :gcc_40_build => 5494, :gcc_42_build => 5666, :llvm_build => 2335, :clang => "1.7", :clang_build => 77 },
-    "4.0"   => { :gcc_40_build => 5494, :gcc_42_build => 5666, :llvm_build => 2335, :clang => "2.0", :clang_build => 137 },
-    "4.0.1" => { :gcc_40_build => 5494, :gcc_42_build => 5666, :llvm_build => 2335, :clang => "2.0", :clang_build => 137 },
-    "4.0.2" => { :gcc_40_build => 5494, :gcc_42_build => 5666, :llvm_build => 2335, :clang => "2.0", :clang_build => 137 },
+    "2.0"   => { :gcc_4_0_build => 4061 },
+    "2.5"   => { :gcc_4_0_build => 5370 },
+    "3.1.2" => { :gcc_4_0_build => 5490, :gcc_4_2_build => 5566 },
+    "3.1.4" => { :gcc_4_0_build => 5493, :gcc_4_2_build => 5577 },
+    "3.2.6" => { :gcc_4_0_build => 5494, :gcc_4_2_build => 5666, :llvm_build => 2335, :clang => "1.7", :clang_build => 77 },
+    "4.0"   => { :gcc_4_0_build => 5494, :gcc_4_2_build => 5666, :llvm_build => 2335, :clang => "2.0", :clang_build => 137 },
+    "4.0.1" => { :gcc_4_0_build => 5494, :gcc_4_2_build => 5666, :llvm_build => 2335, :clang => "2.0", :clang_build => 137 },
+    "4.0.2" => { :gcc_4_0_build => 5494, :gcc_4_2_build => 5666, :llvm_build => 2335, :clang => "2.0", :clang_build => 137 },
     "4.2"   => { :llvm_build => 2336, :clang => "3.0", :clang_build => 211 },
     "4.3"   => { :llvm_build => 2336, :clang => "3.1", :clang_build => 318 },
     "4.3.1" => { :llvm_build => 2336, :clang => "3.1", :clang_build => 318 },

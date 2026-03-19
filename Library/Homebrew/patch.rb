@@ -24,7 +24,7 @@ module Patch
       else
         raise ArgumentError, "unexpected class #{strip.inspect} for strip"
     end # case strip
-  end # Patch⸬create
+  end # Patch::create
 
   def self.normalize_legacy_patches(list)
     patches = []
@@ -47,7 +47,7 @@ module Patch
           end # do each |url|
       end # do each pair |strip, urls|
     patches
-  end # Patch⸬normalize_legacy_patches
+  end # Patch::normalize_legacy_patches
 end # Patch
 
 class EmbeddedPatch

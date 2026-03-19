@@ -106,7 +106,7 @@ module SharedEnvTests
   end
 
   def test_switching_compilers_updates_compiler
-    [:clang, :llvm, :gcc, :gcc_4_0].each do |compiler|
+    [:clang, :llvm, :gcc_4_2, :gcc_4_0].each do |compiler|
       @env.send(compiler)
       assert_equal compiler, @env.compiler
     end

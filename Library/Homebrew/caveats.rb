@@ -256,7 +256,7 @@ class Caveats
         #{HOMEBREW_PREFIX}/share/emacs/site-lisp/
 
         Add the following to your init file to have Lisp packages installed by
-        Homebrew added to your load-path:
+        Leopardbrew added to your load-path:
         (let ((default-directory "#{HOMEBREW_PREFIX}/share/emacs/site-lisp/"))
           (normal-top-level-add-subdirs-to-load-path))
       EOS

@@ -1,14 +1,63 @@
+# Stable release 2025-12-10; checked 2026-03-16.
 class Bash < Formula
   desc 'Bourne-Again SHell, a UNIX command interpreter'
   homepage 'https://www.gnu.org/software/bash/'
-  url 'http://ftpmirror.gnu.org/bash/bash-5.2.37.tar.gz'
-  mirror 'https://mirrors.ocf.berkeley.edu/gnu/bash/bash-5.2.37.tar.gz'
-  mirror 'https://mirrors.kernel.org/gnu/bash/bash-5.2.37.tar.gz'
-  sha256 '9599b22ecd1d5787ad7d3b7bf0c59f312b3396d1e281175dd1f8a4014da621ff'
+  url 'http://ftpmirror.gnu.org/bash/bash-5.3.tar.gz'
+  mirror 'https://mirrors.ocf.berkeley.edu/gnu/bash/bash-5.3.tar.gz'
+  mirror 'https://mirrors.kernel.org/gnu/bash/bash-5.3.tar.gz'
+  version '5.3.9'
+  sha256 '0d5cd86965f869a26cf64f4b71be7b96f90a3ba8b3d74e27e8e9d9d5550f31ba'
 
   head 'http://git.savannah.gnu.org/r/bash.git'
 
-  STANDARD_BASH = (MacOS.version < :leopard ? '2.05' : '3.2')  # true even on Mac OS 15
+  stable do
+    patch :p0 do
+      url 'http://ftpmirror.gnu.org/bash/bash-5.3-patches/bash53-001'
+      sha256 '1f608434364af86b9b45c8b0ea3fb3b165fb830d27697e6cdfc7ac17dee3287f'
+    end
+
+    patch :p0 do
+      url 'http://ftpmirror.gnu.org/bash/bash-5.3-patches/bash53-002'
+      sha256 'e385548a00130765ec7938a56fbdca52447ab41fabc95a25f19ade527e282001'
+    end
+
+    patch :p0 do
+      url 'http://ftpmirror.gnu.org/bash/bash-5.3-patches/bash53-003'
+      sha256 'f245d9c7dc3f5a20d84b53d249334747940936f09dc97e1dcb89fc3ab37d60ed'
+    end
+
+    patch :p0 do
+      url 'http://ftpmirror.gnu.org/bash/bash-5.3-patches/bash53-004'
+      sha256 '9591d245045529f32f0812f94180b9d9ce9023f5a765c039b852e5dfc99747d0'
+    end
+
+    patch :p0 do
+      url 'http://ftpmirror.gnu.org/bash/bash-5.3-patches/bash53-005'
+      sha256 'cca1ef52dbbf433bc98e33269b64b2c814028efe2538be1e2c9a377da90bc99d'
+    end
+
+    patch :p0 do
+      url 'http://ftpmirror.gnu.org/bash/bash-5.3-patches/bash53-006'
+      sha256 '29119addefed8eff91ae37fd51822c31780ee30d4a28376e96002706c995ff10'
+    end
+
+    patch :p0 do
+      url 'http://ftpmirror.gnu.org/bash/bash-5.3-patches/bash53-007'
+      sha256 'c0976bbfffa1453c7cfdd62058f206a318568ff2d690f5d4fa048793fa3eb299'
+    end
+
+    patch :p0 do
+      url 'http://ftpmirror.gnu.org/bash/bash-5.3-patches/bash53-008'
+      sha256 '097cd723cbfb8907674ac32214063a3fd85282657ec5b4e544d2c0f719653fb4'
+    end
+
+    patch :p0 do
+      url 'http://ftpmirror.gnu.org/bash/bash-5.3-patches/bash53-009'
+      sha256 'eee30fe78a4b0cb2fe20e010e00308899cfc613e0774ebb3c8557a1552f24f8c'
+    end
+  end # stable
+
+  STANDARD_BASH = (MacOS.version < :leopard ? '2.05b' : '3.2')  # true even on Mac OS 10.3 and Mac OS 15
   SYSTEM_BASH = Pathname.new '/bin/bash'
   MOVED_BASH = Pathname.new "/bin/bash-#{STANDARD_BASH}"
   TO = HOMEBREW_PREFIX/'bin/to-brewed-bash'
@@ -21,9 +70,6 @@ class Bash < Formula
   depends_on 'readline'
   depends_on :nls => :recommended
 
-  # the circumstances that led to this patch were not recorded
-  patch :DATA
-
   def ensure_to_fro
     TO.binwrite switch_to unless TO.exists?
     FRO.binwrite switch_from unless FRO.exists?
@@ -33,12 +79,10 @@ class Bash < Formula
   def install
     ENV.universal_binary if build.universal?
 
-    # When built with SSH_SOURCE_BASHRC, bash will source ~/.bashrc when
-    # it's started non-interactively from sshd.  This allows the user to set
-    # environment variables prior to running the command (e.g. PATH).  The
-    # /bin/bash that ships with Mac OS X defines this, and without it, some
-    # things (e.g. git+ssh) will break if the user sets their default shell to
-    # Homebrew's bash instead of /bin/bash.
+    # When built with SSH_SOURCE_BASHRC, bash will source ~/.bashrc when it’s started non-interactively from sshd.  This allows the
+    # user to set environment variables prior to running the command (e.g. $PATH).  The /bin/bash that ships with Mac OS defines it,
+    # and without it, some things (e.g. git+ssh) will break if the user sets their default shell to Homebrew's bash rather than the
+    # system’s stock version.
     ENV.append_to_cflags '-DSSH_SOURCE_BASHRC'
 
     args = %W[
@@ -92,7 +136,7 @@ class Bash < Formula
   end # caveats
 
   test do
-    assert_equal 'hello', shell_output("#{bin}/bash -c 'echo hello'").strip
+    for_archs(bin/'bash') do |_, cmd_array| assert_equal 'hello', shell_output("#{cmd_array * ' '} -c 'echo hello'").strip; end
   end
 
   def switch_to; <<-_.undent
@@ -171,17 +215,3 @@ class Bash < Formula
     _
   end # switch_from
 end # Bash
-
-__END__
---- old/examples/loadables/getconf.c	2024-06-27 21:42:56.000000000 -0700
-+++ new/examples/loadables/getconf.c	2024-06-27 21:42:34.000000000 -0700
-@@ -271,7 +271,9 @@
- #endif
-     { "_NPROCESSORS_CONF", _SC_NPROCESSORS_CONF, SYSCONF },
-     { "_NPROCESSORS_ONLN", _SC_NPROCESSORS_ONLN, SYSCONF },
-+#ifdef _SC_PHYS_PAGES
-     { "_PHYS_PAGES", _SC_PHYS_PAGES, SYSCONF },
-+#endif
- #ifdef _SC_ARG_MAX
-     { "_POSIX_ARG_MAX", _SC_ARG_MAX, SYSCONF },
- #else

@@ -101,7 +101,7 @@ module Homebrew
     fi.interactive         = ARGV.interactive? || ARGV.git?
     fi.deps_do             = ARGV.dep_treatment
     fi.force               = ARGV.forced_install_type
-    fi.verbosity           = QUIETER ? :less : VERBOSE ? :full : nil
+    fi.verbosity           = ARGV.verbosity
     fi.prelude
     fi.install
   rescue FormulaInstallationAlreadyAttemptedError

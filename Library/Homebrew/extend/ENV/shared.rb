@@ -105,6 +105,8 @@ module SharedEnvExtension
 
   def cxx; self['CXX']; end
 
+  def cpp; self['CPP']; end
+
   def cflags; self['CFLAGS']; end
 
   def cxxflags; self['CXXFLAGS']; end
@@ -141,13 +143,15 @@ module SharedEnvExtension
       else MacOS.default_compiler; end
   end # compiler
 
+  def compiler_family; compiler == :clang ? :clang : :gcc; end
+
   def compiler_version; @compiler_version ||= CompilerSelector.compiler_version(compiler); end
 
   def compiler_path
     @compiler_path ||= \
       if compiler.to_s =~ GNU_GCC_REGEXP
         Formula[compiler.gsub(%r{[-.]}, '')].opt_bin/compiler
-      elsif compiler == :gcc
+      elsif compiler == :gcc_4_2
         if (gccpath = Pathname.new '/usr/bin/gcc-4.2').exists?
           gccpath
         else Formula['apple-gcc42'].opt_bin/'gcc-4.2'; end
@@ -158,29 +162,46 @@ module SharedEnvExtension
   def determine_cc; COMPILER_SYMBOL_MAP.invert.fetch(compiler, compiler); end
 
   # @private
+  def determine_cpp; determine_cc.to_s.gsub('gcc', 'cpp').sub(/clang$/, 'clang -E'); end
+
+  # @private
   def determine_cxx; determine_cc.to_s.gsub('gcc', 'g++').gsub('clang', 'clang++'); end
 
   COMPILERS.each do |compiler|
     define_method(compiler) do
       @compiler = compiler
-      # The assignment accessors take care of adding the archflags.
+      # The assignment accessors take care of adding the archflags.  (Except $CPP, which shouldn’t get any.)
       self.cc  = determine_cc
       self.cxx = determine_cxx
+      self.cpp = determine_cpp
     end
-  end # Define a method for each |compiler| in COMPILERS, for use exactly once during setup.
+  end # Define a method for each |compiler| in COMPILERS, normally used exactly once during setup.
+
+  def gcc_4_0_1
+    opoo 'Something called the ENV#gcc_4_0 method using the very old name gcc_4_0_1.  This is so obsolete it’s nearly a bug.'
+    gcc_4_0
+  end
 
   # lang is a symbol from the list {:c, :cxx, :fortran}.  This returns a language-revision symbol like :c11, :cxx95, or :f2003.
   def default_language_version(lang)
-    if ary = LANG_DEFAULT[compiler == :clang ? :clang : :gcc].fetch(lang) \
+    if ary = LANG_DEFAULT[compiler_family].fetch(lang) \
       and i = ary.find_index{ |h| k = h.keys.first and Version.new(k) > compiler_version }
     then ary[i - 1].values.first; end
   end
 
+  def supports_feature?(feature)
+    current_compiler = CompilerSelector::Compiler.new(compiler, compiler_version)
+    not CompilerFailure.for_standard(feature).any?{ |failure| failure === current_compiler }
+  end
+
   # revision is a symbol such as :c23, cxx11, or :f2008.
-  def supports?(revision)
-    lang = revision.to_s.match(%r{^([^0-9]+)})[1].to_sym
-    (hsh = LANG_SUPPORT[compiler == :clang ? :clang : :gcc].fetch lang) and
-      (min_v = Version.new hsh[revision]) and (compiler_version >= min_v)
+  def supports_language?(revision)
+    f_hash = LANG_SUPPORT[compiler_family] and l_hash = f_hash.fetch(revision.to_s.match(%r{^([^0-9]+)})[1].to_sym) \
+      and v = l_hash.fetch(revision) and Version.new(v) <= compiler_version
+  end # supports_language?()
+
+  def validate_feature_tag(tag)
+    CompilerFailure::COLLECTIONS.keys.include?(tag) or LANG_SUPPORT[:gcc].values.any?{ |hsh| hsh.keys.include?(tag) }
   end
 
   # Snow Leopard defines an NCURSES value the opposite of most distros.
@@ -276,14 +297,16 @@ module SharedEnvExtension
     end # no opt/ prefix
   end # warn_about_non_apple_gcc
 
-  # For when a :universal build is indicated, but the build about to be done isn’t to be part of it.
-  def single_arch_binary; Target.no_universal_binary; set_build_archs(Target.archset); end
+  # For when a :universal build is indicated, but the (portion of a) build about to be done isn’t to be included.
+  def single_arch_binary; Target.no_universal_binary; set_build_archs(Target.archset) unless @without_archflags; end
 
   def universal_binary
-    formula.active_spec.option(:universal) unless formula.options.include?('universal')
-    if ARGV.build_mode == :plain  # Note that this does nothing if the build mode is :bottL.
-      ARGV.force_universal_mode
-      formula.build.force_universal_mode
+    if formula
+      formula.class.option(:universal) unless formula.options.include?('cross')  # If :universal’s there, only :cross is guaranteed.
+      if ARGV.build_mode == :plain  # Note that this does nothing if the build mode is :bottle.
+        ARGV.force_universal_mode   # Note that the mode stays :plain if no default is set and there’s only one native architecture.
+        formula.build.force_universal_mode  # This calls HomebrewArgvExtension#force_universal_mode a second time, but now attached
+      end                                   # to the BuildOptions, where it doesn’t reiterate its effects on the environment.
     end
     Target.allow_universal_binary
     set_build_archs(Target.archset)
@@ -374,6 +397,8 @@ module SharedEnvExtension
     if val then self['CXX'] = self['OBJCXX'] = homebrew_cxx + ' ' + build_archs.as_arch_flags
     else        self['CXX'] = self['OBJCXX'] = ''; end
   end
+
+  def cpp=(val); self['CPP'] = self['CXXCPP'] = val ? val.to_s : ''; end
 
   def homebrew_cc; self['HOMEBREW_CC']; end
 

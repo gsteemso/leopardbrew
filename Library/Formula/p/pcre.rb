@@ -11,7 +11,7 @@ class Pcre < Formula
   option :universal
 
   # See https://github.com/mistydemeo/tigerbrew/issues/93
-  fails_with :gcc do
+  fails_with :gcc_4_2 do
     build 5553
     cause "One test failure on G4"
   end

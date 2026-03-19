@@ -23,7 +23,7 @@ class Libkate < Formula
   depends_on "libogg"
   depends_on "wxmac" => :optional
 
-  fails_with :gcc do
+  fails_with :gcc_4_2 do
     build 5666
     cause "Segfault during compilation"
   end

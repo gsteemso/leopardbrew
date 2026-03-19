@@ -252,13 +252,11 @@ module Superenv
   def noop(*_args); end
   noops = []
 
-  # These methods are no longer necessary under superenv, but are needed to
-  # maintain an interface compatible with stdenv.
+  # These methods are no longer necessary under superenv, but are needed to maintain an interface compatible with stdenv.
   noops.concat %w[fast O4 Og libxml2 set_cpu_flags macosxsdk remove_macosxsdk]
 
-  # These methods provide functionality that has not yet been ported to
-  # superenv.
-  noops.concat %w[gcc_4_0_1 minimal_optimization]
+  # These methods provide functionality that has not yet been ported to superenv.
+  noops << 'minimal_optimization'
 
   noops.each { |m| alias_method m, :noop }
 end # module Superenv

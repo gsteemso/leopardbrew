@@ -135,7 +135,7 @@ class Gcc6 < Formula
     version_suffix = version.to_s.slice(/\d\d?/)
 
     # Prevent libstdc++ being mis‐tagged with CPU subtype 10 (G4e).  See (https://github.com/mistydemeo/tigerbrew/issues/538).
-    ENV.append_to_cflags '-force_cpusubtype_ALL' if Target.model == :g3 and [:gcc_4_0, :gcc, :llvm].include? ENV.compiler
+    ENV.append_to_cflags '-force_cpusubtype_ALL' if Target.model == :g3 and [:gcc_4_0, :gcc_4_2, :llvm].include? ENV.compiler
 
     ENV['AS'] = ENV['AS_FOR_TARGET'] = "#{cctools_bin}/as"  # See the note at the conditional cctools dependency above.
     ENV['STAGE1_CFLAGS'] = ENV['BOOT_CFLAGS'] = ENV['CFLAGS_FOR_TARGET'] = '-g -Os'  # Optimize:  Size (per Apple, usually faster).

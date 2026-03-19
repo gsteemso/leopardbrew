@@ -17,19 +17,7 @@ class MediaInfo < Formula
   # fails to build against Leopard's older libcurl
   depends_on "curl" if MacOS.version < :snow_leopard
 
-  if MacOS.version < :snow_leopard
-    fails_with :gcc do
-      cause "Fails with the libstdc++ in Leopard and older"
-    end
-
-    fails_with :gcc_4_0 do
-      cause "Fails with the libstdc++ in Leopard and older"
-    end
-
-    fails_with :llvm do
-      cause "Fails with the libstdc++ in Leopard and older"
-    end
-  end
+  fails_with [:gcc_4_0, :gcc_4_2, :llvm] if MacOS.version <= :snow_leopard
 
   def install
     cd "ZenLib/Project/GNU/Library" do

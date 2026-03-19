@@ -15,7 +15,6 @@ class Curl < Formula
   option :universal
 
   option 'with-gnutls',        'Add GnuTLS security, independent of OpenSSL'
-  option 'with-rtmpdump',      'Support RTMP (streaming Flash)'
 
   option 'without-dns-extras', 'Omit asynchronous, internationalized, public‐suffix‐aware DNS'
   option 'without-frills',     'Omit every discretionary dependency except OpenSSL3'
@@ -25,7 +24,6 @@ class Curl < Formula
   option 'without-ssl',        'Omit OpenSSL security (recommend adding GnuTLS)'
   option 'without-zstd',       'Omit ZStandard compression'
 
-  deprecated_option 'with-rtmp'        => 'with-rtmpdump'
   deprecated_option 'with-ssh'         => 'with-libssh2'
   deprecated_option 'without-more-dns' => 'without-dns-extras'
 
@@ -49,10 +47,10 @@ class Curl < Formula
     depends_on     'zstd'       => :recommended
 
     depends_on 'gnutls'   => :optional
-    depends_on 'rtmpdump' => :optional
-
-    enhanced_by 'brotli'
   end
+
+  enhanced_by 'brotli'
+  enhanced_by 'rtmpdump'
 
   def install
     if build.universal?

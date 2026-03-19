@@ -6,8 +6,7 @@ class Re2c < Formula
   license :public_domain
 
   # Need a compiler with C++11 support, GCC 4.8.1 or newer.
-  fails_with :gcc_4_0
-  fails_with :gcc
+  needs :cxx11
 
   bottle do
     cellar :any_skip_relocation

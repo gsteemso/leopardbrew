@@ -6,8 +6,8 @@ class TTY
     def default; bold  39; end
     def cyan;    bold  36; end
     def blue;    bold  34; end
-    def gray;    bold  30; end  # bold black usually gets you an implementation-dependent shade of grey
-    alias_method :grey, :gray
+    def grey;    bold  30; end  # Bold black usually gets you an implementation-dependent shade of grey, provided that the terminal
+    alias_method :gray, :grey   # implements boldness via brightening.  If it doesn’t, this will not work out as you would hope.
     def green;   bold  32; end
     def magenta; bold  35; end
     def red;     bold  31; end
@@ -44,9 +44,9 @@ def ohai(title, *sput)
 end
 
 # Print a warning (do this rarely)
-def opoo(warning, *sput); $stderr.puts "#{TTY.ul_yellow}Warning#{TTY.reset}: #{warning}\n", sput; end
+def opoo(warning, *sput); $stderr.puts "#{TTY.ul_yellow}Warning#{TTY.reset}:  #{warning}\n", sput; end
 
-def onoe(error, *sput); $stderr.puts "#{TTY.ul_red}Error#{TTY.reset}: #{error}\n", sput; end
+def onoe(error, *sput); $stderr.puts "#{TTY.ul_red}Error#{TTY.reset}:  #{error}\n", sput; end
 
 def ofail(error, *sput); onoe error, sput; Homebrew.failed = true; end
 

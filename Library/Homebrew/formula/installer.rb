@@ -18,19 +18,10 @@ require "requirements/cctools_requirement"
 class FormulaInstaller
   include FormulaCellarChecks
 
-  # “*names” is a list of {Symbol}s.
-  def self.mode_attr_accessor(*names)
-    attr_accessor(*names)
-    private(*names)
-    names.each do |name|
-      predicate = "#{name}?"
-      define_method(predicate) { !!send(name) }
-      private(predicate)
-    end
-  end # FormulaInstaller⸬mode_attr_accessor()
-
   attr_reader :formula
+
   mode_attr_accessor :build_bottle, :debug, :git, :ignore_aids, :interactive, :show_install_heading, :show_summary_heading
+
   n_state_attr :deps_do       => [false, :ignore, :only],    # was ignore_deps / only_deps
                :force         => [false, :source, :bottle],  # was build_from_source / force_bottle
                :poured_bottle => [false, :done, :fail],      # was poured_bottle / pour_failed
@@ -193,8 +184,7 @@ class FormulaInstaller
         begin
           f = Formulary.factory(c.name)
         rescue TapFormulaUnavailableError
-          # If the formula name is fully qualified, silently ignore it as we don’t care about things from taps not currently tapped.
-          false
+          false  # Silently ignore fully‐qualified formula names, as we don’t care about things from taps not currently tapped.
         else f.linked_keg.exist? and f.opt_prefix.exist?
         end
       end # do select |c|
@@ -205,11 +195,11 @@ class FormulaInstaller
   def compute_dependencies
     req_map, req_deps = expand_requirements
     check_requirements(req_map)
-    deps = expand_dependencies(req_deps + formula.deps)
+    expand_dependencies(req_deps + formula.deps)
   end # compute_dependencies
 
-  # Check that each dependency in “deps” has a bottle available, terminating abnormally with a BuildToolsError if one or more don’t.
-  # Only invoked when the user has no developer tools.
+  # Check that each dependency in “deps” has a bottle available, aborting with a BuildToolsError if any don’t.  Only invoked if the
+  # user has no developer tools.
   # “deps” is a {Hash}, wherein each key is a {Dependency}.  We don’t care about the values.
   def check_dependencies_bottled(deps)
     unbottled = deps.reject{ |dep, _| dep.to_formula.pour_bottle? }
@@ -262,58 +252,35 @@ class FormulaInstaller
         else
           unsatisfied_reqs[dependent] << req
         end
-      end # recursive requirements |dependent|, |req|
+      end # recursive requirements |dependent, req|
     end # pop formula f
     [unsatisfied_reqs, deps]
   end # expand_requirements
 
   # “deps” is a {Dependencies} instance.
   def expand_dependencies(deps)
-    inherited_options = {}
-    expanded_deps = Dependency.expand(formula, deps) do |dependent, dep|
-        opts = inherited_options[dep.name] = inherited_options_for(dep)
-        build = effective_build_options_for(dependent, inherited_options.fetch(dependent.name, []))
-        if (dep.optional? or dep.recommended?) and build.without?(dep)
-          Dependency.prune
-        elsif dep.build? and install_bottle_for?(dependent, build)
-          Dependency.prune
-        elsif dep.satisfied?(opts)
-          Dependency.skip
-        end
-      end # do expand |dependent, dep|
-    expanded_deps.map { |dep| [dep, inherited_options[dep.name]] }
+    Dependency.expand(formula, deps) do |dependent, dep|
+      build = effective_build_options_for(dependent)
+      if (dep.discretionary? and build.without? dep) or (dep.build? and install_bottle_for? dependent, build) then Dependency.prune
+      elsif dep.satisfied? then Dependency.skip; end
+    end
   end # expand_dependencies
 
   # “dependent” is a {Formula}‐subclass instance.
-  # “inherited_options” is an optional {Options} instance.
-  def effective_build_options_for(dependent, inherited_options = [])
+  def effective_build_options_for(dependent)
     opt_args  = dependent.build.used_options
-    opt_args |= dependent == formula ? options : inherited_options
     opt_args |= Tab.for_formula(dependent, :active).used_options  # Prefer an active keg over the most current.
-
     BuildOptions.new(opt_args, dependent.options)
   end # effective_build_options_for
 
-  # “dep” is a {Dependency} instance.
-  def inherited_options_for(dep)
-    inherited_opts = Options.new
-    f = dep.to_formula
-    u = Option.new('universal')
-    inherited_opts << u if not dep.build? and f.build.universal? and \
-                                                        (options.include?(u) or ARGV.build_fat? or formula.require_universal_deps?)
-    inherited_opts
-  end # inherited_options_for
-
-  # “deps” is a {Hash} whose keys are {Dependency} instances and values are {Options} instances, which might contain a “--universal”
-  # {Option}.
+  # “deps” is an {Array} of {Dependency}s.
   def install_dependencies(deps)
-    if deps.empty? and deps_do_only?
-      puts "All dependencies for #{formula.full_name} are satisfied."
+    if deps.empty? then puts "All dependencies for #{formula.full_name} are satisfied." if deps_do_only?
     else
-      oh1 "Installing dependencies for #{formula.full_name}: #{TTY.green}#{deps.map(&:first)*", "}#{TTY.reset}" unless deps.empty?
-      deps.each{ |dep, opts| install_dependency(dep, opts) }
+      oh1 "Installing dependencies for #{formula.full_name}:  #{TTY.green}#{deps.list}#{TTY.reset}"
+      deps.each{ |dep| install_dependency(dep) }
+      @show_install_heading = true
     end
-    @show_install_heading = true unless deps.empty?
   end # install_dependencies
 
   # Installs the relocation tools (as provided by the cctools formula) as a hard dependency for any formula installed from a bottle
@@ -324,12 +291,12 @@ class FormulaInstaller
     dependency = cctools.to_dependency
     formula = dependency.to_formula
     return if cctools.satisfied? or @@attempted.include?(formula)
-    install_dependency(dependency, inherited_options_for(cctools))
+    install_dependency(dependency, {})
   end # install_relocation_tools
 
   class DependencyInstaller < FormulaInstaller; def skip_deps_check?; true; end; end
 
-  def install_dependency(dep, inherited_options)
+  def install_dependency(dep)
     df = dep.to_formula
     tab = Tab.for_formula(df, :active)  # Not necessarily a current version.
     # Correctly unlink things even if a different version is linked:
@@ -346,7 +313,6 @@ class FormulaInstaller
     di = DependencyInstaller.new(df)
     di.options           |= tab.used_options
     di.options           |= Tab.remap_deprecated_options(df.deprecated_options, dep.options)
-    di.options           |= inherited_options
     di.force              = force_source? ? :source : false
     di.verbosity          = verbosity_full? ? :full : false
     di.prelude
@@ -447,10 +413,7 @@ class FormulaInstaller
 
   def sanitized_ARGV_options
     args = Options.new
-    args << "--mode=#{case (bm = ARGV.build_mode); when :bottL then 'plain'; when :n8ive then 'native'; else bm; end}"
-
     args << (ARGV.bottle_arch ? "--bottle-arch=#{Target.arch}" : '--build-bottle') if build_bottle?
-
     args << '--ignore-dependencies' if deps_do_ignore?
     args << '--git' if git?
     args << '--interactive' if interactive?

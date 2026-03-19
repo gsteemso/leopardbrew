@@ -117,7 +117,7 @@ class Gcc8 < Formula
 
     # Prevent libstdc++ being mis‐tagged with CPU subtype 10 (G4e).  See (https://github.com/mistydemeo/tigerbrew/issues/538).
     # Note that we won’t have :gcc_4_0 or :llvm, as they are fails_with.
-    ENV.append_to_cflags '-force_cpusubtype_ALL' if Target.model == :g3 and ENV.compiler == :gcc
+    ENV.append_to_cflags '-force_cpusubtype_ALL' if Target.model == :g3 and ENV.compiler == :gcc_4_2
 
     ENV['AS'] = ENV['AS_FOR_TARGET'] = "#{cctools_bin}/as"  # See the note at the conditional cctools dependency above.
     ENV['POSTSTAGE1_LDFLAGS'] = '-undefined dynamic_lookup'

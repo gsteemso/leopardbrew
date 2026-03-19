@@ -19,7 +19,7 @@ class Nu < Formula
     cause "nu only builds with clang"
   end
 
-  fails_with :gcc do
+  fails_with :gcc_4_2 do
     build 5666
     cause "nu only builds with clang"
   end

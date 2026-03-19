@@ -21,7 +21,7 @@ class Resource
     def specs;   @resource.specs;   end
     def url;     @resource.url;     end
     def version; @resource.version; end
-  end # Resource⸬Download
+  end # Resource::Download
 
   def initialize(name = nil, &block)
     @checksum = nil
@@ -144,5 +144,5 @@ class Resource
     end
 
     def self.reset_count; @@patch_count = 0; end
-  end # Resource⸬Patch < Resource
+  end # Resource::Patch < Resource
 end # Resource

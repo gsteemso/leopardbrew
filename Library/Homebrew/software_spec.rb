@@ -20,6 +20,8 @@ class SoftwareSpec
   NATIVE_OPTION_TEXT = 'Build a universal binary for the architectures native to this computer'.freeze
   UNIVERSAL_OPTION_TEXT = 'Build a universal binary for the default set of architectures'.freeze
 
+  NLS_TEXT = 'Natural-Language Support (internationalization)'.freeze
+
   PREDEFINED_OPTIONS = {
     # The cross architecture‐set is always equal to or a superset of the local architecture‐set, which itself is always equal to or
     # a superset of the native architecture‐set, which is guaranteed to contain either one or two architectures exactly.
@@ -49,14 +51,10 @@ class SoftwareSpec
                             [ 'native',    NATIVE_OPTION_TEXT ],
                           ] \
                         ) \
-                      : (Target.local_archs.fat? \
-                        ? [ # The cross archset ≠ the single native arch, and the local archset is redundant with it.
-                            [ 'universal', UNIVERSAL_OPTION_TEXT ],
-                            [ 'cross',     CROSS_OPTION_TEXT ],
-                          ] \
-                        : # Only the cross architecture‐set is fat.
-                          [ [ 'cross',     CROSS_OPTION_TEXT ] ] \
-                      ) ) \
+                      : # The only architecture-set that can be built is the cross set, whether or not the local set is equal to it.
+                        # To have two options that do the same thing is useless, and potentially confusing to the user.
+                        [ [ 'cross', CROSS_OPTION_TEXT ] ] \
+                      ) \
                     : # No architecture‐sets are fat.
                       [] \
                   ),
@@ -140,24 +138,20 @@ class SoftwareSpec
 
   def option(name, description = '')
     opts = PREDEFINED_OPTIONS.fetch(name) do
-        raise ArgumentError, <<-_.undent if name == :cxx11
-          The :cxx11 option is obsolete, and should be replaced by a “needs” clause in
-          formulæ that won’t build without it.
-        _
-        raise ArgumentError, <<-_.undent if name == '32-bit'
-          The “32-bit” option is obsolete, & should be replaced by an ArchRequirement in
-          formulæ that won’t build without it.
-        _
-        if Symbol === name
+        if name == :cxx11
+          opoo 'The :cxx11 option is obsolete', 'Formulæ that won’t build without it should use a “needs” clause' if DEVELOPER
+          name = name.to_s
+        elsif name == '32-bit'
+          opoo 'The “32-bit” option is obsolete', 'Formulæ that won’t build without it should use an ArchRequirement' if DEVELOPER
+        elsif Symbol === name
           opoo "Passing arbitrary symbols to `option` is deprecated:  #{name.inspect}",
             'Symbols are reserved for future use – please pass a string instead'
           name = name.to_s
-        elsif not String === name
-          raise ArgumentError, 'option name in Formula (as passed to SoftwareSpec) is not a String'
+        elsif not String === name then raise ArgumentError, 'option name in Formula (as passed to SoftwareSpec) is not a String'
+        elsif name.empty? then raise ArgumentError, 'option name is required'
+        elsif name.length < 2 then raise ArgumentError, 'option name must be longer than one character'
+        elsif name.starts_with?('-') then raise ArgumentError, 'option name must not start with a dash'
         end
-        raise ArgumentError, 'option name is required' if name.empty?
-        raise ArgumentError, 'option name must be longer than one character' unless name.length > 1
-        raise ArgumentError, 'option name must not start with a dash' if name.starts_with?('-')
         [ [ name, description ] ]
       end # PREDEFINED_OPTIONS fetch‐failure block
     unless opts.empty?
@@ -184,35 +178,22 @@ class SoftwareSpec
     end # each |{old, new} optstrings|
   end # SoftwareSpec#deprecated_option
 
-  def depends_on(d_spec)
-    dep = dependency_collector.add(d_spec)
-    add_dep_option(dep) if dep
-  end
+  def depends_on(d_spec); if (dep = dependency_collector.add d_spec) then add_dep_option dep; end; end
 
 #  def depends_1_of(group)
-#    group = Hash.new(group => []) unless Hash === group
+#    group = Hash.new(group => []) unless group.is_a? Hash
 #    group_name, group_members = *(group.keys.first)
 #    group_tags = Array(group.values.first)
 #    d_set = dependency_collector.add_set(group)
 #    add_set_options(d_set) if d_set
 #  end # SoftwareSpec#depends_1_of
 
-  # depends_group takes a two-element array.  The first element is the group name and the second lists its constituent dependencies.
-  # The second element, the list, must be in the form of a single‐member hash:  the key is an array of formula names, and the value
-  # is an array of tags that must include either :optional or :recommended.  A member of the formula‐name array may itself be a one‐
-  # element hash:  The key is the formula name, and the value is an array of strings naming what option(s) it must be built with.
   def depends_group(group)
-    group_name, group_members = Array(group)
-    group_tags = Array(group_members.values.first)
-    group_members = Array(group_members.keys.first)
-    raise RuntimeError, "dependency group “#{group_name}” MUST have :optional or :recommended priority" \
-      unless group_tags.any?{ |tag| [:optional, :recommended].include? tag }
-    _deps = []
-    group_members.each{ |member|
-      _deps << dependency_collector.add(member.is_a?(Hash) ? {member.keys.first => (group_tags + member.values).uniq} \
-                                                           : {member => group_tags},
-                                        group_name) }
-    add_group_option(group_name, group_tags.detect{ |tag| [:optional, :recommended].include? tag }) unless _deps.empty?
+    group_name, members = Array(group)
+    group_tags = Array(members.values.first)
+    members = Array(members.keys.first)
+    if (gdep = GroupDependency.new group_name, group_tags, members, dependency_collector) and not gdep.subdeps.empty?
+      add_dep_option gdep; end
   end # SoftwareSpec#depends_group
 
   def enhanced_by(aid)
@@ -228,7 +209,7 @@ class SoftwareSpec
     end
     @active_enhancements = active_enhancements.concat(aids).uniq.sort{ |a, b| a.full_name <=> b.full_name } \
       if aids.all?{ |f| f and f.installed? }
-  end # enhanced_by
+  end # SoftwareSpec#enhanced_by
 
   def deps; dependency_collector.deps; end
 
@@ -250,30 +231,14 @@ class SoftwareSpec
     if Array === dep
       dep.each { |d| add_dep_option(d) }
     else
-      name = dep.option_name
-      if dep.optional? and not option_defined?("with-#{name}")
-        build.options << Option.new("with-#{name}",
-                                    name == 'nls' ? 'Build with Natural-Language Support (internationalization)' \
-                                                  : "Build with #{name} support")
-      elsif dep.recommended? and not option_defined?("without-#{name}")
-        build.options << Option.new("without-#{name}",
-                                    name == 'nls' ? 'Build without Natural-Language Support (internationalization)' \
-                                                  : "Build without #{name} support")
+      nm = dep.option_name
+      if dep.optional? and not option_defined?("with-#{nm}")
+        build.options << Option.new("with-#{nm}", nm == 'nls' ? "Build with #{NLS_TEXT}" : "Build with #{nm} support")
+      elsif dep.recommended? and not option_defined?("without-#{nm}")
+        build.options << Option.new("without-#{nm}", nm == 'nls' ? "Build without #{NLS_TEXT}" : "Build without #{nm} support")
       end
-    end
+    end # Array of deps?
   end # SoftwareSpec#add_dep_option
-
-  def add_group_option(group_name, priority)
-    if priority == :optional and not option_defined?("with-#{group_name}")
-      build.options << Option.new("with-#{group_name}",
-                                  group_name == 'nls' ? 'Build with Natural-Language Support (internationalization)' \
-                                                      : "Build with #{group_name} support")
-    elsif priority == :recommended and not option_defined?("without-#{group_name}")
-      build.options << Option.new("without-#{group_name}",
-                                  group_name == 'nls' ? 'Build without Natural-Language Support (internationalization)' \
-                                                      : "Build without #{group_name} support")
-    end
-  end # SoftwareSpec#add_group_option
 
   private
 
@@ -312,7 +277,7 @@ class Bottle
     def prefix; "#{name}-#{version}.#{tag}"; end
 
     def suffix; s = revision > 0 ? ".#{revision}" : ''; ".bottle#{s}.tar.gz"; end
-  end # Bottle⸬Filename
+  end # Bottle::Filename
 
   extend Forwardable
 

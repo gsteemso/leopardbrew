@@ -55,11 +55,7 @@ class Xulrunner < Formula
   depends_on "nss"
   depends_on "nspr"
 
-  fails_with :gcc do
-    cause "Mozilla XULRunner only supports Clang on OS X"
-  end
-
-  fails_with :llvm do
+  fails_with [:gcc_4_0, :gcc_4_2, :llvm] do
     cause "Mozilla XULRunner only supports Clang on OS X"
   end
 

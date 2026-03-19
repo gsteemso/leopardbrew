@@ -11,19 +11,22 @@ module Debrew
   module Raise
     def raise(*)
       super
+    rescue Interrupt, SignalException => e  # These cannot be made ignoreable.  Well, maybe, but mutex_m won’t work in an interrupt.
+      Debrew.debug(e)
+      super(e)
     rescue Exception => e
       e.extend(Ignorable)
       super(e) unless Debrew.debug(e) == :ignore
-    end # Debrew⸬Raise#raise
+    end # Debrew::Raise#raise
 
     alias_method :fail, :raise
-  end # Debrew⸬Raise
+  end # Debrew::Raise
 
   module Formula
     def install; Debrew.debrew { super }; end
     def patch;   Debrew.debrew { super }; end
     def test;    Debrew.debrew { super }; end
-  end # Debrew⸬Formula
+  end # Debrew::Formula
 
   class Menu
     Entry = Struct.new(:name, :action)
@@ -55,8 +58,8 @@ module Debrew
         end # menu selection
       end # wait for choice
       choice[:action].call
-    end # Debrew⸬Menu⸬choose
-  end # Debrew⸬Menu
+    end # Debrew::Menu::choose
+  end # Debrew::Menu
 
   @active = false
   @debugged_exceptions = Set.new
@@ -76,7 +79,7 @@ module Debrew
       rescue Exception => e; debug(e)
       ensure; @active = false
       end
-    end # Debrew⸬debrew
+    end # Debrew::debrew
 
     def debug(e)
       original_raise(e) unless active? and debugged_exceptions.add?(e) and try_lock
@@ -110,6 +113,6 @@ module Debrew
       ensure
         unlock
       end
-    end # Debrew⸬debug
+    end # Debrew::debug
   end # Debrew << self
 end # Debrew

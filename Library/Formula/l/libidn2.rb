@@ -37,7 +37,7 @@ class Libidn2 < Formula
       '--with-packager=Leopardbrew'
     ]
     args << '--disable-nls' if build.without? :nls
-    args << '--enable-year2038' if Target.pure_64b?
+    args << '--enable-year2038' if Target._64b?
     args << "--with-libiconv-prefix=#{Formula['libiconv'].opt_prefix}" if active_enhancements.include? 'libiconv'
 
     system './bootstrap', '--skip-po' if build.head?

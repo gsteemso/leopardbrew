@@ -15,7 +15,7 @@ class Duti < Formula
 
   depends_on "autoconf" => :build
 
-  fails_with :gcc do
+  fails_with :gcc_4_2 do
     build 5553
     cause "/Developer/SDKs/MacOSX10.4u.sdk/usr/include/stdarg.h:4:25: error: stdarg.h: No such file or directory"
   end

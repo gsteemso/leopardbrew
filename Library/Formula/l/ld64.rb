@@ -5,7 +5,7 @@ class Ld64 < Formula
   # patching.  Leopard users:  If you like, add a 127.2 option, or fix the build on Tiger.
   url "https://github.com/apple-oss-distributions/ld64/archive/refs/tags/ld64-97.17.tar.gz"
   sha256 "dc609d295365f8f5853b45e8dbcb44ca85e7dbc7a530e6fb5342f81d3c042db5"
-  revision 2
+  revision 3  # For the re‐de‐botched PPC constants / branch‐island logic.
 
   resource "makefile" do
     url "https://trac.macports.org/export/123511/trunk/dports/devel/ld64/files/Makefile-97", :using => :nounzip
@@ -19,8 +19,8 @@ class Ld64 < Formula
   depends_on MaximumMacOSRequirement => :snow_leopard
 
   # Tiger either includes old versions of these headers, or doesn't ship them at all.
-  depends_on "cctools-headers" => :build
   depends_on "dyld-headers" => :build
+  depends_on "ld64-headers" => :build
   depends_on "libunwind-headers" => :build
   # No CommonCrypto
   depends_on "openssl3" if MacOS.version < :leopard
@@ -87,17 +87,23 @@ __END__
  				else {
 -					const int64_t bl_eightMegLimit = 0x00FFFFFF;
 -					if ( (displacement > bl_eightMegLimit) || (displacement < (-bl_eightMegLimit)) ) {
-+					const int64_t bl_sixtyFourMegLimit = 0x01FFFFFF;
-+					if ( (displacement > bl_sixtyFourMegLimit) || (displacement < (-bl_sixtyFourMegLimit)) ) {
++					const int64_t bl_thirtyTwoMegLimit = 0x01FFFFFC;
++					if ( (displacement > bl_thirtyTwoMegLimit) || (displacement < -(bl_thirtyTwoMegLimit + 4)) ) {
  						//fprintf(stderr, "bl out of range (%lld max is +/-16M) from %s in %s to %s in %s\n", displacement, this->getDisplayName(), this->getFile()->getPath(), target.getDisplayName(), target.getFile()->getPath());
 -						throwf("bl out of range (%lld max is +/-16M) from %s at 0x%08llX in %s of %s to %s at 0x%08llX in %s of  %s",
 +						throwf("bl out of range (%lld max is +/-32M) from %s at 0x%08llX in %s of %s to %s at 0x%08llX in %s of  %s",
  							displacement, inAtom->getDisplayName(), inAtom->getAddress(), inAtom->getSectionName(), inAtom->getFile()->getPath(),
  							ref->getTarget().getDisplayName(), ref->getTarget().getAddress(), ref->getTarget().getSectionName(), ref->getTarget().getFile()->getPath());
  					}
-@@ -7584,7 +7584,7 @@
- 				const int64_t b_sixtyFourKiloLimit = 0x0000FFFF;
- 				if ( (displacement > b_sixtyFourKiloLimit) || (displacement < (-b_sixtyFourKiloLimit)) ) {
+@@ -7581,10 +7581,10 @@
+ 					// the mach-o way of encoding this is that the bl instruction's target addr is the offset into the target
+#'
+ 					displacement -= ref->getTarget().getAddress();
+ 				}
+-				const int64_t b_sixtyFourKiloLimit = 0x0000FFFF;
+-				if ( (displacement > b_sixtyFourKiloLimit) || (displacement < (-b_sixtyFourKiloLimit)) ) {
++				const int64_t b_thirtyTwoKiloLimit = 0x00007FFC;
++				if ( (displacement > b_thirtyTwoKiloLimit) || (displacement < -(b_thirtyTwoKiloLimit + 4)) ) {
  					//fprintf(stderr, "bl out of range (%lld max is +/-16M) from %s in %s to %s in %s\n", displacement, this->getDisplayName(), this->getFile()->getPath(), target.getDisplayName(), target.getFile()->getPath());
 -					throwf("bcc out of range (%lld max is +/-64K) from %s in %s to %s in %s",
 +					throwf("bcc out of range (%lld max is +/-32K) from %s in %s to %s in %s",
@@ -109,11 +115,11 @@ __END__
  {
  	int64_t displacement;
 -	const int64_t bl_sixteenMegLimit = 0x00FFFFFF;
-+	const int64_t bl_sixtyFourMegLimit = 0x01FFFFFF;
++	const int64_t bl_thirtyTwoMegLimit = 0x01FFFFFC;
  	if ( fTarget.getContentType() == ObjectFile::Atom::kBranchIsland ) {
  		displacement = getFinalTargetAdress() - this->getAddress();
 -		if ( (displacement > bl_sixteenMegLimit) && (displacement < (-bl_sixteenMegLimit)) ) {
-+		if ( (displacement > bl_sixtyFourMegLimit) || (displacement < (-bl_sixtyFourMegLimit)) ) {
++		if ( (displacement > bl_thirtyTwoMegLimit) || (displacement < -(bl_thirtyTwoMegLimit + 4)) ) {
  			displacement = fTarget.getAddress() - this->getAddress();
  		}
  	}
@@ -122,11 +128,11 @@ __END__
  {
  	int64_t displacement;
 -	const int64_t bl_sixteenMegLimit = 0x00FFFFFF;
-+	const int64_t bl_sixtyFourMegLimit = 0x01FFFFFF;
++	const int64_t bl_thirtyTwoMegLimit = 0x01FFFFFC;
  	if ( fTarget.getContentType() == ObjectFile::Atom::kBranchIsland ) {
  		displacement = getFinalTargetAdress() - this->getAddress();
 -		if ( (displacement > bl_sixteenMegLimit) && (displacement < (-bl_sixteenMegLimit)) ) {
-+		if ( (displacement > bl_sixtyFourMegLimit) || (displacement < (-bl_sixtyFourMegLimit)) ) {
++		if ( (displacement > bl_thirtyTwoMegLimit) || (displacement < -(bl_thirtyTwoMegLimit + 4)) ) {
  			displacement = fTarget.getAddress() - this->getAddress();
  		}
  	}

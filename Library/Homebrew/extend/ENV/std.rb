@@ -102,10 +102,8 @@ module Stdenv
   end
 
   def gcc_4_0; super; set_cpu_cflags "-march=nocona -mssse3"; end
-  alias_method :gcc_4_0_1, :gcc_4_0
 
-  def gcc; super; set_cpu_cflags; end
-  alias_method :gcc_4_2, :gcc
+  def gcc_4_2; super; set_cpu_cflags; end
 
   GNU_GCC_VERSIONS.each { |n| define_method(:"gcc-#{n}") do super; set_cpu_cflags; end }
 

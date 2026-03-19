@@ -14,16 +14,16 @@ class UsageError < RuntimeError; end
   class KegUnspecifiedError < UsageError; end
 
 # See also:
-# GitHub⸬AuthenticationFailedError  (in “utils.rb”)
-# GitHub⸬RateLimitExceededError
-# Keg⸬AlreadyLinkedError
-# Keg⸬LinkError
-#   Keg⸬ConflictError
-#   Keg⸬DirectoryNotWritableError
-# Migrator⸬MigrationNeededError
-# Migrator⸬MigratorDifferentTapsError
-# Migrator⸬MigratorNoOldnameError
-# Migrator⸬MigratorNoOldpathError
+# GitHub::AuthenticationFailedError  (in “utils.rb”)
+# GitHub::RateLimitExceededError
+# Keg::AlreadyLinkedError
+# Keg::LinkError
+#   Keg::ConflictError
+#   Keg::DirectoryNotWritableError
+# Migrator::MigrationNeededError
+# Migrator::MigratorDifferentTapsError
+# Migrator::MigratorNoOldnameError
+# Migrator::MigratorNoOldpathError
 
 class AlienCompilerError < ArgumentError
   def initialize(name)

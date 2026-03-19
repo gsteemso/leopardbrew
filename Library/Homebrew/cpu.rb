@@ -15,7 +15,7 @@ class CPU
                    when 18 then :powerpc
                    else :dunno
                  end
-    end # CPU⸬Sysctl⸬type
+    end # CPU::Sysctl::type
 
     def model
       @@model ||= \
@@ -75,7 +75,7 @@ class CPU
               else :dunno
             end
         end # case sysctl hw.cpufamily
-    end # CPU⸬Sysctl⸬model
+    end # CPU::Sysctl::model
 
     def cores; sysctl_int('hw.physicalcpu_max'); end
 
@@ -87,7 +87,7 @@ class CPU
           'machdep.cpu.extfeatures',
           'machdep.cpu.leaf7_features'
         ).split(' ').map { |s| s.downcase.to_sym }
-    end # CPU⸬Sysctl⸬features
+    end # CPU::Sysctl::features
 
     def _64b?; @@_64b ||= sysctl_bool('hw.cpu64bit_capable'); end
 
@@ -152,28 +152,28 @@ class CPU
 
     # TODO:  Properly account for optflags under Clang
     MODEL_DATA = {
-      :g3          => {:bits => 32, :type => :powerpc, :arch => :ppc,    :oldest => :g3,    :gcc => {:vrsn =>  4.0, :flags => '-mcpu=750'            }, :clang => {:vrsn => nil, :flags => '-mcpu=750'            },},
-      :g4          => {:bits => 32, :type => :powerpc, :arch => :ppc,    :oldest => :g4,    :gcc => {:vrsn =>  4.0, :flags => '-mcpu=7400'           }, :clang => {:vrsn => nil, :flags => '-mcpu=7400'           },},
-      :g4e         => {:bits => 32, :type => :powerpc, :arch => :ppc,    :oldest => :g4e,   :gcc => {:vrsn =>  4.0, :flags => '-mcpu=7450'           }, :clang => {:vrsn => nil, :flags => '-mcpu=7450'           },},
-      :g5          => {:bits => 64, :type => :powerpc, :arch => :ppc64,  :oldest => :g5,    :gcc => {:vrsn =>  4.0, :flags => '-mcpu=970'            }, :clang => {:vrsn => nil, :flags => '-mcpu=970'            },},
-      :core        => {:bits => 32, :type => :intel,   :arch => :i386,   :oldest => :core,  :gcc => {:vrsn =>  4.0, :flags => '-march=prescott'      }, :clang => {:vrsn => nil, :flags => '-march=prescott'      },},
-      :core2       => {:bits => 64, :type => :intel,   :arch => :x86_64, :oldest => :core2, :gcc => {:vrsn =>  4.2, :flags => '-march=core2'         }, :clang => {:vrsn => nil, :flags => '-march=core2'         },},
-      :penryn      => {:bits => 64, :type => :intel,   :arch => :x86_64, :oldest => :core2, :gcc => {:vrsn =>  4.2, :flags => '-march=core2 -msse4.1'}, :clang => {:vrsn => nil, :flags => '-march=core2 -msse4.1'},},
-      :nehalem     => {:bits => 64, :type => :intel,   :arch => :x86_64, :oldest => :core2, :gcc => {:vrsn =>  4.9, :flags => '-march=nehalem'       }, :clang => {:vrsn => nil, :flags => '-march=nehalem'       },},
-      :arrandale   => {:bits => 64, :type => :intel,   :arch => :x86_64, :oldest => :core2, :gcc => {:vrsn =>  4.9, :flags => '-march=westmere'      }, :clang => {:vrsn => nil, :flags => '-march=westmere'      },},
-      :sandybridge => {:bits => 64, :type => :intel,   :arch => :x86_64, :oldest => :core2, :gcc => {:vrsn =>  4.9, :flags => '-march=sandybridge'   }, :clang => {:vrsn => nil, :flags => '-march=sandybridge'   },},
-      :ivybridge   => {:bits => 64, :type => :intel,   :arch => :x86_64, :oldest => :core2, :gcc => {:vrsn =>  4.9, :flags => '-march=ivybridge'     }, :clang => {:vrsn => nil, :flags => '-march=ivybridge'     },},
-      :haswell     => {:bits => 64, :type => :intel,   :arch => :x86_64, :oldest => :core2, :gcc => {:vrsn =>  4.9, :flags => '-march=haswell'       }, :clang => {:vrsn => nil, :flags => '-march=haswell'       },},
-      :broadwell   => {:bits => 64, :type => :intel,   :arch => :x86_64, :oldest => :core2, :gcc => {:vrsn =>  4.9, :flags => '-march=broadwell'     }, :clang => {:vrsn => nil, :flags => '-march=broadwell'     },},
-      :skylake     => {:bits => 64, :type => :intel,   :arch => :x86_64, :oldest => :core2, :gcc => {:vrsn =>  6,   :flags => '-march=skylake'       }, :clang => {:vrsn => nil, :flags => '-march=skylake'       },},
-      :kabylake    => {:bits => 64, :type => :intel,   :arch => :x86_64, :oldest => :core2, :gcc => {:vrsn =>  6,   :flags => '-march=skylake'       }, :clang => {:vrsn => nil, :flags => '-march=skylake'       },},
-      :icelake     => {:bits => 64, :type => :intel,   :arch => :x86_64, :oldest => :core2, :gcc => {:vrsn =>  8,   :flags => '-march=icelake-client'}, :clang => {:vrsn => nil, :flags => '-march=icelake-client'},},
-      :cometlake   => {:bits => 64, :type => :intel,   :arch => :x86_64, :oldest => :core2, :gcc => {:vrsn =>  6,   :flags => '-march=skylake'       }, :clang => {:vrsn => nil, :flags => '-march=skylake'       },},
-      :a12         => {:bits => 64, :type => :arm,     :arch => :arm64,  :oldest => :a12,   :gcc => {:vrsn => 15,   :flags => '-mcpu=apple-m1'       }, :clang => {:vrsn => nil, :flags => '-mcpu=apple-m1'       },},
-      :m1          => {:bits => 64, :type => :arm,     :arch => :arm64,  :oldest => :a12,   :gcc => {:vrsn => 15,   :flags => '-mcpu=apple-m1'       }, :clang => {:vrsn => nil, :flags => '-mcpu=apple-m1'       },},
-      :m2          => {:bits => 64, :type => :arm,     :arch => :arm64,  :oldest => :a12,   :gcc => {:vrsn => 15,   :flags => '-mcpu=apple-m2'       }, :clang => {:vrsn => nil, :flags => '-mcpu=apple-m2'       },},
-      :m3          => {:bits => 64, :type => :arm,     :arch => :arm64,  :oldest => :a12,   :gcc => {:vrsn => 15,   :flags => '-mcpu=apple-m3'       }, :clang => {:vrsn => nil, :flags => '-mcpu=apple-m3'       },},
-      :m4          => {:bits => 64, :type => :arm,     :arch => :arm64,  :oldest => :a12,   :gcc => {:vrsn => 15,   :flags => '-mcpu=apple-m3'       }, :clang => {:vrsn => nil, :flags => '-mcpu=apple-m3'       },},
+      :g3          => {:bits => 32, :type => :powerpc, :arch => :ppc,    :oldest => :g3,    :gcc => {:vrsn =>  '4.0', :flags => '-mcpu=750'            }, :clang => {:vrsn => nil, :flags => '-mcpu=750'            },},
+      :g4          => {:bits => 32, :type => :powerpc, :arch => :ppc,    :oldest => :g4,    :gcc => {:vrsn =>  '4.0', :flags => '-mcpu=7400'           }, :clang => {:vrsn => nil, :flags => '-mcpu=7400'           },},
+      :g4e         => {:bits => 32, :type => :powerpc, :arch => :ppc,    :oldest => :g4e,   :gcc => {:vrsn =>  '4.0', :flags => '-mcpu=7450'           }, :clang => {:vrsn => nil, :flags => '-mcpu=7450'           },},
+      :g5          => {:bits => 64, :type => :powerpc, :arch => :ppc64,  :oldest => :g5,    :gcc => {:vrsn =>  '4.0', :flags => '-mcpu=970'            }, :clang => {:vrsn => nil, :flags => '-mcpu=970'            },},
+      :core        => {:bits => 32, :type => :intel,   :arch => :i386,   :oldest => :core,  :gcc => {:vrsn =>  '4.0', :flags => '-march=prescott'      }, :clang => {:vrsn => nil, :flags => '-march=prescott'      },},
+      :core2       => {:bits => 64, :type => :intel,   :arch => :x86_64, :oldest => :core2, :gcc => {:vrsn =>  '4.2', :flags => '-march=core2'         }, :clang => {:vrsn => nil, :flags => '-march=core2'         },},
+      :penryn      => {:bits => 64, :type => :intel,   :arch => :x86_64, :oldest => :core2, :gcc => {:vrsn =>  '4.2', :flags => '-march=core2 -msse4.1'}, :clang => {:vrsn => nil, :flags => '-march=core2 -msse4.1'},},
+      :nehalem     => {:bits => 64, :type => :intel,   :arch => :x86_64, :oldest => :core2, :gcc => {:vrsn =>  '4.9', :flags => '-march=nehalem'       }, :clang => {:vrsn => nil, :flags => '-march=nehalem'       },},
+      :arrandale   => {:bits => 64, :type => :intel,   :arch => :x86_64, :oldest => :core2, :gcc => {:vrsn =>  '4.9', :flags => '-march=westmere'      }, :clang => {:vrsn => nil, :flags => '-march=westmere'      },},
+      :sandybridge => {:bits => 64, :type => :intel,   :arch => :x86_64, :oldest => :core2, :gcc => {:vrsn =>  '4.9', :flags => '-march=sandybridge'   }, :clang => {:vrsn => nil, :flags => '-march=sandybridge'   },},
+      :ivybridge   => {:bits => 64, :type => :intel,   :arch => :x86_64, :oldest => :core2, :gcc => {:vrsn =>  '4.9', :flags => '-march=ivybridge'     }, :clang => {:vrsn => nil, :flags => '-march=ivybridge'     },},
+      :haswell     => {:bits => 64, :type => :intel,   :arch => :x86_64, :oldest => :core2, :gcc => {:vrsn =>  '4.9', :flags => '-march=haswell'       }, :clang => {:vrsn => nil, :flags => '-march=haswell'       },},
+      :broadwell   => {:bits => 64, :type => :intel,   :arch => :x86_64, :oldest => :core2, :gcc => {:vrsn =>  '4.9', :flags => '-march=broadwell'     }, :clang => {:vrsn => nil, :flags => '-march=broadwell'     },},
+      :skylake     => {:bits => 64, :type => :intel,   :arch => :x86_64, :oldest => :core2, :gcc => {:vrsn =>  '6',   :flags => '-march=skylake'       }, :clang => {:vrsn => nil, :flags => '-march=skylake'       },},
+      :kabylake    => {:bits => 64, :type => :intel,   :arch => :x86_64, :oldest => :core2, :gcc => {:vrsn =>  '6',   :flags => '-march=skylake'       }, :clang => {:vrsn => nil, :flags => '-march=skylake'       },},
+      :icelake     => {:bits => 64, :type => :intel,   :arch => :x86_64, :oldest => :core2, :gcc => {:vrsn =>  '8',   :flags => '-march=icelake-client'}, :clang => {:vrsn => nil, :flags => '-march=icelake-client'},},
+      :cometlake   => {:bits => 64, :type => :intel,   :arch => :x86_64, :oldest => :core2, :gcc => {:vrsn =>  '6',   :flags => '-march=skylake'       }, :clang => {:vrsn => nil, :flags => '-march=skylake'       },},
+      :a12         => {:bits => 64, :type => :arm,     :arch => :arm64,  :oldest => :a12,   :gcc => {:vrsn => '15',   :flags => '-mcpu=apple-m1'       }, :clang => {:vrsn => nil, :flags => '-mcpu=apple-m1'       },},
+      :m1          => {:bits => 64, :type => :arm,     :arch => :arm64,  :oldest => :a12,   :gcc => {:vrsn => '15',   :flags => '-mcpu=apple-m1'       }, :clang => {:vrsn => nil, :flags => '-mcpu=apple-m1'       },},
+      :m2          => {:bits => 64, :type => :arm,     :arch => :arm64,  :oldest => :a12,   :gcc => {:vrsn => '15',   :flags => '-mcpu=apple-m2'       }, :clang => {:vrsn => nil, :flags => '-mcpu=apple-m2'       },},
+      :m3          => {:bits => 64, :type => :arm,     :arch => :arm64,  :oldest => :a12,   :gcc => {:vrsn => '15',   :flags => '-mcpu=apple-m3'       }, :clang => {:vrsn => nil, :flags => '-mcpu=apple-m3'       },},
+      :m4          => {:bits => 64, :type => :arm,     :arch => :arm64,  :oldest => :a12,   :gcc => {:vrsn => '15',   :flags => '-mcpu=apple-m3'       }, :clang => {:vrsn => nil, :flags => '-mcpu=apple-m3'       },},
     }.freeze
 
     # What flags do you use when your CPU is newer than your compiler knows about?
@@ -189,7 +189,7 @@ class CPU
           else ''; end
         else ''
       end
-    end # CPU⸬gcc_flags_for_post_
+    end # CPU::gcc_flags_for_post_
 
     def type_data(t = type); TYPE_DATA.fetch(t); end
 
@@ -218,7 +218,7 @@ class CPU
         when :altivec,  :g5_64    then :powerpc
         when :intel_32, :intel_64 then :intel
       end  # Return nil for any other input.
-    end # CPU⸬type_of
+    end # CPU::type_of
 
     def arch_of(obj)
       case obj
@@ -230,7 +230,7 @@ class CPU
         when :intel_32     then :i386
         when :intel_64     then :x86_64
       end  # Return nil for any other input.
-    end # CPU⸬arch_of
+    end # CPU::arch_of
 
     def cores_as_words
       case cores
@@ -240,7 +240,7 @@ class CPU
         when 6 then 'hex'
         else cores
       end
-    end # CPU⸬cores_as_words
+    end # CPU::cores_as_words
 
     def feature?(name); features.include?(name); end
 
@@ -249,7 +249,7 @@ class CPU
     def _32b?; not _64b?; end
 
     # Can the current CPU and Mac OS combination can run an executable of “this” architecture?  Note that this question is distinct
-    # from whether it _will_ run it for policy reasons; see Target⸬will_run?() for that answer.
+    # from whether it _will_ run it for policy reasons; see Target::will_run?() for that answer.
     def can_run?(this)
       case type
         when :arm     then arm_can_run? this
@@ -257,7 +257,7 @@ class CPU
         when :powerpc then powerpc_can_run? this
         else false
       end
-    end # CPU⸬can_run?
+    end # CPU::can_run?
 
     private
 
@@ -270,7 +270,7 @@ class CPU
         when x86_64 then MacOS.darwin <= 27
         else false  # :i386, :ppc, :ppc64, :dunno
       end
-    end # CPU⸬arm_can_run?
+    end # CPU::arm_can_run?
 
     def intel_can_run?(this)
       case this
@@ -280,7 +280,7 @@ class CPU
         when :x86_64        then _64b?
         else false  # :dunno
       end
-    end # CPU⸬intel_can_run?
+    end # CPU::intel_can_run?
 
     def powerpc_can_run?(this)
       case this
@@ -288,6 +288,6 @@ class CPU
         when :ppc64 then _64b? and MacOS.version >= :tiger
         else false  # No forwards compatibility.
       end
-    end # CPU⸬ppc_can_run?
+    end # CPU::ppc_can_run?
   end # << self
 end # CPU

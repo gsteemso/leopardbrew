@@ -27,7 +27,7 @@ class Perl < Formula
                       # on it fail messily.
 
   if (build.with?('tests') or build.bottle?) and Target.prefer_64b? and not ARGV.force?
-    fails_with [:gcc, :gcc_4_0, :llvm]
+    fails_with [:gcc_4_0, :gcc_4_2, :llvm]
   end
 
   # installperl:  Rarely, .packlist files are created without write permissions.  (undocumented)
