@@ -140,78 +140,81 @@ class Bash < Formula
   end
 
   def switch_to; <<-_.undent
-    #!/bin/sh
-    #### This switches the active Bash from the stock version to the brewed version. ####
-    #### For use with Leopardbrew on Mac OS 10.4 onwards (untested on earlier OSes). ####
+      #!/bin/sh
+      #### This switches the active Bash from the stock version to the brewed version. ####
+      #### For use with Leopardbrew on Mac OS 10.4 onwards (untested on earlier OSes). ####
 
-    Links=([0]='/bin/bash' \\
-           [1]='/bin/sh' \\
-           [2]='/usr/bin/bashbug' \\
-           [3]='/usr/share/info/bash' \\
-           [4]='/usr/share/man/man1/bash' \\
-           [5]='/usr/share/man/man1/bashbug' \\
-           [6]='/usr/share/man/man1/sh')
-    Brew_Paths=([0]='/bin/bash' \\
-                [1]='/bin/bash' \\
-                [2]='/bin/bashbug' \\
-                [3]='/share/info/bash' \\
-                [4]='/share/man/man1/bash' \\
-                [5]='/share/man/man1/bashbug' \\
-                [6]='/share/man/man1/bash')
-    Extensions=([3]='.info' [4]='.1' [5]='.1' [6]='.1'); Link_Local=([6]='yes')
-    Pfx="$(brew --prefix)"; V_Ext="-${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]%[a-z]*}"
-    for i in 0 1 2 3 4 5 6; do
-      Link="${Links[$i]}${Extensions[$i]}"; gzLink="${Link}.gz"
-      if [ -e "$gzLink" ]; then if [ -L "$gzLink" ]; then sudo rm "$gzLink" else sudo gunzip "$gzLink"; fi; fi
-      if [ -e "$Link" ] && ! [ -L "$Link" ]; then sudo mv -f "$Link" "${Links[$i]}${V_Ext}${Extensions[$i]}"; fi
-      if [ "${Link_Local[$i]}" != 'yes' ]; then sudo ln -fs "${Pfx}/opt/bash${Brew_Paths[$i]}${Extensions[$i]}" "$Link"
-      else sudo ln -fs "${Brew_Paths[$i]##*/}${Extensions[$i]}" "$Link"; fi
-    done
+      Links=([0]='/bin/bash' \\
+             [1]='/bin/sh' \\
+             [2]='/usr/bin/bashbug' \\
+             [3]='/usr/share/info/bash' \\
+             [4]='/usr/share/man/man1/bash' \\
+             [5]='/usr/share/man/man1/bashbug' \\
+             [6]='/usr/share/man/man1/sh')
+      Brew_Paths=([0]='/bin/bash' \\
+                  [1]='/bin/bash' \\
+                  [2]='/bin/bashbug' \\
+                  [3]='/share/info/bash' \\
+                  [4]='/share/man/man1/bash' \\
+                  [5]='/share/man/man1/bashbug' \\
+                  [6]='/share/man/man1/bash')
+      Extensions=([3]='.info' [4]='.1' [5]='.1' [6]='.1'); Link_Local=([6]='yes')
+      Pfx="$(brew --prefix)"; V_Ext="-${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]%[a-z]*}"
+      for i in 0 1 2 3 4 5 6; do
+        Link="${Links[$i]}${Extensions[$i]}"; gzLink="${Link}.gz"
+        if [ -e "$gzLink" ]; then if [ -L "$gzLink" ]; then sudo rm "$gzLink" else sudo gunzip "$gzLink"; fi; fi
+        if [ -e "$Link" ] && ! [ -L "$Link" ]; then sudo mv -f "$Link" "${Links[$i]}${V_Ext}${Extensions[$i]}"; fi
+        if [ "${Link_Local[$i]}" != 'yes' ]; then sudo ln -fs "${Pfx}/opt/bash${Brew_Paths[$i]}${Extensions[$i]}" "$Link"
+        else sudo ln -fs "${Brew_Paths[$i]##*/}${Extensions[$i]}" "$Link"; fi
+      done
 
-    Compatibility_Name='bash_compat'
-    if [ "${BASH_VERSINFO[0]}" -lt '3' ] ||
-       [ "${BASH_VERSINFO[0]}" = '3' ] && [ "$((${BASH_VERSINFO[1]%[a-z]}))" -lt '1' ]
-    then Compatibility_Version='3.1'
-    else Compatibility_Version="${BASH_VERSINFO[0]}.$((${BASH_VERSINFO[1]%[a-z]}))"
-    fi
-    Compatibility_File="BASH_COMPAT='${Compatibility_Version}'"
-    sudo echo "$Compatibility_File" >| "/tmp/${Compatibility_Name}"
-    chmod 0644 "/tmp/${Compatibility_Name}"
-    sudo mv -f "/tmp/${Compatibility_Name}" "${Pfx}/etc/${Compatibility_Name}"
-    echo 'Future invocations of Bash will use the brewed version.'
+      Compatibility_Name='bash_compat'
+      if [ "${BASH_VERSINFO[0]}" -lt '3' ] ||
+         [ "${BASH_VERSINFO[0]}" = '3' ] && [ "$((${BASH_VERSINFO[1]%[a-z]}))" -lt '1' ]
+      then Compatibility_Version='3.1'
+      else Compatibility_Version="${BASH_VERSINFO[0]}.$((${BASH_VERSINFO[1]%[a-z]}))"
+      fi
+      Compatibility_File="BASH_COMPAT='${Compatibility_Version}'"
+      sudo echo "$Compatibility_File" >| "/tmp/${Compatibility_Name}"
+      chmod 0644 "/tmp/${Compatibility_Name}"
+      sudo mv -f "/tmp/${Compatibility_Name}" "${Pfx}/etc/${Compatibility_Name}"
+      echo 'Future invocations of Bash will use the brewed version.'
     _
   end # switch_to
 
   def switch_from; <<-_.undent
-    #!/bin/sh
-    #### This switches the active Bash from the brewed version back to the stock version. ####
-    #### For use with Leopardbrew on Mac OS 10.4 and later (is untested on earlier OSes). ####
-    shopt -s nullglob  # allows ignoring nonexistent combinations from patterns
+      #!/bin/sh
+      #### This switches the active Bash from the brewed version back to the stock version. ####
+      #### For use with Leopardbrew on Mac OS 10.4 and later (is untested on earlier OSes). ####
+      shopt -s nullglob  # allows ignoring nonexistent combinations from patterns
 
-    V_Ext=(/bin/bash-*); V_Ext="${V_Ext[0]#/bin/bash}"
-    if [ -z "$V_Ext" ]; then echo 'Your stock Bash is missing!' && exit 1; fi
+      V_Ext=(/bin/bash-*); V_Ext="${V_Ext[0]#/bin/bash}"
+      if [ -z "$V_Ext" ]; then echo 'Your stock Bash is missing!' && exit 1; fi
 
-    Links=([0]='/bin/bash' \\
-           [1]='/bin/sh' \\
-           [2]='/usr/bin/bashbug' \\
-           [3]='/usr/share/info/bash.info' \\
-           [4]='/usr/share/man/man1/bash.1' \\
-           [5]='/usr/share/man/man1/bashbug.1' \\
-           [6]='/usr/share/man/man1/sh.1')
-    Targets=([0]="bash${V_Ext}" \\
-             [1]="sh${V_Ext}" \\
-             [2]="bashbug${V_Ext}" \\
-             [3]="bash${V_Ext}.info" \\
-             [4]="bash${V_Ext}.1" \\
-             [5]="bashbug${V_Ext}.1" \\
-             [6]='bash.1')
-    for i in 0 1 2 3 4 5 6; do sudo ln -fs "${Targets[$i]}" "${Links[$i]}"; done
+      Links=([0]='/bin/bash' \\
+             [1]='/bin/sh' \\
+             [2]='/usr/bin/bashbug' \\
+             [3]='/usr/share/info/bash.info' \\
+             [4]='/usr/share/man/man1/bash.1' \\
+             [5]='/usr/share/man/man1/bashbug.1' \\
+             [6]='/usr/share/man/man1/sh.1')
+      Targets=([0]="bash${V_Ext}" \\
+               [1]="sh${V_Ext}" \\
+               [2]="bashbug${V_Ext}" \\
+               [3]="bash${V_Ext}.info" \\
+               [4]="bash${V_Ext}.1" \\
+               [5]="bashbug${V_Ext}.1" \\
+               [6]='bash.1')
+      for i in 0 1 2 3 4 5 6; do sudo ln -fs "${Targets[$i]}" "${Links[$i]}"; done
 
-    Disembrew_Files=($(brew --prefix){/bin/to-*-bash,/etc/bash_compat})
-    if ! [ -e "$(brew --cellar)/bash" ]; then
-      for File in "${Disembrew_Files[@]}"; do sudo rm -f "$File"; done
-    fi
-    echo 'Future invocations of Bash will use your system’s stock version.'
+      Disembrew_Files=($(brew --prefix){/bin/to-*-bash,/etc/bash_compat})
+      if ! [ -e "$(brew --cellar)/bash" ]; then
+        for File in "${Disembrew_Files[@]}"; do sudo rm -f "$File"; done
+      fi
+      echo 'Future invocations of Bash will use your system’s stock version.'
+      echo 'You should probably end your terminal session now and start a new one, to avoid'
+      echo 'severe complications.  Older Bashes can’t understand the function names used by'
+      echo 'much newer ones (such as our brewed version).'
     _
   end # switch_from
 end # Bash
