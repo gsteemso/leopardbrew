@@ -32,6 +32,8 @@ module SharedEnvExtension
     self['MAKEFLAGS'] ||= "-j#{make_jobs}"
   end # setup_build_environment
 
+  def initialize_build_mode; self['HOMEBREW_BUILD_MODE'] = self['HOMEBREW_BUILD_MODE'].choke || ARGV.build_mode.to_s; end
+
   def set_active_formula(f); @formula = f; end
 
   def delete_multiple(keys); h = {}; Array(keys).each{ |k| h[k] = delete(k) }; h; end
@@ -63,10 +65,7 @@ module SharedEnvExtension
     end
   end # prepend
 
-  def append_if_set(keys, value, separator = ' ')
-    _keys = Array(keys).select{ |k| self[k].choke }
-    append(_keys, value, separator)
-  end
+  def append_if_set(keys, value, separator = ' '); append(Array(keys).select{ |k| self[k].choke }, value, separator); end
 
   def not_already_in?(key, query)
     old = self[key]
@@ -74,15 +73,13 @@ module SharedEnvExtension
   end
 
   def append_path(key, dirname)
-    append key, dirname, File::PATH_SEPARATOR \
-      if File.directory?(dirname) and not_already_in?(key, dirname)
+    append key, dirname, File::PATH_SEPARATOR if File.directory?(dirname) and not_already_in?(key, dirname)
   end
 
   # Prepends a directory to a path.  Formula can’t find the pkgconfig file?  Point it to it!  Automatic for keg_only formulæ.
   # Example:  ENV.prepend_path 'PKG_CONFIG_PATH', "#{Formula['glib'].opt_lib}/pkgconfig"
   def prepend_path(key, dirname)
-    prepend key, dirname, File::PATH_SEPARATOR \
-      if File.directory?(dirname) and not_already_in?(key, dirname)
+    prepend key, dirname, File::PATH_SEPARATOR if File.directory?(dirname) and not_already_in?(key, dirname)
   end
 
   def prepend_create_path(key, path)
@@ -298,7 +295,8 @@ module SharedEnvExtension
   end # warn_about_non_apple_gcc
 
   # For when a :universal build is indicated, but the (portion of a) build about to be done isn’t to be included.
-  def single_arch_binary; Target.no_universal_binary; set_build_archs(Target.archset) unless @without_archflags; end
+  # Note that this does not set the build mode to :plain; rather, it temporarily blocks universal builds in spite of the build mode.
+  def single_arch_binary; Target.no_universal_binary; set_build_archs(Target.archset); end
 
   def universal_binary
     if formula
@@ -306,7 +304,7 @@ module SharedEnvExtension
       if ARGV.build_mode == :plain  # Note that this does nothing if the build mode is :bottle.
         ARGV.force_universal_mode   # Note that the mode stays :plain if no default is set and there’s only one native architecture.
         formula.build.force_universal_mode  # This calls HomebrewArgvExtension#force_universal_mode a second time, but now attached
-      end                                   # to the BuildOptions, where it doesn’t reiterate its effects on the environment.
+      end                                   # to the BuildOptions, where it doesn’t reïterate its effects on the environment.
     end
     Target.allow_universal_binary
     set_build_archs(Target.archset)
@@ -314,14 +312,15 @@ module SharedEnvExtension
 
   def set_build_archs(archset)
     archset = Array(archset).extend ALE unless archset.responds_to?(:fat?)
-    clear_compiler_archflags
-    if @without_archflags then @without_archflags = false; end
+    clear_compiler_archflags unless @without_archflags
     @build_archs = archset
     hba = homebrew_built_archs
     archset.each{ |a| hba << a unless hba.includes?(a) }
     self['HOMEBREW_BUILT_ARCHS'] = hba.as_build_archs
-    self['CMAKE_OSX_ARCHITECTURES'] = archset.as_cmake_arch_flags
-    set_compiler_archflags archset.as_arch_flags
+    unless @without_archflags
+      self['CMAKE_OSX_ARCHITECTURES'] = archset.as_cmake_arch_flags
+      set_compiler_archflags archset.as_arch_flags
+    end
     archset
   end # set_build_archs
 

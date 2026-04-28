@@ -23,7 +23,7 @@ class Option
 
   def to_name_s; value.choke ? "#{name}#{value}" : name; end
 
-  def <=>(o); return unless Option === o; (name <=> o.name).nope || value <=> o.value; end
+  def <=>(o); return unless Option === o; name <=> o.name; end
 
   def ==(o); instance_of?(o.class) and name == o.name; end
   alias_method :eql?, :==
@@ -94,5 +94,7 @@ class Options
 
   def inspect; "#<#{self.class.name}:  #{@options.to_a.inspect}>"; end
 
-  def list(connective = 'and'); @options.to_a.list(connective); end
+  def list_flags(connective = 'and'); @options.as_flags.list(connective); end
+
+  def list_names(connective = 'and'); @options.as_names.list(connective); end
 end # Options

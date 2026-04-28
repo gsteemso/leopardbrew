@@ -1,5 +1,6 @@
 class BuildOptions
-  attr_accessor :s_args, :options
+  attr_accessor :options  # FormulaInstaller needs to be able to set this.
+  attr_reader :s_args
 
   # Note that argument options not actually defined by the formula may be carried by a BuildOptions object.  This allows techniques
   # such as the (now obsolete) insertion of --universal flags for formulæ that define no universal option because they always build
@@ -8,14 +9,16 @@ class BuildOptions
   # This method expects two Options objects.
   # @private
   def initialize(arg_options, defined_options)
+    raise ArgumentError, 'BuildOptions#new:  non-Options argument supplied' \
+                                                               unless arg_options.is_a?(Options) and defined_options.is_a?(Options)
     @o_args = arg_options
-    @s_args = @o_args.map{ |o| o.to_s }.extend(HomebrewArgvExtension)
+    @s_args = @o_args.to_a.map{ |o| o.to_s }.extend(HomebrewArgvExtension)
     @options = defined_options
   end
 
   def fix_deprecation(deprecated_option)
     if i = s_args.index(deprecated_option.old_flag)
-      s_args[i] = deprecated_option.current_flag
+      @s_args[i] = deprecated_option.current_flag
       @o_args = @o_args - Option.new(deprecated_option.old)
       @o_args << Option.new(deprecated_option.current)
     end
@@ -110,7 +113,7 @@ class BuildOptions
   def used_options; options & @o_args; end
 
   # @private
-  def used_options__modeless; used_options - Options.create(%w[cross local native universal]); end
+  def used_options__modeless; used_options - Options.create(%w[cross local native universal mode=]); end
 
   # @private
   def unused_options; options - @o_args; end

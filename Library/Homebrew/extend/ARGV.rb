@@ -319,16 +319,17 @@ module HomebrewArgvExtension
 
   def universal_mode_with_priority
     n = length
-    options_only.reverse_each do |opt|
+    self.reverse_each do |arg|
       n = n - 1
-      case opt
-        when '--universal', '-u' then if (m = ENV['HOMEBREW_UNIVERSAL_MODE'].choke)
-                                        @n = nil; return validate_universal_mode m
-                                      else @n = n; return Target.default_universal_mode; end
-        when *U_MODE_OPTS.keys   then @n = n; return U_MODE_OPTS[opt]
-        when %r{^--mode=(.+)$}   then @n = n; return validate_build_mode($1)
+      next unless arg.starts_with?('-')
+      case arg
+        when '--universal', '-u'  then if (m = ENV['HOMEBREW_UNIVERSAL_MODE'].choke)
+                                         @n = nil; return validate_universal_mode m
+                                       else @n = n; return Target.default_universal_mode; end
+        when *U_MODE_OPTS.keys    then @n = n; return U_MODE_OPTS[arg]
+        when %r{^--mode(?:=.+)?$} then return validate_build_mode(value 'mode')
       end
-    end # each option |opt| in reverse order
+    end # each argument |arg| in reverse order
     @n = nil
   end # universal_mode_with_priority
 

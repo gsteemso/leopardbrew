@@ -100,8 +100,7 @@ rescue BuildError => e
 rescue RuntimeError, SystemCallError => e
   raise if e.message.empty?; onoe e; $stderr.puts e.backtrace if DEBUG; exit 1
 rescue Exception => e
-  onoe e
-  if internal_cmd then $stderr.puts "#{TTY.white}Please report this bug:\n    #{TTY.em}#{ISSUES_URL}#{TTY.reset}"; end
+  onoe e; $stderr.puts("#{TTY.white}Please report this bug:\n    #{TTY.em}#{ISSUES_URL}#{TTY.reset}") if internal_cmd
   $stderr.puts e.backtrace if DEBUG; exit 1
 else
   exit 1 if Homebrew.failed?

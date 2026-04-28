@@ -14,6 +14,7 @@ module EnvActivation
     else
       extend(Stdenv)
     end
+    initialize_build_mode unless ENV['HOMEBREW_BUILD_MODE'].choke
   end
 
   def with_build_environment

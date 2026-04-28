@@ -41,7 +41,7 @@ end # ALE
 
 module MachO  # only useable when included in Pathname
   # @private
-  AR_MAGIC = "!<arch>\n".freeze
+  AR_MAGIC = '!<arch>\n'.freeze
   AR_MEMBER_HDR_SIZE = 60.freeze
   FILE_SIGNATURES = {
       0xcafebabe => :FAT_MAGIC,
@@ -64,9 +64,7 @@ module MachO  # only useable when included in Pathname
     }.freeze
   MAX_FAT_COUNT = 30.freeze  # 3 times Apple’s historical limit
 
-  # Mach-O binary methods, see:
-  # <mach-o/loader.h>
-  # <mach-o/fat.h>
+  # Mach-O binary methods.  See <mach-o/loader.h> and <mach-o/fat.h>.
   # @private
   def mach_data
     @mach_data ||= \
@@ -79,25 +77,24 @@ module MachO  # only useable when included in Pathname
             @fat_container = true
             if (fct = fat_count_at(0)) and fct > 0
               fct.times do |i|
-                # The second uint32 is the number of `struct fat_arch` in the file.  Each `struct fat_arch` is 5 uint32 (net 20
-                # octets); the `offset` member is the 3rd (8 octets into the struct), with an additional 8‐octet offset due to the
-                # two-uint32 `struct fat_header` at the beginning of the file.
-                candidate = binread(4, 16 + 20*i).unpack("N").first
+                # The second uint32 (i.e., the latter half of the leading `struct fat_header`) gives the number of `struct fat_arch`
+                # in the file.  Each `struct fat_arch` occupies five uint32 (net 20 octets).  `offset` is the third of these (eight
+                # octets into the struct, further offset by the eight octets of the initial `struct fat_header`).
+                candidate = binread(4, 16 + 20*i).unpack('N').first
                 offsets << (ar_sigseek_from(candidate) or candidate)
-              end
-            end
-          else
+              end # do |i|
+            end # fat_count > 0
+          else # not :FAT_MAGIC
             @fat_container = false
             offsets << 0 # single arch (:MH_MAGIC or :MH_MAGIC_64)
-          end # mach-O signature?
-        end # signatures?
+          end # :FAT_MAGIC?
+        end # mach-O signature?
         offsets.each do |offset|
-          if size >= (offset + 16)  # Mach headers:  Of the 7 uint32 in the header, we only care about the first 4 (net 16 octets).
-            # The first (at offset + 0) is the signature, the second (at offset + 4) is the CPU type (with flags in the high‐order
-            # octet), the third (at offset + 8) is the CPU subtype (with flags in the high‐order octet), & the fourth (at offset +
-            # 12) is the Mach file type.
+          if size >= (offset + 16)  # Of the seven uint32 in a Mach-O file header, only the first four (net 16 octets) matter to us.
+            # The first (at offset + 0) is the signature.  The second and third (at offset + 4 and offset + 8) are the CPU type and
+            # subtype, respectively (each with flags in the high‐order octet).  The fourth (at offset + 12) is the Mach file type.
             sig, cputype, cpu_subtype, mach_filetype = binread(16, offset).unpack('NNNN')
-            sig = FILE_SIGNATURES[sig & 0xfffffffe]
+            sig = FILE_SIGNATURES[sig & 0xfffffffe]  # mask out the 64‐bit flag
             arch = if sig == :MH_MAGIC
                      case cputype
                        when 0x00000007 then :i386
@@ -105,13 +102,13 @@ module MachO  # only useable when included in Pathname
                        when 0x01000007 then :x86_64
                        when 0x0100000c then :arm64
                        when 0x01000012 then :ppc64
-                       else :dunno
+                       else nil
                      end
                    end # determine arch
             data << { :arch => arch,
                       :cpu_subtype => cpu_subtype,
                       :type => MACH_FILE_TYPE[mach_filetype]
-              } unless arch == :dunno
+              } if arch
           end # valid offset
         end # each offset
         data.uniq
@@ -121,7 +118,7 @@ module MachO  # only useable when included in Pathname
   end # mach_data
 
   def archs
-    @archs ||= mach_data.map{ |m| m.fetch :arch, :dunno }.uniq.extend(ALE)
+    @archs ||= mach_data.map{ |m| m[:arch] }.uniq.extend(ALE)
   end
 
   def arch
@@ -217,11 +214,11 @@ module MachO  # only useable when included in Pathname
     end
 
     def parse_otool_L_output
-      ENV["HOMEBREW_MACH_O_FILE"] = path.expand_path.to_s
+      ENV['HOMEBREW_MACH_O_FILE'] = path.expand_path.to_s
       libs = `#{MacOS.otool} -L "$HOMEBREW_MACH_O_FILE"`.split("\n")
       unless $?.success?
         raise ErrorDuringExecution.new(MacOS.otool,
-          ["-L", ENV["HOMEBREW_MACH_O_FILE"]])
+          ['-L', ENV['HOMEBREW_MACH_O_FILE']])
       end
       libs.shift # first line is the filename
       id = libs.shift[OTOOL_RX, 1] if path.dylib?
@@ -229,7 +226,7 @@ module MachO  # only useable when included in Pathname
 
       return id, libs
     ensure
-      ENV.delete "HOMEBREW_MACH_O_FILE"
+      ENV.delete 'HOMEBREW_MACH_O_FILE'
     end # parse_otool_L_output
   end # Mach::Metadata
 

@@ -1,19 +1,19 @@
-require "cxxstdlib"
-require "exceptions"
-require "formula"
-require "keg"
-require "tab"
-require "bottles"
-require "caveats"
-require "cleaner"
-require "formula/cellar_checks"
-require "install_renamed"
-require "cmd/tap"
-require "cmd/postinstall"
-require "hooks/bottles"
-require "debrew"
-require "sandbox"
-require "requirements/cctools_requirement"
+require 'cxxstdlib'
+require 'exceptions'
+require 'formula'
+require 'keg'
+require 'tab'
+require 'bottles'
+require 'caveats'
+require 'cleaner'
+require 'formula/cellar_checks'
+require 'install_renamed'
+require 'cmd/tap'
+require 'cmd/postinstall'
+require 'hooks/bottles'
+require 'debrew'
+require 'sandbox'
+require 'requirements/cctools_requirement'
 
 class FormulaInstaller
   include FormulaCellarChecks
@@ -69,7 +69,7 @@ class FormulaInstaller
     return false if force_source? or build_bottle? or interactive?
     return false unless options.empty?
     return true  if formula.local_bottle_path
-    return false unless bottle && formula.pour_bottle?
+    return false unless bottle and formula.pour_bottle?
     unless bottle.compatible_cellar?
       opoo "Building source; cellar of #{formula.full_name}’s bottle is #{bottle.cellar}" if install_bottle_options[:warn]
       return false
@@ -161,7 +161,7 @@ class FormulaInstaller
         else
           onoe e.message
         end
-        opoo "Bottle installation failed:  Building from source."
+        opoo 'Bottle installation failed:  Building from source.'
         raise BuildToolsError.new([formula]) unless MacOS.has_apple_developer_tools?
       else
         poured_bottle = :done
@@ -347,14 +347,14 @@ class FormulaInstaller
 
     unless c.empty?
       @show_summary_heading = true
-      ohai "Caveats", c.caveats
+      ohai 'Caveats', c.caveats
     end
   end # caveats
 
   def finish
     return if deps_do_only?
 
-    ohai "Finishing up" if verbosity?
+    ohai 'Finishing up' if verbosity?
 
     install_plist
 
@@ -367,7 +367,7 @@ class FormulaInstaller
 
     if formula.post_install_defined?
       if build_bottle?
-        ohai "Not running post_install as we're building a bottle"
+        ohai 'Not running post_install as we’re building a bottle'
         puts "You can run it manually using `brew postinstall #{formula.full_name}`"
       else
         post_install
@@ -376,17 +376,17 @@ class FormulaInstaller
 
     caveats
 
-    ohai "Summary" if verbosity? or show_summary_heading?
+    ohai 'Summary' if verbosity? or show_summary_heading?
     puts summary
 
     # let's reset Utils.git_available? if we just installed git
-    Utils.clear_git_available_cache if formula.name == "git"
+    Utils.clear_git_available_cache if formula.name == 'git'
   ensure
     unlock
   end # finish
 
   def summary
-    s = ""
+    s = ''
     s << "#{HOMEBREW_INSTALL_BADGE}  " if MacOS.version >= :lion and not NO_EMOJI
     s << "#{formula.prefix}:  #{formula.prefix.abv}"
     s << ", built in #{pretty_duration build_time}" if build_time
@@ -425,13 +425,13 @@ class FormulaInstaller
     if ARGV.env
       args << "--env=#{ARGV.env}"
     elsif formula.env.std?
-      args << "--env=std"
+      args << '--env=std'
     end
 
     if formula.head?
-      args << "--HEAD"
+      args << '--HEAD'
     elsif formula.devel?
-      args << "--devel"
+      args << '--devel'
     end
 
     args
@@ -459,11 +459,11 @@ class FormulaInstaller
       #{formula.path}
     ]).concat(build_argv)
     args.unshift('nice', BREW_NICE_LEVEL) if BREW_NICE_LEVEL
-    $stderr.puts "Build command line:  “#{args * ' '}”" if DEBUG
+    $stderr.puts "Build command line:  “#{args * ' '}”\n    $HOMEBREW_BUILD_MODE:  “#{ENV['HOMEBREW_BUILD_MODE']}”" if DEBUG
 
     # Ruby 2.0+ sets close-on-exec by default on all file descriptors except 0, 1, & 2, so we must tell it we want the pipe to stay
     # open in the child process.  This argument is silently removed when `exec` interprets it; the system does not see it.
-    args << { write => write } if RUBY_VERSION >= "2.0"
+    args << { write => write } if RUBY_VERSION >= '2.0'
 
     pid = fork do
       begin
@@ -487,11 +487,11 @@ class FormulaInstaller
       read.close
       Process.wait(pid)
       raise Marshal.load(data) unless data.nil? or data.empty?
-      raise Interrupt, "User interrupted build" if $?.exitstatus == 130
-      raise "Suspicious installation failure (build process silently exited)" unless $?.success?
+      raise Interrupt, 'User interrupted build' if $?.exitstatus == 130
+      raise 'Suspicious installation failure (build process silently exited)' unless $?.success?
     end # quietly ignore interrupts
 
-    raise "Empty installation" if Dir["#{formula.prefix}/*"].empty?
+    raise 'Empty installation' if Dir["#{formula.prefix}/*"].empty?
   end # build
 
   def link(keg)
@@ -508,12 +508,12 @@ class FormulaInstaller
     end
 
     if keg.linked?
-      opoo "This keg was marked linked already, continuing anyway"
+      opoo 'This keg was marked linked already, continuing anyway'
       keg.remove_linked_keg_record
     end
 
     link_overwrite_backup = {} # Hash: conflict file -> backup file
-    backup_dir = HOMEBREW_CACHE/"Backup"
+    backup_dir = HOMEBREW_CACHE/'Backup'
 
     begin
       keg.link
@@ -526,26 +526,26 @@ class FormulaInstaller
         link_overwrite_backup[conflict_file] = backup_file
         retry
       end
-      onoe "The `brew link` step did not complete successfully"
+      onoe 'The `brew link` step did not complete successfully'
       puts "The formula built, but is not symlinked into #{HOMEBREW_PREFIX}"
       puts e
       puts
-      puts "Possible conflicting files are:"
+      puts 'Possible conflicting files are:'
       mode = OpenStruct.new(:dry_run => true, :overwrite => true)
       keg.link(mode)
       @show_summary_heading = true
       Homebrew.failed = true
     rescue Keg::LinkError => e
-      onoe "The `brew link` step did not complete successfully"
+      onoe 'The `brew link` step did not complete successfully'
       puts "The formula built, but is not symlinked into #{HOMEBREW_PREFIX}"
       puts e
       puts
-      puts "You can try again using:"
+      puts 'You can try again using:'
       puts "    brew link #{formula.name}"
       @show_summary_heading = true
       Homebrew.failed = true
     rescue Exception => e
-      onoe "An unexpected error occurred during the `brew link` step"
+      onoe 'An unexpected error occurred during the `brew link` step'
       puts "The formula built, but is not symlinked into #{HOMEBREW_PREFIX}"
       puts e
       puts e.backtrace if debug?
@@ -568,7 +568,7 @@ class FormulaInstaller
     end # keg.link
 
     unless link_overwrite_backup.empty?
-      opoo "These files were overwritten during `brew link` step:"
+      opoo 'These files were overwritten during `brew link` step:'
       puts link_overwrite_backup.keys
       puts
       puts "They have been backed up in #{backup_dir}"
@@ -580,10 +580,10 @@ class FormulaInstaller
     return unless formula.plist
     formula.plist_path.atomic_write(formula.plist)
     formula.plist_path.chmod 0644
-    log = formula.var/"log"
+    log = formula.var/'log'
     log.mkpath if formula.plist.include? log.to_s
   rescue Exception => e
-    onoe "Failed to install plist file"
+    onoe 'Failed to install plist file'
     ohai e, e.backtrace if debug?
     Homebrew.failed = true
   end # install_plist
@@ -591,20 +591,20 @@ class FormulaInstaller
   def fix_install_names(keg)
     keg.fix_install_names
   rescue Exception => e
-    onoe "Failed to fix install names"
-    puts "The formula built, but you may encounter issues using it or linking other"
-    puts "formulæ against it."
+    onoe 'Failed to fix install names'
+    puts 'The formula built, but you may encounter issues using it or linking other'
+    puts 'formulæ against it.'
     ohai e, e.backtrace if debug?
     Homebrew.failed = true
     @show_summary_heading = true
   end # fix_install_names
 
   def clean
-    ohai "Cleaning" if verbosity?
+    ohai 'Cleaning' if verbosity?
     Cleaner.new(formula).clean
   rescue Exception => e
-    opoo "The cleaning step did not complete successfully"
-    puts "Still, the installation was successful, so we will link it into your prefix"
+    opoo 'The cleaning step did not complete successfully'
+    puts 'Still, the installation was successful, so we will link it into your prefix'
     ohai e, e.backtrace if debug?
     Homebrew.failed = true
     @show_summary_heading = true
@@ -613,7 +613,7 @@ class FormulaInstaller
   def post_install
     formula.run_post_install
   rescue Exception => e
-    opoo "The post-install step did not complete successfully"
+    opoo 'The post-install step did not complete successfully'
     puts "You can try again using `brew postinstall #{formula.full_name}`"
     ohai e, e.backtrace if debug?
     Homebrew.failed = true

@@ -54,7 +54,8 @@ module MacOS
       # First query Xcode itself
       opts << Utils.popen_read(locate("xcodebuild"), "-version", "-sdk", "macosx#{v}", "Path").chomp
       # Xcode.prefix is pretty smart, so let’s look inside to find the sdk
-      opts << "#{Xcode.prefix}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX#{v}.sdk"
+      opts << "#{Xcode.prefix}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX#{v}.sdk" \
+           << "#{Xcode.prefix}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk"
       # Xcode < 4.3 style
       opts << Dir["/Developer/SDKs/MacOSX#{v}*.sdk"].first  # catches “MacOSX10.4u.sdk”
       @sdk_path[key] = opts.map{ |a| Pathname.new(a) }.detect(&:directory?)

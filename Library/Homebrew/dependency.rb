@@ -37,14 +37,13 @@ class Dependency
 
   def installed?; to_formula.installed?; end
 
-  def installed_archs_are_a_superset?
-    keg = Keg.for(to_formula.prefix)
-    keg and Target.archset.all?{ |ta| keg.built_archs.any?{ |ba| ba == ta } }
-  end
+  def installed_archs_are_a_superset?; keg = to_keg and Target.archset.all?{ |ta| keg.built_archs.any?{ |ba| ba == ta } }; end
+
+  def dylinkable?; l = to_keg.path/'lib' and l.directory? and l.find{ |o| o.dylib? or o.mach_o_bundle? }; end
 
   def is_group_dep?; false; end
 
-  def satisfied?; installed? and missing_options.empty? and installed_archs_are_a_superset?; end
+  def satisfied?; installed? and missing_options.empty? and installed_archs_are_a_superset? or not dylinkable?; end
 
 
 # Methods returning internal data:
@@ -69,6 +68,8 @@ class Dependency
                    f                                                               #        by tags, NOT as installed or via ARGV.
                  end
   end # Dependency#to_formula
+
+  def to_keg; Keg.for(to_formula.prefix); end
 
 
 # Define marshaling semantics, because we cannot serialize @env_proc:

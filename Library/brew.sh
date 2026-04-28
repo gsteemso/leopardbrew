@@ -1,6 +1,6 @@
 #!/bin/sh
 
-LEOPARDBREW_VERSION='0.6.3'  # Revamped {Dependency} construction.
+LEOPARDBREW_VERSION='0.6.3.1'  # {Dependency}‐check bugfix.
 
 ###### Convenience functions ######
 

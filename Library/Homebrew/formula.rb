@@ -1469,12 +1469,13 @@ class Formula
     # @private
     def skip_clean_paths; @skip_clean_paths ||= Set.new; end
 
-    # Software that will not be symlinked into `brew --prefix` is only found in the Cellar.  If other formulæ should {::depends_on}
-    #   a {::keg_only} {Formula}, Leopardbrew will add the necessary includes, libs, &c. during their brewing; but such formulæ are
-    #   not normally visible in your PATH, and thus go unseen by compilers if you build software outside of Homebrew.  This way, we
+    # Software that will not be symlinked into `brew --prefix` is only found in the Cellar.  If other formulæ should {depends_on} a
+    #   {keg_only} {Formula}, Leopardbrew will add the necessary includes, libs, &c. during their brewing; but such formulæ are not
+    #   normally visible in your PATH, and thus go unseen by compilers if you build software outside of Homebrew.  Through this, we
     #   avoid shadowing software provided by the OS.
-    #     keg_only :provided_by_osx
+    #     keg_only :provided_by_mac_os
     #     keg_only 'because I want it so'
+    # The complete set of predefined {reason} symbols can be found in `formula/support`.
     def keg_only(reason, blurb = ''); @keg_only_reason = KegOnlyReason.new(reason, blurb); end
 
     # Pass :skip to this method to disable post-install stdlib checking.
@@ -1537,8 +1538,8 @@ class Formula
     # The test will fail if it returns false, or if an exception is raised.  Failed assertions or failed `system` commands do raise
     #   exceptions.
     # For formulæ that install nothing executable and thus cannot meaningfully be tested, do
-    #    test { :does_not_apply }
-    # A message will be printed and the test will “succeed”.
+    #     test { :does_not_apply }
+    #   A message will be printed and the test will “succeed”.
     def test(&block); define_method(:test, &block); end
 
     # Insinuation is for formulæ which must take some sort of actions to very deeply integrate with the system upon installation, &

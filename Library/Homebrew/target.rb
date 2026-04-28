@@ -6,7 +6,9 @@ class Target
     def allow_universal_binary; @@formula_can_be_universal = true;  end
     def no_universal_binary;    @@formula_can_be_universal = false; end
 
-    # This is only used on request.  Some formulæ can only be built for specific architectures.  When an ArchitectureRequirement is
+    def universal_modes_allowed?; @@formula_can_be_universal == true; end
+
+    # Employed only upon request.  Some formulæ can only be built for specific architectures.  When an {ArchitectureRequirement} is
     # depended upon, it uses this method; then ::filter_archs forcibly restricts the built architectures to those which the formula
     # can handle.
     def restrict_archset(allowed);
@@ -73,58 +75,59 @@ class Target
     # What CPU model are we building for?  Either one passed via --bottle-arch=, or the native one.  We don’t care if a bottle will
     # be built, only if an architecture for one was supplied.
     # This routine assumes that only the specified or preferred CPU model will be built for.  To handle multiple CPU models implies
-    # multiple architectures, as Mac OS policy forbids coëxistent subarchitectures, and thus the use of Target::model_for_arch().
+    # multiple architectures (as Mac OS policy forbids coëxistent subarchitectures), and thus the use of Target::model_for_arch().
     def model
       # On an x86 CPU without SSE4, neither “-march=native” nor “-march=#{model}” can be trusted, as we might be running in a VM or
       # on a Hackintosh.
-      @model ||= (ARGV.bottle_arch ? oldest(ARGV.bottle_arch) : (CPU.intel? and not CPU.sse4?) ? oldest(CPU.model) : CPU.model)
+      @model ||= (ARGV.bottle_arch              ? oldest(ARGV.bottle_arch) : \
+                 (CPU.intel? and not CPU.sse4?) ? oldest(CPU.model)        : CPU.model)
     end
 
     # Get the least‐common‐denominator (i.e., the oldest) CPU model that shares characteristics with the parameter – a specific CPU
     # model, an architecture, a CPU type, or a bottle‐supporting tag.
     def oldest(obj = (CPU._64b? ? _64b_arch : _32b_arch))
-      CPU.known_models.include?(obj) ? CPU.model_data(obj)[:oldest] \
-        : CPU.known_archs.include?(obj) ? CPU.arch_data(obj)[:oldest] \
-        : CPU.known_types.include?(obj) ? CPU.arch_data(CPU.archs_of_type(obj).first)[:oldest] \
-        : case obj
-            when :altivec  then :g4
-            when :g5_64    then :g5
-            when :intel_32 then :core
-            when :intel_64 then :core2
-          end  # Return nil for any other input.
+      CPU.known_models.include?(obj) ? CPU.model_data(obj)[:oldest]                         : \
+      CPU.known_archs.include?(obj)  ? CPU.arch_data(obj)[:oldest]                          : \
+      CPU.known_types.include?(obj)  ? CPU.arch_data(CPU.archs_of_type(obj).first)[:oldest] : case obj
+                                                                                                when :altivec  then :g4
+                                                                                                when :g5_64    then :g5
+                                                                                                when :intel_32 then :core
+                                                                                                when :intel_64 then :core2
+                                                                                              end  # Return nil for any other input.
     end # Target::oldest()
 
     def model_optflags(m = model)
-      if CPU.model_data(m)
-        if ENV.compiler != :clang # assume is some variant of GCC
-          if (vers = Version.new CPU.which_gcc_knows_about(m))
-            (ENV.compiler_version >= vers ? CPU.model_data(m)[:gcc][:flags] : CPU.gcc_flags_for_post_(vers, CPU.type_of(m)))
-          end
-        end
-      else
-        case CPU.type_of(m)
-#         when :arm     then ???
-          when :intel   then (bits(m) == 64 ? '-march=nocona'   : '-march=i386')
-          when :powerpc then (bits(m) == 64 ? '-mcpu=powerpc64' : '-mcpu=powerpc')
-          else ''
-        end
-      end
+      return '' unless data = CPU.model_data(m)
+      if ENV.responds_to?(:compiler) and ENV.compiler == :clang
+        data[:clang][:flags]  # Since the version-data table hasn’t yet been populated, just pretend it will work.
+#       vers = Version.new(CPU.which_clang_knows_about(m))  # Will always be nil until the table gets filled in.
+#       ENV.compiler_version >= vers ? data[:clang][:flags] : CPU.clang_flags_for_post_(vers, CPU.type_of(m))
+      else # We’re either using GCC or don’t know our compiler yet.
+        vers = Version.new(CPU.which_gcc_knows_about(m))  # Guaranteed not to be nil because m’s model data exists.
+        cvers = ENV.responds_to?(:compiler_version) ? ENV.compiler_version : '4.0'  # Fall back on the oldest GCC we support.
+        cvers >= vers ? data[:gcc][:flags] : CPU.gcc_flags_for_post_(vers, CPU.type_of(m))
+      end # Do we know our compiler yet?
     end # Target::model_optflags()
 
     def model_optflag_map; h = {}; CPU.known_models.each{ |m| h[m] = model_optflags(m) }; h; end
 
-    # This gets the optimization flags for each one model being built for, and makes them architecture-specific using -Xarch_<arch>.
-    # This only works with :gcc_4_2, :llvm, or :clang, though work is in progress to enable it for the FSF GCCs as well.  That said,
-    # it is not supported at all by any GCC prior to 4.2, whether Apple or FSF.
+    # This gets the optimization flags for each individual model being built for, and registers them as architecture-specific using
+    # -Xarch_<arch>.  This only works with Apple GCC 4.2, possibly LLVM-GCC, and probably Clang; though recipe modifications are in
+    # progress to enable it for the FSF GCCs as well.  That said, it is not supported by /any/ GCC prior to 4.2.
     def optimization_flagset(as = archset)
-      if as.length > 1 and ENV.compiler != :gcc_4_0
-        fs = []
-        as.each{ |a| fs << model_optflags(model_for_arch(a)).split(' ').map{ |f| "-Xarch_#{a} #{f}" } }
-        fs * ' '
-      else (ts = typeset(as)).length > 1 ? '' : model_optflags(model_for_arch(as.first)); end
+      # The possibilities:
+      # 1. There’s only one arch, or multiple archs of one type (which should only be possible if we’re running on it).  (One -mcpu
+      #    or -march flag, potentially with modifiers.)
+      # 2. There are multiple types.  Note that in this case, the sub‐archset associated with any given type is permitted to map to
+      #    multiple CPU models.  (Multiple -mcpu and/or -march flags, potentially with modifiers.)
+      # 3. The compiler doesn’t support multiple arch-specific flagging.  (In the first case above, this doesn’t affect us.)
+      if as.length == 1 then model_optflags(model_for_arch(as.first))
+      elsif (ts = typeset(as)).length == 1 then model_optflags(model_for_arch(_64b_arch(ts.first)))  # 32b arch’s model can’t work.
+      elsif ENV.responds_to?(:compiler) and ENV.compiler == :gcc_4_0 then ''  # Fall back on the compiler’s defaults.
+      else fs = []; as.each{ |a| fs << model_optflags(model_for_arch(a)).split(' ').map{ |f| "-Xarch_#{a} #{f}" } }; fs * ' '; end
     end # Target::optimization_flagset()
 
-    def prefer_64b?
+    def prefer_64b?  # Always true if it can be.  Note that this is not the same as what the Mac will /let/ you run.
       @_64b_checked ||= nil
       unless @_64b_checked
         @_64b_checked = true
@@ -195,14 +198,13 @@ class Target
     def all_archs; CPU.known_archs.extend ALE; end
 
     def cross_archs
-      v = MacOS.version
-      (v >= :big_sur)                  ? universal_archs_2     : \
-      (v >= :catalina)                 ? [:x86_64].extend(ALE) : \
-      (v >= :lion)                     ? CPU.archs(:intel)     : \
-      (v <  :tiger)                    ? [:ppc].extend(ALE)    : \
-      (not prefer_64b?)                ? universal_archs_1     : \
+      ((v = MacOS.version) >= :big_sur) ? universal_archs_2     : \
+      (v >= :catalina)                  ? [:x86_64].extend(ALE) : \
+      (v >= :lion)                      ? CPU.archs(:intel)     : \
+      (v <  :tiger)                     ? [:ppc].extend(ALE)    : \
+      (not prefer_64b?)                 ? universal_archs_1     : \
       (ENV.responds_to?(:compiler) and
-        ENV.compiler != :clang)        ? quad_fat_archs        : triple_fat_archs
+        ENV.compiler != :clang)         ? quad_fat_archs        : triple_fat_archs
     end # Target::cross_archs
 
     def local_archs; @local_archs ||= all_archs.select{ |a| will_run(a) }.extend(ALE); end
