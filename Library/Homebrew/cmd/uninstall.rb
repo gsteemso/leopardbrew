@@ -27,9 +27,8 @@ module Homebrew
           puts "Uninstalling #{keg}... (#{keg.abv})"
           if f = attempt_from_keg(keg)
             f.unpin rescue nil
-            # We will either be repeating this when the rack has gone (so helper scripts can delete
-            # themselves), or we will immediately insinuate another version.  In neither case do we
-            # want duplicate messages.
+            # We will either repeat this when the rack has gone (so helper scripts can delete themselves), or immediately insinuate
+            # another version.  In neither case do we want duplicate messages.
             f.uninsinuate(:silent) rescue nil if f.insinuation_defined?
           end
           keg.unlink
