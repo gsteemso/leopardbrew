@@ -129,7 +129,7 @@ module Homebrew
     unless f.installed?
       if f.prefix.exists?
         oh1 "Cleaning up the failed installation #{f.prefix}" if DEBUG
-        ignore_interrupts { f.prefix.rmtree; f.rack.rmdir_if_possible }
+        ignore_interrupts { f.prefix.rmtree }
       end
       ignore_interrupts { previously_linked.link } if previously_linked
     end
