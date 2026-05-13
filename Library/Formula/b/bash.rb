@@ -102,7 +102,7 @@ class Bash < Formula
   insinuate { ensure_to_fro; system 'sudo', TO.to_s }
 
   # This command also deletes `to-*-bash` if our rack is gone.
-  uninsinuate do |silent|
+  uninsinuate do |silent=false|
     ensure_to_fro
     do_system((silent ? [:silent] : []), 'sudo', MOVED_BASH.to_s, FRO.to_s)
   end

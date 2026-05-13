@@ -62,9 +62,9 @@ END_OF_PATCH
     insinuate { ensure_to_fro; system 'sudo', TO.to_s }
 
     # This command also deletes `to-*-gcc42` if our rack is gone.
-    uninsinuate do |silent|
+    uninsinuate do |muted=false|
       ensure_to_fro
-      do_system((silent ? [:silent] : []), 'sudo', FRO.to_s)
+      do_system((muted ? [:silent] : []), 'sudo', FRO.to_s)
     end
   end # :leopard or :snow_leopard?
 

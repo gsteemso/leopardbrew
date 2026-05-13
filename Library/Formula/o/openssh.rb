@@ -81,9 +81,9 @@ class Openssh < Formula
   insinuate { ensure_to_fro; system 'sudo', TO.to_s }
 
   # This command also deletes `to-*-openssh` if our rack is gone.
-  uninsinuate do |silent|
+  uninsinuate do |mute=false|
     ensure_to_fro
-    do_system((silent ? [:silent] : []), 'sudo', FRO.to_s)
+    do_system((mute ? [:silent] : []), 'sudo', FRO.to_s)
   end
 
   test do

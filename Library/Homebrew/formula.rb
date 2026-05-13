@@ -1546,19 +1546,37 @@ class Formula
     #   A message will be printed and the test will “succeed”.
     def test(&block); define_method(:test, &block); end
 
-    # Insinuation is for formulæ which must take some sort of actions to very deeply integrate with the system upon installation, &
-    #   then to remove that integration prior to formula uninstallation.
+    # Insinuation is for formulæ which must take specific actions to very deeply integrate with the system after installation, then
+    #   to remove that integration prior to uninstallation.
     #     insinuate do
     #       # ensure the helper script is present before doing this:
     #       system('sudo', "#{bin}/to-brewed-package")
     #     end
+    #     uninsinuate do |muted=false|
+    #       # ensure the helper script is present before doing this:
+    #       do_system(muted ? [:silent] : [], 'sudo', "#{bin}/to-stock-package")
+    #     end
     # THESE CODE BLOCKS MUST BE IDEMPOTENT!  It is not only possible, but actively expected, that they may be called more than once
     #   without their counterpart being called in between; in which case, they must not make a mess!
-    # An {::insinuate} block can be called when not all of its formula’s dependencies are functional, or even present.  If that may
-    #   be a problem, it should test its environment & act accordingly.  Further, an {::uninsinuate} block must not assume that its
-    #   rack still exists.  It shall be called after the rack’s removal in order for helper scripts to delete themselves.
+    # An {insinuate} block can be called when not all of its formula’s dependencies are functional, or even present.  If that could
+    #   be a problem, it should test its environment & act accordingly.  Meanwhile, an {uninsinuate} block must not assume its rack
+    #   still exists.  It shall be called after the rack’s removal in order for helper scripts to delete themselves.
+    # Insinuate blocks have no parameters.  Uninsinuate blocks have one parameter (optional, and “false” by default), which signals
+    #   whether the block should refrain from printing anything to the user.  The parameter is meant to be set to a non‐false value
+    #   whenever an operation performs more than one insinuation‐related action at a time – for example, the {upgrade} command does
+    #   an uninsinuation followed immediately by an insinuation, so old files are properly cleared away before new files are put in
+    #   place.  If both operations always reported their results to the user, those specific messages appearing together would look
+    #   odd at best and self‐contradictory at worst.
     def insinuate(&block); define_method(:insinuate, &block); end
-    def uninsinuate(&block); define_method(:uninsinuate, &block); end
+    def uninsinuate(&block)
+      params = proc(&block).parameters
+      raise ArgumentError, <<-_.undent if params.length != 1 or params.first.first != :opt
+          The block supplied to Formula::uninsinuate has incorrect parameters.  It’s defined
+          to take exactly one (for “muted”) – optional, with a default value of “false”.  If
+          you really must, you may ignore it, but it still has to be present.
+        _
+      define_method(:uninsinuate, &block)
+    end
 
     # @private
     def link_overwrite(*paths); paths.flatten!; link_overwrite_paths.merge(paths); end
