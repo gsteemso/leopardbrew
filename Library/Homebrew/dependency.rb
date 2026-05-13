@@ -39,7 +39,7 @@ class Dependency
 
   def installed_archs_are_a_superset?; keg = to_keg and Target.archset.all?{ |ta| keg.built_archs.any?{ |ba| ba == ta } }; end
 
-  def dylinkable?; l = to_keg.path/'lib' and l.directory? and l.find{ |o| o.dylib? or o.mach_o_bundle? }; end
+  def dylinkable?; l = to_formula.lib and l.directory? and l.find{ |o| o.dylib? or o.mach_o_bundle? }; end
 
   def is_group_dep?; false; end
 
@@ -69,7 +69,7 @@ class Dependency
                  end
   end # Dependency#to_formula
 
-  def to_keg; Keg.for(to_formula.prefix); end
+  def to_keg; if p = to_formula.prefix and p.directory? then Keg.for(p); end; end
 
 
 # Define marshaling semantics, because we cannot serialize @env_proc:
