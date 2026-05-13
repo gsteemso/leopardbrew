@@ -1,11 +1,11 @@
-require "ostruct"
+require 'ostruct'
 
 module Homebrew
   def link
     raise KegUnspecifiedError if ARGV.named.empty?
 
     mode = OpenStruct.new
-    mode.overwrite = true if ARGV.include? "--overwrite"
+    mode.overwrite = true if ARGV.include? '--overwrite'
     mode.dry_run = true if ARGV.dry_run?
 
     ARGV.kegs.each do |keg|
@@ -16,22 +16,14 @@ module Homebrew
       end
       if (f = keg.formula) and f.keg_only? and not ARGV.force?
         opoo "#{keg.name} is keg-only and must be linked with --force",
-             "Note that doing so can interfere with building software."
+             'Note that doing so can interfere with building software.'
         next
       elsif mode.dry_run
-        puts(mode.overwrite ? "Would replace:" : "Would link:") 
+        puts(mode.overwrite ? 'Would replace:' : 'Would link:') 
         keg.link(mode)
         next
       end
       keg.lock do
-        if f and f.insinuation_defined?
-          if mode.dry_run
-            puts "Would insinuate #{f.name}"
-          else
-            puts "Insinuating #{f.name}"
-            f.insinuate rescue nil
-          end
-        end
         puts "Linking #{keg}..."
         begin
           n = keg.link(mode)

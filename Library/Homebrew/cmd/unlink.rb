@@ -1,4 +1,4 @@
-require "ostruct"
+require 'ostruct'
 
 module Homebrew
   def unlink
@@ -9,22 +9,14 @@ module Homebrew
 
     ARGV.kegs.each do |keg|
       if mode.dry_run
-        puts "Would remove:"
+        puts 'Would remove:'
         keg.unlink(mode)
         next
       end
       keg.lock do
-        if (f = keg.formula) and f.insinuation_defined?
-          if mode.dry_run
-            puts "Would uninsinuate #{f.name}"
-          else
-            puts "Uninsinuating #{f.name}"
-            f.uninsinuate rescue nil
-          end
-        end
         print "Unlinking #{keg}... "
         puts "#{keg.unlink(mode)} directories and/or symlinks removed"
       end
-    end
-  end
-end
+    end # each ARGV |keg|
+  end # unlink
+end # Homebrew
