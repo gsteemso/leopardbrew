@@ -112,6 +112,7 @@ HOMEBREW_LOGS   = Pathname.new(ENV.fetch 'HOMEBREW_LOGS', '~/Library/Logs/Homebr
                   # Where build, postinstall, and test logs of formulæ are written to
 HOMEBREW_TEMP   = Pathname.new(ENV.fetch 'HOMEBREW_TEMP', '/tmp').realpath
                   # Where temporary folders for building and testing formulæ are created
+NO_COMPAT       = ENV['HOMEBREW_NO_COMPAT'] or ARGV.include?('--no-compat')
 NO_EMOJI        = ENV['HOMEBREW_NO_EMOJI'].choke  # Don’t show badges at all (see `formula/installer.rb` and `cmd/info.rb`)
 ORIGINAL_PATHS  = ENV['PATH'].split(File::PATH_SEPARATOR).map{ |p| Pathname.new(p).expand_path rescue nil }.compact.freeze
 QUIETER         = ARGV.quieter?               # Give less feedback when VERBOSE (checks:  “-q”, “--quieter”, & $HOMEBREW_QUIET)
@@ -120,7 +121,7 @@ VERBOSE         = ARGV.verbose? or QUIETER    # Give lots of feedback (checks:  
 require 'extend/ENV'; ENV.activate_extensions!  # pulls in target (thence macos, & cpu) and formula (thence almost two dozen more)
 
 # include backwards‐compatibility cruft?
-require 'compat' unless ENV['HOMEBREW_NO_COMPAT'] or ARGV.include?('--no-compat')
+require 'compat' unless NO_COMPAT
 
 # Customizeable environment variables:
 # $HOMEBREW_BUILD_BOTTLE         # Always build a bottle instead of a normal installation (see `extend/ARGV.rb`)
