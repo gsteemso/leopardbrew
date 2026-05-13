@@ -10,6 +10,8 @@ class Bash < Formula
 
   head 'http://git.savannah.gnu.org/r/bash.git'
 
+  keg_only :insinuated
+
   stable do
     patch :p0 do
       url 'http://ftpmirror.gnu.org/bash/bash-5.3-patches/bash53-001'

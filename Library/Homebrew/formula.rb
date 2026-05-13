@@ -1134,7 +1134,9 @@ class Formula
     case method
       when :brew        then raise RuntimeError, "You may not override Formula#brew in class #{name}."
       when :insinuate,
-           :uninsinuate then define_method(:insinuation_defined?){ true }
+           :uninsinuate then define_method(:insinuation_defined?){
+                               method_defined?(:insinuate) and method_defined?(:uninsinuate)
+                             } unless method_defined? :insinuation_defined?
       when :options
         instance = allocate
         specs.each{ |ss| instance.options.each{ |opt, desc| ss.option(opt[/^--(.+)$/, 1], desc) } }
@@ -1472,11 +1474,13 @@ class Formula
     # Software that will not be symlinked into `brew --prefix` is only found in the Cellar.  If other formulæ should {depends_on} a
     #   {keg_only} {Formula}, Leopardbrew will add the necessary includes, libs, &c. during their brewing; but such formulæ are not
     #   normally visible in your PATH, and thus go unseen by compilers if you build software outside of Homebrew.  Through this, we
-    #   avoid shadowing software provided by the OS.
+    #   avoid shadowing software provided by the OS.  It is also important to the insinuation mechanism; insinuating software which
+    #   we also link into $HOMEBREW_PREFIX can, under the wrong conditions, cause confusing and difficult‐to‐diagnose problems.
     #     keg_only :provided_by_mac_os
+    #     keg_only :insinuated
     #     keg_only 'because I want it so'
     # The complete set of predefined {reason} symbols can be found in `formula/support`.
-    def keg_only(reason, blurb = ''); @keg_only_reason = KegOnlyReason.new(reason, blurb); end
+    def keg_only(reason, blurb = ''); @keg_only_reason = KegOnlyReason.new(self, reason, blurb); end
 
     # Pass :skip to this method to disable post-install stdlib checking.
     def cxxstdlib_check(check_type)
@@ -1493,8 +1497,8 @@ class Formula
     #       build 600
     #       cause 'multiple configure and compile errors'
     #     end
-    # For GCC releases, the format is
-    #     fails_with :gnu => ⟨major version⟩ do
+    # For non‐Apple GCC releases, the format is
+    #     fails_with :gcc => ⟨major version⟩ do
     #       version 'full version'
     #       cause 'The needed C feature is not yet implemented in this version.'
     #     end
@@ -1505,7 +1509,7 @@ class Formula
     #     fails_with :gcc => '4.8' do
     #       version '4.8.1'
     #     end
-    # Note that the cause is now neither used nor saved, but can still be specified for the formula author’s benefit.
+    # Note that the cause is now neither used nor saved, but can still be specified for formula maintainers’ benefit.
     def fails_with(compiler, &block) specs.each { |spec| spec.fails_with(compiler, &block) } end
 
     # The formula may need compiler support for a specific set of features.  These can be specified using {.needs}:

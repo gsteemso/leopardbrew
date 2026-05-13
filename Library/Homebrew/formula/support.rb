@@ -3,13 +3,15 @@ FormulaConflict = Struct.new(:name, :reason)
 
 # Used to annotate formulæ that duplicate OS‐provided software or cause conflicts when linked in.
 class KegOnlyReason
-  def initialize(reason, explanation)
+  def initialize(owner, reason, explanation)
+    @owner = owner
     @reason = reason
     @explanation = explanation
   end
 
   def valid?
     case @reason
+      when :insinuated                 then @owner.insinuation_defined?
       when :provided_pre_mountain_lion then MacOS.version < :mountain_lion
       when :provided_pre_mavericks     then MacOS.version < :mavericks
       when :provided_pre_el_capitan    then MacOS.version < :el_capitan
@@ -22,6 +24,10 @@ class KegOnlyReason
   def to_s
     return @explanation unless @explanation.empty?
     case @reason
+      when :insinuated then <<-EOS.undent
+          This software is insinuated into your system, and would be linked more than once
+          (probably causing strange problems) if it weren’t keg‐only.
+        EOS
       when :provided_by_mac_os, :provided_by_osx then <<-EOS.undent
           Mac OS already provides this software and installing another version in
           parallel can cause all kinds of trouble.
