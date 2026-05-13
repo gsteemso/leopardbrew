@@ -35,14 +35,11 @@ end # curl
 # Encompasses both safe_system and silent_system (“quiet_system”).
 def do_system(flags, cmd, *args, &block)
   # Redirect output streams to `/dev/null` instead of closing them – some programs fail if the stream isn’t open for writing.
-  (flags.include?(:silent) \
-     ? Homebrew._system(cmd, *args){
-         $stdout.reopen('/dev/null') if flags.include?(:nostdout)
-         $stderr.reopen('/dev/null') if flags.include?(:nostderr)
-         yield if block_given?
-       } \
-     : Homebrew.system(cmd, *args, &block)
-  ) or flags.include?(:safe) && raise(ErrorDuringExecution.new(cmd, args))
+  Homebrew._system(cmd, *args){
+    $stdout.reopen('/dev/null') if flags.include?(:silent) or flags.include?(:nostdout)
+    $stderr.reopen('/dev/null') if flags.include?(:silent) or flags.include?(:nostderr)
+    yield if block_given?
+  } or flags.include?(:safe) && raise(ErrorDuringExecution.new(cmd, args))
 end # do_system
 
 def exec_browser(*args)
