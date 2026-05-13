@@ -1,3 +1,4 @@
+# Stable release 2010-09-07; frozen.
 class Ld64 < Formula
   desc "Updated version of the ld shipped by Apple"
   homepage "https://github.com/apple-oss-distributions/ld64/tree/ld64-97.17"
@@ -5,7 +6,7 @@ class Ld64 < Formula
   # patching.  Leopard users:  If you like, add a 127.2 option, or fix the build on Tiger.
   url "https://github.com/apple-oss-distributions/ld64/archive/refs/tags/ld64-97.17.tar.gz"
   sha256 "dc609d295365f8f5853b45e8dbcb44ca85e7dbc7a530e6fb5342f81d3c042db5"
-  revision 3  # For the re‐de‐botched PPC constants / branch‐island logic.
+  revision 4  # For "configure.h".
 
   resource "makefile" do
     url "https://trac.macports.org/export/123511/trunk/dports/devel/ld64/files/Makefile-97", :using => :nounzip
@@ -18,7 +19,7 @@ class Ld64 < Formula
 
   depends_on MaximumMacOSRequirement => :snow_leopard
 
-  # Tiger either includes old versions of these headers, or doesn't ship them at all.
+  # Tiger, and in some cases Leopard, either include old versions of these headers or don’t ship them at all.
   depends_on "dyld-headers" => :build
   depends_on "ld64-headers" => :build
   depends_on "libunwind-headers" => :build
@@ -31,7 +32,8 @@ class Ld64 < Formula
   end
 
   # Fix the messed‐up PowerPC maximum‐displacement constants, incorporating MacPorts’ un‐botching of the logic that chooses whether
-  # to do a branch island.  Also incorporates MacPorts’ version‐number patch, tuned to this revision of ld64.
+  # to do a branch island.  Also incorporates a variation on MacPorts’ version‐number patch via configure.h, tuned to this revision
+  # of ld64, as well as fixing the logic for what to do when internally handed a file pathname instead of a proper install path.
   patch :DATA
 
   # Remove LTO support
@@ -43,9 +45,16 @@ class Ld64 < Formula
   def install
     ENV.universal_binary if build.universal?
 
+    (buildpath/'src/ld/configure.h').write <<-_.undent
+        /* version information */
+        #define LD_VERSION_STRING "@(#)PROGRAM:ld  PROJECT:ld64-#{version}\\n"
+
+        /* support for realpath(3) */
+        #{MacOS.version < :leopard ? '#define REALPATH_NEED_SYS_PARAM_H' : '/* #undef REALPATH_NEED_SYS_PARAM_H */'}
+      _
+
     buildpath.install resource("makefile")
     mv "Makefile-97", "Makefile"
-    inreplace "src/ld/Options.cpp", "@@VERSION@@", version.to_s
 
     if MacOS.version < :leopard
       # No CommonCrypto
@@ -138,16 +147,27 @@ __END__
  	}
 --- old/src/ld/Options.cpp
 +++ new/src/ld/Options.cpp
-@@ -37,6 +37,8 @@
+@@ -31,12 +31,19 @@
+ #include <vector>
+ 
+ #include "configure.h"
++#if defined(REALPATH_NEEDS_SYS_PARAM_H)
++# include <sys/param.h>
++#endif
++#include <stdlib.h>
++
+ #include "Options.h"
+ #include "Architectures.hpp"
+ #include "MachOFileAbstraction.hpp"
  
  extern void printLTOVersion(Options &opts);
  
-+const char *ldVersionString = "@(#)PROGRAM:ld  PROJECT:ld64-@@VERSION@@\n";
++const char *ldVersionString = LD_VERSION_STRING;
 +
  // magic to place command line in crash reports
  extern "C" char* __crashreporter_info__;
  static char crashreporterBuffer[1000];
-@@ -2596,7 +2598,6 @@
+@@ -2596,7 +2603,6 @@
  			addStandardLibraryDirectories = false;
  		else if ( strcmp(argv[i], "-v") == 0 ) {
  			fVerbose = true;
@@ -155,3 +175,25 @@ __END__
  			fprintf(stderr, "%s", ldVersionString);
  			 // if only -v specified, exit cleanly
  			 if ( argc == 2 ) {
+@@ -2936,17 +2942,10 @@
+ 		parseSegAddrTable(fSegAddrTablePath, this->installPath());
+ 		// HACK to support seg_addr_table entries that are physical paths instead of install paths
+ 		if ( fBaseAddress == 0 ) {
+-			if ( strcmp(this->installPath(), "/usr/lib/libstdc++.6.dylib") == 0 ) {
+-				parseSegAddrTable(fSegAddrTablePath, "/usr/lib/libstdc++.6.0.4.dylib");
+-				if ( fBaseAddress == 0 )
+-					parseSegAddrTable(fSegAddrTablePath, "/usr/lib/libstdc++.6.0.9.dylib");
+-			}
+-				
+-			else if ( strcmp(this->installPath(), "/usr/lib/libz.1.dylib") == 0 ) 
+-				parseSegAddrTable(fSegAddrTablePath, "/usr/lib/libz.1.2.3.dylib");
+-				
+-			else if ( strcmp(this->installPath(), "/usr/lib/libutil.dylib") == 0 ) 
+-				parseSegAddrTable(fSegAddrTablePath, "/usr/lib/libutil1.0.dylib");
++			char  path_buffer[PATH_MAX + 1];  /* realpath(3) results buffer (allow for null terminator) */
++			char *path_buf_ptr = path_buffer;
++			if (path_buf_ptr = realpath(this->installPath(), path_buffer))
++				parseSegAddrTable(fSegAddrTablePath, path_buf_ptr);
+ 		}		
+ 	}
+ 	
