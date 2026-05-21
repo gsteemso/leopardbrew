@@ -70,7 +70,7 @@ class Options
   def |(o); self.class.create(@options | Array(o)); end
   alias_method :+, :|
 
-  def *(arg); @options.to_a.map(&:to_s) * arg; end
+  def *(arg); map(&:to_s) * arg; end
 
   def empty?; @options.empty?; end
 
@@ -94,7 +94,8 @@ class Options
 
   def inspect; "#<#{self.class.name}:  #{@options.to_a.inspect}>"; end
 
-  def list_flags(connective = 'and'); @options.as_flags.list(connective); end
+  def list_flags(connective = 'and'); as_flags.list(connective); end
+  alias_method :list, :list_flags
 
-  def list_names(connective = 'and'); @options.as_names.list(connective); end
+  def list_names(connective = 'and'); as_names.list(connective); end
 end # Options

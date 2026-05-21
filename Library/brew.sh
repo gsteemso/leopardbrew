@@ -1,6 +1,6 @@
 #!/bin/sh
 
-LEOPARDBREW_VERSION='0.6.3.1'  # {Dependency}‐check bugfix.
+LEOPARDBREW_VERSION='0.6.3.2'  # Untangle {Options} #*(), #list(), #list-flags(), & #list-names().
 
 ###### Convenience functions ######
 
