@@ -297,13 +297,13 @@ __END__
 -				case CPU_TYPE_POWERPC:			
 -					fReaderOptions.fMacVersionMin = ObjectFile::ReaderOptions::k10_6; // FIX FIX, this really should be a check of the OS version the linker is running o
 +				case CPU_TYPE_POWERPC64:
-+					fReaderOptions.fMacVersionMin = ObjectFile::ReaderOptions::k10_4;  // FIXME:  Should use OS version we’re running on.
++					fReaderOptions.fMacVersionMin = ObjectFile::ReaderOptions::k10_4;  // FIXME:  Should use running OS’ version.
  					break;
 +				case CPU_TYPE_POWERPC:
-+					fReaderOptions.fMacVersionMin = ObjectFile::ReaderOptions::k10_3;  // FIXME:  Should use OS version we’re running on.
++					fReaderOptions.fMacVersionMin = ObjectFile::ReaderOptions::k10_3;  // FIXME:  Should use running OS’ version.
 +					break;
  				case CPU_TYPE_ARM:
- 					fReaderOptions.fIPhoneVersionMin = ObjectFile::ReaderOptions::k2_0;
+ 					fReaderOptions.fIPhoneVersionMin = ObjectFile::ReaderOptions::k2_0; 
  					break;
 # This logic was missing the ppc64 case.  This is _probably_ correct?
 @@ -2908,9 +2917,7 @@
