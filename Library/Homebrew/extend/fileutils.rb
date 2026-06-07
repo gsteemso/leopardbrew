@@ -108,20 +108,10 @@ module FileUtils
   # Run `make` 3.81 or newer.  Uses brewed make if available, or system make from Leopard onward.
   # Adapts as appropriate to stdenv/superenv (required for superenv argument refurbishment).
   def make(*args)
-    if Formula['make'].installed?
-      _make = Formula['make'].opt_bin/'make'
-      _make = _make.exists? ? _make.to_s : Formula['make'].opt_bin/'gmake'.to_s
-    elsif Utils.popen_read('/usr/bin/make', '--version').match(/Make (\d\.\d+)/)[1] > '3.80'
-      _make = '/usr/bin/make'
-    else
-      abort 'Your system’s Make program is too old.  Please `brew install make`.'
-    end
-    if superenv?
-      ENV['HOMEBREW_make'] = _make
-      system 'make', *args
-    else
-      system _make, *args
-    end
+    if (mf = Formula['make']).installed? then _make = Dir["#{mf.opt_bin}/*make"].first
+    elsif Utils.popen_read('/usr/bin/make', '--version').match(/Make (\d\.\d+)/)[1] > '3.80' then _make = '/usr/bin/make'
+    else abort 'Your system’s Make program is too old.  Please `brew install make`.'; end
+    system (superenv? ? 'make' : _make), *args
   end # make
 
   # @private

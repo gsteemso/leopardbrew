@@ -61,6 +61,12 @@ module Superenv
     self['HOMEBREW_ISYSTEM_PATHS'] = determine_isystem_paths
     self['HOMEBREW_INCLUDE_PATHS'] = determine_include_paths
     self['HOMEBREW_LIBRARY_PATHS'] = determine_library_paths
+    if deps.any?{ |d| d.name == 'make' }
+      self['MAKE']                 = "#{Superenv.bin}/make"
+      if (mf = Formula['make']).installed?
+        self['HOMEBREW_make']      = Dir["#{mf.opt_bin}/*make"].first
+      end
+    end
 
     # On 10.9, the tools in /usr/bin proxy to the active developer directory.
     # This means we can use them for any combination of CLT and Xcode.
