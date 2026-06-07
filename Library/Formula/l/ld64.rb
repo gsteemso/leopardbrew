@@ -267,7 +267,7 @@ __END__
  	bool found = (stat(possiblePath, &statBuffer) == 0);
  	if ( fTraceDylibSearching )
 -		printf("[Logging for XBS]%sfound library: '%s'\n", (found ? " " : " not "), possiblePath);
-+		fprintf(stderr, "[Logging for XBS]%sfound library: '%s'\n", (found ? " " : " not "), possiblePath);
++		fprintf(stderr, "[Logging for XBS] %s: '%s'\n", (found ? "found library" : "no library at"), possiblePath);
  	if ( found ) {
  		result.path = strdup(possiblePath);
  		result.fileLen = statBuffer.st_size;
@@ -276,8 +276,9 @@ __END__
  		bool found = (stat(possiblePath, &statBuffer) == 0);
  		if ( fTraceDylibSearching )
 -			printf("[Logging for XBS]%sfound framework: '%s'\n",
-+			fprintf(stderr, "[Logging for XBS]%sfound framework: '%s'\n",
- 				   (found ? " " : " not "), possiblePath);
+-				   (found ? " " : " not "), possiblePath);
++			fprintf(stderr, "[Logging for XBS] %s: '%s'\n",
++					(found ? "found framework" : "no framework at"), possiblePath);
  		if ( found ) {
  			FileInfo result;
 # Continue the version‐number patch.
