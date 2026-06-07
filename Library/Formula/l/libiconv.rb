@@ -46,8 +46,8 @@ class Libiconv < Formula
       TL,DR:  To ensure both packages work correctly, once {libiconv} has been brewed,
       you should `brew reinstall gettext`.
 
-      (They should be brewed in this order because Mac OS includes a bare‐bones iconv,
-      but has never included gettext.)
+      (They should be brewed in this order because Mac OS does include a very basic –
+      if outdated – libiconv, but has never included gettext.)
     _
   end
 
