@@ -203,12 +203,11 @@ class SoftwareSpec
     # Note:  The “active” enhancements describe what would be true of a new build done at run time.  They do not describe the state
     #   of any installed keg – use Keg#enhanced_by?() for that.
     aids = Array(aid).map{ |name| Formula[name == :nls ? 'gettext' : name] rescue nil }.compact
-    unless aids.empty?
-      @named_enhancements << aids.sort{ |a, b| a.full_name <=> b.full_name }
-      @named_enhancements = named_enhancements.sort{ |a, b| sort_named_enhancements(a, b) }
-    end
+    return if aids.empty?
+    @named_enhancements << aids.sort{ |a, b| a.full_name <=> b.full_name }
+    @named_enhancements = named_enhancements.sort{ |a, b| sort_named_enhancements(a, b) }
     @active_enhancements = active_enhancements.concat(aids).uniq.sort{ |a, b| a.full_name <=> b.full_name } \
-      if aids.all?{ |f| f and f.installed? }
+                                                                                             if aids.all?{ |f| f and f.installed? }
   end # SoftwareSpec#enhanced_by
 
   def deps; dependency_collector.deps; end
