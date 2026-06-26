@@ -44,13 +44,7 @@ class AbstractDownloadStrategy
 
   private
 
-  def lhapath; OPTDIR/'lha/bin/lha'; end
-
-  def lzippath; OPTDIR/'lzip/bin/lzip'; end
-
-  def xzpath; OPTDIR/'xz/bin/xz'; end
-
-  def zstdpath; OPTDIR/'zstd/bin/zstd'; end
+  def compressor_path(tool); OPTDIR/"#{tool}/bin/#{tool}"; end
 
   def cvspath
     @cvspath ||= %W[
@@ -136,26 +130,22 @@ end # VCSDownloadStrategy
 class AbstractFileDownloadStrategy < AbstractDownloadStrategy
   def stage
     case cached_location.compression_type
-      when :zip
-        with_system_path { quiet_safe_system 'unzip', { :quiet_flag => '-qq' }, cached_location }
-        chdir
-      when :bzip2 then safe_system TAR_PATH, '-xjf', cached_location; chdir  # Is also tarred
-      when :bzip2_only
-                  then with_system_path { buffered_write('bunzip2') }
-      when :compress, :tar
-                  then with_system_path { safe_system TAR_PATH, '-xf', cached_location }; chdir
-      when :gzip  then safe_system TAR_PATH, '-xzf', cached_location; chdir  # Is also tarred
-      when :gzip_only
-                  then with_system_path { buffered_write('gunzip') }
-      when :lha   then safe_system lhapath, 'x', cached_location
-      when :lzip  then pipe_to_tar(lzippath); chdir
-      when :p7zip then safe_system '7zr', 'x', cached_location
-#     when :rpm   then ???  # there is no code path to unpack these
-      when :rar   then quiet_safe_system 'unrar', 'x', { :quiet_flag => '-inul' }, cached_location
-      when :xar   then safe_system '/usr/bin/xar', '-xf', cached_location
-      when :xz    then pipe_to_tar(xzpath); chdir
-      when :zstd  then safe_system zstdpath, '-d', cached_location
-      else        cp cached_location, basename_without_params
+      when :bzip2      then safe_system TAR_PATH, '-xjf', cached_location; chdir  # Tarred
+      when :bzip2_only then with_system_path { buffered_write('bunzip2') }        # Not tarred
+      when :compress,
+           :tar        then safe_system TAR_PATH, '-xf', cached_location; chdir
+      when :gzip       then safe_system TAR_PATH, '-xzf', cached_location; chdir  # Tarred
+      when :gzip_only  then with_system_path { buffered_write('gunzip') }         # Not tarred
+      when :lha        then safe_system compressor_path('lha'), 'x', cached_location
+      when :lzip       then Utils.pipe_to_untar(compressor_path('lzip'), cached_location); chdir
+      when :p7zip      then safe_system '7zr', 'x', cached_location
+#     when :rpm        then ???  # there is no code path to unpack these
+      when :rar        then quiet_safe_system 'unrar', 'x', { :quiet_flag => '-inul' }, cached_location
+      when :xar        then safe_system '/usr/bin/xar', '-xf', cached_location
+      when :xz         then Utils.pipe_to_untar(compressor_path('xz'), cached_location); chdir
+      when :zip        then with_system_path { quiet_safe_system 'unzip', { :quiet_flag => '-qq' }, cached_location }; chdir
+      when :zstd       then safe_system compressor_path('zstd'), '-d', cached_location
+                       else cp cached_location, basename_without_params
     end
   end # AbstractFileDownloadStrategy#stage
 
@@ -168,12 +158,6 @@ class AbstractFileDownloadStrategy < AbstractDownloadStrategy
     when 1 then Dir.chdir entries.first rescue nil
     end
   end # AbstractFileDownloadStrategy#chdir
-
-  def pipe_to_tar(tool)
-    Utils.popen_read(tool, '-dc', cached_location.to_s) do |rd|
-      Utils.popen_write(TAR_PATH, '-xif', '-') do |wr| buf = ''; wr.write(buf) while rd.read(16384, buf); end
-    end
-  end
 
   # gunzip & bunzip2 write the output file in the same directory as the input file, regardless of the current working directory, so
   # we need to write it to the correct location ourselves.
