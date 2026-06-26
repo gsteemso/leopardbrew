@@ -390,23 +390,19 @@ class FormulaInstaller
     s << "#{HOMEBREW_INSTALL_BADGE}  " if MacOS.version >= :lion and not NO_EMOJI
     s << "#{formula.prefix}:  #{formula.prefix.abv}"
     s << ", built in #{pretty_duration build_time}" if build_time
-
     s
   end # summary
 
-  def build_time
-    if @start_time and not interactive?
-      @build_time ||= Time.now - @start_time + checkpoint_times
-    end
-  end
+  def build_time; if @start_time and not interactive? then @build_time ||= Time.now - @start_time + checkpoint_times; end; end
 
   # Returns a raw count of seconds, as logged when the checkpoints were saved.
   def checkpoint_times
     sum = 0
     formula.checkpoint_names.each do |name|
-      entry = formula.checkpoint_entry(name); exit = formula.checkpoint_exit(name)
-      next unless entry.exists? and exit.exists?
-      sum += exit.binread.to_i - entry.binread.to_i
+      entry_stamp = formula.checkpoint_entry(name); exit_stamp = formula.checkpoint_exit(name)
+      next unless entry_stamp.exists? and exit_stamp.exists?
+      entry_stamp = entry_stamp.binread.to_i.nope; exit_stamp = exit_stamp.binread.to_i.nope
+      sum += exit_stamp - entry_stamp if entry_stamp and exit_stamp and entry_stamp < exit_stamp and exit_stamp < @start_time
     end
     sum
   end # checkpoint_times
@@ -414,26 +410,18 @@ class FormulaInstaller
   def sanitized_ARGV_options
     args = Options.new
     args << (ARGV.bottle_arch ? "--bottle-arch=#{Target.arch}" : '--build-bottle') if build_bottle?
-    args << '--ignore-dependencies' if deps_do_ignore?
-    args << '--git' if git?
-    args << '--interactive' if interactive?
-    args << '--verbose' if verbosity?
-    args << '--debug' if debug?
     args << "--cc=#{ARGV.cc}" if ARGV.cc
+    args << '--debug' if debug?
+    if formula.devel? then args << '--devel'; elsif formula.head? then args << '--HEAD'; end
+    if ARGV.env then args << "--env=#{ARGV.env}"; elsif formula.env.std? then args << '--env=std'; end
+    args << '--git' if git?
+    args << '--ignore-dependencies' if deps_do_ignore?
+    args << '--interactive' if interactive?
     args << '--no-enhancements' if ignore_aids?
-
-    if ARGV.env
-      args << "--env=#{ARGV.env}"
-    elsif formula.env.std?
-      args << '--env=std'
+    case verbosity
+      when :less then args << '--quieter'
+      when :full then args << '--verbose'
     end
-
-    if formula.head?
-      args << '--HEAD'
-    elsif formula.devel?
-      args << '--devel'
-    end
-
     args
   end # sanitized_ARGV_options
 
