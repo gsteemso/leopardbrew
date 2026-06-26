@@ -110,9 +110,9 @@ class Build
 
         interactive_shell(formula)
       else
-        formula.checkpoints = 0
+        formula.checkpoint_count = 0
         formula.install
-        formula.checkpoints = nil
+        formula.checkpoint_count = nil
       end
 
       raise RuntimeError, 'Empty installation; aborting' if formula.prefix.children.empty?

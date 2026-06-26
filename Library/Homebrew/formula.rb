@@ -7,8 +7,8 @@ require "formula/pin"        # pulls in keg
 require "formulary"          # pulls in vendor/backports/enumerable, digest, formula/renames
 require "install_renamed"
 require "pkg_version"        # pulls in version
-require "software_spec"      # pulls in forwardable, build_options, checksum, compilers, dependency_collector, patch;
-                             # repeats bottles + options + resource + version
+require "software_spec"      # pulls in forwardable, checksum, compilers, dependency_collector, patch;
+                             # repeats bottles + build_options + options + resource + version
 require "tap"                # repeats utils/json
 
 # A formula provides instructions and metadata for Leopardbrew to install a piece of software.  Each Leopardbrew formula subclasses
@@ -106,8 +106,9 @@ class Formula
   attr_accessor :build
 
   # The count of {#checkpoint} blocks that have been encountered during the {#install} method.  Ought to be nil outside that method.
-  attr_accessor :checkpoints  # For some reason, this is not catching some accesses made to the bare name “checkpoints”.  I have as
-                              # a result changed all references within this file to use “@checkpoints”.
+  #   This state change is enacted in `build.rb`, hence the need for this accessor – which is not used in this file itself, because
+  #   for whatever reason, not every reference to the bare name was getting handled correctly.
+  attr_accessor :checkpoint_count
 
   # Compare formulæ by their names.  If their names are equal, use their full names instead.
   def <=>(other); r = (name <=> other.name).to_s.nope || full_name <=> other.full_name; r.to_i; end
@@ -133,7 +134,8 @@ class Formula
     validate_attributes!
     Resource::Patch.reset_count
     @build = active_spec.build
-    @checkpoints = nil
+    @checkpoint_count = nil
+    @in_a_checkpoint = false
     @pin = FormulaPin.new(self)
   end # initialize
 
@@ -535,13 +537,15 @@ class Formula
   #   bottles are supported.
   def pour_bottle?; true; end
 
-  def checkpoint_prefix; @checkpt_pfx ||= CHECKPOINTS/name/pkg_version.to_s/(build.used_options__modeless.as_names.sort * '_'); end
+  def checkpoint_prefix
+    @checkpt_pfx ||= CHECKPOINTS/name/(([pkg_version.to_s] + build.used_options.as_names.sort + [ARGV.build_mode.to_s]) * '_')
+  end
 
-  def checkpoint_entry(name); checkpoint_prefix/"checkpoint-#{name}-entry.timestamp"; end
+  def checkpoint_entry(checkpoint_name); checkpoint_prefix/"checkpoint-#{checkpoint_name}-entry.timestamp"; end
 
-  def checkpoint_exit(name); checkpoint_prefix/"checkpoint-#{name}-exit.timestamp"; end
+  def checkpoint_exit(checkpoint_name); checkpoint_prefix/"checkpoint-#{checkpoint_name}-exit.timestamp"; end
 
-  def checkpoint_archive(name); checkpoint_prefix/"checkpoint-#{name}.tbz2"; end
+  def checkpoint_archive(checkpoint_name); CheckpointTarball.new(checkpoint_prefix, checkpoint_name); end
 
   protected
 
@@ -551,41 +555,36 @@ class Formula
   def checkpoint(checkpoint_name = nil)
     raise FormulaSyntaxError.new(full_name, 'A checkpoint must have a code block – things created within it are what get saved') \
                                                                                                                 unless block_given?
-    raise FormulaSyntaxError.new(full_name, 'A checkpoint can only be set from within `install`') unless @checkpoints
-    @checkpoints += 1
-    checkpoint_name ||= "_anonymous_-number-#{@checkpoints}"
+    raise FormulaSyntaxError.new(full_name, 'A checkpoint can only be set from within `install`') unless @checkpoint_count
+    raise FormulaSyntaxError.new(full_name, 'Checkpoints may not be nested') if @in_a_checkpoint
+    @checkpoint_count += 1
+    checkpoint_name ||= "_anonymous_-number-#{@checkpoint_count}"
     entry_file = checkpoint_entry(checkpoint_name)
     exit_file = checkpoint_exit(checkpoint_name)
-    unless (archive_file = checkpoint_archive(checkpoint_name)).exists?
+    unless (this_checkpoint = checkpoint_archive(checkpoint_name)).exists?
       entry_timestamp = Time.now
+      @in_a_checkpoint = true
       yield
       oh1 "Packing up the checkpoint “#{checkpoint_name}”" if VERBOSE
-      checkpoint_prefix.mkpath unless checkpoint_prefix.exists?
+      checkpoint_prefix.mkpath
       entry_file.atomic_write(entry_timestamp.to_i.to_s)
       # Find every item in the current directory newer than ⟨entry_timestamp⟩.  This won’t see dotfiles, but ought to snag anything
       #   else created and/or modified in the block.  It does require that all such creations and modifications be visible from the
       #   initial working directory; and switching directories mid‐block is likely ill‐advised.
       files_etc = []; Dir['*'].each{ |f| files_etc << f if File.stat(f).mtime - entry_timestamp >= 0 }
-      # c:  Create a tarchive
-      # j:  filter it through bzip2
-      # f:  pack into this tarFile
-      silent_system TAR_PATH, '-cjf', archive_file, *files_etc
+      this_checkpoint.pack files_etc
       exit_timestamp = Time.now
       exit_file.atomic_write(exit_timestamp.to_i.to_s)
       oh1 "This checkpoint was created between #{entry_timestamp} and #{exit_timestamp}" if VERBOSE and not QUIETER
+      @in_a_checkpoint = false
     else # checkpoint already exists
       oh1 "Unpacking the checkpoint “#{checkpoint_name}”" if VERBOSE
-      # x:  eXtract a tarchive
-      # j:  filter it through bzip2
-      # m:  update Modification times as files are unpacked.  Avoids things being needlessly rebuilt when they look older than some
-      #     random makefile.
-      # p:  preserve Permissions
-      # f:  unpack from this tarFile
-      silent_system TAR_PATH, '-xjmpf', archive_file
+      this_checkpoint.unpack
       if VERBOSE and not QUIETER
         entry_time = Time.at(entry_file.binread.to_i) if entry_file.exists?
         exit_time = Time.at(exit_file.binread.to_i) if exit_file.exists?
-        oh1 "This checkpoint was created between #{entry_time} and #{exit_time}" if entry_time and exit_time
+        oh1((entry_time and exit_time) ? "This checkpoint was created between #{entry_time} and #{exit_time}" \
+                                       : 'This checkpoint isn’t properly timestamped.')
       end
     end # create checkpoint, or unpack it?
   end # checkpoint
@@ -595,11 +594,11 @@ class Formula
   # Get a list of saved checkpoints, in the form of an array of checkpoint names.  With those, the timestamp & archive files’ names
   #   can be fetched using the utility routines above.
   def checkpoint_names
-    result = []
-    if checkpoint_prefix.directory?
-      cd checkpoint_prefix do result = Dir['checkpoint-*.tbz2'].map{ |f| f.sub(/^checkpoint-/, '').sub(/\.tbz2$/, '') }; end
-    end
-    result
+    results = []
+    cd checkpoint_prefix do
+      results = Dir['checkpoint-*'].reject{ |f| f.ends_with? '.timestamp' }.map{ |f| f.sub(/^checkpoint-/, '').sub(/\.[^.]$/, '') }
+    end if checkpoint_prefix.directory?
+    results
   end
 
   # Can be overridden to run commands on both source and bottle installation.
