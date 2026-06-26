@@ -1,5 +1,6 @@
-require 'target'; Target.no_universal_binary
-require 'extend/ENV/shared'
+require 'target'             # Pulls in 'macos', and thence 'cpu'.
+Target.no_universal_binary   # We don’t want to be acting like there’s a “universal” option unless the formula does so first.
+require 'extend/ENV/shared'  # Pulls in 'formula', and thence almost two dozen other modules.
 require 'extend/ENV/std'
 require 'extend/ENV/super'
 

@@ -71,7 +71,7 @@ class BuildOptions
 
   def cxx11?; opoo 'The BuildOptions#cxx11? method is obsolete.  Something needs adjustment.'; false; end
 
-  # Like ARGV#build_mode, but validated against the actual options on offer.
+  # Like ARGV#build_mode, but validated against the actual options on offer.  Beware:  Always-:universal formulæ show as “:plain”!
   def mode
     if option_defined?('cross')  # The only option defined in every fat‐build environment.
       if option_defined?((bm = s_args.build_mode).to_s) then bm
@@ -82,7 +82,7 @@ class BuildOptions
     else bottle? ? :bottle : :plain; end
   end # mode
 
-  # True if a {Formula} is being built as a universal binary, whether native‐only, locally‐oriented, or cross‐compiled.
+  # True if a {Formula} is being built as a universal binary, whether native‐only, locally‐oriented, or cross‐compiling.
   #   ENV.universal_binary if build.universal?
   def universal?; s_args.build_universal? and option_defined?('cross'); end
   alias_method :fat?, :universal?
