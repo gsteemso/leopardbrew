@@ -58,6 +58,7 @@ module HomebrewArgvExtension
 
   def empty_caches
     @btl_arch = @btl_chk = @casks = @effl = @efffl = @fae = @kegs = @lowr_uniq = @mode = @n = @named = @racks = @res_fae = nil
+    ENV.delete 'HOMEBREW_BUILD_MODE' if self == ARGV
   end
 
   # This must be kept in sync with BuildOptions#force_universal_mode.  Do note, the caller must first ensure that universal mode is
@@ -169,8 +170,8 @@ module HomebrewArgvExtension
   end # bottle_arch
 
   def build_mode
-    @mode ||= (m = ENV['HOMEBREW_BUILD_MODE'].choke)     ? validate_build_mode(m)       : \
-              build_bottle?                              ? :bottle                      : \
+    @mode ||= build_bottle?                              ? :bottle                      : \
+              (m = ENV['HOMEBREW_BUILD_MODE'].choke)     ? validate_build_mode(m)       : \
               (includes?('--universal') or
                 value('mode') or
                 intersects? U_MODE_OPTS.keys)            ? universal_mode_with_priority : \

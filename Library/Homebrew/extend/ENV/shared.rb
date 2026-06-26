@@ -32,7 +32,9 @@ module SharedEnvExtension
     self['MAKEFLAGS'] ||= "-j#{make_jobs}"
   end # setup_build_environment
 
-  def initialize_build_mode; self['HOMEBREW_BUILD_MODE'] = self['HOMEBREW_BUILD_MODE'].choke || ARGV.build_mode.to_s; end
+  def initialize_build_mode
+    self['HOMEBREW_BUILD_MODE'] = ((Target.universal_modes_allowed? or ARGV.build_plain?) ? ARGV.build_mode : :plain).to_s
+  end
 
   def set_active_formula(f); @formula = f; end
 
@@ -216,8 +218,7 @@ module SharedEnvExtension
   # is altered only within the block, being restored on its completion.
   def deparallelize
     old = self['MAKEFLAGS'].to_s; j_rex = %r{(-\w*j)\d+}
-    if old =~ j_rex then self['MAKEFLAGS'] = old.sub(j_rex, '\11')
-    else append 'MAKEFLAGS', '-j1'; end
+    if old =~ j_rex then self['MAKEFLAGS'] = old.sub(j_rex, '\11'); else append 'MAKEFLAGS', '-j1'; end
     begin; yield; ensure; self['MAKEFLAGS'] = old; end if block_given?
     old
   end

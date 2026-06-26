@@ -39,7 +39,7 @@ class Target
     # What set of architectures are we building for?  A declared bottle architecture, or a preferred native architecture, or else a
     # universal build that includes every native, or every runnable, or every buildable, architecture.
     def archset
-      desired_archset = @@formula_can_be_universal ? tool_host_archset : plain_arch
+      desired_archset = universal_modes_allowed? ? tool_host_archset : plain_arch
       result = filter_archs desired_archset
       die_from_filter(desired_archset) if result.empty?
       result

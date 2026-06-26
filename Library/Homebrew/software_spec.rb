@@ -26,16 +26,16 @@ class SoftwareSpec
     # The cross architecture‐set is always equal to or a superset of the local architecture‐set, which itself is always equal to or
     # a superset of the native architecture‐set, which is guaranteed to contain either one or two architectures exactly.
     # The possibilities are, from newest to oldest:
-    #   - one native arch == one local arch == one cross arch       (:arm64/ " / "             28…)
-    #                                                               (:x86_64/ " / "            :lion…:catalina)
-    #                                                               (:ppc/ " / "               …:panther)
-    #   - one native arch; two local archs == two cross archs       (arm64/:universal_2/ "     :big_sur…27)
-    #   - one native arch == one local arch; two cross archs        (:x86_64/ " /:universal_2  :big_sur…:sequoia)
-    #                                                               (:i386/ " /:universal_1    :tiger…:snow_leopard)
-    #                                                               (:ppc/ " /:universal_1     :tiger…:snow_leopard)
+    #   - one native arch == one local arch == one cross arch       (:arm64/ ″ / ″             28…)
+    #                                                               (:x86_64/ ″ / ″            :lion…:catalina)
+    #                                                               (:ppc/ ″ / ″               …:panther)
+    #   - one native arch == one local arch; two cross archs        (:x86_64/ ″ /:universal_2  :big_sur…:sequoia)
+    #                                                               (:ppc/ ″ /:universal_1     :tiger…:snow_leopard)
+    #   - one native arch; two local archs == two cross archs       (arm64/:universal_2/ ″     :big_sur…27)
+    #                                                               (:i386/:universal_1/ ″     :tiger…:snow_leopard)
+    #   - two native archs == two local archs; four cross archs     (:powerpc/ ″ /quad         :tiger…:snow_leopard)
+    #   - two native archs; three local archs == three cross archs  (:intel/triple/ ″          :tiger…:snow_leopard, Clang)
     #   - two native archs; three local archs; four cross archs     (:intel/triple/quad        :tiger…:snow_leopard, GCC)
-    #   - two native archs; three local archs == three cross archs  (:intel/triple/ "          :tiger…:snow_leopard, Clang)
-    #   - two native archs == two local archs; four cross archs     (:powerpc/ " /quad         :tiger…:snow_leopard)
     :universal => (Target.cross_archs.fat? \
                     ? (Target.native_archs.fat? \
                       ? ((Target.local_archs != Target.cross_archs and Target.local_archs != Target.native_archs) \
@@ -52,7 +52,7 @@ class SoftwareSpec
                           ] \
                         ) \
                       : # The only architecture-set that can be built is the cross set, whether or not the local set is equal to it.
-                        # To have two options that do the same thing is useless, and potentially confusing to the user.
+                        # To have two options that do the same thing would be useless, and potentially confusing to the user.
                         [ [ 'cross', CROSS_OPTION_TEXT ] ] \
                       ) \
                     : # No architecture‐sets are fat.
@@ -137,6 +137,7 @@ class SoftwareSpec
   def option_defined?(opt); build.options.include?(opt); end
 
   def option(name, description = '')
+    Target.allow_universal_binary if name == :universal
     opts = PREDEFINED_OPTIONS.fetch(name) do
         if name == :cxx11
           opoo 'The :cxx11 option is obsolete', 'Formulæ that won’t build without it should use a “needs” clause' if DEVELOPER
