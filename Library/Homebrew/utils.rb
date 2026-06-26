@@ -151,6 +151,9 @@ def puts_columns(items, star_items = [])
   end
 end # puts_columns
 
+# Prints no output except error messages.
+def quieter_system(cmd, *args); do_system([:nostdout], cmd, *args); end
+
 def re_which(rex, path = ENV['PATH'])
   path.split(File::PATH_SEPARATOR).map{ |p| Pathname.new(p).expand_path rescue nil }.each do |pn|
     next unless pn and pn.directory?
@@ -168,10 +171,12 @@ end # run_as_not_developer
 # To get proper argument quoting & evaluation of environment variables in the cmd parameter.
 def safe_exec(cmd, *args); exec '/bin/sh', '-c', "#{cmd} \"$@\"", '--', *args; end
 
-# Kernel.system but with exceptions
+# Kernel.system, but with exceptions.
+def safe_quieter_system(cmd, *args); do_system([:safe, :nostdout], cmd, *args); end
+def safe_silent_system(cmd, *args); do_system([:safe, :silent], cmd, *args); end
 def safe_system(cmd, *args); do_system([:safe], cmd, *args); end
 
-# return the shell profile file based on users' preference shell
+# Return the shell profile file based on the user's preferred shell.
 def shell_profile
   case ENV['SHELL']
     when %r{/bash$}  then '~/.bash_profile'
@@ -183,8 +188,8 @@ def shell_profile
   end
 end # shell_profile
 
-# prints no output
-def silent_system(cmd, *args); do_system([:silent, :nostdout, :nostderr], cmd, *args); end
+# Prints no output.
+def silent_system(cmd, *args); do_system([:silent], cmd, *args); end
 alias :quiet_system :silent_system
 
 def which(cmd, path = ENV['PATH'], restrict = false)
