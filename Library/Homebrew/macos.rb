@@ -33,6 +33,9 @@ module MacOS
     }
   end
 
+  # Similar, but for install-info.
+  def install_info; (path = OPTDIR/'texinfo/bin/install-info').executable? ? path : locate('install-info'); end
+
   # Similar, but for ld64.
   def ld; (path = OPTDIR/'ld64/bin/ld').executable? ? path : locate('ld'); end
 
