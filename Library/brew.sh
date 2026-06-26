@@ -1,6 +1,6 @@
 #!/bin/sh
 
-LEOPARDBREW_VERSION='0.6.3.2'  # Untangle {Options} #*(), #list(), #list-flags(), & #list-names().
+LEOPARDBREW_VERSION='0.6.4'  # Better `make` and checkpoint handling; improvements to {ld64}.
 
 ###### Convenience functions ######
 
