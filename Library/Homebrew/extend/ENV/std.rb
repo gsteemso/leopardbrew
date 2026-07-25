@@ -51,7 +51,7 @@ module Stdenv
     paths << HOMEBREW_PREFIX/'lib/pkgconfig'
     paths << HOMEBREW_PREFIX/'share/pkgconfig'
     paths << HOMEBREW_LIBRARY/"ENV/pkgconfig/#{MacOS.version}"
-    paths << Pathname.new('/usr/lib/pkgconfig')
+    paths << Pathname('/usr/lib/pkgconfig')
     paths.select{ |d| d.directory? }.map(&to_s).join(File::PATH_SEPARATOR)
   end # determine_pkg_config_libdir
 
@@ -60,7 +60,7 @@ module Stdenv
   %w[O3 O2 O1 O0 Os].each{ |opt| define_method(opt) { remove_from_cflags(/-O./); append_to_cflags "-#{opt}" } }
 
   # @private
-  def determine_cc; s = super; MacOS.locate(s) || Pathname.new(s); end
+  def determine_cc; s = super; MacOS.locate(s) || Pathname(s); end
 
   # @private
   def determine_cxx; cc = determine_cc; cc.dirname/cc.basename.to_s.sub('gcc', 'g++').sub('clang', 'clang++'); end

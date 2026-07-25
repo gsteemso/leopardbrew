@@ -44,8 +44,6 @@ class AbstractDownloadStrategy
 
   private
 
-  def compressor_path(tool); OPTDIR/"#{tool}/bin/#{tool}"; end
-
   def cvspath
     @cvspath ||= %W[
       /usr/bin/cvs
@@ -78,6 +76,10 @@ class AbstractDownloadStrategy
       #{OPTDIR}/fossil/bin/fossil
     ].find { |p| File.executable? p }
   end # AbstractDownloadStrategy#fossilpath
+
+  def tool_path(tool, pkg = tool)
+    (f = Formula[pkg] and f.any_version_installed?) ? f.opt_bin/tool : which(tool, '/usr/bin:/bin')
+  end
 end # AbstractDownloadStrategy
 
 class VCSDownloadStrategy < AbstractDownloadStrategy
@@ -87,7 +89,7 @@ class VCSDownloadStrategy < AbstractDownloadStrategy
     super
     @ref_type, @ref = extract_ref(meta)
     @revision = meta[:revision]
-    @clone = HOMEBREW_CACHE.join(cache_filename)
+    @clone = HOMEBREW_CACHE/cache_filename
   end # VCSDownloadStrategy#initialize()
 
   def fetch
@@ -130,26 +132,41 @@ end # VCSDownloadStrategy
 class AbstractFileDownloadStrategy < AbstractDownloadStrategy
   def stage
     case cached_location.compression_type
-      when :bzip2      then safe_system TAR_PATH, '-xjf', cached_location; chdir  # Tarred
-      when :bzip2_only then with_system_path { buffered_write('bunzip2') }        # Not tarred
+      when :bzip2      then safe_system TAR_PATH, '-xjf', cached_location; chdir                            # Tarred
+      when :bzip2_only then buffered_write tool_path('bunzip2', 'bzip2'), '-f', cached_location.to_s, '-c'  # Not tarred
       when :compress,
            :tar        then safe_system TAR_PATH, '-xf', cached_location; chdir
-      when :gzip       then safe_system TAR_PATH, '-xzf', cached_location; chdir  # Tarred
-      when :gzip_only  then with_system_path { buffered_write('gunzip') }         # Not tarred
-      when :lha        then safe_system compressor_path('lha'), 'x', cached_location
-      when :lzip       then Utils.pipe_to_untar(compressor_path('lzip'), cached_location); chdir
+      when :gzip       then safe_system TAR_PATH, '-xzf', cached_location; chdir                             # Tarred
+      when :gzip_only  then with_system_path { buffered_write('gunzip', '-f', cached_location.to_s, '-c') }  # Not tarred
+      when :lha        then safe_system tool_path('lha'), 'x', cached_location
+      when :lzip       then Utils.pipe_to_untar(tool_path('lzip'), cached_location); chdir
       when :p7zip      then safe_system '7zr', 'x', cached_location
 #     when :rpm        then ???  # there is no code path to unpack these
       when :rar        then quiet_safe_system 'unrar', 'x', { :quiet_flag => '-inul' }, cached_location
       when :xar        then safe_system '/usr/bin/xar', '-xf', cached_location
-      when :xz         then Utils.pipe_to_untar(compressor_path('xz'), cached_location); chdir
+      when :xz         then Utils.pipe_to_untar(tool_path('xz'), cached_location); chdir
       when :zip        then with_system_path { quiet_safe_system 'unzip', { :quiet_flag => '-qq' }, cached_location }; chdir
-      when :zstd       then safe_system compressor_path('zstd'), '-d', cached_location
-                       else cp cached_location, basename_without_params
+      when :zip_only   then with_system_path { quiet_safe_system 'unzip', { :quiet_flag => '-qq' }, cached_location }
+      when :zstd       then Utils.pipe_to_untar(tool_path('zstd'), cached_location); chdir
+                       else cp cached_location.to_s, "#{pwd}/#{cachename}"
     end
   end # AbstractFileDownloadStrategy#stage
 
   private
+
+  # Strip any ?thing=wad out of .c?thing=wad style extensions
+  def basename_without_params; File.basename(@url)[/[^?]+/]; end
+
+  # bunzip2, gunzip, & unzstd will all write their output file in the same directory as their input file, regardless of the current
+  # working directory, so we need to write it to the correct location ourselves.
+  def buffered_write(*args)
+    target = File.basename(basename_without_params, cached_location.extname)
+    Utils.popen_read(*args) do |pipe|
+      File.open(target, 'wb') { |f| buf = ''; f.write(buf) while pipe.read(FILE_BUFSIZE, buf) }
+    end
+  end # AbstractFileDownloadStrategy#buffered_write()
+
+  def cachename(prune = nil); prune ? cached_location.basename(prune) : cached_location.basename; end
 
   def chdir
     entries = Dir['*']
@@ -159,25 +176,13 @@ class AbstractFileDownloadStrategy < AbstractDownloadStrategy
     end
   end # AbstractFileDownloadStrategy#chdir
 
-  # gunzip & bunzip2 write the output file in the same directory as the input file, regardless of the current working directory, so
-  # we need to write it to the correct location ourselves.
-  def buffered_write(tool)
-    target = File.basename(basename_without_params, cached_location.extname)
-    Utils.popen_read(tool, '-f', cached_location.to_s, '-c') do |pipe|
-      File.open(target, 'wb') { |f|; buf = ''; f.write(buf) while pipe.read(16384, buf); }
-    end
-  end # AbstractFileDownloadStrategy#buffered_write()
-
-  # Strip any ?thing=wad out of .c?thing=wad style extensions
-  def basename_without_params; File.basename(@url)[/[^?]+/]; end
-
   # We need a Pathname because we’ve monkeypatched extname to handle double extensions like tar.gz.  #basename_without_params won’t
   # work, because given a URL pathname like (.../download.php?file=foo-1.0.tar.gz), the extension we want is “.tar.gz”, not “.php”.
-  def ext; Pathname.new(@url).extname[/[^?]+/]; end
+  def ext; Pathname(@url).extname[/[^?]+/]; end
 end # AbstractFileDownloadStrategy
 
 class FileCopyStrategy < AbstractDownloadStrategy
-  def cached_location; Pathname.new @url.sub(%r{^file://}, ''); end
+  def cached_location; Pathname(@url.sub(%r{^file://}, '')); end
 
   def clear_cache; end  # Obviously, we do not want to arbitrarily delete anything from the user’s filesystem.
 
@@ -191,7 +196,7 @@ class CurlDownloadStrategy < AbstractFileDownloadStrategy
     super
     @mirrors = resource.mirrors.dup
     @tarball_path = HOMEBREW_CACHE/"#{name}-#{version}#{ext}"
-    @temporary_path = Pathname.new("#{cached_location}.incomplete")
+    @temporary_path = Pathname("#{cached_location}.incomplete")
   end # CurlDownloadStrategy#initialize()
 
   def fetch
@@ -314,7 +319,7 @@ end
 class LocalBottleDownloadStrategy < AbstractFileDownloadStrategy
   attr_reader :cached_location
 
-  def initialize(path); @cached_location = path; end
+  def initialize(path); @cached_location = Pathname(path); end
 
   def clear_cache; end  # Obviously, we do not want to arbitrarily delete anything from the user’s filesystem.
 
@@ -405,7 +410,7 @@ class SubversionDownloadStrategy < VCSDownloadStrategy
       when :revisions then main_revision = @ref[:trunk]  # nil is OK for main_revision, as fetch_repo will then get latest.
                            fetch_repo cached_location, @url, main_revision, true
                            get_externals do |external_name, external_url|
-                             fetch_repo cached_location+external_name, external_url, @ref[external_name], true
+                             fetch_repo cached_location/external_name, external_url, @ref[external_name], true
                            end
       else            fetch_repo cached_location, @url
     end
@@ -428,7 +433,7 @@ class GitDownloadStrategy < VCSDownloadStrategy
     @shallow = meta.fetch(:shallow) { true }
   end # GitDownloadStrategy#initialize()
 
-  def stage; super; cp_r File.join(cached_location, '.'), Dir.pwd; end
+  def stage; super; cp_r cached_location/'.', Dir.pwd; end
 
   private
 
@@ -448,11 +453,11 @@ class GitDownloadStrategy < VCSDownloadStrategy
 
   def shallow_clone?; @shallow && support_depth?; end
 
-  def is_shallow_clone?; git_dir.join('shallow').exist?; end
+  def is_shallow_clone?; (git_dir/'shallow').exists?; end
 
   def support_depth?; @ref_type != :revision && SHALLOW_CLONE_WHITELIST.any? { |rx| rx === @url }; end
 
-  def git_dir; cached_location.join('.git'); end
+  def git_dir; cached_location/'.git'; end
 
   def has_ref?; quiet_system 'git', '--git-dir', git_dir, 'rev-parse', '-q', '--verify', "#{@ref}^{commit}"; end
 
@@ -460,7 +465,7 @@ class GitDownloadStrategy < VCSDownloadStrategy
 
   def repo_valid?; quiet_system 'git', '--git-dir', git_dir, 'status', '-s'; end
 
-  def submodules?; cached_location.join('.gitmodules').exist?; end
+  def submodules?; (cached_location/'.gitmodules').exists?; end
 
   def clone_args
     args = %w[clone]
@@ -530,13 +535,13 @@ class CVSDownloadStrategy < VCSDownloadStrategy
     end
   end # CVSDownloadStrategy#initialize()
 
-  def stage; cp_r File.join(cached_location, '.'), Dir.pwd; end
+  def stage; cp_r cached_location/'.', Dir.pwd; end
 
   private
 
   def cache_tag; 'cvs'; end
 
-  def repo_valid?; cached_location.join('CVS').directory?; end
+  def repo_valid?; (cached_location/'CVS').directory?; end
 
   def clone_repo
     HOMEBREW_CACHE.cd do
@@ -568,7 +573,7 @@ class MercurialDownloadStrategy < VCSDownloadStrategy
 
   def cache_tag; 'hg'; end
 
-  def repo_valid?; cached_location.join('.hg').directory?; end
+  def repo_valid?; (cached_location/'.hg').directory?; end
 
   def clone_repo; safe_system hgpath, 'clone', @url, cached_location; end
 
@@ -579,13 +584,13 @@ class BazaarDownloadStrategy < VCSDownloadStrategy
   def initialize(name, resource); super; @url = @url.sub(%r{^bzr://}, ''); end
 
   # The export command doesn't work on checkouts; see https://bugs.launchpad.net/bzr/+bug/897511
-  def stage; cp_r File.join(cached_location, '.'), Dir.pwd; rm_r '.bzr'; end
+  def stage; cp_r cached_location/'.', Dir.pwd; rm_r '.bzr'; end
 
   private
 
   def cache_tag; 'bzr'; end
 
-  def repo_valid?; cached_location.join('.bzr').directory?; end
+  def repo_valid?; (cached_location/'.bzr').directory?; end
 
   # “lightweight” means history-less
   def clone_repo; safe_system bzrpath, 'checkout', '--lightweight', @url, cached_location; end
@@ -623,32 +628,24 @@ class DownloadStrategyDetector
 
     def detect_from_url(url)
       case url
-        when %r{^file://.+$}
-          FileCopyStrategy
-        when %r{^https?://.+\.git$}, %r{^git://}
-          GitDownloadStrategy
-        when %r{^https?://www\.apache\.org/dyn/closer\.cgi}, %r{^https?://www\.apache\.org/dyn/closer\.lua}
-          CurlApacheMirrorDownloadStrategy
-        when %r{^https?://(.+?\.)?googlecode\.com/svn}, %r{^https?://svn\.}, %r{^svn://}, %r{^https?://(.+?\.)?sourceforge\.net/svnroot/}
-          SubversionDownloadStrategy
-        when %r{^cvs://}
-          CVSDownloadStrategy
-        when %r{^https?://(.+?\.)?googlecode\.com/hg}
-          MercurialDownloadStrategy
-        when %r{^hg://}
-          MercurialDownloadStrategy
-        when %r{^bzr://}
-          BazaarDownloadStrategy
-        when %r{^fossil://}
-          FossilDownloadStrategy
-        when %r{^http://svn\.apache\.org/repos/}, %r{^svn\+http://}
-          SubversionDownloadStrategy
-        when %r{^https?://(.+?\.)?sourceforge\.net/hgweb/}
-          MercurialDownloadStrategy
-        when nil
-          AbstractDownloadStrategy
-        else
-          CurlDownloadStrategy
+        when nil             then AbstractDownloadStrategy
+        when %r{^bzr://}     then BazaarDownloadStrategy
+        when %r{^cvs://}     then CVSDownloadStrategy
+        when %r{^file://.+$} then FileCopyStrategy
+        when %r{^fossil://}  then FossilDownloadStrategy
+        when %r{^https?://.+\.git$},
+             %r{^git://}     then GitDownloadStrategy
+        when %r{^https?://www\.apache\.org/dyn/closer\.(cgi|lua)}
+                                  CurlApacheMirrorDownloadStrategy
+        when %r{^https?://(.+?\.)?googlecode\.com/svn},
+             %r{^https?://(.+?\.)?sourceforge\.net/svnroot/},
+             %r{^https?://svn\.},
+             %r{^svn\+http://},
+             %r{^svn://}     then SubversionDownloadStrategy
+        when %r{^https?://(.+?\.)?googlecode\.com/hg},
+             %r{^https?://(.+?\.)?sourceforge\.net/hgweb/},
+             %r{^hg://}      then MercurialDownloadStrategy
+                             else CurlDownloadStrategy
       end
     end # DownloadStrategyDetector::detect_from_url()
 

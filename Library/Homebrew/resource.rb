@@ -55,19 +55,10 @@ class Resource
     unpack(target, &block)
   end # Resource#stage
 
-  # With a target, unpack there; otherwise, to a temporary folder.  If a block is given, yield.  Exactly one of {target} or {block}
-  # must be given for this method to do anything.
+  # Unpack to a temporary folder.  If a block is given, yield.  Otherwise, install the unpacked stuff to {target}.
   def unpack(target = nil)
-    mktemp(download_name) do
-      downloader.stage
-      if block_given?
-        yield self
-      elsif target
-        target = Pathname.new(target) unless target.is_a? Pathname
-        target.install Dir['*']
-      end
-    end
-  end # Resource#unpack
+    mktemp(download_name) { downloader.stage; block_given? ? yield(self) : (Pathname(target).install(Dir['*']) if target) }
+  end
 
   Partial = Struct.new(:resource, :files)
 
@@ -116,11 +107,10 @@ class Resource
   def detect_version(val)
     return if val.nil? && url.nil?
     case val
-    when nil     then Version.detect(url, specs)
-    when String  then Version.new(val)
-    when Version then val
-    else
-      raise TypeError, "version “#{val.inspect}” should be a string"
+      when nil     then Version.detect(url, specs)
+      when String  then Version.new(val)
+      when Version then val
+                   else raise TypeError, "version “#{val.inspect}” should be a string"
     end
   end # Resource#detect_version
 
@@ -131,10 +121,9 @@ class Resource
   class Patch < Resource
     attr_reader :patch_files
 
-    def initialize(&block)
-      @@patch_count ||= 0; @@patch_count += 1
+    def initialize(number, &block)
       @patch_files = []
-      super "patch-#{@@patch_count}", &block
+      super "patch-#{number}", &block
     end
 
     def apply(*paths)
@@ -142,7 +131,5 @@ class Resource
       @patch_files.concat(paths)
       @patch_files.uniq!
     end
-
-    def self.reset_count; @@patch_count = 0; end
   end # Resource::Patch < Resource
 end # Resource

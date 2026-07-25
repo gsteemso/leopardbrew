@@ -18,13 +18,6 @@ class Build
     @aids = (ARGV.ignore_aids? ? [] : f.active_enhancements)
   end # initialize
 
-  def post_superenv_hacks
-    # Only allow Homebrew-approved directories into the PATH, unless a formula opts-in to allowing the user’s path.
-    if formula.env.userpaths? or reqs.any? { |rq| rq.env.userpaths? }
-      ENV.userpaths!
-    end
-  end # post_superenv_hacks
-
   # ‘dependent’ is a Formula‐subclass instance.
   def effective_build_options_for(dependent)
     opt_args  = dependent.build.used_options
@@ -57,7 +50,10 @@ class Build
 
   def install
     ENV.reset_built_archs
-    Target.allow_universal_binary if ARGV.build_universal? and formula.option_defined?('universal')
+    if ARGV.build_universal? and formula.path.binread =~ %r{option\s+:universal|ENV\.universal_binary}
+      Target.allow_universal_binary
+    end
+    ENV.setup_build_environment
 
     _deps = deps.map(&:to_formula) + aids
     keg_only_deps = _deps.select(&:keg_only?)
@@ -67,11 +63,9 @@ class Build
       ENV.keg_only_deps = keg_only_deps
       ENV.deps = _deps
       ENV.x11 = reqs.any? { |rq| rq.is_a? X11Requirement }
+      # Only allow Homebrew-approved directories into the PATH, unless a formula opts-in to allowing the user’s path.
+      ENV.userpaths! if formula.env.userpaths? or reqs.any? { |rq| rq.env.userpaths? }
     end
-
-    ENV.setup_build_environment
-
-    post_superenv_hacks if superenv?
 
     reqs.each(&:modify_build_environment)
     deps.each(&:modify_build_environment)
@@ -151,10 +145,7 @@ class Build
   end # fixopt
 end # Build
 
-trap('INT') {
-  if DEBUG then raise RuntimeError, 'User Interrupt'
-  else old_trap; end
-}
+trap('INT') { DEBUG ? raise(UserInterrupt) : old_trap }
 
 begin
   error_pipe = IO.new(ENV['HOMEBREW_ERROR_PIPE'].to_i, 'w')

@@ -1,17 +1,16 @@
 # This library is loaded before most others, so must eschew most ’brew‐isms at eval time.
 
 class CannotInstallFormulaError < RuntimeError; end
-# Raised by Pathname#verify_checksum when “expected” is nil or empty:
-class ChecksumMissingError < ArgumentError; end
+class ChecksumMissingError < ArgumentError; end  # Raised by Pathname#verify_checksum when “expected” is nil or empty.
 class DebugError < RuntimeError; end
 class FormulaSpecificationError < StandardError; end
-# Raised when a single patch file is not found and apply hasn’t been specified:
-class MissingApplyError < RuntimeError; end
+class MissingApplyError < RuntimeError; end  # Raised when a single patch file is not found and apply hasn’t been specified.
 class MissingParameterError < RuntimeError; end
 class ArgvSyntaxError < RuntimeError; end
-class UsageError < RuntimeError; end
+class UsageError < RuntimeError; end  # None of these acknowledge a message parameter.
   class FormulaUnspecifiedError < UsageError; end
   class KegUnspecifiedError < UsageError; end
+class UserInterrupt < RuntimeError; end  # Raising this in a trap handler allows catching it via Debrew.
 
 # See also:
 # GitHub::AuthenticationFailedError  (in “utils.rb”)
@@ -47,7 +46,7 @@ class BuildError < RuntimeError
   def initialize(formula, cmd, args, env)
     @formula = formula.full_name
     @env = env
-    args = args.map { |arg| arg.to_s.gsub " ", "\\ " }.join(" ")
+    args = args.map { |arg| arg.to_s.gsub ' ', '\ ' }.join(' ')
     super "Failed executing: #{cmd} #{args}"
   end # initialize
 
@@ -63,38 +62,38 @@ class BuildError < RuntimeError
   def dump
     f = Formulary.factory(formula)
     if VERBOSE
-      require "cmd/config"
-      require "cmd/--env"
-      ohai "Formula"
+      require 'cmd/config'
+      require 'cmd/env'
+      ohai 'Formula'
       puts "Tap: #{f.tap}" if f.tap?
       puts "Path: #{f.path}"
-      ohai "Configuration"
+      ohai 'Configuration'
       Homebrew.dump_verbose_config
-      ohai "ENV"
+      ohai 'ENV'
       Homebrew.dump_build_env(env)
       puts
       onoe "#{formula} #{f.version} did not build"
       unless (logs = Dir["#{f.logs}/*"]).empty?
-        puts "Logs:"
+        puts 'Logs:'
         puts logs.map { |fn| "     #{fn}" }.join("\n")
       end
     else # not VERBOSE
       puts "\n#{TTY.ul_red}READ THIS#{TTY.reset}: #{TTY.em}#{ISSUES_URL}#{TTY.reset}"
       if f.tap?
         case f.tap
-          when "homebrew/homebrew-boneyard"
+          when 'homebrew/homebrew-boneyard'
             puts "#{formula} was moved to homebrew-boneyard because it has unfixable issues."
-            puts "Please do not file any issues about this. Sorry!"
+            puts 'Please do not file any issues about this. Sorry!'
           else
-            puts "If reporting this issue please do so not at the address above, but rather at"
+            puts 'If reporting this issue please do so not at the address above, but rather at'
             puts "    https://github.com/#{f.tap}/issues"
         end
       end
     end # VERBOSE?
     puts
     if RUBY_VERSION >= '1.8.7' and issues and issues.any?
-      puts "These open issues may also help:"
-      puts issues.map { |i| "#{i["title"]} #{i["html_url"]}" }.join("\n")
+      puts 'These open issues may also help:'
+      puts issues.map { |i| "#{i['title']} #{i['html_url']}" }.join("\n")
     end
     if MacOS.version > MacOS::MAX_SUPPORTED_VERSION
       require 'cmd/doctor'
@@ -103,9 +102,8 @@ class BuildError < RuntimeError
   end # dump
 end # BuildError
 
-# Raised by cmd/install, cmd/reinstall, and cmd/upgrade if the user passes any
-# flags/environment that would cause a bottle-only installation on a system
-# without build tools to fail.
+# Raised by cmd/install, cmd/reinstall, & cmd/upgrade if the user sets any flags or environment variables that would cause a bottle-
+# only installation on a system without build tools to fail.
 class BuildFlagsError < RuntimeError
   def initialize(flags)
     xcode_text = case MacOS.version
@@ -139,23 +137,22 @@ class BuildFlagsError < RuntimeError
   end # initialize
 end # BuildFlagsError
 
-# raised by FormulaInstaller.check_dependencies_bottled and
-# FormulaInstaller.install if the formula or its dependencies are not bottled
-# and are being installed on a system without necessary build tools
+# Raised by FormulaInstaller#check_dependencies_bottled() & by FormulaInstaller#install, if the formula or its dependencies are not
+# bottled and are being installed on a system without necessary build tools.
 class BuildToolsError < RuntimeError
   def initialize(formulae)
-    xcode_text = if MacOS.version >= "10.10" then <<-EOS.undent
+    xcode_text = if MacOS.version >= :yosemite then <<-EOS.undent
           To continue, you must install Xcode from the App Store,
           or the CLT by running:
               xcode-select --install
         EOS
-      elsif MacOS.version == "10.9" then <<-EOS.undent
+      elsif MacOS.version == :mavericks then <<-EOS.undent
           To continue, you must install Xcode from:
               https://developer.apple.com/downloads/
           or the CLT by running:
               xcode-select --install
         EOS
-      elsif MacOS.version >= "10.7" then <<-EOS.undent
+      elsif MacOS.version >= :lion then <<-EOS.undent
           To continue, you must install Xcode or the CLT from:
               https://developer.apple.com/downloads/
         EOS
@@ -174,7 +171,7 @@ class BuildToolsError < RuntimeError
   end # initialize
 end # BuildToolsError
 
-# raised by Pathname#verify_checksum when verification fails
+# Raised by Pathname#verify_checksum when verification fails.
 class ChecksumMismatchError < RuntimeError
   attr_reader :expected, :hash_type
   def initialize(fn, expected, actual)
@@ -220,7 +217,7 @@ class CompilerSelectionError < RuntimeError
   end # initialize
 end # CompilerSelectionError
 
-# raised in CurlDownloadStrategy.fetch
+# Raised in CurlDownloadStrategy#fetch.
 class CurlDownloadStrategyError < RuntimeError
   def initialize(url)
     if url =~ %r{^file://(.+)} then super "File does not exist:  #{$1}"
@@ -228,7 +225,7 @@ class CurlDownloadStrategyError < RuntimeError
   end
 end # CurlDownloadStrategyError
 
-# Raised in Resource.fetch
+# Raised in Resource#fetch.
 class DownloadError < RuntimeError
   def initialize(resource, cause)
     super <<-EOS.undent
@@ -243,10 +240,10 @@ class DuplicateResourceError < ArgumentError
   def initialize(name); super "The resource #{name} is defined more than once."; end
 end # DuplicateResourceError
 
-# raised by safe_system in utils.rb and ` in cmd/update
+# Raised by safe_system() in utils.rb and ` in cmd/update.
 class ErrorDuringExecution < RuntimeError
   def initialize(cmd, args = [])
-    args = args.map { |a| a.to_s.gsub " ", "\\ " }.join(" ")
+    args = args.map { |a| a.to_s.gsub ' ', '\ ' }.join(' ')
     super "Failure while executing:  #{cmd} #{args}"
   end
 end # ErrorDuringExecution
@@ -393,7 +390,7 @@ class TapFormulaAmbiguityError < RuntimeError
     @paths = paths
     @formulae = paths.map do |path|
       path.to_s =~ HOMEBREW_TAP_PATH_REGEX
-      "#{$1}/#{$2.sub("homebrew-", "")}/#{path.basename(".rb")}"
+      "#{$1}/#{$2.sub('homebrew-', '')}/#{path.basename('.rb')}"
     end
     super <<-EOS.undent
         Formulae found in multiple taps: #{formulae.map { |f| "\n       * #{f}" }.join}

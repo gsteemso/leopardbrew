@@ -13,14 +13,14 @@ module MacOS
     # string to this method in order to get the full path back as a Pathname.
     (@locate ||= {}).fetch(tool) do |key|
       @locate[key] = if File.executable?(path = "/usr/bin/#{tool}")
-          Pathname.new path
+          Pathname(path)
         # Homebrew GCCs most frequently; much faster to check this before xcrun
         elsif (path = HOMEBREW_PREFIX/"bin/#{tool}").executable?
           path
         # xcrun was introduced in Xcode 3 on Leopard
         elsif version >= :leopard
           path = Utils.popen_read("/usr/bin/xcrun", "-no-cache", "-find", tool).chomp
-          Pathname.new(path) if File.executable?(path)
+          Pathname(path) if File.executable?(path)
         end
     end
   end # locate(tool)
@@ -45,7 +45,7 @@ module MacOS
 
   def active_developer_dir
     # xcode-select was introduced in Xcode 3 on Leopard
-    @active_developer_dir ||= Pathname.new(version < :leopard \
+    @active_developer_dir ||= Pathname(version < :leopard \
         ? '/Developer' \
         : Utils.popen_read('/usr/bin/xcode-select', '-print-path').strip
       )
@@ -61,7 +61,7 @@ module MacOS
            << "#{Xcode.prefix}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk"
       # Xcode < 4.3 style
       opts << Dir["/Developer/SDKs/MacOSX#{v}*.sdk"].first  # catches “MacOSX10.4u.sdk”
-      @sdk_path[key] = opts.map{ |a| Pathname.new(a) }.detect(&:directory?)
+      @sdk_path[key] = opts.map{ |a| Pathname(a) }.detect(&:directory?)
     end
   end # sdk_path
 
@@ -129,12 +129,12 @@ module MacOS
     # Look in the standard locations, because even if port or fink are not in the path they can
     # still break builds if the build scripts have these paths baked in.
     %w[/sw/bin/fink /opt/local/bin/port].each{ |ponk|
-      if (path = Pathname.new ponk).exists? then paths << path; end
+      if (path = Pathname(ponk)).exists? then paths << path; end
     }
     # Finally, some users make their MacPorts or Fink directories read-only in order to try out
     # Homebrew, but this doesn't work as some build scripts error out when trying to read from
     # these now unreadable paths.
-    %w[/sw /opt/local].map{ |p| Pathname.new(p) }.each{ |path|
+    %w[/sw /opt/local].map{ |p| Pathname(p) }.each{ |path|
       paths << path if path.exists? and not path.readable?
     }
     paths.uniq
@@ -200,7 +200,7 @@ module MacOS
 
   def app_with_bundle_id(*ids)
     path = mdfind(*ids).first
-    Pathname.new(path) unless path.nil? || path.empty?
+    Pathname(path) unless path.nil? || path.empty?
   end
 
   def iPhone_SDK_present?; (active_developer_dir/'Platforms/iPhoneOS.platform').directory?; end

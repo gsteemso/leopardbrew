@@ -84,7 +84,7 @@ class Keg
 
   # If path leads to a file in a keg, this will return the containing Keg object.
   def self.for(path, _cellar = HOMEBREW_CELLAR)
-    pn = Pathname.new(path).realpath
+    pn = Pathname(path).realpath
     until pn.root?
       return Keg.new(pn) if pn.parent.parent == _cellar
       pn = pn.parent.realpath # realpath() prevents .root? failing
@@ -97,7 +97,7 @@ class Keg
 
   def initialize(path, _cellar = HOMEBREW_CELLAR)
     raise 'Can’t make a keg from a nil pathname' unless path
-    pn = (Pathname === path ? path : Pathname.new(path))
+    pn = Pathname(path)
     raise "#{path} is not a valid keg" unless pn.directory? and pn.realpath.parent.parent == _cellar.realpath
     @path = pn
     @version_s = pn.basename(REINSTALL_SUFFIX).to_s
@@ -155,9 +155,9 @@ class Keg
 
   def rename(new_name = reinstall_nameflip)
     unlink if was_linked = linked?
-    path.rename new_name            # Rename the physical directory.
-    @path = Pathname.new new_name   # Change our record of the name.
-    optlink                         # Always regenerate the optlink.
+    path.rename new_name        # Rename the physical directory.
+    @path = Pathname(new_name)  # Change our record of the name.
+    optlink                     # Always regenerate the optlink.
     link if was_linked
   end # rename
 

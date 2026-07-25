@@ -11,42 +11,42 @@ require 'osay'
 require 'utils'
 
 # Path to main executable ($HOMEBREW_PREFIX/bin/brew):
-if ENV['HOMEBREW_BREW_FILE'].choke then HOMEBREW_BREW_FILE = Pathname.new(ENV['HOMEBREW_BREW_FILE'])
+if ENV['HOMEBREW_BREW_FILE'].choke then HOMEBREW_BREW_FILE = Pathname(ENV['HOMEBREW_BREW_FILE'])
 else odie '$HOMEBREW_BREW_FILE was not exported!  Please brew via bin/brew!'; end
 
 RbConfig = Config if RUBY_VERSION < '1.8.6'  # different module name on Tiger
 
 # Predefined pathnames:
-CONFIG_RUBY_PATH        = RbConfig.responds_to?(:ruby) \
-                          ? Pathname.new(RbConfig.ruby) \
-                          : Pathname.new(RbConfig::CONFIG['bindir'])/(RbConfig::CONFIG['ruby_install_name'] \
-                                                                      + RbConfig::CONFIG['EXEEXT'])
-                                                                    # The current Ruby binary
+CONFIG_RUBY_PATH        = if RbConfig.responds_to?(:ruby) then Pathname(RbConfig.ruby)
+                          else
+                            rcc = RbConfig::CONFIG
+                            Pathname(rcc['bindir'])/(rcc['ruby_install_name'] + rcc['EXEEXT'])
+                          end                                       # The current Ruby binary
   CONFIG_RUBY_BIN       =   CONFIG_RUBY_PATH.dirname                # Where it lives
-CURL_PATH               = Pathname.new(ENV['HOMEBREW_CURL_PATH'])   # our internal Portable Curl
-HOMEBREW_CACHE          = Pathname.new(ENV['HOMEBREW_CACHE'])
+CURL_PATH               = Pathname(ENV['HOMEBREW_CURL_PATH'])       # our internal Portable Curl
+HOMEBREW_CACHE          = Pathname(ENV['HOMEBREW_CACHE'])
                           # Where downloads (bottles, source tarballs, etc.) are cached (/Library/Caches/Homebrew)
   HOMEBREW_FORMULA_CACHE =  HOMEBREW_CACHE/'Formula'                # Where URL‐spec’d formulæ, & all formula locks, are cached
-HOMEBREW_CELLAR         = Pathname.new(ENV['HOMEBREW_CELLAR']).realpath
-HOMEBREW_LIBRARY        = Pathname.new(ENV['HOMEBREW_LIBRARY'])     # In HOMEBREW_REPOSITORY
+HOMEBREW_CELLAR         = Pathname(ENV['HOMEBREW_CELLAR']).realpath
+HOMEBREW_LIBRARY        = Pathname(ENV['HOMEBREW_LIBRARY'])         # In HOMEBREW_REPOSITORY
   CHECKPOINTS           =   HOMEBREW_LIBRARY/'Checkpoints'
   HOMEBREW_CONTRIB      =   HOMEBREW_LIBRARY/'Contributions'
   LINKDIR               =   HOMEBREW_LIBRARY/'LinkedKegs'           # Records which kegs are linked
   PINDIR                =   HOMEBREW_LIBRARY/'PinnedKegs'           # see `formula/pin.rb`
-HOMEBREW_RUBY_LIBRARY   = Pathname.new(ENV['HOMEBREW_RUBY_LIBRARY']) # Homebrew’s Ruby libraries
+HOMEBREW_RUBY_LIBRARY   = Pathname(ENV['HOMEBREW_RUBY_LIBRARY'])    # Homebrew’s Ruby libraries
   HOMEBREW_CMDS         =   HOMEBREW_RUBY_LIBRARY/'cmd'
   HOMEBREW_DEV_CMDS     =   HOMEBREW_RUBY_LIBRARY/'dev-cmd'
   HOMEBREW_LOAD_PATH    =   HOMEBREW_RUBY_LIBRARY                   # The path to our libraries /when invoking Ruby/.  May be set
                                                                     # to a custom value during unit testing of Homebrew itself.
   TEST_FIXTURES         =   HOMEBREW_RUBY_LIBRARY/'test/fixtures'
-HOMEBREW_PREFIX         = Pathname.new(ENV['HOMEBREW_PREFIX'])      # Where we link under
+HOMEBREW_PREFIX         = Pathname(ENV['HOMEBREW_PREFIX'])          # Where we link under
   OPTDIR                =   HOMEBREW_PREFIX/'opt'                   # Where we are always available
-HOMEBREW_REPOSITORY     = Pathname.new(ENV['HOMEBREW_REPOSITORY'])  # Where .git is found
+HOMEBREW_REPOSITORY     = Pathname(ENV['HOMEBREW_REPOSITORY'])      # Where .git is found
   GIT_REPO_HEAD         =   HOMEBREW_REPOSITORY/'.git/refs/heads/combined'
-HOMEBREW_RUBY_PATH      = Pathname.new(ENV['HOMEBREW_RUBY_PATH'])   # Our internal Ruby binary
-OPEN_PATH               = Pathname.new('/usr/bin/open')
-SYSTEM_RUBY_PATH        = Pathname.new('/usr/bin/ruby')             # The system Ruby binary
-TAR_PATH                = (gtar = OPTDIR/'gnu-tar/bin/gtar').executable? ? gtar : Pathname.new('/usr/bin/tar')
+HOMEBREW_RUBY_PATH      = Pathname(ENV['HOMEBREW_RUBY_PATH'])       # Our internal Ruby binary
+OPEN_PATH               = Pathname('/usr/bin/open')                 # Only used by ::exec_browser() in `utils.rb`.
+SYSTEM_RUBY_PATH        = Pathname('/usr/bin/ruby')                 # The system Ruby binary
+TAR_PATH                = (gtar = OPTDIR/'gnu-tar/bin/gtar').executable? ? gtar : Pathname('/usr/bin/tar')
 
 # Predefined regular expressions:
 # CompilerConstants::GNU_GCC_REGEXP # For recognizing brewed, non-Apple GCCs.
@@ -69,9 +69,9 @@ VERSIONED_NAME_REGEX              = %r{^([^-=][^=]*)=([^=]+)$}      # Matches a 
 
 # Other predefined values:
 # CompilerConstants::ARCH_MINIMUM   # Lists the minimum compiler to target a given architecture.
+# CompilerConstants::COMPILERS      # Lists the known compilers.
 # CompilerConstants::LANG_DEFAULT   # Lists the default language versions for a given compiler version.
 # CompilerConstants::LANG_SUPPORT   # Lists the greatest supported language versions for a given compiler version.
-# CompilerConstants::COMPILERS      # Lists the known compilers.
 HOMEBREW_CURL_ARGS       = '-f#LA'
 HOMEBREW_INTERNAL_COMMAND_ALIASES = { 'ls'          => 'list',
                                       'homepage'    => 'home',
@@ -108,13 +108,13 @@ DEVELOPER       = ARGV.homebrew_developer?    # Enable developer commands (check
 HOMEBREW_GITHUB_API_TOKEN = ENV['HOMEBREW_GITHUB_API_TOKEN'].choke  # For unthrottled Github access
 HOMEBREW_INSTALL_BADGE = ENV['HOMEBREW_INSTALL_BADGE'].choke || "\xf0\x9f\x8d\xba"
                                               # Default is the beer emoji (see `formula/installer.rb`)
-HOMEBREW_LOGS   = Pathname.new(ENV.fetch 'HOMEBREW_LOGS', '~/Library/Logs/Homebrew/').expand_path
+HOMEBREW_LOGS   = Pathname(ENV.fetch 'HOMEBREW_LOGS', '~/Library/Logs/Homebrew/').expand_path
                   # Where build, postinstall, and test logs of formulæ are written to
-HOMEBREW_TEMP   = Pathname.new(ENV.fetch 'HOMEBREW_TEMP', '/tmp').realpath
+HOMEBREW_TEMP   = Pathname(ENV.fetch 'HOMEBREW_TEMP', '/tmp').realpath
                   # Where temporary folders for building and testing formulæ are created
 NO_COMPAT       = ENV['HOMEBREW_NO_COMPAT'] or ARGV.include?('--no-compat')
 NO_EMOJI        = ENV['HOMEBREW_NO_EMOJI'].choke  # Don’t show badges at all (see `formula/installer.rb` and `cmd/info.rb`)
-ORIGINAL_PATHS  = ENV['PATH'].split(File::PATH_SEPARATOR).map{ |p| Pathname.new(p).expand_path rescue nil }.compact.freeze
+ORIGINAL_PATHS  = ENV['PATH'].split(File::PATH_SEPARATOR).map{ |p| Pathname(p).expand_path rescue nil }.compact.freeze
 QUIETER         = ARGV.quieter?               # Give less feedback when VERBOSE (checks:  “-q”, “--quieter”, & $HOMEBREW_QUIET)
 VERBOSE         = ARGV.verbose? or QUIETER    # Give lots of feedback (checks:  “-v”, “--verbose”, $HOMEBREW_VERBOSE, & $VERBOSE)
 

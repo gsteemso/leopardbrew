@@ -1,13 +1,13 @@
-require "stringio"
-require "formula"
+require 'stringio'
+require 'formula'
 
 module Homebrew
   def unpack
     formulae = ARGV.formulae
     raise FormulaUnspecifiedError if formulae.empty?
 
-    if dir = ARGV.value("destdir")
-      unpack_dir = Pathname.new(dir).expand_path
+    if dir = ARGV.value('destdir')
+      unpack_dir = Pathname(dir).expand_path
       unpack_dir.mkpath
     else
       unpack_dir = Pathname.pwd
@@ -25,19 +25,19 @@ module Homebrew
 
       oh1 "Unpacking #{f.full_name} to: #{stage_dir}"
 
-      ENV["VERBOSE"] = "1" # show messages about tar
+      ENV['VERBOSE'] = '1' # show messages about tar
       f.brew do
-        f.patch if ARGV.flag?("--patch")
+        f.patch if ARGV.flag?('--patch')
         cp_r getwd, stage_dir
       end
-      ENV["VERBOSE"] = nil
+      ENV['VERBOSE'] = nil
 
       if ARGV.git?
-        ohai "Setting up git repository"
+        ohai 'Setting up git repository'
         cd stage_dir
-        system "git", "init", "-q"
-        system "git", "add", "-A"
-        system "git", "commit", "-q", "-m", "brew-unpack"
+        system 'git', 'init', '-q'
+        system 'git', 'add', '-A'
+        system 'git', 'commit', '-q', '-m', 'brew-unpack'
       end
     end
   end

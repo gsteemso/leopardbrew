@@ -89,7 +89,7 @@ module HomebrewArgvExtension
 
   def n_after(method, *args); send(method, *args); @n; end
 
-  def next1; @n and (at(@n + 1) or raise ARGVSyntaxError, 'Missing datum at end of command line'); end
+  def next1; @n and (at(@n + 1) or raise ArgvSyntaxError, 'Missing datum at end of command line'); end
 
   def switch?(char)  # eg. `foo -ns -i --bar` has three switches, n, s and i
     return false if char.length > 1 or char == '-'
@@ -171,14 +171,14 @@ module HomebrewArgvExtension
 
   def build_mode
     @mode ||= build_bottle?                              ? :bottle                      : \
-              (m = ENV['HOMEBREW_BUILD_MODE'].choke)     ? validate_build_mode(m)       : \
               (includes?('--universal') or
                 value('mode') or
                 intersects? U_MODE_OPTS.keys)            ? universal_mode_with_priority : \
-              (m = ENV['HOMEBREW_UNIVERSAL_MODE'].choke) ? validate_universal_mode(m)   : :plain
+              (m = ENV['HOMEBREW_UNIVERSAL_MODE'].choke) ? validate_universal_mode(m)   : \
+              (m = ENV['HOMEBREW_BUILD_MODE'].choke)     ? validate_build_mode(m)       : :plain
   end # build_mode
 
-  def build_spec; build_stable? ? :stable : build_devel? ? :devel : :head; end
+  def build_spec; build_head? ? :head : build_devel? ? :devel : :stable; end
 
   def cc; value 'cc'; end
 

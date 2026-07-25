@@ -8,9 +8,7 @@ class Caveats
 
   def caveats; @value; end # _caveats
 
-  def empty?
-    @value.nil? or @value == ''
-  end
+  def empty?; @value.nil? or @value == ''; end
 
   private
 
@@ -62,9 +60,8 @@ class Caveats
     s << "#{f.keg_only_reason}\n"
     if f.lib.directory? or f.include.directory?
       s << <<-EOS.undent
-          Generally there are no consequences of this for you.  If you build your
-          own software and it requires this formula, you’ll need to add to your
-          build variables:
+          Generally this will not affect you.  If you build your own software and it
+          requires this formula, you’ll need to add to your build variables:
         EOS
       s << "    LDFLAGS:  -L#{f.opt_lib}" if f.lib.directory?
       s << "    CPPFLAGS: -I#{f.opt_include}" if f.include.directory?
@@ -106,12 +103,10 @@ class Caveats
       plist_filename = (f.plist ? f.plist_path.basename : File.basename(Dir["#{keg}/*.plist"].first))
       plist_link = "#{destination}/#{plist_filename}"
       plist_domain = f.plist_path.basename('.plist')
-      destination_path = Pathname.new File.expand_path destination
+      destination_path = Pathname(File.expand_path(destination))
       plist_path = destination_path/plist_filename
-      # we readlink because this path probably doesn't exist since caveats
-      # occurs before the link step of installation
-      # Yosemite security measures mildly tighter rules:
-      # https://github.com/Homebrew/homebrew/issues/33815
+      # We readlink because this path probably doesn’t exist, since caveats occurs before the link step of installation.
+      # Yosemite security measures mildly tighter rules:  https://github.com/Homebrew/homebrew/issues/33815
       if not (plist_path.file? and plist_path.symlink?)
         if f.plist_startup
           s << "To have launchd start #{f.full_name} at startup:"
@@ -129,8 +124,7 @@ class Caveats
         else
           s << "    launchctl load #{plist_link}"
         end
-      # For startup plists, we can’t tell whether it’s running on launchd, as is required for `sudo
-      # launchctl list` to get a real result.
+      # For startup plists, we can’t tell if it’s running on launchd, as is required for `sudo launchctl list` to get a real result.
       elsif f.plist_startup
         s << "To reload #{f.full_name} after an upgrade:"
         s << "    sudo launchctl unload #{plist_link}"

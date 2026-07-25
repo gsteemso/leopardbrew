@@ -105,7 +105,7 @@ end
 
 class PrettyListing
   def initialize(path)
-    Pathname.new(path).children.sort_by { |p| p.to_s.downcase }.each do |pn|
+    Pathname(path).children.sort_by { |p| p.to_s.downcase }.each do |pn|
       case pn.basename.to_s
       when "bin", "sbin"
         pn.find { |pnn| puts pnn unless pnn.directory? }

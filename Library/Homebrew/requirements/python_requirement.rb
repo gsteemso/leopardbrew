@@ -23,7 +23,7 @@ class Python2Requirement < Requirement
   def python_short_version; Language::Python.major_minor_version which_python; end
 
   def which_python
-    if (py = which py_exec) then Pathname.new Utils.popen_read(py, '-c', 'import sys; print(sys.executable)').strip; end
+    if (py = which py_exec) then Pathname(Utils.popen_read(py, '-c', 'import sys; print(sys.executable)').strip); end
   end
 
   def py_exec; 'python2'; end

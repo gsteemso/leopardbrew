@@ -8,7 +8,7 @@ class JavaRequirement < Requirement
   satisfy(:build_env => false) { java_version }
 
   env do
-    java_home = Pathname.new(@java_home)
+    java_home = Pathname(@java_home)
     ENV["JAVA_HOME"] = java_home
     ENV.prepend_path "PATH", java_home/"bin"
     if (java_home/"include").exist? # Oracle JVM

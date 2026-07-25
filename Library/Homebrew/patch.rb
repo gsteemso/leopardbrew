@@ -2,52 +2,32 @@ require "resource"
 require "erb"
 
 module Patch
-  def self.create(strip, src, &block)
+  def self.create(strip, src, number, &block)
     case strip
-      when :DATA
-        DATAPatch.new(:p1)
-      when String
-        StringPatch.new(:p1, strip)
-      when Symbol
-        if strip.to_s.starts_with? 'p'
-          case src
-            when :DATA
-              DATAPatch.new(strip)
-            when String
-              StringPatch.new(strip, src)
-            else
-              ExternalPatch.new(strip, &block)
-          end # case src
-        else
-          raise ArgumentError, "unexpected value #{strip.inspect} for strip"
-        end # if the symbol is in fact the right kind of symbol
-      else
-        raise ArgumentError, "unexpected class #{strip.inspect} for strip"
+      when :DATA  then DATAPatch.new(:p1)
+      when String then StringPatch.new(:p1, strip)
+      when Symbol then if strip.to_s.starts_with? 'p'
+                         case src
+                           when :DATA  then DATAPatch.new(strip)
+                           when String then StringPatch.new(strip, src)
+                                       else ExternalPatch.new(strip, number, &block)
+                         end
+                       else raise ArgumentError, "unexpected value #{strip.inspect} for strip"; end
+                  else raise ArgumentError, "unexpected class #{strip.inspect} for strip"
     end # case strip
-  end # Patch::create
+  end # Patch::create()
 
   def self.normalize_legacy_patches(list)
     patches = []
     case list
-      when Hash
-        list
-      when Array, String, :DATA
-        { :p1 => list }
-      else
-        {}
-    end.each_pair do |strip, urls|
-        Array(urls).each do |url|
-            case url
-              when :DATA
-                patch = DATAPatch.new(strip)
-              else
-                patch = LegacyPatch.new(strip, url)
-            end # case url
-            patches << patch
-          end # do each |url|
-      end # do each pair |strip, urls|
+      when Hash                 then list
+      when Array, String, :DATA then { :p1 => list }
+                                else {}
+    end.each_pair{ |strip, urls|
+      Array(urls).each{ |url| patches << (url == :DATA ? DATAPatch.new(strip) : LegacyPatch.new(strip, url)) }
+    }
     patches
-  end # Patch::normalize_legacy_patches
+  end # Patch::normalize_legacy_patches()
 end # Patch
 
 class EmbeddedPatch
@@ -74,17 +54,14 @@ end # EmbeddedPatch
 class DATAPatch < EmbeddedPatch
   attr_accessor :path
 
-  def initialize(strip)
-    super
-    @path = nil
-  end
+  def initialize(strip); super; @path = nil; end
 
   def contents
     data = ""
     path.open("rb") do |f|
       begin
         line = f.gets
-      end until line.nil? || /^__END__$/ === line
+      end until line.nil? or /^__END__$/ === line
       data << line while line = f.gets
     end # do open path
     data
@@ -92,20 +69,17 @@ class DATAPatch < EmbeddedPatch
 end # DATAPatch < EmbeddedPatch
 
 class StringPatch < EmbeddedPatch
-  def initialize(strip, str)
-    super(strip)
-    @str = str
-  end
+  def initialize(strip, str); super(strip); @str = str; end
 
   def contents; @str; end
-end # StringPatch < EmbeddedPatch
+end
 
 class ExternalPatch
   attr_reader :resource, :strip
 
-  def initialize(strip, &block)
+  def initialize(strip, number, &block)
     @strip    = strip
-    @resource = Resource::Patch.new(&block)
+    @resource = Resource::Patch.new(number, &block)
   end
 
   def external?; true; end
@@ -158,7 +132,7 @@ end # ExternalPatch
 # Legacy patches have no checksum and are not cached
 class LegacyPatch < ExternalPatch
   def initialize(strip, url)
-    super(strip)
+    super(strip, nil)
     resource.url(url)
     resource.download_strategy = CurlDownloadStrategy
   end

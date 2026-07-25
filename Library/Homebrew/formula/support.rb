@@ -20,11 +20,11 @@ class CheckpointTarball
 
   # tar -j:  (filter through bzip2.)
   #     -z:  (filter through gzip.)
-  PACK = { :bzip2 => "safe_system TAR_PATH, '-cjf', file, *these_items"
+  PACK = { :bzip2 => "safe_system TAR_PATH, '-cjf', file, *these_items",
            :gzip  => "safe_system TAR_PATH, '-czf', file, *these_items",
            :lzip  => "Utils.pipe_from_tar OPTDIR/'lzip/bin/lzip', file, *these_items",
            :xz    => "Utils.pipe_from_tar OPTDIR/'xz/bin/xz', file, *these_items",
-           :zstd  => "safe_system OPTDIR/'zstd/bin/zstd', *these_items, '-o', file",   }
+           :zstd  => "Utils.pipe_from_tar OPTDIR/'zstd/bin/zstd', file, *these_items",   }
 
   # tar -i:  Ignore zeroed input blocks.  (Some malformed archives require this.)
   #     -m:  update Modification times, to avert spurious re`make`ing.
@@ -33,19 +33,19 @@ class CheckpointTarball
              :gzip  => "safe_system TAR_PATH, '-xizmpf', file",
              :lzip  => "Utils.pipe_to_untar OPTDIR/'lzip/bin/lzip', file, 'mp'",
              :xz    => "Utils.pipe_to_untar OPTDIR/'xz/bin/xz', file, 'mp'",
-             :zstd  => "safe_system OPTDIR/'zstd/bin/zstd', '-d', file",         }
+             :zstd  => "Utils.pipe_to_untar OPTDIR/'zstd/bin/zstd', file, 'mp'", }
 
   attr_reader :file, :format
 
   def initialize(prefix, name)
     @prefix = prefix; @name = name
     files = Dir["#{prefix}/checkpoint-#{name}.*"]
-    if (@exists = not files.empty?)
-      @file = Pathname.new files.first
+    if (@exists = !(files.empty?))
+      @file = Pathname(files.first)
       @format = file.compression_type
     else
       @format = self.class.decide_format
-      @file = Pathname.new "#{@prefix}/checkpoint-#{@name}.#{EXTNAME[format]}"
+      @file = Pathname("#{@prefix}/checkpoint-#{@name}.#{EXTNAME[format]}")
     end
   end # CheckpointTarball#initialize()
 
@@ -60,7 +60,7 @@ class CheckpointTarball
     elsif Formula['lzip' ].any_version_installed? then :lzip
     elsif Formula['xz'   ].any_version_installed? then :xz
     elsif Formula['bzip2'].any_version_installed? or File.executable? '/usr/bin/bzip2' then :bzip2
-    else :gzip
+    else :gzip; end
   end # CheckpointTarball::decide_format
 end # CheckpointTarball
 
@@ -83,7 +83,7 @@ class KegOnlyReason
       when :provided_pre_el_capitan    then MacOS.version < :el_capitan
       when :provided_until_xcode43     then MacOS::Xcode.version < '4.3'
       when :provided_until_xcode5      then MacOS::Xcode.version < '5.0'
-      else                                  true
+                                       else true
     end
   end # KegOnlyReason#valid?
 
@@ -103,11 +103,11 @@ class KegOnlyReason
           can cause all kinds of trouble.
         EOS
       when :provided_pre_mountain_lion then 'Mac OS already provides this software in versions before Mountain Lion.'
-      when :provided_pre_mavericks then 'Mac OS already provides this software in versions before Mavericks.'
-      when :provided_pre_el_capitan then 'Mac OS already provides this software in versions before El Capitan.'
-      when :provided_until_xcode43 then 'Xcode provides this software prior to version 4.3.'
-      when :provided_until_xcode5 then 'Xcode provides this software prior to version 5.'
-      else @reason
+      when :provided_pre_mavericks     then 'Mac OS already provides this software in versions before Mavericks.'
+      when :provided_pre_el_capitan    then 'Mac OS already provides this software in versions before El Capitan.'
+      when :provided_until_xcode43     then 'Xcode provides this software prior to version 4.3.'
+      when :provided_until_xcode5      then 'Xcode provides this software prior to version 5.'
+                                       else @reason
     end.strip
   end # KegOnlyReason#to_s
 end # KegOnlyReason

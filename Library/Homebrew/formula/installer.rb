@@ -19,13 +19,17 @@ class FormulaInstaller
   include FormulaCellarChecks
 
   attr_reader :formula
-
-  mode_attr_accessor :build_bottle, :debug, :git, :ignore_aids, :interactive, :show_install_heading, :show_summary_heading
-
+  mode_attr_accessor :build_bottle, :debug, :git, :ignore_aids, :interactive
   n_state_attr :deps_do       => [false, :ignore, :only],    # was ignore_deps / only_deps
                :force         => [false, :source, :bottle],  # was build_from_source / force_bottle
-               :poured_bottle => [false, :done, :fail],      # was poured_bottle / pour_failed
                :verbosity     => [false, :full, :less]       # was verbose / quieter
+
+  private
+
+  mode_attr_accessor :show_install_heading, :show_summary_heading
+  n_state_attr :poured_bottle => [false, :done, :fail]       # was poured_bottle / pour_failed
+
+  public
 
   # “formula” is a {Formula}‐subclass instance.
   def initialize(formula)
@@ -42,7 +46,7 @@ class FormulaInstaller
     # These are state flags that are manipulated below as installation progresses.
     @show_install_heading = false
     @show_summary_heading = false
-    # The n-state variable @pour_bottle is already set to false.
+    # The n-state variable @poured_bottle is already set to false.
 
     @@attempted ||= Set.new
   end # initialize
@@ -171,6 +175,10 @@ class FormulaInstaller
     # Build from source:
     unless poured_bottle_done?
       install_dependencies(compute_dependencies) if poured_bottle_fail? and not skip_deps_check?
+      if formula.path.binread =~ %r{option :universal|ENV\.universal_binary}
+        Target.allow_universal_binary
+        ENV.initialize_build_mode
+      end
       build
       clean
     end
@@ -291,7 +299,7 @@ class FormulaInstaller
     dependency = cctools.to_dependency
     formula = dependency.to_formula
     return if cctools.satisfied? or @@attempted.include?(formula)
-    install_dependency(dependency, {})
+    install_dependency(dependency)
   end # install_relocation_tools
 
   class DependencyInstaller < FormulaInstaller; def skip_deps_check?; true; end; end
@@ -340,11 +348,8 @@ class FormulaInstaller
 
   def caveats
     return if deps_do_only?
-
     audit_installed if DEVELOPER and not formula.keg_only?
-
     c = Caveats.new(formula)
-
     unless c.empty?
       @show_summary_heading = true
       ohai 'Caveats', c.caveats
@@ -353,32 +358,19 @@ class FormulaInstaller
 
   def finish
     return if deps_do_only?
-
     ohai 'Finishing up' if verbosity?
-
     install_plist
-
-    keg = Keg.new(formula.prefix)
-    link(keg)
-
-    unless poured_bottle_done? and formula.bottle_specification.skip_relocation?
-      fix_install_names(keg)
-    end
-
+    link(keg = Keg.new(formula.prefix))
+    fix_install_names(keg) unless poured_bottle_done? and formula.bottle_specification.skip_relocation?
     if formula.post_install_defined?
       if build_bottle?
-        ohai 'Not running post_install as we’re building a bottle'
-        puts "You can run it manually using `brew postinstall #{formula.full_name}`"
-      else
-        post_install
-      end
+        ohai 'Not running post_install as we’re building a bottle',
+             "You can run it manually using `brew postinstall #{formula.full_name}`"
+      else post_install; end
     end
-
     caveats
-
     ohai 'Summary' if verbosity? or show_summary_heading?
     puts summary
-
     # let's reset Utils.git_available? if we just installed git
     Utils.clear_git_available_cache if formula.name == 'git'
   ensure
@@ -449,7 +441,7 @@ class FormulaInstaller
     args.unshift('nice', BREW_NICE_LEVEL) if BREW_NICE_LEVEL
     $stderr.puts "Build command line:  “#{args * ' '}”\n    $HOMEBREW_BUILD_MODE:  “#{ENV['HOMEBREW_BUILD_MODE']}”" if DEBUG
 
-    # Ruby 2.0+ sets close-on-exec by default on all file descriptors except 0, 1, & 2, so we must tell it we want the pipe to stay
+    # Ruby 2.0 et seq set close-on-exec by default on all file descriptors besides 0–2, so we must tell it we want the pipe to stay
     # open in the child process.  This argument is silently removed when `exec` interprets it; the system does not see it.
     args << { write => write } if RUBY_VERSION >= '2.0'
 
@@ -476,7 +468,7 @@ class FormulaInstaller
       Process.wait(pid)
       raise Marshal.load(data) unless data.nil? or data.empty?
       raise Interrupt, 'User interrupted build' if $?.exitstatus == 130
-      raise 'Suspicious installation failure (build process silently exited)' unless $?.success?
+      raise "Suspicious installation failure (build process silently exited, with status “#{$?}”)" unless $?.success?
     end # quietly ignore interrupts
 
     raise 'Empty installation' if Dir["#{formula.prefix}/*"].empty?

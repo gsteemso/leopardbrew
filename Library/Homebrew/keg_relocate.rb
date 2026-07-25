@@ -93,7 +93,7 @@ class Keg
     Utils.popen_read("/usr/bin/fgrep", "-lr", string, to_s) do |io|
       hardlinks = Set.new
       until io.eof?
-        file = Pathname.new(io.readline.chomp)
+        file = Pathname(io.readline.chomp)
         next if file.symlink?
         yield file if hardlinks.add? file.stat.ino
       end
@@ -110,35 +110,28 @@ class Keg
 
   def fixed_name(file, bad_name)
     # Before we can do anything, must get rid of placeholders.
-    if bad_name.starts_with? PREFIX_PLACEHOLDER
-      working_name = bad_name.sub(PREFIX_PLACEHOLDER, HOMEBREW_PREFIX.to_s)
-    elsif bad_name.starts_with? CELLAR_PLACEHOLDER
-      working_name = bad_name.sub(CELLAR_PLACEHOLDER, HOMEBREW_CELLAR.to_s)
-    else working_name = bad_name; end
-    unless working_name.starts_with? '/'  # It’s relative and still equals bad_name.
-      # If file is a dylib or bundle itself, look for the dylib named by
-      # bad_name relative to the lib directory, so that we can skip the more
-      # expensive recursive search if possible.
-      if (file.dylib? or file.mach_o_bundle?) and (file.parent/bad_name).exists?
-        return "@loader_path/#{bad_name}"
+    work_name = bad_name.starts_with?(PREFIX_PLACEHOLDER)   ? bad_name.sub(PREFIX_PLACEHOLDER, HOMEBREW_PREFIX.to_s) \
+                : bad_name.starts_with?(CELLAR_PLACEHOLDER) ? bad_name.sub(CELLAR_PLACEHOLDER, HOMEBREW_CELLAR.to_s) \
+                                                            : bad_name
+    unless work_name.starts_with? '/'  # It’s relative and still equals bad_name.
+      # If file is a dylib or bundle itself, look for the dylib named by bad_name relative to the lib directory, so we can skip the
+      # more expensive recursive search if possible.
+      if (file.dylib? or file.mach_o_bundle?) and (file.parent/bad_name).exists? then return "@loader_path/#{bad_name}"
       elsif (lib/bad_name).exists? then return "#{opt_record}/lib/#{bad_name}"
-      elsif (abs_name = find_dylib(Pathname.new(bad_name).basename)) and abs_name.exists?
-        working_name = abs_name.to_s; end
-    end # working_name is relative?
-    # working_name is now definitely an absolute path.
-    # If it’s in our own installed prefix, or anywhere else in the Cellar, it
-    # will break if its referent has been moved for reïnstallation.
-    if working_name.starts_with? HOMEBREW_CELLAR.to_s
-      keg = Keg.for(working_name)
-      return working_name.sub(keg.path.to_s, keg.opt_record.to_s)
-    # If working_name is one of our symlinks in the PREFIX, it will break
+      elsif (abs_name = find_dylib(Pathname(bad_name).basename)) and abs_name.exists? then work_name = abs_name.to_s; end
+    end # work_name is relative?
+    # work_name is now definitely an absolute path.  If it’s in our own installed prefix, or anywhere else in the Cellar, it _will_
+    # break if its referent has been moved for reïnstallation.
+    if work_name.starts_with? HOMEBREW_CELLAR.to_s
+      keg = Keg.for(work_name)
+      return work_name.sub(keg.path.to_s, keg.opt_record.to_s)
+    # If work_name is one of our symlinks in the PREFIX, it will break
     # when its target is unlinked.
-    elsif working_name.starts_with? HOMEBREW_PREFIX.to_s
-      return working_name if working_name.starts_with? OPTDIR.to_s
-      bad_path = Pathname.new(working_name)
-      return working_name unless bad_path.symlink? and
-                    (real_bad = bad_path.resolved_real_path).to_s.starts_with? HOMEBREW_CELLAR.to_s
-      return working_name.sub(HOMEBREW_PREFIX.to_s, (Keg.for(real_bad)).opt_record.to_s)
+    elsif work_name.starts_with? HOMEBREW_PREFIX.to_s
+      return work_name if work_name.starts_with? OPTDIR.to_s
+      bad_path = Pathname(work_name)
+      return work_name unless bad_path.symlink? and (real_bad = bad_path.resolved_real_path).starts_with? HOMEBREW_CELLAR
+      return work_name.sub(HOMEBREW_PREFIX.to_s, (Keg.for(real_bad)).opt_record.to_s)
     end # is it in the Cellar or the PREFIX?
     opoo "Could not fix #{bad_name} in #{file}"
     bad_name
@@ -171,7 +164,7 @@ class Keg
     mach_o_files = []
     path.find do |pn|
       next if pn.symlink? or pn.directory?
-      mach_o_files << pn if pn.dylib? or pn.mach_o_bundle? or pn.mach_o_executable?
+      mach_o_files << pn if pn.tracked_mach_o?
     end
 
     mach_o_files

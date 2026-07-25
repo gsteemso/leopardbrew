@@ -110,7 +110,7 @@ class Formulary
   # Loads formulae from disk using a path
   class FromPathLoader < FormulaLoader
     def initialize(path)
-      path = Pathname.new(path).expand_path
+      path = Pathname(path).expand_path
       super path.basename(".rb").to_s, path
     end
   end # FromPathLoader
@@ -200,7 +200,7 @@ class Formulary
     if tab = Tab.for_keg(keg)
       f_path = tab.source['path']
       f_spec = tab.spec
-      f = factory(f_path, f_spec) if f_path and Pathname.new(f_path).file?
+      f = factory(f_path, f_spec) if f_path and File.file?(f_path)
       f if f and f.pkg_version.to_s == keg.version.to_s
     end
   end # Formulary::from_keg
@@ -270,7 +270,7 @@ class Formulary
     formula_with_that_name = core_path(ref)
     if formula_with_that_name.file? then return FormulaLoader.new(ref, formula_with_that_name); end
 
-    possible_alias = Pathname.new("#{HOMEBREW_LIBRARY}/Aliases/#{ref}")
+    possible_alias = HOMEBREW_LIBRARY/"Aliases/#{ref}"
     if possible_alias.file? then return AliasLoader.new(possible_alias); end
 
     possible_tap_formulae = tap_paths(ref)
@@ -302,13 +302,13 @@ class Formulary
       return TapLoader.new(possible_tap_newname_formulae.first)
     end
 
-    possible_cached_formula = Pathname.new("#{HOMEBREW_FORMULA_CACHE}/#{ref}.rb")
+    possible_cached_formula = HOMEBREW_FORMULA_CACHE/"#{ref}.rb"
     if possible_cached_formula.file? then return FormulaLoader.new(ref, possible_cached_formula); end
 
     NullLoader.new(ref)
   end # Formulary::loader_for
 
-  def self.core_path(name); n = name.downcase; Pathname.new("#{HOMEBREW_LIBRARY}/Formula/#{n[0]}/#{n}.rb"); end
+  def self.core_path(name); n = name.downcase; HOMEBREW_LIBRARY/"Formula/#{n[0]}/#{n}.rb"; end
 
   def self.tap_paths(name, taps = Dir["#{HOMEBREW_LIBRARY}/Taps/*/*/"])
     name = name.downcase

@@ -68,24 +68,25 @@ class SoftwareSpec
 
   attr_reader :name, :full_name, :owner
   attr_reader :bottle_specification, :build, :compiler_failures, :dependency_collector, :deprecated_actuals, :deprecated_options,
-              :active_enhancements, :named_enhancements, :patches, :resources
+              :active_enhancements, :named_enhancements, :patches, :resources, :symbol
 
   def_delegators :@resource, :cached_download, :checksum, :clear_cache, :fetch, :mirror, :mirrors, :specs, :stage, :using,
                              :verify_download_integrity, :version, *Checksum::TYPES
 
-  def initialize
+  def initialize(symbol = :stable)
     @active_enhancements = []
     @bottle_specification = BottleSpecification.new
     @compiler_failures = []
     @dependency_collector = DependencyCollector.new
     @deprecated_actuals = []
     @deprecated_options = []
+    @external_patch_count = 0
     @flags = ARGV.effective_flags
     @named_enhancements = []
     @patches = []
     @resource = Resource.new
     @resources = {}
-
+    @symbol = symbol
     @build = BuildOptions.new(Options.create(@flags), Options.new)
   end # SoftwareSpec#initialize
 
@@ -136,24 +137,24 @@ class SoftwareSpec
 
   def option_defined?(opt); build.options.include?(opt); end
 
-  def option(name, description = '')
-    Target.allow_universal_binary if name == :universal
-    opts = PREDEFINED_OPTIONS.fetch(name) do
-        if name == :cxx11
+  def option(o_name, description = '')
+    Target.allow_universal_binary if o_name == :universal and full_name and full_name == ENV['HOMEBREW_ACTIVE_FORMULA']
+    opts = PREDEFINED_OPTIONS.fetch(o_name) do
+        if o_name == :cxx11
           opoo 'The :cxx11 option is obsolete', 'Formulæ that won’t build without it should use a “needs” clause' if DEVELOPER
-          name = name.to_s
-        elsif name == '32-bit'
+          o_name = o_name.to_s
+        elsif o_name == '32-bit'
           opoo 'The “32-bit” option is obsolete', 'Formulæ that won’t build without it should use an ArchRequirement' if DEVELOPER
-        elsif Symbol === name
-          opoo "Passing arbitrary symbols to `option` is deprecated:  #{name.inspect}",
+        elsif Symbol === o_name
+          opoo "Passing arbitrary symbols to `option` is deprecated:  #{o_name.inspect}",
             'Symbols are reserved for future use – please pass a string instead'
-          name = name.to_s
-        elsif not String === name then raise ArgumentError, 'option name in Formula (as passed to SoftwareSpec) is not a String'
-        elsif name.empty? then raise ArgumentError, 'option name is required'
-        elsif name.length < 2 then raise ArgumentError, 'option name must be longer than one character'
-        elsif name.starts_with?('-') then raise ArgumentError, 'option name must not start with a dash'
+          o_name = o_name.to_s
+        elsif not String === o_name then raise ArgumentError, 'option name in Formula (as passed to SoftwareSpec) is not a String'
+        elsif o_name.empty? then raise ArgumentError, 'option name is required'
+        elsif o_name.length < 2 then raise ArgumentError, 'option name must be longer than one character'
+        elsif o_name.starts_with?('-') then raise ArgumentError, 'option name must not start with a dash'
         end
-        [ [ name, description ] ]
+        [ [ o_name, description ] ]
       end # PREDEFINED_OPTIONS fetch‐failure block
     unless opts.empty?
       opts_ = []
@@ -203,10 +204,16 @@ class SoftwareSpec
     #   formulæ.  All of these are kept sorted for convenience.
     # Note:  The “active” enhancements describe what would be true of a new build done at run time.  They do not describe the state
     #   of any installed keg – use Keg#enhanced_by?() for that.
-    aids = Array(aid).map{ |name| Formula[name == :nls ? 'gettext' : name] rescue nil }.compact
+    aids = Array(aid).map{ |a_name| Formula[a_name == :nls ? 'gettext' : a_name] rescue nil }.compact
     return if aids.empty?
     @named_enhancements << aids.sort{ |a, b| a.full_name <=> b.full_name }
-    @named_enhancements = named_enhancements.sort{ |a, b| sort_named_enhancements(a, b) }
+    @named_enhancements = named_enhancements.sort do |a, b|
+        # The named enhancements are an array of sorted arrays of formulæ.  Sort based on the elements’ full formula names, shorter
+        # arrays sorting first if otherwise equal.
+        a.compact!; b.compact!
+        i = 0; while (i < a.length and i < b.length and a[i].full_name == b[i].full_name) do i += 1; end
+        (i < a.length) ? (i < b.length ? a[i].full_name <=> b[i].full_name : 1) : (i < b.length ? -1 : 0)
+      end # sort named enhancements
     @active_enhancements = active_enhancements.concat(aids).uniq.sort{ |a, b| a.full_name <=> b.full_name } \
                                                                                              if aids.all?{ |f| f and f.installed? }
   end # SoftwareSpec#enhanced_by
@@ -215,7 +222,13 @@ class SoftwareSpec
 
   def requirements; dependency_collector.requirements; end
 
-  def patch(strip = :p1, src = nil, &block); patches << Patch.create(strip, src, &block); end
+  def patch(strip = :p1, src = nil, number = nil, &block)
+    if number.nil? and block_given?
+      @external_patch_count += 1
+      number = "#{@sym}#{@external_patch_count}"
+    end
+    patches << Patch.create(strip, src, number, &block)
+  end
 
   def fails_with(compiler, &block); @compiler_failures << CompilerFailure.create(compiler, &block); end
 
@@ -238,26 +251,11 @@ class SoftwareSpec
         build.options << Option.new("without-#{nm}", nm == 'nls' ? "Build without #{NLS_TEXT}" : "Build without #{nm} support")
       end
     end # Array of deps?
-  end # SoftwareSpec#add_dep_option
-
-  private
-
-  def sort_named_enhancements(a, b)
-    # The named enhancements are an array of sorted arrays of formulæ.  Sort based on the elements’
-    # full formula names, with shorter arrays sorting first if otherwise equal.
-    a.compact!; b.compact!
-    i = 0; while (i < a.length and i < b.length and a[i].full_name == b[i].full_name) do i += 1; end
-    if i < a.length # elements differ, or else b is shorter
-      i < b.length ? a[i].full_name <=> b[i].full_name : 1
-    else # a is shorter, or else they were equal
-      i < b.length ? -1 : 0
-    end
-  end
-
+  end # SoftwareSpec#add_dep_option()
 end # SoftwareSpec
 
 class HeadSoftwareSpec < SoftwareSpec
-  def initialize; super; @resource.version = Version.new('HEAD'); end
+  def initialize; super(:head); @resource.version = Version.new('HEAD'); end
   def verify_download_integrity(_fn); nil; end
 end # HeadSoftwareSpec
 

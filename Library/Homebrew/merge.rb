@@ -2,7 +2,7 @@
 module Merge
   include FileUtils
 
-  # type is either :binary or :header; arch is a simple string (or, by implicit coërcion, a symbol).
+  # type is either :binary or :header; arch is anything implicitly coërced to a {String} by interpolation.
   # @private
   def stashdir(type, arch)
     subdir_basename = case type
@@ -13,7 +13,7 @@ module Merge
     buildpath/"arch-stashes/#{subdir_basename}"
   end # stash_subdir_basename
 
-  # type is either :binary or :header; arch and the list members are simple strings.
+  # type is either :binary or :header; the list members are {String}s; arch is anything implicitly coërced to one by interpolation.
   def merge_prep(type, arch, list)
     list.each do |rel_path|
       dest = stashdir(type, arch)/rel_path
@@ -22,46 +22,38 @@ module Merge
     end # each listed |rel_path|
   end # merge_prep
 
-  # The arch and sub_path are simple strings.
+  # sub_path is a {String}; arch is anything implicitly coërced to one by interpolation.
   def scour_keg(arch, sub_path = nil)
     stash_root = stashdir(:binary, arch)
     stash_path = (sub_path ? stash_root/sub_path : stash_root)
     mkdir_p stash_path unless stash_path.directory?
     s_p = sub_path ? sub_path + '/' : ''  # Don’t suffer a double slash when sub_path is null.
-    Dir["#{prefix}/#{s_p}*"].each do |fn|
-      pn = Pathname.new(fn)
+    Dir["#{prefix}/#{s_p}*"].map{ |fn| Pathname(fn) }.each do |pn|
       spb = s_p + pn.basename
       if pn.directory? then scour_keg(arch, spb)
       elsif (not pn.symlink?) and (pn.mach_o_signature_at?(0) or pn.ar_sigseek_from 0) then cp pn, stash_root/spb; end
     end # each filename |fn|
   end # scour_keg
 
-  # The archs members and sub_path are simple strings.
+  # sub_path is a {String}; the members of archs are coërcible to {String}s via #to_s.
   def merge_binaries(archs, sub_path = nil)
     # Generate a full list of files, even when some are not present on all architectures; bear in mind that the current _directory_
     # may not even exist on all archs.
     basename_list = []
-    dir_archlist = stashdir(:binary, '').to_s + '{' + archs.map(&:to_s).join(',') + '}'
+    stashlist = stashdir(:binary, '').to_s + '{' + archs.map(&:to_s).join(',') + '}'
     s_p = sub_path ? sub_path + '/' : ''  # Don’t suffer a double slash when sub_path is null.
-    Dir["#{dir_archlist}/#{s_p}*"].map{|fn| File.basename(fn)}.each{|bn| basename_list << bn unless basename_list.count(bn) > 0}
-    arch_dirs = archs.map{ |a| stashdir(:binary, a) }
+    Dir["#{stashlist}/#{s_p}*"].map{|fn| File.basename(fn)}.each{|bn| basename_list << bn unless basename_list.count(bn) > 0}
+    stash_array = archs.map{ |a| stashdir(:binary, a) }
     basename_list.each do |bn|
       spb = s_p + bn
-      the_arch_dir = arch_dirs.detect{ |ad| (ad/spb).exists? }
+      next unless the_arch_dir = stash_array.detect{ |ad| (ad/spb).exists? }
       if (the_arch_dir/spb).directory? then merge_binaries(archs, spb)
-      else
-        arch_files = Dir["#{dir_archlist}/#{spb}"]
-        if arch_files.length > 1 then system MacOS.lipo, '-create', *arch_files, '-output', prefix/spb
-        else
-          # Presumably, there is a reason this only exists for one architecture, so no error.  The same rationale would apply if it
-          # only existed in, say, two out of three.
-          cp arch_files.first, prefix/spb
-        end
-      end # directory?
+      elsif (slices = Dir["#{stashlist}/#{spb}"]).length > 1 then system MacOS.lipo, '-create', *slices, '-output', prefix/spb
+      else cp slices.first, prefix/spb; end
     end # each basename |b|
   end # merge_binaries
 
-  # The archs members and sub_path are simple strings.
+  # sub_path is a {String}; the members of archs are implicitly coërcible to {String}s by interpolation.
   def merge_c_headers(archs, sub_path = nil)
     # One or more architecture-specific <header>.<extension> files need to be surgically combined, and were stashed for the purpose.
     # The differences are relatively minor and can be “#ifdef”d together.  We make the simplifying assumption that the architecture-

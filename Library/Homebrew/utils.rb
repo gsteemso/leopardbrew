@@ -12,11 +12,11 @@ require 'utils/popen'
 # Repeats {cmd} for each of its runnable fat‐binary architectures.
 def arch_system(cmd, *args); for_archs(cmd) { |_, cmd_array| Homebrew.system *cmd_array, *args }; end
 
-# Returns an Array of the architectures that the given command or library is built for.   Expects a String – if you have a Pathname,
-# just use its #archs method.
+# Returns an {Array} of which architectures the target command or library was built for.  This expects a {String}; for a {Pathname},
+# just use its #archs method directly.
 def archs_for_command(cmd)
   cmd = which(cmd) unless cmd =~ %r{/[^/]+$}
-  Pathname.new(cmd).archs
+  Pathname(cmd).archs
 end
 
 def curl(*args)
@@ -57,7 +57,7 @@ def exec_editor(*args); safe_exec(which_editor, *args); end
 #   end
 def for_archs (cmd, &block)
   cmd = which(cmd) unless cmd.to_s =~ %r{/}
-  cmd = Pathname.new(cmd) unless Pathname === cmd
+  cmd = Pathname(cmd)
   if (is_fat = cmd.fat?) and (a_tool = (which 'arch').to_s.choke)
     cmd.archs.select{ |a| CPU.can_run?(a) }.each{ |a| yield a, [a_tool, '-arch', a.to_s, cmd] }
   else
@@ -73,7 +73,7 @@ end # for_archs
 def gzip(*paths)
   paths.collect do |path|
     with_system_path { safe_system 'gzip', path }
-    Pathname.new("#{path}.gz")
+    Pathname("#{path}.gz")
   end
 end # gzip
 
@@ -155,7 +155,7 @@ end # puts_columns
 def quieter_system(cmd, *args); do_system([:nostdout], cmd, *args); end
 
 def re_which(rex, path = ENV['PATH'])
-  path.split(File::PATH_SEPARATOR).map{ |p| Pathname.new(p).expand_path rescue nil }.each do |pn|
+  path.split(File::PATH_SEPARATOR).map{ |p| Pathname(p).expand_path rescue nil }.each do |pn|
     next unless pn and pn.directory?
     pn.children.each{ |cpn| if cpn.basename =~ rex then return cpn; end }
   end
@@ -196,12 +196,12 @@ def which(cmd, path = ENV['PATH'], restrict = false)
   path.split(File::PATH_SEPARATOR).each do |p|
     next if restrict and p.starts_with? HOMEBREW_LIBRARY.to_s
     begin
-      pcmd = File.expand_path(cmd, p)
+      pcmd = Pathname(File.expand_path(cmd, p))
     rescue ArgumentError
       # File::expand_path raises an ArgumentError if the path is malformed; see (https://github.com/Homebrew/homebrew/issues/32789).
       next
     end
-    return Pathname.new(pcmd) if File.file?(pcmd) && File.executable?(pcmd)
+    return pcmd if pcmd.file? and pcmd.executable?
   end
   nil
 end # which
@@ -390,8 +390,7 @@ module Homebrew
 
   def homebrew_version_string
     if pretty_revision = git_short_head
-      last_commit = git_last_commit_date
-      "#{LEOPARDBREW_VERSION} (git revision #{pretty_revision}; last commit #{last_commit})"
+      "#{LEOPARDBREW_VERSION} (git revision #{pretty_revision}; last commit #{git_last_commit_date})"
     else "#{LEOPARDBREW_VERSION} (no git repository)"
     end
   end # Homebrew::homebrew_version_string

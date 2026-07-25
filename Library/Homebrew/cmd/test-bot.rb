@@ -5,8 +5,8 @@
 #: --keep-logs:     Write and keep log files under ./brewbot/
 #: --cleanup:       Clean the Homebrew directory.  Very dangerous; use with care.
 #: --clean-cache:   Remove all cached downloads.  Use with care.
-#: --skip-setup:    Don't check the local system is setup correctly.
-#: --skip-homebrew: Don't check Homebrew's files and tests are all valid.
+#: --skip-setup:    Don’t check the local system is setup correctly.
+#: --skip-homebrew: Don’t check Homebrew’s files and tests are all valid.
 #: --junit:         Generate a JUnit XML test results file.
 #: --email:         Generate an email subject file.
 #: --no-bottle:     Run brew install without --build-bottle
@@ -126,7 +126,7 @@ module Homebrew
 
       verbose = VERBOSE
       @output = ""
-      working_dir = Pathname.new(@command.first == "git" ? @repository : Dir.pwd)
+      working_dir = Pathname(@command.first == "git" ? @repository : Dir.pwd)
       read, write = IO.pipe
 
       begin

@@ -72,14 +72,16 @@ class Pathname
   # @private
   def compression_type
     case extname
-      # If the filename ends with .bz2 or .gz not preceded by .tar, decompress but don’t untar.
+      # If the extname is .Z, .bz2, .gz, or .zip (not preceded by .tar), decompress but don’t untar.  (This can only apply when the
+      # archive format preserves filenames.)
+      when '.Z', '.zip'   then return :zip_only
       when '.bz2'         then return :bzip2_only
       when '.gz'          then return :gzip_only
       when '.jar', '.war' then return  # Don't treat jars or wars as compressed
       when '.lha', '.lzh' then return :lha
     end # case extname
     # Get enough of the file to detect common file types.  Magic numbers stolen from /usr/share/file/magic, except for the Zstd one
-    # which comes from RFC 8878.  Modern tar magic has a 257 byte offset.
+    # which comes from RFC 8878.  Modern tar magic has a 257‐byte offset.
     case binread(262)
       when /^\x1F\x8B/n           then :gzip
       when /^\x1F\x9D/n           then :compress
@@ -95,10 +97,10 @@ class Pathname
       when /ustar$/n              then :tar
       else  # This code so that bad tarballs and archives produce good error messages when they don’t unarchive properly.
         case extname
-          when %r{^\.tar(\..+)?}, '.tbz', '.tgz', '.tlz' then :tar
-          when %r{^\.lz4?}    then :lzip
-          when '.xz'          then :xz
           when '.Z', '.zip'   then :zip
+          when %r{^\.lz4?}    then :lzip
+          when %r{^\.tar(\..+)?}, '.tbz', '.tgz', '.tlz', '.txz', '.tz', '.tzst' then :tar
+          when '.xz'          then :xz
           when '.zst'         then :zstd
         end # case extname
     end # magic number
@@ -119,6 +121,8 @@ class Pathname
   end # cp_path_sub
 
   def empty?; not directory? or (Dir.entries(to_s) - ['.', '..', '.DS_Store']).empty?; end
+
+  def ends_with?(other); to_s.ends_with?(other.to_s); end
 
   # @private
   def ensure_writable
@@ -143,7 +147,7 @@ class Pathname
   def extname(path = to_s)  # Extended to support common double extensions.
     BOTTLE_EXTNAME_RX.match(path)
     return $1 if $1
-    /(\.(tar|cpio|pax)\.(gz|bz2|lz4?|xz|Z|zst))$/.match(path)
+    /(\.(tar|cpio|pax)\.(Z|bz2|gz|lz4?|xz|zip|zst))$/.match(path)
     return $1 if $1
     File.extname(path)
   end # extname
@@ -238,6 +242,9 @@ class Pathname
   def sha1; require 'digest/sha1'; incremental_hash(Digest::SHA1); end
   def sha256; require 'digest/sha2'; incremental_hash(Digest::SHA256); end
 
+  def start_with?(other); to_s.start_with?(other.to_s); end
+  alias_method :starts_with?, :start_with
+
   # for filetypes we support, basename without extension
   def stem; File.basename((path = to_s), extname(path)); end
 
@@ -302,7 +309,7 @@ class Pathname
     if targets.empty? then opoo "tried to write exec scripts to #{to_s} for an empty list of targets"; return; end
     mkpath
     targets.each do |target|
-      target = Pathname.new(target) unless target.is_a? Pathname  # allow pathnames or strings
+      target = Pathname(target)  # allow pathnames or strings
       (self/target.basename).write <<-EOS.undent
         #!/bin/bash
         exec "#{target}" "$@"
@@ -360,7 +367,7 @@ class Pathname
   end # default_stat
 
   def install_p(src, new_basename)
-    src = Pathname.new(src) unless Pathname === src
+    src = Pathname(src)
     raise Errno::ENOENT, src.to_s unless src.symlink? or src.exists?
     dst = join(new_basename)
     dst = yield(src, dst) if block_given?
@@ -371,8 +378,7 @@ class Pathname
   end # install_p
 
   def install_symlink_p(tgt, new_basename)
-    tgt = Pathname.new(tgt) unless Pathname === tgt
-    tgt = tgt.expand_path(self)
+    tgt = Pathname(tgt).expand_path(self)
     lnk = join(new_basename)
     mkpath
     ln_sf(tgt.relative_path_from(lnk.parent), lnk)

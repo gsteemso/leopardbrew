@@ -54,7 +54,7 @@ module MacOS
 
     def provides_cvs?; version < "5.0"; end
 
-    def toolchain_path; Pathname.new("#{prefix}/Toolchains/XcodeDefault.xctoolchain") if installed? and version >= "4.3"; end
+    def toolchain_path; Pathname("#{prefix}/Toolchains/XcodeDefault.xctoolchain") if installed? and version >= "4.3"; end
 
     # This may return nil or a version string guessed based on the compiler, so don’t use it to check if Xcode is installed.
     def version; @version ||= uncached_version; end

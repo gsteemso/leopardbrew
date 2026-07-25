@@ -31,7 +31,7 @@ class LinkageChecker
           @variable_dylibs << dylib
         else
           begin
-            owner = Keg.for Pathname.new(dylib)
+            owner = Keg.for dylib
           rescue NotAKegError
             @system_dylibs << dylib
           rescue Errno::ENOENT

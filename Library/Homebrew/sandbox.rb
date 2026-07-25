@@ -111,14 +111,14 @@ class Sandbox
 
   def expand_realpath(path)
     raise unless path.absolute?
-    path.exist? ? path.realpath : expand_realpath(path.parent)/path.basename
+    path.exists? ? path.realpath : expand_realpath(path.parent)/path.basename
   end
 
   def path_filter(path, type)
     case type
     when :regex        then "regex \#\"#{path}\""
-    when :subpath      then "subpath \"#{expand_realpath(Pathname.new(path))}\""
-    when :literal, nil then "literal \"#{expand_realpath(Pathname.new(path))}\""
+    when :subpath      then "subpath \"#{expand_realpath(Pathname(path))}\""
+    when :literal, nil then "literal \"#{expand_realpath(Pathname(path))}\""
     end
   end # path_filter
 

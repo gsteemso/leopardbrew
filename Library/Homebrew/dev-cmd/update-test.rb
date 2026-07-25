@@ -7,7 +7,7 @@ module Homebrew
     end_sha1 = Utils.popen_read("git", "rev-parse", "HEAD").chomp
 
     mktemp do
-      curdir = Pathname.new(Dir.pwd)
+      curdir = Dir.pwd
 
       oh1 "Setup test environment..."
       # copy Homebrew installation
@@ -26,7 +26,7 @@ module Homebrew
       safe_system "git", "reset", "--hard", start_sha1
 
       # update ENV["PATH"]
-      ENV.extend(Stdenv)
+      ENV.activate_extensions!
       ENV.prepend_path "PATH", "#{curdir}/bin"
 
       # run brew update

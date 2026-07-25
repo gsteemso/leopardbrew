@@ -77,8 +77,8 @@ end
 class SelfUnbrewedRequirement < Requirement
   fatal true
   def initialize(stock_pathname, moved_pathname, unlink_script_name)
-    @stock = Pathname.new(stock_pathname)
-    @moved = Pathname.new(moved_pathname)
+    @stock = Pathname(stock_pathname)
+    @moved = Pathname(moved_pathname)
     @unscript = unlink_script_name
     super()
   end

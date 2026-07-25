@@ -22,7 +22,7 @@ class Tab < OpenStruct
         'poured_from_bottle' => false,
         'source'             => {
           'path' => formula.path.to_s,
-          'spec' => formula.active_spec_sym.to_s,
+          'spec' => formula.active_spec.symbol.to_s,
           'tap'  => formula.tap,
         },
         'stdlib'             => stdlib,
@@ -86,7 +86,7 @@ class Tab < OpenStruct
       else
         tab = empty
         tab.unused_options = f.options.as_flags
-        tab.source = { 'path' => f.path.to_s, 'spec' => f.active_spec_sym.to_s, 'tap' => f.tap }
+        tab.source = { 'path' => f.path.to_s, 'spec' => f.active_spec.symbol.to_s, 'tap' => f.tap }
       end
       tab
     end # Tab::for_formula
@@ -126,7 +126,7 @@ class Tab < OpenStruct
       attrs['brew_sys_version'] ||= 'before 0.6.3pre3'
       attrs['built_archs'] ||= []
       attrs['source'] ||= {}
-      pn = Pathname.new(attrs['source']['path'])
+      pn = Pathname(attrs['source'].fetch('path'))
       if not pn.exists? and pn.dirname == HOMEBREW_LIBRARY/'Formula'
         b = pn.basename.to_s
         if (pn = pn.dirname/b[0]/b).exists? then attrs['source']['path'] = pn.to_s; end

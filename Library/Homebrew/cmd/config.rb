@@ -56,7 +56,7 @@ module Homebrew
     python = which "python"
     return "N/A" if python.nil?
     python_binary = Utils.popen_read python, "-c", "import sys; sys.stdout.write(sys.executable)"
-    python_binary = Pathname.new(python_binary).realpath
+    python_binary = Pathname(python_binary).realpath
     if python == python_binary then python
     else "#{python} => #{python_binary}"
     end
@@ -67,7 +67,7 @@ module Homebrew
     return "N/A" if ruby.nil?
     ruby_binary = Utils.popen_read ruby, "-rrbconfig", "-e", \
       'include RbConfig;print"#{CONFIG["bindir"]}/#{CONFIG["ruby_install_name"]}#{CONFIG["EXEEXT"]}"'
-    ruby_binary = Pathname.new(ruby_binary).realpath
+    ruby_binary = Pathname(ruby_binary).realpath
     if ruby == ruby_binary then ruby
     else "#{ruby} => #{ruby_binary}"
     end

@@ -77,12 +77,6 @@ class Formula
   # The currently active {SoftwareSpec}.
   # @see #determine_active_spec
   attr_reader :active_spec
-  protected :active_spec
-
-  # A symbol to indicate the currently active {SoftwareSpec}.  It’s one of {:stable :devel :head}.
-  # @see #active_spec
-  # @private
-  attr_reader :active_spec_sym
 
   # Used for creating new Homebrew versions of software without new upstream versions.
   # @see ::revision.
@@ -114,7 +108,7 @@ class Formula
   def <=>(other); r = (name <=> other.name).to_s.nope || full_name <=> other.full_name; r.to_i; end
 
   # By the time this gets called, the formula has already been {instance_eval}’d by the Formulary.  The {SoftwareSpec}s are already
-  #   instantiated, for example.
+  #   instantiated and @external_patch_count has already been incremented, for example.
   # @private
   def initialize(name, path, spec)
     @name = name
@@ -130,9 +124,8 @@ class Formula
     set_spec :head
 
     @active_spec = determine_active_spec(spec)
-    @active_spec_sym = head? ? :head : (devel? ? :devel : :stable)
     validate_attributes!
-    Resource::Patch.reset_count
+    @external_patch_count ||= 0
     @build = active_spec.build
     @checkpoint_count = nil
     @in_a_checkpoint = false
@@ -144,7 +137,6 @@ class Formula
     spec = send(spec_sym)
     raise FormulaSpecificationError, "#{spec_sym} spec is not available for #{full_name}" unless spec
     @active_spec = spec
-    @active_spec_sym = spec_sym
     validate_attributes!
     @build = active_spec.build
   end # set_active_spec
@@ -339,8 +331,7 @@ class Formula
     } if rack.directory?
     if highest_seen == ''
       if head_seen then highest_seen = 'HEAD'
-      else raise FormulaNotInstalledError, full_name
-      end
+      else raise FormulaNotInstalledError, full_name; end
     end
     Keg.new(rack/highest_seen)
   end # greatest_installed_keg
@@ -572,7 +563,7 @@ class Formula
       #   else created and/or modified in the block.  It does require that all such creations and modifications be visible from the
       #   initial working directory; and switching directories mid‐block is likely ill‐advised.
       files_etc = []; Dir['*'].each{ |f| files_etc << f if File.stat(f).mtime - entry_timestamp >= 0 }
-      this_checkpoint.pack files_etc
+      this_checkpoint.pack *files_etc
       exit_timestamp = Time.now
       exit_file.atomic_write(exit_timestamp.to_i.to_s)
       oh1 "This checkpoint was created between #{entry_timestamp} and #{exit_timestamp}" if VERBOSE and not QUIETER
@@ -609,7 +600,7 @@ class Formula
 
   # @private
   def run_post_install
-    build, self.build = self.build, Tab.for_keg(spec_prefix(active_spec_sym))
+    build, self.build = self.build, Tab.for_keg(spec_prefix(active_spec.symbol))
     post_install
   ensure
     self.build = build
@@ -742,7 +733,7 @@ class Formula
   def to_s; name; end
 
   # @private
-  def inspect; "#<Formula #{name} (:#{active_spec_sym}) #{path}>"; end
+  def inspect; "#<Formula #{name} (:#{active_spec.symbol}) #{path}>"; end
 
   # Standard parameters for CMake builds.
   # Setting CMAKE_FIND_FRAMEWORK to “LAST” tells CMake to search for libraries before trying to use Frameworks, many of which might
@@ -858,6 +849,7 @@ class Formula
   # @private
   def core_formula?; path == Formulary.core_path(name); end
 
+  # Redirects the method call to {BuildEnvironmentDSL#env}.
   # @private
   def env; self.class.env; end
 
@@ -1073,12 +1065,12 @@ class Formula
         end
         log.puts
         require 'cmd/config'
-        require 'cmd/--env'
-        env = ENV.to_hash
+        require 'cmd/env'
+        env_ = ENV.to_hash
         Homebrew.dump_verbose_config(log)
         log.puts
-        Homebrew.dump_build_env(env, log)
-        raise BuildError.new(self, cmd, args, env)
+        Homebrew.dump_build_env(env_, log)
+        raise BuildError.new(self, cmd, args, env_)
       end # $?.success?
     end # open |log|
   end # system
@@ -1148,7 +1140,7 @@ class Formula
   class << self
     include BuildEnvironmentDSL
 
-    # The reason why this software is not linked (by default) to {::HOMEBREW_PREFIX}.
+    # The reason why this software is not, by default, linked to {::HOMEBREW_PREFIX}.
     # @private
     attr_reader :keg_only_reason
 
@@ -1286,12 +1278,12 @@ class Formula
     #       depends_on 'pixman'
     #     end
     def devel(&block)
-      @devel ||= SoftwareSpec.new
+      @devel ||= SoftwareSpec.new(:devel)
       if block_given?
         option :devel
         @devel.instance_eval(&block)
       else @devel; end
-    end
+    end # Formula::devel()
 
     # @!attribute [w] head
     # Adds a {::head} {SoftwareSpec}, installable by passing “--HEAD” to `brew install`.  This accommodates software taken directly
@@ -1312,7 +1304,7 @@ class Formula
         option :head
         @head.url(val, txfer_specs)
       else @head; end
-    end # head
+    end # Formula::head()
 
     # Additional downloads can be defined as {Resource}s, for access in the {install} method.  {Resource}s can also be defined in a
     #   {::stable}, {::devel}, or {::head} block.  This mechanism replaces ad-hoc “subformula” classes.
@@ -1443,7 +1435,10 @@ class Formula
     #   of them conditional.
     #     patch :p0, '...'
     #     patch <<END_OF_PATCH if ⟨condition⟩
-    def patch(strip = :p1, src = nil, &block); specs.each { |s| s.patch(strip, src, &block) }; end
+    def patch(strip = :p1, src = nil, &block)
+      if block_given? then @external_patch_count ||= 0; @external_patch_count += 1; end
+      specs.each { |s| s.patch(strip, src, @external_patch_count, &block) }
+    end
 
     # Defines launchd plist handling.
     # Does your plist need to be loaded at startup?

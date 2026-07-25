@@ -47,14 +47,10 @@ module Homebrew
     fc.version = version
     fc.url = url
 
-    fc.mode = if ARGV.include? '--cmake'
-      :cmake
-    elsif ARGV.include? '--autotools'
-      :autotools
-    end
+    fc.mode = (ARGV.includes?('--cmake') ? :cmake : ARGV.includes?('--autotools') ? :autotools : nil)
 
     if fc.name.nil? || fc.name.strip.empty?
-      stem = Pathname.new(url).stem
+      stem = Pathname(url).stem
       print "Formula name [#{stem}]: "
       fc.name = __gets || stem
       fc.path = Formulary.path(fc.name)
@@ -69,9 +65,9 @@ module Homebrew
       if Formula.aliases.include? fc.name
         realname = Formulary.canonical_name(fc.name)
         raise <<-EOS.undent
-          The formula #{realname} is already aliased to #{fc.name}
-          Please check that you are not creating a duplicate.
-          To force creation use --force.
+            The formula #{realname} is already aliased to #{fc.name}
+            Please check that you are not creating a duplicate.
+            To force creation use --force.
           EOS
       end
     end
@@ -94,26 +90,20 @@ class FormulaCreator
 
   def url=(url)
     @url = url
-    path = Pathname.new(url)
+    path = Pathname(url)
     if @name.nil?
       %r{github.com/\S+/(\S+)/archive/}.match url
-      @name ||= $1
+      @name = $1
       /(.*?)[-_.]?#{path.version}/.match path.basename
       @name ||= $1
       @path = Formulary.path @name unless @name.nil?
     else
       @path = Formulary.path name
     end
-    if @version
-      @version = Version.new(@version)
-    else
-      @version = Pathname.new(url).version
-    end
+    @version = (@version ? Version.new(@version) : path.version)
   end
 
-  def fetch?
-    !ARGV.include?('--no-fetch')
-  end
+  def fetch?; not ARGV.includes?('--no-fetch'); end
 
   def generate!
     raise "#{path} already exists" if path.exist?

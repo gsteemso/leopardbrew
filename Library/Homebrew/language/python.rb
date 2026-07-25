@@ -32,9 +32,7 @@ module Language
       end
     end # Language::Python::reads_brewed_pth_files?
 
-    def user_site_packages(python)
-      Pathname.new(`#{python} -c "import site; print(site.getusersitepackages())"`.chomp)
-    end
+    def user_site_packages(python); Pathname(`#{python} -c "import site; print(site.getusersitepackages())"`.chomp); end
 
     def in_sys_path?(python, path)
       script = <<-EOS.undent

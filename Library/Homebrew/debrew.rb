@@ -11,9 +11,6 @@ module Debrew
   module Raise
     def raise(*)
       super
-    rescue Interrupt, SignalException => e  # These cannot be made ignoreable.  Well, maybe, but mutex_m won’t work in an interrupt.
-      Debrew.debug(e)
-      super(e)
     rescue Exception => e
       e.extend(Ignorable)
       super(e) unless Debrew.debug(e) == :ignore
@@ -103,7 +100,7 @@ module Debrew
                   end
                 }
                 return :ignore
-              end if Ignorable === e
+              end if Ignorable === e and not UserInterrupt === e  # For threading reasons, {mutex_m} won’t work in an interrupt.
             menu.choice(:shell) do
                 puts "When you exit this shell, you will return to the menu."
                 interactive_shell

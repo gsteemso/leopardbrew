@@ -234,17 +234,12 @@ class Version
   end
 
   def self._parse(spec)
-    spec = Pathname.new(spec) unless spec.is_a? Pathname
-
+    spec = Pathname(spec)
     spec_s = spec.to_s
 
-    stem = if spec.directory?
-      spec.basename.to_s
-    elsif %r{((?:sourceforge.net|sf.net)/.*)/download$}.match(spec_s)
-      Pathname.new(spec.dirname).stem
-    else
-      spec.stem
-    end
+    stem = (spec.directory?                                                 ? spec.basename.to_s \
+              : %r{((?:sourceforge.net|sf.net)/.*)/download$}.match(spec_s) ? spec.dirname.stem  \
+              :                                                               spec.stem)
 
     # GitHub tarballs
     # e.g. https://github.com/foo/bar/tarball/v1.2.3

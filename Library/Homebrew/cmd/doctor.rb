@@ -356,7 +356,7 @@ class Checks
   def check_for_stray_developer_directory
     # if the uninstaller script isn't there, it's a good guess neither are
     # any troublesome leftover Xcode files
-    uninstaller = Pathname.new("/Developer/Library/uninstall-developer-folder")
+    uninstaller = Pathname("/Developer/Library/uninstall-developer-folder")
     if MacOS::Xcode.version >= "4.3" and uninstaller.exists? then <<-EOS.undent
         You have leftover files from an older version of Xcode.
         You should delete them using:
@@ -368,7 +368,7 @@ class Checks
   def check_for_bad_install_name_tool
     return if MacOS.version < "10.9"
 
-    libs = Pathname.new("/usr/bin/install_name_tool").dynamically_linked_libraries
+    libs = Pathname("/usr/bin/install_name_tool").dynamically_linked_libraries
 
     # otool may not work, for example if the Xcode license hasn't been accepted yet
     return if libs.empty?
@@ -667,7 +667,7 @@ class Checks
     binary = which "pkg-config"
     return if binary.nil?
 
-    mono_config = Pathname.new('/usr/bin/pkg-config')
+    mono_config = Pathname('/usr/bin/pkg-config')
     if mono_config.exists? and mono_config.realpath.to_s.include?('Mono.framework')
       <<-EOS.undent
         You have a non-Leopardbrew 'pkg-config' in your PATH:
@@ -735,7 +735,7 @@ class Checks
     paths.each do |p|
       next if whitelist.include?(p.downcase) or not File.directory?(p)
 
-      realpath = Pathname.new(p).realpath.to_s
+      realpath = Pathname(p).realpath.to_s
       next if realpath.start_with?(HOMEBREW_CELLAR.to_s, $env_cellar)
 
       scripts += Dir.chdir(p) { Dir["*-config"] }.map { |c| File.join(p, c) }
@@ -774,7 +774,7 @@ class Checks
 
   def check_for_symlinked_cellar
     return unless HOMEBREW_CELLAR.exists?
-    if Pathname.new($env_cellar).symlink?; <<-EOS.undent
+    if Pathname($env_cellar).symlink?; <<-EOS.undent
         Symlinked Cellars can cause problems.
         Your Cellar is a symlink: #{$env_cellar}
                which resolves to: #{HOMEBREW_CELLAR}
@@ -796,7 +796,7 @@ class Checks
     volumes = Volumes.new
 
     # Find the volumes for the TMP folder & HOMEBREW_CELLAR
-    tmp = Pathname.new(Dir.mktmpdir("doctor", HOMEBREW_TEMP))
+    tmp = Pathname(Dir.mktmpdir("doctor", HOMEBREW_TEMP))
     real_temp = tmp.realpath.parent
 
     where_cellar = volumes.which HOMEBREW_CELLAR
@@ -818,15 +818,12 @@ class Checks
   def check_filesystem_case_sensitive
     volumes = Volumes.new
     case_sensitive_vols = [HOMEBREW_PREFIX, HOMEBREW_REPOSITORY, HOMEBREW_CELLAR, HOMEBREW_TEMP].select do |dir|
-      # We select the dir as being case-sensitive if either the UPCASED or the
-      # downcased variant is missing.
-      # Of course, on a case-insensitive fs, both exist because the os reports so.
-      # In the rare situation when the user has indeed a downcased and an upcased
-      # dir (e.g. /TMP and /tmp) this check falsely thinks it is case-insensitive
-      # but we don't care because:  1. there is more than one dir checked, 2. the
-      # check is not vital and 3. we would have to touch files otherwise.
-      upcased = Pathname.new(dir.to_s.upcase)
-      downcased = Pathname.new(dir.to_s.downcase)
+      # We select the dir as being case-sensitive if either the UPCASED or the downcased variant is missing.
+      # Of course, on a case-insensitive filesystem, both exist because the OS reports so.   In the rare situation when both a
+      # downcased and an upcased dir (e.g. /TMP and /tmp) exist, this check falsely thinks it is case-insensitive, but we don't
+      # care because:  1. more than one dir is checked, 2. the check is not vital, and 3. we would have to touch files otherwise.
+      upcased = Pathname(dir.to_s.upcase)
+      downcased = Pathname(dir.to_s.downcase)
       dir.exists? and not (upcased.exists? and downcased.exists?)
     end.map { |case_sensitive_dir| volumes.get_mounts(case_sensitive_dir) }.uniq
     return if case_sensitive_vols.empty?

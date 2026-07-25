@@ -27,23 +27,21 @@ module SharedEnvExtension
   # @private
   def setup_build_environment(archset)
     reset
-    set_build_archs(@build_archs = archset || Target.archset)
     if archset and archset.fat? then Target.allow_universal_binary; end
+    set_build_archs(archset || Target.archset)
     self['MAKEFLAGS'] ||= "-j#{make_jobs}"
   end # setup_build_environment
 
   def initialize_build_mode
-    self['HOMEBREW_BUILD_MODE'] = ((Target.universal_modes_allowed? or ARGV.build_plain?) ? ARGV.build_mode : :plain).to_s
+    self['HOMEBREW_BUILD_MODE'] = (ARGV.build_universal? and not Target.universal_modes_allowed?) ? 'plain' : ARGV.build_mode.to_s
   end
 
-  def set_active_formula(f); @formula = f; end
-
-  def delete_multiple(keys); h = {}; Array(keys).each{ |k| h[k] = delete(k) }; h; end
+  def set_active_formula(f); @formula = f; self['HOMEBREW_ACTIVE_FORMULA'] = f.full_name; end
 
   # @private
   def reset; SANITIZED_VARS.each{ |k| delete(k) }; end
 
-  def remove_cc_etc; delete_multiple(COMPILER_VARS + CC_FLAG_VARS + FC_FLAG_VARS + %w[CPP CPPFLAGS LD LDFLAGS]); end
+  def remove_cc_etc; delete_at(COMPILER_VARS + CC_FLAG_VARS + FC_FLAG_VARS + %w[CPP CPPFLAGS LD LDFLAGS]); end
 
   def append_to_cflags(newflags); append(CC_FLAG_VARS, newflags); end
 
@@ -85,7 +83,7 @@ module SharedEnvExtension
   end
 
   def prepend_create_path(key, path)
-    path = Pathname.new(path) unless path.is_a? Pathname
+    path = Pathname(path)
     path.mkpath
     prepend_path key, path
   end
@@ -151,10 +149,10 @@ module SharedEnvExtension
       if compiler.to_s =~ GNU_GCC_REGEXP
         Formula[compiler.gsub(%r{[-.]}, '')].opt_bin/compiler
       elsif compiler == :gcc_4_2
-        if (gccpath = Pathname.new '/usr/bin/gcc-4.2').exists?
+        if (gccpath = Pathname('/usr/bin/gcc-4.2')).exists?
           gccpath
         else Formula['apple-gcc42'].opt_bin/'gcc-4.2'; end
-      else Pathname.new("/usr/bin/#{COMPILER_SYMBOL_MAP.invert[compiler]}"); end
+      else Pathname("/usr/bin/#{COMPILER_SYMBOL_MAP.invert[compiler]}"); end
   end # compiler_path
 
   # @private
@@ -301,7 +299,6 @@ module SharedEnvExtension
 
   def universal_binary
     if formula
-      formula.class.option(:universal) unless formula.options.include?('cross')  # If :universal’s there, only :cross is guaranteed.
       if ARGV.build_mode == :plain  # Note that this does nothing if the build mode is :bottle.
         ARGV.force_universal_mode   # Note that the mode stays :plain if no default is set and there’s only one native architecture.
         formula.build.force_universal_mode  # This calls HomebrewArgvExtension#force_universal_mode a second time, but now attached

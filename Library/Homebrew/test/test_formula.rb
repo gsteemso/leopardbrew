@@ -189,11 +189,11 @@ class FormulaTests < Homebrew::TestCase
         version "1.0beta"
       end
     end
-    assert_equal :stable, f.active_spec_sym
+    assert_equal :stable, f.active_spec.symbol
     assert_equal f.stable, f.send(:active_spec)
     assert_equal "1.0_1", f.pkg_version.to_s
     f.set_active_spec(:devel)
-    assert_equal :devel, f.active_spec_sym
+    assert_equal :devel, f.active_spec.symbol
     assert_equal f.devel, f.send(:active_spec)
     assert_equal "1.0beta_1", f.pkg_version.to_s
     assert_raises(FormulaSpecificationError) { f.set_active_spec(:head) }
