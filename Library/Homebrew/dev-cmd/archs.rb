@@ -18,12 +18,11 @@ CPU_TYPES = {
   '00000004' => 'NS32032',   # NatSemi 32k (market failure; obsolete)
   '00000005' => 'NS32332',   # NatSemi 32k (market failure; obsolete)
   '00000006' => 'M68k',      # Motorola 680x0 (widely adopted; current)
-  '01000006' => 'A68k',      # (Apollo core [never by NeXT]; niche; current)
   '00000007' => 'x86',       # Intel x86 (widely adopted; obsolete)
   '01000007' => 'x86-64',    # AMD64 (widely adopted; current)
   '00000008' => 'MIPS',      # MIPS (niche; current?; obsolete width)
   '01000008' => 'MIPS64',    # MIPS (niche; current)
-  '00000009' => 'NS325332',  # NatSemi 32k (market failure; obsolete)
+  '00000009' => 'NS32532',   # NatSemi 32k (market failure; obsolete)
   '0000000a' => 'M98k',      # Motorola 98601 (very early PowerPC; obsolete)
   '0000000b' => 'PA',        # HP PA-RISC (out of production; obsolete)
   '0100000b' => 'PA64',      # HP PA-RISC (out of production; obsolete)
@@ -115,7 +114,7 @@ X86_SUBTYPES = {
 
 X86_64_SUBTYPES = {
   '00000003' => 'x86-64-*',
-  '00000004' => 'x86-64arch1',
+  '00000004' => 'x86-64_',
   '00000008' => 'x86-64h',
 }.freeze
 
@@ -168,9 +167,7 @@ module TerminalANSI  # Standard terminal display-control sequences.  (Yes, this 
             #   48:  Higher‐bit‐depth background‐colour extensions.  Unsupported on Tiger/Leopard.
   def ondflt;  '49'; end # Default background colour.
             #   50 was reserved to cancel proportional‐width mode (26).
-            #   51–53:  “Framed”, “circled”, & “overlined”.
-            #   54 cancelled framing and circling (51–52).
-            #   55 cancelled overlining (53).
+            #   51–55:  “Framed”, “circled”, “overlined”, “cancel framing/encircling”, “cancel overlining”.
             #   56–59 were unused.
             #   60–64 were for ideographs:  Under/right‐line; doubly so; over/left‐line; doubly so; stress mark.
             #   65 cancelled the ideographic modifiers (60–64).
@@ -213,6 +210,9 @@ module TerminalANSI  # Standard terminal display-control sequences.  (Yes, this 
 end # TerminalANSI
 
 module Homebrew
+  AR_MAGIC = "!<arch>\n".freeze
+  AR_MEMBER_HDR_SIZE = 60.freeze
+
   extend TerminalANSI
   set_grcm_cumulative
 
@@ -221,19 +221,42 @@ module Homebrew
   def ohey(title, *msg); oho title; puts msg; end
 
   def archs
-    def thorough?; @thorough ||= ARGV.include? '--thorough'; end;
+    def ar_sig_at?(pn, offset)
+      result = (pn.file? and pn.size >= (offset + 8) and (pn.binread(8, offset).unpack('a8').first == AR_MAGIC))
+      result
+    end
 
-    def scour(loc)
-      possibles = []
-      Dir["#{loc}/{*,.*}"].reject{ |f| f =~ %r{/\.\.?$} }.map{ |f| Pathname.new(f) }.each do |pn|
-        unless pn.symlink?
-          if pn.directory? then possibles += scour(pn)
-          elsif pn.mach_o_signature_at?(0) or pn.ar_signature_at?(0) then possibles << pn
-          end
-        end # unless symlink?
-      end # each |pn|
-      possibles
-    end # scour
+    # In an ‘ar’ archive, finds the start of the current member’s sub‐file & walks to the next member.  Returns a list:  [offset of
+    # current member payload, offset of next ar header].  The latter is ‘nil’ at the last member; both are if the current member is
+    # too short.
+    def ar_walk_from(pn, initial_offset)
+      return [nil, nil] if pn.size <= (body_offset = initial_offset + AR_MEMBER_HDR_SIZE)
+      header = pn.binread(AR_MEMBER_HDR_SIZE, initial_offset)
+      extent = (header.b[0, 16] =~ %r{^#1/(\d+)} ? $1.to_i : 0)         # Does an extended name follow the header block?
+      startpoint = body_offset + extent                                 # Now extent contains its size.
+      return [nil, nil] if pn.size < (startpoint + 8)
+      extent = (header.b[48, 10] =~ %r{^(\d+)} ? $1.to_i : 0) - extent  # Now extent equals the payload size.
+      return [nil, nil] if extent < 0
+      next_at = body_offset + extent + (extent & 1)                     # Pad to an even number of bytes.
+      [startpoint, (pn.size >= next_at ? next_at : nil)]
+    end # ar_walk_from()
+
+    # Returns either the offset of the next valid Mach-O ‘ar’ member and whether it has byte-reversed headers, or [{Nil}, {Nil}] if
+    # there isn’t one.
+    def ar_sigseek_from(pn, offset)
+      return [nil, nil] unless ar_sig_at?(pn, offset)
+      offset += 8
+      while offset
+        candidate, offset = ar_walk_from(pn, offset)
+        break unless candidate
+        next if ar_sig_at?(pn, candidate)         # Skip malformed data.
+        sig, rvsd, _ = pn.machO_sig_at?(candidate)
+        break if sig and sig != :FAT_MAGIC          # Stop at the first good signature, skipping malformed data.
+        candidate = nil
+      end
+      rvsd = nil unless candidate
+      [candidate, rvsd]
+    end # ar_sigseek_from()
 
     def cpu_valid(type, subtype)
       case CPU_TYPES[type]
@@ -246,21 +269,22 @@ module Homebrew
         when 'x86-64'   then X86_64_SUBTYPES[subtype]
         else nil
       end
-    end # cpu_valid
+    end # cpu_valid()
 
-    def report_1_arch_at(pname, offset)
-      # Generate a key from a one‐architecture (sub‐)file:
-      return [nil, nil] unless pname.size > offset + 12
-      cpu_type, cpu_subtype = pname.binread(8, offset + 4).unpack('H8H8')
-      if arch = cpu_valid(cpu_type, cpu_subtype) then key = [in_br_cyan(arch)]; alien_report = nil
-      else # alien arch
-        ct = (CPU_TYPES[cpu_type] or cpu_type)
-        key = [in_cyan("#{ct}:#{cpu_subtype}")]
-        alien_report = \
-          "File #{in_white(pname)}:\n  [foreign CPU type #{in_cyan(ct)} with subtype #{in_cyan(cpu_subtype)}].\n"
-      end # native arch?
-      return [key, alien_report]
-    end
+    def scour(loc)
+      possibles = []
+      Dir["#{loc}/{*,.*}"].reject{ |f| f =~ %r{/\.\.?$} }.map{ |f| Pathname(f) }.each{ |pn|
+        next if pn.symlink?
+        if pn.directory? then possibles += scour(pn)
+        else
+          sig, _, _ = pn.machO_sig_at?(0)
+          possibles << pn if sig or ar_sig_at?(pn, 0)
+        end
+      }
+      possibles
+    end # scour
+
+    def thorough?; @thorough ||= ARGV.include? '--thorough'; end;
 
     no_archs_msg = false
     requested = (thorough? ? ARGV.racks.map{ |r| r.subdirs }.flatten.map{ |sd| Keg.new(sd) } : ARGV.kegs)
@@ -268,60 +292,66 @@ module Homebrew
     requested.each do |keg|
       max_arch_count = 0; arch_reports = {}; alien_reports = []
       scour(keg.to_s).each do |pn|
-        if offset = pn.ar_sigseek_from(0)  # ‘ar’ archive:  Only look until the first Mach-O signature.
-          key, alien_report = report_1_arch_at(pn, offset)
+        offset, rvsd = ar_sigseek_from(pn, 0)
+        if offset  # ‘ar’ archive’s first Mach-O signature.
+          key, alien_report = report_1_arch_at(pn, offset, rvsd)
           alien_reports << alien_report if alien_report
-        elsif sig = pn.mach_o_signature_at?(0)
-          if sig == :FAT_MAGIC  # only returns this if we have 30 or fewer fat_archs
-            if (arch_count = pn.fat_count_at(0)) > 0
-              # Generate a key describing this set of architectures.  First, extract the list of them:
-              parts = []
-              arch_count.times{ |i| parts << pn.binread(8, 8 + 20*i).unpack('H8H8') }
-              native_parts = []
-              foreign_parts = []
-              parts.each do |part|
-                cpu_type, cpu_subtype = part
-                if arch = cpu_valid(cpu_type, cpu_subtype)
-                  native_parts << in_br_cyan(arch)
-                else
-                  ct = (CPU_TYPES[cpu_type] or cpu_type)
-                  foreign_parts << {
-                      { :type => ct, :subtype => cpu_subtype } =>
-                        "[foreign CPU type #{in_cyan(ct)} with subtype #{in_cyan(cpu_subtype)}.]"
-                    }
-                end # valid arch?
-              end # do each |part|
-              # Second, sort the list:
-              native_parts.sort! do |a, b|
-                # the ꜱɢʀ sequences at beginning and end are 5 characters each
-                if a[5..7] == 'ppc' and b[5..7] == 'ppc'
-                  if a[8..-6] == '64' then b[8..-6] == '64' ? 0 : 1  # sort ppc64 after all other ppc types
-                  elsif b[8..-6] == '64' then -1
-                  else a <=> b; end  # sort other ppc types
-                else a <=> b; end  # sort all other types
-              end if native_parts.length > 1
-              foreign_parts.sort! do |a, b|
-                if a.keys.first[:type] < b.keys.first[:type] then -1
-                elsif a.keys.first[:type] > b.keys.first[:type] then 1
-                else a.keys.first[:subtype] <=> b.keys.first[:subtype]; end
-              end if foreign_parts.length > 1
-              # Third, use the sorted list as a search key:
-              key = native_parts + foreign_parts.map{ |fp|
-                  "#{in_cyan(fp.keys.first[:type])}:#{in_cyan(fp.keys.first[:subtype])}"
-                }
-              alien_reports << "File #{in_white(pn)}:\n  #{foreign_parts.map{ |fp| fp.values.first } * "\n  "}\n" \
-                                                                                                             if foreign_parts != []
-            end # (arch_count > 0)?
-          elsif sig # :MH_MAGIC, :MH_MAGIC_64
-            key, alien_report = report_1_arch_at(pn, 0)
+        else
+          sig, rvsd, second = pn.machO_sig_at?(0)
+          if sig == :FAT_MAGIC  # only returns this if we have 0–30 fat_archs
+            next unless second > 0 and pn.size >= 20 * second + 8
+            # Generate a key describing this set of architectures.  First, extract the list of them:
+            parts = []
+            second.times{ |i|
+              raw = pn.binread(8, 8 + 20*i)  # 8‐octet header; n*(20‐octet fat_arch); first two uint32 of each == CPU type/subtype.
+              raw = raw.unpack('VV').pack('NN') if rvsd
+              parts << raw.unpack('H8H8')
+            }
+            native_parts = []
+            forn_parts = []
+            parts.each do |part|
+              cpu_t, cpu_st = part
+              if arch = cpu_valid(cpu_t, cpu_st) then native_parts << in_br_cyan(arch)
+              else
+                ct = (CPU_TYPES[cpu_t] or cpu_t)
+                forn_parts << {
+                    { :type => ct, :subtype => cpu_st } => "[foreign CPU type #{in_cyan(ct)} with subtype #{in_cyan(cpu_st)}.]"
+                  }
+              end # valid arch?
+            end # do each |part|
+            # Second, sort the list:
+            native_parts.sort! do |a, b|
+              # the ꜱɢʀ sequences at beginning and end are 5 characters each
+              if a[5..7] == 'ppc' and b[5..7] == 'ppc'
+                if a[8..-6] == '64' then b[8..-6] == '64' ? 0 : 1  # sort ppc64 after all other ppc types
+                elsif b[8..-6] == '64' then -1
+                else a <=> b; end  # sort other ppc types
+              else a <=> b; end  # sort all other types
+            end if native_parts.length > 1
+            forn_parts.sort! do |a, b|
+              if a.keys.first[:type] < b.keys.first[:type] then -1
+              elsif a.keys.first[:type] > b.keys.first[:type] then 1
+              else a.keys.first[:subtype] <=> b.keys.first[:subtype]; end
+            end if forn_parts.length > 1
+            # Third, use the sorted list as a search key:
+            key = native_parts + forn_parts.map{ |fp|
+                "#{in_cyan(fp.keys.first[:type])}:#{in_cyan(fp.keys.first[:subtype])}"
+              }
+            alien_reports << "File #{in_white(pn)}:\n  #{forn_parts.map{ |fp| fp.values.first } * "\n  "}\n" if forn_parts != []
+          elsif sig == :MH_MAGIC and pn.size > 12
+            cpu_t = [second].pack('N').unpack('H8').first
+            # Of the seven uint32 in a Mach header, third is the CPU subtype.
+            cpu_st = sprintf('%8x', pn.binread(4, 8).unpack(rvsd ? 'V' : 'N') & 0x00ffffff)  # High‐order octet:  Irrelevant flags.
+            if arch = cpu_valid(cpu_t, cpu_st) then key = [in_br_cyan(arch)]; alien_report = nil
+            else
+              ct = (CPU_TYPES[cpu_t] or sprintf '0x%s', cpu_t); key = [in_cyan("#{ct}:#{cpu_st}")]
+              alien_report = "File #{in_white(pn)}:\n  [foreign CPU type #{in_cyan(ct)} with subtype #{in_cyan("0x#{cpu_st}")}].\n"
+            end
             alien_reports << alien_report if alien_report
           end # Fat / Mach-O sig?
         end # ‘ar’ or Mach-O?
-        if key
-          if arch_reports[key] then arch_reports[key] += 1
-          else arch_reports[key] = 1; end
-        end
-      end # do each |pn|
+        (arch_reports[key] ? (arch_reports[key] += 1) : (arch_reports[key] = 1)) if key
+      end # each |pn| while scouring
       if arch_reports == {}
         oho "#{in_white("#{keg.name} #{keg.path.basename}")} appears to contain #{in_yellow('no valid Mach-O files')}."
         no_archs_msg = true
@@ -357,7 +387,7 @@ module Homebrew
         or script files.
       _
     end # no_archs_msg?
-  end # archs
+  end # Homebrew#archs
 end # Homebrew
 
 class Array; def isum; total = 0; each{ |e| total += e.to_i }; total; end; end
