@@ -16,9 +16,8 @@ module Homebrew
 
       (ARGV.resolved_formulae - outdated).each do |f|
         if f.rack.directory?
-          installed_version = f.greatest_installed_keg.version
-          onoe "#{f.full_name} #{installed_version} is already installed" \
-                                               if f.version == installed_version
+          inst_vers = f.greatest_installed_keg.version  # This can be 'HEAD' if no other version is installed.
+          onoe "#{f.full_name} #{inst_vers} is already installed" if inst_vers != 'HEAD' and f.version == inst_vers
         else
           onoe "#{f.full_name} is not installed"
         end
@@ -71,7 +70,7 @@ module Homebrew
       when :devel then raise "No development version is specified for #{f.full_name}" if f.devel.nil?
     end
     f.set_active_spec s if s  # otherwise use the default
-    previously_linked = nil
+    previously_linked = false
     if f.linked_keg.directory?
       previously_linked = Keg.new(f.linked_keg.resolved_path)
       previously_linked.unlink

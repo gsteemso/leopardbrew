@@ -14,7 +14,7 @@ module FileUtils
   %w[ APPEND  DIRECT  FNM_CASEFOLD  FNM_NOESCAPE  LOCK_EX  LOCK_UN  NOFOLLOW  RDONLY  SYNC
       BINARY  DSYNC   FNM_DOTMATCH  FNM_PATHNAME  LOCK_NB  NOATIME  NONBLOCK  RDWR    TRUNC
       CREAT   EXCL    FNM_EXTGLOB   FNM_SYSCASE   LOCK_SH  NOCTTY   NULL      RSYNC   WRONLY
-  ].each{ |const| const_set("O_#{const}".to_sym, (File::Constants.const_defined?(const) ? eval("File::#{const}") : 0).to_i) }
+    ].each{ |const| const_set("O_#{const}", (File::Constants.const_defined?(const) ? eval("File::#{const}") : 0).to_i) }
 
   FILE_BUFSIZE = 16384  # 16 KiB
 

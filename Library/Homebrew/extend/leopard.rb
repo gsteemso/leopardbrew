@@ -65,23 +65,31 @@ class Hash
   def first; each{ |el| break el }; end unless method_defined?(:first)
 end
 
+class Integer
+  # These were defined by the time of Ruby 2.0, but did not exist in 1.8.x.
+  def even?; self & 1 == 0; end unless method_defined? :even?
+  def odd?; self & 1 != 0; end unless method_defined? :odd?
+end
+
 class String
+  # String#starts_with? – note the “s” – is documented, but apparently not implemented, in Ruby 1.8.x.
   def start_with?(*prefixes)
     prefixes.any? do |prefix|
       if prefix.respond_to?(:to_s)
         prefix = prefix.to_s
-        self[0, prefix.length] == prefix
+        prefix.length > 0 and self[0, prefix.length] == prefix
       end
-    end
+    end # any |prefix|?
   end unless method_defined?(:start_with?)
 
+  # This, on the other hand, was neither documented nor implemented in Ruby 1.8.x.
   def end_with?(*suffixes)
     suffixes.any? do |suffix|
       if suffix.respond_to?(:to_s)
         suffix = suffix.to_s
-        self[-suffix.length, suffix.length] == suffix
+        (suf_len = suffix.length) > 0 and self[-suf_len, suf_len] == suffix
       end
-    end
+    end # any |suffix|?
   end unless method_defined?(:end_with?)
 
   def rpartition(separator)

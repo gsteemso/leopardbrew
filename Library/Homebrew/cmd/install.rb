@@ -61,8 +61,7 @@ module Homebrew
       end
 
       ARGV.formulae.each do |f|
-        requested_spec = (ARGV.build_head? ? :head : (ARGV.build_devel? ? :devel : :stable))
-        case requested_spec
+        case (requested_spec = ARGV.build_spec)
           when :stable
             if f.stable.nil?
               if f.devel.nil?

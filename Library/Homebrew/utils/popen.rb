@@ -5,8 +5,8 @@ module Utils
     # tar -c:  Create.
     #     -f:  use this File (in this case, standard output).
     popen_read(TAR_PATH, '-cf', '-', *input_files) do |rd|
-      # In practice, this routine is only used with lzip and xz.
-      # (lzip | xz) -o:  Output to this file instead of replacing the originals.
+      # In practice, this routine is only used with lzip, xz, and zstd.
+      # (lzip | xz | zstd) -o:  Output to this file instead of replacing the originals.
       popen_write(filter_tool, '-o', target_file.to_s, '-') do |wr|
         buf = ''; wr.write(buf) while rd.read(FileUtils::FILE_BUFSIZE, buf)
       end
@@ -14,9 +14,9 @@ module Utils
   end
 
   def pipe_to_untar(filter_tool, target_file, extra_tar_switches = nil)
-    # In practice, this routine is only used with lzip and xz.
-    # (lzip | xz) -d:  Decompress.
-    #             -c:  output to stdout instead of replacing the original(s).
+    # In practice, this routine is only used with lzip, xz, and zstd.
+    # (lzip | xz | zstd) -d:  Decompress.
+    #                    -c:  output to stdout (even if that’s the Console) instead of replacing the original(s).
     popen_read(filter_tool, '-dc', target_file.to_s) do |rd|
       # tar -x:  eXpand.
       #     -i:  Ignore zeroed blocks in input (there are a few flaky archives out there that require this).

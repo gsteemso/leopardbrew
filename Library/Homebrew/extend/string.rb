@@ -1,22 +1,21 @@
 class String
-  alias_method :includes?,    :include?    unless method_defined? :includes?
-  alias_method :starts_with?, :start_with? unless method_defined? :starts_with?
-  alias_method :ends_with?,   :end_with?   unless method_defined? :ends_with?
+  # #chomp, but if the result is empty, returns nil instead.  Allows `choke or foo` short-circuits.
+  def choke; s = chomp; s unless s.empty?; end
 
-  def undent; gsub(%r{^[ \t]{#{(slice(%r{^[ \t]+}) || '').length}}}, ''); end
-  # eg:
-  #   if foo then <<-EOS.undent_________________________________________________________72
-  #               Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do
-  #               eiusmod tempor incididunt ut labore et dolore magna aliqua.  Ut enim ad
-  #               minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip
-  #               ex ea commodo consequat.  Duis aute irure dolor in reprehenderit in
-  #               voluptate velit esse cillum dolore eu fugiat nulla pariatur.  Excepteur
-  #               sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt
-  #               mollit anim id est laborum.
-  #               EOS
-  alias_method :undent_________________________________________________________72, :undent
+  alias_method :ends_with?, :end_with?
+
+  alias_method :includes?, :include? unless method_defined? :includes?
 
   def indent(columns = 8); gsub(%r{^}, ' ' * columns); end
+
+  # #chomp, but for the leading end of the string, instead of the back.
+  def lchomp; starts_with?("\n") ? lchop : self; end
+
+  # #chop, but for the leading end of the string instead of the back.
+  def lchop; self[1..-1]; end
+
+  # Like #choke, but for number strings.  If the string does not represent a number, or otherwise evaluates to zero, return nil.
+  def nope; n = to_i; n unless n == 0; end
 
   def rewrap(width = [80, TTY.width].min)
     lines = []
@@ -40,17 +39,20 @@ class String
     lines * "\n"
   end # String#rewrap
 
-  # #chomp, but if the result is empty, returns nil instead.  Allows `choke or foo` short-circuits.
-  def choke; s = chomp; s unless s.empty?; end
+  alias_method :starts_with?, :start_with?
 
-  # #chomp, but for the leading end of the string, instead of the back.
-  def lchomp; starts_with?("\n") ? lchop : self; end
-
-  # #chop, but for the leading end of the string instead of the back.
-  def lchop; self[1..-1]; end
-
-  # Like #choke, but for number strings.  If the string does not represent a number, or otherwise evaluates to zero, return nil.
-  def nope; n = to_i; n unless n == 0; end
+  def undent; gsub(%r{^[ \t]{#{(slice(%r{^[ \t]+}) || '').length}}}, ''); end
+  # eg:
+  #   if foo then <<-EOS.undent_________________________________________________________72
+  #               Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do
+  #               eiusmod tempor incididunt ut labore et dolore magna aliqua.  Ut enim ad
+  #               minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip
+  #               ex ea commodo consequat.  Duis aute irure dolor in reprehenderit in
+  #               voluptate velit esse cillum dolore eu fugiat nulla pariatur.  Excepteur
+  #               sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt
+  #               mollit anim id est laborum.
+  #               EOS
+  alias_method :undent_________________________________________________________72, :undent
 
   # #chomp, but capable of chopping off longer substrings.
   def xchomp(kill_this = "\n")
@@ -74,8 +76,6 @@ end # String
 
 class NilClass
   def choke; end
-  def lchomp; end
-  def lchop; end
   def nope; end
 end
 

@@ -1,13 +1,13 @@
 #!/usr/bin/ruby -W0
 # -*- coding: utf-8 -*-
 
-std_trap = trap('INT') { exit! 130 } # no backtrace thanks
+std_trap = trap('INT') { exit! 130 }  # No backtrace, thanks.
 
 $:.unshift(ENV['HOMEBREW_RUBY_LIBRARY'])  # Add $HOMEBREW_RUBY_LIBRARY to the front of the Ruby‐library search path.
-# Import or define all our infrastructure, such as reading specific environment variables into global constants.
-require 'global'
 
-if ['-V', '--version'].include? ARGV.first
+require 'global'  # Import or define all our infrastructure, such as reading specific environment variables into global constants.
+
+if ARGV.intersects? ['-V', '--version']
   puts Homebrew.homebrew_version_string  # see `utils.rb`
   exit 0
 end
@@ -26,11 +26,11 @@ begin
     numprocs = `sysctl -n kern.maxproc`.to_i * 2 / 3
     if numprocs > `sysctl -n kern.maxprocperuid`.to_i
       opoo <<-_.undent
-        Your ancient version of Mac OS sharply limits the number of concurrent
-        processes you are allowed to run.  ’Brewing without raising this limit will not
+        Your ancient version of Mac OS places very tight limits on the number
+        of concurrent processes you may run.  ’Brewing without raising this limit won’t
         always work properly, and the resulting failures will seem nonsensical.  Please
         enter your sudo password at the prompt so Leopardbrew can raise the limit.  (It
-        will stay raised, systemwide, until you reboot).
+        will remain raised, systemwide, until you reboot).
 
         To be more specific, sysctl(8) will raise “kern.maxprocperuid” to a saner value
         – two‐thirds of the system maximum, “kern.maxproc”.  Your system is so outdated,

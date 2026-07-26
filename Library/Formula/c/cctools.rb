@@ -81,6 +81,7 @@ class Cctools < Formula
     man.install Dir["#{prefix}/usr/share/man/*"]                     # We have man1 in three places, man3 in two, and man5 here.
     man1.install Dir["#{prefix}/usr/local{,/efi/share}/man/man1/*"]  # The other two man1.
     man3.install Dir["#{prefix}/usr/local/man/man3/*"]               # The other man3.
+    (prefix/'usr').rmtree
   end # install
 
   test do

@@ -20,7 +20,7 @@ begin
 
   # Set up all the machinery for universal builds.  Also change to our $PATH that ensures all our tools are where they ought to be.
   f = ARGV.formulae.first
-  f.set_active_spec(ARGV.build_head? ? :head : (ARGV.build_devel? ? :devel : :stable))
+  f.set_active_spec(ARGV.build_spec)
   t = Tab.from_file(f.prefix/Tab::FILENAME)
   f.build = BuildOptions.new(t.used_options + Options.create(ARGV.effective_formula_flags), f.options)
   f.extend(Homebrew::Assertions)

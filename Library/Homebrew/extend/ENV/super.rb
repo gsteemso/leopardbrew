@@ -1,7 +1,6 @@
 require 'extend/ENV/shared'
 
 # ### Why `superenv`?
-#
 # 1. Only specify the environment we need (NO LDFLAGS for cmake)
 # 2. Only apply compiler specific options when we are calling that compiler
 # 3. Force all incpaths and libpaths into the cc instantiation (less bugs)
@@ -62,7 +61,7 @@ module Superenv
     self['HOMEBREW_INCLUDE_PATHS'] = determine_include_paths
     self['HOMEBREW_LIBRARY_PATHS'] = determine_library_paths
     if deps.any?{ |d| d.name == 'make' }
-      self['MAKE']                 = "#{Superenv.bin}/make"
+      self['MAKE']                 = "#{Superenv.bin}/make" if Superenv.bin
       if (mf = Formula['make']).installed?
         self['HOMEBREW_make']      = Dir["#{mf.opt_bin}/*make"].first
       end
@@ -71,17 +70,6 @@ module Superenv
     # On 10.9, the tools in /usr/bin proxy to the active developer directory.
     # This means we can use them for any combination of CLT and Xcode.
     self['HOMEBREW_PREFER_CLT_PROXIES'] = '1' if MacOS.version >= :mavericks
-
-    # The HOMEBREW_CCCFG ENV variable is used by the ENV/cc tool to control compiler‐flag stripping.
-    # It consists of a string of flag characters, some of them mutually exclusive.
-    # O - Enables argument refurbishing.  Currently only active under the [bsd]make wrapper.
-    # x - Enable C++11 mode.
-    # g - Enable “-stdlib=libc++” for clang.
-    # h - Enable “-stdlib=libstdc++” for clang.
-    # K - Don't strip -arch <arch>, -m32, or -m64.
-    # On 10.8 and newer, these flags will also be present:
-    # s - Apply fix for sed’s Unicode support.
-    # a - Apply fix for apr-1-config path.
   end # setup_build_environment
 
   private
@@ -131,6 +119,16 @@ module Superenv
     paths.to_path_s
   end
 
+  # The HOMEBREW_CCCFG ENV variable is used by the ENV/cc tool to control compiler‐flag stripping.
+  # It consists of a string of flag characters, some of them mutually exclusive.
+  # O - Enables argument refurbishing.  Currently only active under the [bsd]make wrapper.
+  # x - Enable C++11 mode.  (Obsolete.)
+  # g - Enable “-stdlib=libc++” for clang.
+  # h - Enable “-stdlib=libstdc++” for clang.
+  # K - Don't strip -arch <arch>, -m32, or -m64.
+  # On 10.8 and newer, these flags will also be present:
+  # s - Apply fix for sed’s Unicode support.
+  # a - Apply fix for apr-1-config path.
   def determine_cccfg
     # Always allow controlling the build architecture.
     s = 'K'
@@ -228,6 +226,7 @@ module Superenv
   # Super filters the build archs to the 64‐bit ones via set_build_archs.
   def m64; super; append 'HOMEBREW_ARCHFLAGS', '-m64'; end
 
+  # Super restores the filtered‐out build archs via set_build_archs.
   def un_m32; super; remove 'HOMEBREW_ARCHFLAGS', '-m32'; end
   def un_m64; super; remove 'HOMEBREW_ARCHFLAGS', '-m64'; end
 

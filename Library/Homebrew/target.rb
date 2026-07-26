@@ -3,16 +3,16 @@ require 'macos'  # pulls in cpu for us
 
 class Target
   class << self
-    def allow_universal_binary; @@formula_can_be_universal = true;  end
+    def allow_universal_binary; @@formula_can_be_universal = true; end
     def no_universal_binary;    @@formula_can_be_universal = false; end
 
     def universal_modes_allowed?; @@formula_can_be_universal == true; end
 
     # Employed only upon request.  Some formulæ can only be built for specific architectures.  When an {ArchitectureRequirement} is
-    # depended upon, it uses this method; then ::filter_archs forcibly restricts the built architectures to those which the formula
-    # can handle.
+    # depended upon, it uses this method.  Target::filter_archs then forcibly restricts the built architectures to only those which
+    # the formula can handle.
     def restrict_archset(allowed);
-      @permissible_archs = if allowed then allowed.flat_map{ |a|
+      @permissible_archs = if allowed then Array(allowed).flat_map{ |a|
           CPU.known_types.include?(a) ? CPU.archs_of_type(a) : CPU.arch_of(a)
         }.uniq; end
     end

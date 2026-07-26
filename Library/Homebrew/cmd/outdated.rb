@@ -27,13 +27,11 @@ module Homebrew
   end # outdated
 
   def outdated_brews(formulae)
-    formulae.map do |f|
+    Array(formulae).map{ |f|
       versions = []
-      if f.oldname and not f.rack.exists? and (dir = HOMEBREW_CELLAR/f.oldname).exists?
-        if f.tap == Tab.for_keg(dir.subdirs.first).tap
-          raise Migrator::MigrationNeededError.new(f)
-        end
-      end
+      raise Migrator::MigrationNeededError.new(f) if f.oldname and not f.rack.exists? \
+                                                     and (dir = HOMEBREW_CELLAR/f.oldname).exists? \
+                                                     and f.tap == Tab.for_keg(dir.subdirs.first).tap
       if ARGV.build_devel? and f.devel
         check_version = PkgVersion.new(f.devel.version, f.revision)
         false_positive_version = f.pkg_version
@@ -43,14 +41,14 @@ module Homebrew
       end
       f.rack.subdirs.each do |keg_dir|
         version = Keg.new(keg_dir).version
-        if version != false_positive_version then versions << version; end
+        versions << version if version != false_positive_version
       end
       versions = versions.compact
       if versions and not versions.empty? and versions.all?{ |version| version < check_version }
         yield f, versions, check_version if block_given?
         f
       end
-    end.compact
+    }.compact
   end # outdated_brews
 
   def print_outdated(formulae)

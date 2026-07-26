@@ -1,6 +1,6 @@
 #!/bin/sh
 
-LEOPARDBREW_VERSION='0.6.4'  # Better `make` and checkpoint handling; improvements to {ld64}.
+LEOPARDBREW_VERSION='0.6.4.1'  # Fix embarrassingly obvious typos and regressions.
 
 ###### Convenience functions ######
 
@@ -28,7 +28,8 @@ version_string() {
 # Force UTF-8 to avoid encoding issues for users with broken locale settings.
 if [ "$(locale charmap 2> /dev/null)" != 'UTF-8' ]; then export LC_ALL='en_US.UTF-8'; fi
 
-# Where we store built products.  [prefix]/Cellar if it exists (default [prefix] is “/usr/local”) – but usually [repository]/Cellar.
+# Where we store built products.  We will accommodate <prefix>/Cellar if it exists (the default <prefix> is “/usr/local”) – but the
+# expected location is <repository>/Cellar.
 if [ -d "$HOMEBREW_PREFIX/Cellar" ]; then HOMEBREW_CELLAR="$HOMEBREW_PREFIX/Cellar"
 else HOMEBREW_CELLAR="$HOMEBREW_REPOSITORY/Cellar"; fi
 
@@ -39,7 +40,8 @@ case "$*" in
   --cellar) echo "$HOMEBREW_CELLAR"; exit 0 ;;
   --repository|--repo) echo "$HOMEBREW_REPOSITORY"; exit 0 ;;
 esac
-# Note – if $ARGV also contains anything else, the relevant `brew` subcommand is executed instead of one of these shortcuts.
+# Note that the shell matches against the entire input string, so if $ARGV also contains anything else, a `brew` subcommand will be
+# executed instead of one of these shortcuts.
 
 # Where we keep the Homebrew Ruby libraries.
 HOMEBREW_RUBY_LIBRARY="${HOMEBREW_LIBRARY}/Homebrew"
