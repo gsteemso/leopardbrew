@@ -1,9 +1,9 @@
-# stable version 2025-07-15; checked 2025-08-06
+# stable version 2026-04-16; checked 2026-07-23
 class Libxml2 < Formula
-  desc 'C XML library developed for GNOME'
+  desc 'XML library originally developed for GNOME'
   homepage 'https://gitlab.gnome.org/GNOME/libxml2/-/wikis/home'
-  url 'https://download.gnome.org/sources/libxml2/2.14/libxml2-2.14.5.tar.xz'
-  sha256 '03d006f3537616833c16c53addcdc32a0eb20e55443cba4038307e3fa7d8d44b'
+  url 'https://download.gnome.org/sources/libxml2/2.15/libxml2-2.15.3.tar.xz'
+  sha256 '78262a6e7ac170d6528ebfe2efccdf220191a5af6a6cd61ea4a9a9a5042c7a07'
 
   keg_only :provided_by_osx
 
@@ -16,17 +16,13 @@ class Libxml2 < Formula
   end
 
   option :universal
-  option 'with-python', 'Build with Python 2.7 and Python 3 language bindings'
+  option 'with-docs', 'Build the documentation (requires Doxygen)'
 
   depends_on 'pkg-config' => :build
   depends_on 'readline'
-  if build.with? 'python'
-    depends_on :python2
-    depends_on :python3
-  end
+  depends_on 'doxygen' if build.with?('docs')
 
   enhanced_by 'libiconv'
-  enhanced_by 'xz'
 
   resource 'conformance_test_suite' do
     url 'http://www.w3.org/XML/Test/xmlts20130923.tar.gz'
@@ -35,62 +31,33 @@ class Libxml2 < Formula
 
   def install
     ENV.universal_binary if build.universal?
-    ENV.delete 'PYTHONPATH'
-    mktemp do
-      maintemp = pwd
-      if build.head?
-        ENV['NOCONFIGURE'] = 'yes'
-        system "#{buildpath}/autogen.sh"
-      end
-      args = %W[
-          --prefix=#{prefix}
-          --disable-dependency-tracking
-          --disable-silent-rules
-          --without-debug
-          --with-history
-          --with-readline
-          --enable-static
-        ]
-#      args << '--with-docs' if build.head?  # docs require Doxygen
-      args << "--with-iconv=#{Formula['libiconv'].opt_prefix}" if active_enhancements.include? 'libiconv'
-      args << "--with-lzma=#{Formula['xz'].opt_prefix}" if active_enhancements.include? 'xz'
-      args << (build.with?('python') ? '--with-python' : '--without-python')
-      system "#{buildpath}/configure", *args
-      inreplace ['Makefile', 'python/Makefile'], '-lpython2.7', '-undefined dynamic_lookup' if build.with? 'python'
-      system 'make'
-      resource('conformance_test_suite').stage(buildpath/'xmlconf')
-      system 'make', 'check'
-      system 'make', 'install'
-      if build.with? 'python'
-        ENV.delete 'PYTHONPATH'
-        mktemp do
-          system "#{buildpath}/configure", *args
-          Pathname.new(pwd).install_symlink_to "#{maintemp}/libxml2.la", "#{maintemp}/.libs"
-          system 'make', '-C', 'python'
-          system 'make', '-C', 'python', 'check'
-          system 'make', '-C', 'python', 'install'
-        end # secondary temporary directory
-      end # build with python?
-    end # main temporary directory
+    if build.head?
+      ENV['NOCONFIGURE'] = 'yes'
+      system './autogen.sh'
+    end
+    args = %W[
+        --prefix=#{prefix}
+        --disable-dependency-tracking
+        --disable-silent-rules
+        --without-debug
+        --with-history
+        --with-readline
+        --enable-static
+      ]
+    args << '--with-docs' if build.with? 'docs'
+    args << "--with-iconv=#{Formula['libiconv'].opt_prefix}" if active_enhancements.include? 'libiconv'
+    system './configure', *args
+    system 'make'
+    resource('conformance_test_suite').stage('xmlconf')
+    system 'make', 'check'
+    system 'make', 'install'
   end # install
 
-  def post_install
-    if build.with? 'python'
-      # There are no system Python bindings to LibXML2, so we can install our own even though the
-      # library itself has to be keg‐only.
-      # Our Python will be missing if system Python was deemed adequate, but even if site_packages
-      # is not there, Pathname::binwrite will simply create it before writing to the file.
-      (Formula['python2'].site_packages/'libxml2.pth').binwrite "#{opt_lib}/python2.7/site-packages\n"
-      py3 = Formula['python3']
-      (py3.site_packages/'libxml2.pth').binwrite "#{opt_lib}/python#{py3.xy}/site-packages\n"
-    end # build with python?
-  end # post_install
-
   def caveats; <<-_.undent
-      If LibXML2 is built --with-python, Python 2 and 3 bindings for it are installed.
-      An obsolete version of the library itself is included with Mac OS, so the built
-      library must be keg‐only; but Python bindings to it are not, so they may safely
-      be made visible via the appropriate search paths.
+      The Python bindings for LibXML2 will be removed in LibXML2 release 2.16, and it
+      now requires Doxygen (which can’t be built with the long‐obsolete Apple GCC) to
+      build them anyway.  As such, this formula’s `--with-python` option has likewise
+      been removed.
     _
   end # caveats
 

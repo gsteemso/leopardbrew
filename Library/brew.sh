@@ -1,6 +1,6 @@
 #!/bin/sh
 
-LEOPARDBREW_VERSION='0.6.4.1'  # Fix embarrassingly obvious typos and regressions.
+LEOPARDBREW_VERSION='0.6.4.2'  # Fix yet more very stupid typos and regressions.
 
 ###### Convenience functions ######
 

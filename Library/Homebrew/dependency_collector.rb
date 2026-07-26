@@ -27,7 +27,6 @@ class DependencyCollector
     case dep = fetch(dspec)
       when Dependency  then @deps << dep
       when Requirement then @requirements << dep
-      when Array       then dep.each{ |d| add d }
     end
     dep
   end # add

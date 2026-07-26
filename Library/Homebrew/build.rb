@@ -28,7 +28,7 @@ class Build
   def expand_reqs
     formula.recursive_requirements do |dependent, req|
       build = effective_build_options_for(dependent)
-      if (req.optional? or req.recommended?) and build.without?(req) then Requirement.prune
+      if req.discretionary? and build.without?(req) then Requirement.prune
       elsif req.build? and dependent != formula then Requirement.prune
       elsif req.satisfied? and req.default_formula? and (dep = req.to_dependency).installed?
         deps << dep
@@ -40,21 +40,14 @@ class Build
   def expand_deps
     formula.recursive_dependencies do |dependent, dep|
       build = effective_build_options_for(dependent)
-      if (dep.optional? or dep.recommended?) and build.without?(dep) then Dependency.prune
-      elsif dep.build?
-        if dependent != formula then Dependency.prune
-        else Dependency.keep_but_prune_recursive_deps; end
-      end
+      Dependency.send(((dep.discretionary? and build.without? dep) or dependent != formula) ? :prune \
+                                                                                            : :keep_but_prune_recursive_deps)
     end
   end # expand_deps
 
   def install
     ENV.reset_built_archs
-    if ARGV.build_universal? and formula.path.binread =~ %r{option\s+:universal|ENV\.universal_binary}
-      Target.allow_universal_binary
-    end
-    ENV.setup_build_environment
-
+    Target.allow_universal_binary if ARGV.build_universal? and formula.could_build_universal?
     _deps = deps.map(&:to_formula) + aids
     keg_only_deps = _deps.select(&:keg_only?)
     _deps.each{ |dep| fixopt(dep) unless dep.opt_prefix.directory? }
@@ -62,10 +55,13 @@ class Build
     if superenv?
       ENV.keg_only_deps = keg_only_deps
       ENV.deps = _deps
-      ENV.x11 = reqs.any? { |rq| rq.is_a? X11Requirement }
-      # Only allow Homebrew-approved directories into the PATH, unless a formula opts-in to allowing the user’s path.
-      ENV.userpaths! if formula.env.userpaths? or reqs.any? { |rq| rq.env.userpaths? }
+      ENV.x11 = reqs.any?{ |rq| rq.is_a? X11Requirement }
     end
+
+    ENV.setup_build_environment
+
+    # Only allow Homebrew-approved directories into the PATH, unless a formula opts-in to allowing the user’s path.
+    ENV.userpaths! if superenv? and (formula.env.userpaths? or reqs.any?{ |rq| rq.env.userpaths? })
 
     reqs.each(&:modify_build_environment)
     deps.each(&:modify_build_environment)
@@ -121,8 +117,7 @@ class Build
   end # install
 
   def get_archs
-    raise RuntimeError, '$HOMEBREW_BUILT_ARCHS is empty!  What did we just build?' if (hba = ENV.homebrew_built_archs).empty?
-    hba
+    (hba = ENV.homebrew_built_archs).empty? ? raise(RuntimeError, '$HOMEBREW_BUILT_ARCHS is empty!  What did we just build?') : hba
   end
 
   def detect_stdlibs(compiler)

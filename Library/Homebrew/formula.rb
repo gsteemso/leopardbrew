@@ -671,6 +671,8 @@ class Formula
   # @private
   def require_universal_deps?; false; end
 
+  def could_build_universal?; path.binread =~ /option[\t (]+:universal|ENV\.universal_binary/; end
+
   # @private
   def patch; unless patchlist.empty?; ohai "Patching"; patchlist.each(&:apply); end; end
 
@@ -1235,10 +1237,10 @@ class Formula
     #   maintain your own repository, you can add your own bottle links.
     # @see $(brew --repository)/share/doc/homebrew/Bottles.md
     #     bottle do
-    #       root_url 'http://example.com' # Optional root to calculate bottle URLs
-    #       prefix '/opt/homebrew' # Optional HOMEBREW_PREFIX in which the bottles were built.
-    #       cellar '/opt/homebrew/Cellar' # Optional HOMEBREW_CELLAR in which the bottles were built.
-    #       revision 1 # Making the old bottle outdated without bumping the version/revision of the formula.
+    #       root_url 'http://example.com'  # (Optional)  Root to calculate bottle URLs.
+    #       prefix '/opt/homebrew'         # (Optional)  HOMEBREW_PREFIX in which the bottles were built.
+    #       cellar '/opt/homebrew/Cellar'  # (Optional)  HOMEBREW_CELLAR in which the bottles were built.
+    #       revision 1                     # Makes the old bottle outdated without bumping the version/revision of the formula.
     #       sha256 '4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865' => :yosemite
     #       sha256 '53c234e5e8472b6ac51c1ae1cab3fe06fad053beb8ebfd8977b010655bfdd3c3' => :mavericks
     #       sha256 '1121cfccd5913f0a63fec40a6ffd44ea64f9dc135c66634ba001d10bcf4302a2' => :mountain_lion
@@ -1362,7 +1364,7 @@ class Formula
     # Python 3.x if the `--with-python3` is given to `brew install example`
     #     depends_on :python3 => :optional
     #`depends_on` also accepts an array of operands.  Internally, it converts it to a series of individual `depends_on` statements.
-    def depends_on(dep); specs.each{ |ss| ss.depends_on(dep) }; end
+    def depends_on(d); if d.is_an?(Array) then d.each{ |d_| depends_on d_ }; else specs.each{ |ss| ss.depends_on d }; end; end
 
     # Define a mutually exclusive set of alternate dependencies, i.e., a set where only one member may be selected.  For example,
     #     depends_1_of ['⟨label⟩', ['⟨first⟩', '⟨second⟩' => 'with-extra', '⟨third⟩'] => :optional]

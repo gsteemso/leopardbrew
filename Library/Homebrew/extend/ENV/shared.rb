@@ -226,15 +226,11 @@ module SharedEnvExtension
   def userpaths!
     paths = self['PATH'].split(File::PATH_SEPARATOR)
     # put Superenv.bin and opt paths first
-    new_paths = paths.select { |p|
-        p.starts_with?("#{HOMEBREW_LIBRARY}/ENV") || p.starts_with?(OPTDIR.to_s)
-      }
-    # XXX hot fix to prefer brewed stuff (e.g. python) over /usr/bin.
-    new_paths << "#{HOMEBREW_PREFIX}/bin"
-    # reset of self['PATH']
-    new_paths += paths
-    # user paths
-    new_paths += ORIGINAL_PATHS.map { |p| p.realpath.to_s rescue nil } - %w[/usr/X11/bin /opt/X11/bin]
+    new_paths = paths.select{ |p| p.starts_with?("#{HOMEBREW_LIBRARY}/ENV") || p.starts_with?(OPTDIR.to_s) }
+    new_paths << "#{HOMEBREW_PREFIX}/bin"  # XXX hot fix to prefer brewed stuff (e.g. python) over /usr/bin.
+    new_paths += paths                     # Reset of self['PATH'].
+                                           # User paths.
+    new_paths += ORIGINAL_PATHS.map{ |p| p.realpath.to_s rescue nil } - %w[/usr/X11/bin /opt/X11/bin]
     self['PATH'] = new_paths.uniq.join(File::PATH_SEPARATOR)
   end # userpaths!
 

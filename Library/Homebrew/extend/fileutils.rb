@@ -68,6 +68,8 @@ module FileUtils
   end
   module_function :mktemp
 
+  def pathwd; Pathname(text_pwd); end
+
   # Run the `rake` from the `ruby` Homebrew is using rather than whatever is in the `PATH`.
   def rake(*args); system CONFIG_RUBY_BIN/'rake', *args; end
 

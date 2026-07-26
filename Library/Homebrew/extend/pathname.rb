@@ -196,13 +196,15 @@ class Pathname
   def install_symlink(*targets)
     Array(targets).each do |tgt|
       case tgt
-        when Array then tgt.each { |t| install_symlink(t) }  # Allows passing, e.g., a mixed array of filenames and hashes.
-        when Hash  then tgt.each { |t, new_basename| install_symlink_p(t, new_basename) }
+        when Array then tgt.each{ |t| install_symlink(t) }  # Allows passing, e.g., a mixed array of filenames and hashes.
+        when Hash  then tgt.each_pair{ |t, new_basename| install_symlink_p(t, new_basename) }
         else       install_symlink_p(tgt, File.basename(tgt))
       end
     end # each target |tgt|
   end # install_symlink
-  alias_method :install_symlink_to, :install_symlink
+  alias_method :install_symlink_to,  :install_symlink
+  alias_method :install_symlinks,    :install_symlink
+  alias_method :install_symlinks_to, :install_symlink
 
   def lstat; File.lstat(self) if exists?; end
 
@@ -243,7 +245,7 @@ class Pathname
   def sha256; require 'digest/sha2'; incremental_hash(Digest::SHA256); end
 
   def start_with?(other); to_s.start_with?(other.to_s); end
-  alias_method :starts_with?, :start_with
+  alias_method :starts_with?, :start_with?
 
   # for filetypes we support, basename without extension
   def stem; File.basename((path = to_s), extname(path)); end

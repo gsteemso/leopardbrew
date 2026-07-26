@@ -175,7 +175,7 @@ class FormulaInstaller
     # Build from source:
     unless poured_bottle_done?
       install_dependencies(compute_dependencies) if poured_bottle_fail? and not skip_deps_check?
-      if formula.path.binread =~ %r{option :universal|ENV\.universal_binary}
+      if formula.could_build_universal?
         Target.allow_universal_binary
         ENV.initialize_build_mode
       end
