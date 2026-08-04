@@ -12,7 +12,7 @@ class AppleGcc42 < Formula
   option :universal
   option 'with-arm', 'Build with 32‐bit ARM support for iOS, etc' if MacOS.iPhone_SDK_present?
 
-  # Make sure we have a suitable `as` for every target (& don’t put as “:cctools”, it won’t necessarily pull in the actual formula).
+  # Make sure we have a suitable `as` for every target (and don’t do “:cctools”, that won’t necessarily pull in the actual formula).
   depends_on 'cctools' if build.with? 'arm'
 
   enhanced_by :nls
@@ -54,7 +54,7 @@ END_OF_PATCH
       if installed? and not (candidates = Dir['/usr/bin/*-apple-darwin*-gcc-4.2.1.5[0-9][0-9][0-9]*']).empty?
         return candidates.sort.first[-4,4]
       end
-      if (gcc42 = Pathname.new(Dir['/usr/bin/*-apple-darwin*-gcc-4.2.1'].first)).choke and not gcc42.symlink?
+      if (gcc42 = Pathname(Dir['/usr/bin/*-apple-darwin*-gcc-4.2.1'].first)).choke and not gcc42.symlink?
         return `#{gcc42} --version`[/build (5\d{3})/][1]
       end
     end

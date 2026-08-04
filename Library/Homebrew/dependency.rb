@@ -39,9 +39,9 @@ class Dependency
 
   def installed_archs_are_a_superset?; keg = to_keg and Target.archset.all?{ |ta| keg.built_archs.any?{ |ba| ba == ta } }; end
 
-  def dylinkable?; l = to_formula.lib and l.directory? and l.find{ |o| o.dylib? or o.mach_o_bundle? }; end
+  def dylinkable?; (l = to_formula.lib) and l.directory? and l.detect{ |o| o.real_file? and (o.dylib? or o.mach_o_bundle?) }; end
 
-  def is_group_dep?; false; end
+  def group_dep?; false; end
 
   def satisfied?; installed? and missing_options.empty? and installed_archs_are_a_superset? or not dylinkable?; end
 
@@ -87,7 +87,7 @@ class Dependency
       expanded_deps = Dependencies.new
       deps.each do |dep|
         next if expanded_deps.include? dep
-        if dep.is_a? GroupDependency; deps += dep.subdeps; next; end  # unpack, but otherwise ignore, group dependencies
+        if dep.is_a? GroupDependency; deps += dep.subdeps; next; end  # Unpack, but otherwise ignore, group dependencies.
         f = dep.to_formula
         raise "{#{f.name}} has a circular dependency!\n    {#{dependency_chain * '} → {'}} → {#{f.name}}" \
                                                                                                     if dependency_chain.includes? f
@@ -111,7 +111,7 @@ class Dependency
 
     private
 
-    def action(dependent, dep, &_block)
+    def action(dependent, dep, &block)
       catch(:action) do
         if block_given? then yield dependent, dep; elsif dep.discretionary? then prune unless dependent.build.with?(dep); end
       end
@@ -140,7 +140,7 @@ class GroupDependency < Dependency
 
   def installed?; subdeps.all?(&:installed?); end
 
-  def is_group_dep?; true; end
+  def group_dep?; true; end
 
   def satisfied?; subdeps.all?{ |subdep| subdep.satisfied? }; end
 

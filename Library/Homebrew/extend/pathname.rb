@@ -144,7 +144,8 @@ class Pathname
 
   # @private
   alias_method :extname_old, :extname
-  def extname(path = to_s)  # Extended to support common double extensions.
+  def extname  # Extended to support common double extensions.
+    path = to_s
     BOTTLE_EXTNAME_RX.match(path)
     return $1 if $1
     /(\.(tar|cpio|pax)\.(Z|bz2|gz|lz4?|xz|zip|zst))$/.match(path)
@@ -159,6 +160,8 @@ class Pathname
     else buf = ''; open('rb') { |f| digest << buf while f.read(FILE_BUFSIZE, buf) }; end
     digest.hexdigest
   end # incremental_hash
+
+  def indirect_ory?; directory? and symlink?; end
 
   # Moves a file from the original location to the {Pathname}’s.
   def install(*sources)
@@ -212,6 +215,13 @@ class Pathname
   def make_relative_symlink(tgt); dirname.mkpath; File.symlink(tgt.relative_path_from(dirname), self); end
   alias_method :make_relative_symlink_to, :make_relative_symlink
 
+  def real_directory?; directory? and not symlink?; end
+
+  def real_file?; file? and not symlink?; end
+
+  def really_exists?; exists? and not symlink?; end
+  alias_method :really_exist?, :really_exists?
+
   # @private
   def resolved_path; symlink? ? ((tgt = readlink).to_s.starts_with?('/') ? tgt : dirname/tgt) : self; end
 
@@ -248,7 +258,7 @@ class Pathname
   alias_method :starts_with?, :start_with?
 
   # for filetypes we support, basename without extension
-  def stem; File.basename((path = to_s), extname(path)); end
+  def stem; File.basename(to_s, extname); end
 
   # Not defined in Ruby 1.8.2.  Definition taken from 1.8.7 and then streamlined.
   def sub(pattern, *rest, &block)

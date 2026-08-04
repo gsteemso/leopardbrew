@@ -95,7 +95,7 @@ class Openssl < Formula
     if build.universal?
       ENV.set_build_archs(archs)
       merge_binaries(archs)
-      merge_c_headers(archs)
+      merge_C_headers(archs)
     end
   end # install
 

@@ -89,7 +89,7 @@ module Debrew
           Menu.choose do |menu|
             menu.prompt = "Choose an action: "
             menu.choice(:raise) { original_raise(e) }
-            menu.choice(:ignore) { return :ignore } if Ignorable === e
+            menu.choice(:ignore) { return :ignore } if e.is_an? Ignorable
             menu.choice(:backtrace) { puts e.backtrace }
             menu.choice(:irb) do
                 puts "When you exit this IRB session, execution will continue."
@@ -100,7 +100,7 @@ module Debrew
                   end
                 }
                 return :ignore
-              end if Ignorable === e and not UserInterrupt === e  # For threading reasons, {mutex_m} won’t work in an interrupt.
+              end if e.is_an? Ignorable and not e.is_a? UserInterrupt  # Due to threading, {mutex_m} won’t work in an interrupt.
             menu.choice(:shell) do
                 puts "When you exit this shell, you will return to the menu."
                 interactive_shell

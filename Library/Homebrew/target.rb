@@ -45,6 +45,30 @@ class Target
       result
     end # Target::archset
 
+    # Returns the input archset partitioned per useful criteria.  Each element of the output {Array} is either a plain architecture
+    # {Symbol} or a single‐element hash encoding a partition – the key is descriptive, while the value is a normal architecture set
+    # extended with ALE.  The same mechanisms transparently handle both partitioned & unpartitioned architecture sets.
+    def partitioned_archset(criterion, as = archset)
+      criterion = :none if as.length < 2
+      case criterion
+        when :cpu_type  then our_ppc = as.select{ |a| CPU.type_of(a) == :powerpc }
+                             ppc_hsh = our_ppc.empty? ? nil : our_ppc.length == 1 ? our_ppc[0] : {:powerpc => our_ppc.extend(ALE)}
+                             our_x86 = as.select{ |a| CPU.type_of(a) == :intel   }
+                             x86_hsh = our_x86.empty? ? nil : our_x86.length == 1 ? our_x86[0] : {:intel   => our_x86.extend(ALE)}
+                             our_arm = as.select{ |a| CPU.type_of(a) == :arm     }
+                             arm_hsh = our_arm.empty? ? nil : our_arm[0]
+                             result = [ppc_hsh, x86_hsh, arm_hsh].compact
+                             result.all?{ |element| element.is_a(Symbol) } ? as : result
+        when :word_size then ilp32 = select_32b_archs(as)
+                             hsh32 = ilp32.empty? ? nil : ilp32.length == 1 ? ilp32[0] : {:ilp32 => ilp32}
+                             lp_64 = select_64b_archs(as)
+                             hsh64 = lp_64.empty? ? nil : lp_64.length == 1 ? lp_64[0] : {:lp64  => lp_64}
+                             result = [hsh32, hsh64].compact
+                             result.all?{ |element| element.is_a(Symbol) } ? as : result
+                        else as
+      end
+    end # Target::partitioned_archset()
+
     # What set of architectures should tools we build be able to run on?  All of our regular universal targets (assuming, of course,
     # that we’re running a universal build in the first place).  If we’re building a bottle, we won’t be building fat; the bottle’s
     # architecture will be the only one in here, via Target::arch.
@@ -131,9 +155,9 @@ class Target
       @_64b_checked ||= nil
       unless @_64b_checked
         @_64b_checked = true
-        @prefer_64b ||= (CPU._64b? and (MacOS.version >= :snow_leopard or
-                                         (MacOS.version == :leopard and envflag = ENV['HOMEBREW_PREFER_64_BIT'].choke) or
-                                         (MacOS.version == :tiger and envflag and envflag.downcase == 'force')
+        @prefer_64b ||= (CPU._64b? and ( MacOS.version >= :snow_leopard or
+                                        (MacOS.version == :leopard and ENV['HOMEBREW_PREFER_64_BIT'].choke) or
+                                        (MacOS.version == :tiger and ENV['HOMEBREW_PREFER_64_BIT'].to_s.downcase == 'force')
                         )              )
       end
       @prefer_64b
@@ -141,20 +165,36 @@ class Target
 
     def preferred_arch; @preferred_arch ||= (prefer_64b? ? _64b_arch : _32b_arch); end
 
+    # For any scenario where you have to be explicit about your build, host, and/or target platform(s).  It’s the invariant part of
+    # a GNU platform tuple, see?
+    def gnuple; "-apple-darwin#{`uname -r`[/^\d+/]}"; end
+
     # Utility functions:  Refine their sole parameter in a relevant manner.
 
     def preferred_arch_as_list; [preferred_arch].extend(ALE); end
 
-    def select_32b_archs(as); as.select{ |a| _32b_arch?(a) }.extend(ALE); end
+    def select_32b_archs(as); as.select{ |a| _32b?(a) }.extend(ALE); end
 
-    def select_64b_archs(as); as.reject{ |a| _32b_arch?(a) }.extend(ALE); end
+    def select_64b_archs(as); as.reject{ |a| _32b?(a) }.extend(ALE); end
 
-    # Utility functions:  Return either true or some relevant value, based on their sole parameter.
+    # Utility functions:  Return either true (i.e. some relevant value) or false, based on their sole parameter.
 
-    def _32b?(obj = archset); obj.is_a?(Array) ? obj.all?{ |o| _32b? o } : bits(obj) == 32; end
+    def _32b?(obj = archset)
+      case obj
+        when Array then obj.all?{ |o| _32b? o }
+        when Hash  then obj.values.all?{ |o| _32b? o }  # Accommodate partitioned archsets.
+                   else bits(obj) == 32
+      end
+    end # Target::_32b?()
     alias_method :_32b_arch?, :_32b?
 
-    def _64b?(obj = archset); obj.is_a?(Array) ? obj.all?{ |o| _64b? o } : bits(obj) == 64; end
+    def _64b?(obj = archset)
+      case obj
+        when Array then obj.all?{ |o| _64b? o }
+        when Hash  then obj.values.all?{ |o| _64b? o }  # Accommodate partitioned archsets.
+                   else bits(obj) == 64
+      end
+    end # Target::_64b?()
     alias_method :_64b_arch?, :_64b?
     alias_method :pure_64b?, :_64b?
 
@@ -180,16 +220,19 @@ class Target
       end  # Return nil for any other input.
     end # Target::bits()
 
-    CPU.known_types().each{ |t| define_method("#{t}?") { archset.find{ |a| CPU.type_of(a) == t } } }
+    CPU.known_types().each{ |t| define_method("#{t}?") { archset.detect{ |a| CPU.type_of(a) == t } } }
 
     # The default :universal build cannot be anything but :native, because too many prerequisites for cross‐CPU‐type builds are not
     # guaranteed to be in place.  Any such options (:local or :cross) must be specified explicitly.
     def default_universal_mode; native_archs.length > 1 ? :native : :plain; end
 
-    def will_run(this)
+    # Returns whether the current system not only _can_ run [some element of] {this}, but _will_ run it under current policy.
+    def build_will_run?(this)
+      this = this.values.first if this.is_a?(Hash)  # Accommodate partitioned archsets.
+      return this.any?{ |arch| build_will_run?(arch) } if this.is_an?(Array)
       v = MacOS.version
       CPU.can_run?(this) and _32b_arch?(this) ? (v < :lion) : (v > :tiger or (v == :tiger and prefer_64b?))
-    end
+    end # Target::build_will_run?()
 
     # These return arrays extended via ALE (ArchitectureListExtension; see “mach.rb”), which provides such useful helper methods as
     # #as_arch_flags & #as_cmake_arch_flags.  Note that building for 64-bit is only just possible on Tiger, & unevenly supported on
@@ -207,9 +250,9 @@ class Target
         ENV.compiler != :clang)         ? quad_fat_archs        : triple_fat_archs
     end # Target::cross_archs
 
-    def local_archs; @local_archs ||= all_archs.select{ |a| will_run(a) }.extend(ALE); end
+    def local_archs; @local_archs ||= all_archs.select{ |a| build_will_run?(a) }.extend(ALE); end
 
-    def native_archs; CPU.archs.select{ |a| will_run(a) }.extend(ALE); end
+    def native_archs; CPU.archs.select{ |a| build_will_run?(a) }.extend(ALE); end
 
     def plain_arch; [arch].extend(ALE); end
     alias_method :plain_archs, :plain_arch

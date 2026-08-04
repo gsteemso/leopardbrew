@@ -6,37 +6,24 @@ module Homebrew
     missing = {}
     ff.each do |f|
       missing_deps = f.recursive_dependencies do |dependent, dep|
-        if dep.optional? || dep.recommended?
-          tab = Tab.for_formula(dependent)
-          Dependency.prune unless tab.with?(dep)
-        elsif dep.build?
-          Dependency.prune
-        end
+        if dep.discretionary? then Dependency.prune unless Tab.for_formula(dependent).with?(dep)
+        elsif dep.build? then Dependency.prune; end
       end
-
-      missing_deps.map!(&:to_formula)
-      missing_deps.reject! { |d| d.rack.exist? && d.rack.subdirs.length > 0 }
-
+      missing_deps = missing_deps.map(&:to_formula).reject{ |f| f.any_version_installed? }
       unless missing_deps.empty?
         yield f.full_name, missing_deps if block_given?
         missing[f.full_name] = missing_deps
       end
-    end
+    end # each |f|
     missing
-  end
+  end # missing_deps()
 
   def missing
-    return unless HOMEBREW_CELLAR.exist?
-
-    ff = if ARGV.named.empty?
-      Formula.installed
-    else
-      ARGV.resolved_formulae
-    end
-
+    return unless HOMEBREW_CELLAR.exists?
+    ff = ARGV.named.empty? ? Formula.installed : ARGV.resolved_formulae
     missing_deps(ff) do |name, missing|
       print "#{name}: " if ff.size > 1
       puts "#{missing * " "}"
     end
-  end
-end
+  end # missing
+end # Homebrew

@@ -210,9 +210,6 @@ module TerminalANSI  # Standard terminal display-control sequences.  (Yes, this 
 end # TerminalANSI
 
 module Homebrew
-  AR_MAGIC = "!<arch>\n".freeze
-  AR_MEMBER_HDR_SIZE = 60.freeze
-
   extend TerminalANSI
   set_grcm_cumulative
 
@@ -221,52 +218,16 @@ module Homebrew
   def ohey(title, *msg); oho title; puts msg; end
 
   def archs
-    def ar_sig_at?(pn, offset)
-      result = (pn.file? and pn.size >= (offset + 8) and (pn.binread(8, offset).unpack('a8').first == AR_MAGIC))
-      result
-    end
-
-    # In an ‘ar’ archive, finds the start of the current member’s sub‐file & walks to the next member.  Returns a list:  [offset of
-    # current member payload, offset of next ar header].  The latter is ‘nil’ at the last member; both are if the current member is
-    # too short.
-    def ar_walk_from(pn, initial_offset)
-      return [nil, nil] if pn.size <= (body_offset = initial_offset + AR_MEMBER_HDR_SIZE)
-      header = pn.binread(AR_MEMBER_HDR_SIZE, initial_offset)
-      extent = (header.b[0, 16] =~ %r{^#1/(\d+)} ? $1.to_i : 0)         # Does an extended name follow the header block?
-      startpoint = body_offset + extent                                 # Now extent contains its size.
-      return [nil, nil] if pn.size < (startpoint + 8)
-      extent = (header.b[48, 10] =~ %r{^(\d+)} ? $1.to_i : 0) - extent  # Now extent equals the payload size.
-      return [nil, nil] if extent < 0
-      next_at = body_offset + extent + (extent & 1)                     # Pad to an even number of bytes.
-      [startpoint, (pn.size >= next_at ? next_at : nil)]
-    end # ar_walk_from()
-
-    # Returns either the offset of the next valid Mach-O ‘ar’ member and whether it has byte-reversed headers, or [{Nil}, {Nil}] if
-    # there isn’t one.
-    def ar_sigseek_from(pn, offset)
-      return [nil, nil] unless ar_sig_at?(pn, offset)
-      offset += 8
-      while offset
-        candidate, offset = ar_walk_from(pn, offset)
-        break unless candidate
-        next if ar_sig_at?(pn, candidate)         # Skip malformed data.
-        sig, rvsd, _ = pn.machO_sig_at?(candidate)
-        break if sig and sig != :FAT_MAGIC          # Stop at the first good signature, skipping malformed data.
-        candidate = nil
-      end
-      rvsd = nil unless candidate
-      [candidate, rvsd]
-    end # ar_sigseek_from()
-
     def cpu_valid(type, subtype)
+      st = subtype.sub(%r{^..}, '00')  # High‐order octet:  Irrelevant flags.
       case CPU_TYPES[type]
-        when 'ARM'      then ARM_SUBTYPES[subtype]
-        when 'ARM64'    then ARM64_SUBTYPES[subtype]
-        when 'ARM64/32' then ARM64_32_SUBTYPES[subtype]
-        when 'x86'      then X86_SUBTYPES[subtype]
-        when 'PPC'      then PPC_SUBTYPES[subtype]
+        when 'ARM'      then ARM_SUBTYPES[st]
+        when 'ARM64'    then ARM64_SUBTYPES[st]
+        when 'ARM64/32' then ARM64_32_SUBTYPES[st]
+        when 'x86'      then X86_SUBTYPES[st]
+        when 'PPC'      then PPC_SUBTYPES[st]
         when 'PPC64'    then 'ppc64'
-        when 'x86-64'   then X86_64_SUBTYPES[subtype]
+        when 'x86-64'   then X86_64_SUBTYPES[st]
         else nil
       end
     end # cpu_valid()
@@ -278,7 +239,7 @@ module Homebrew
         if pn.directory? then possibles += scour(pn)
         else
           sig, _, _ = pn.machO_sig_at?(0)
-          possibles << pn if sig or ar_sig_at?(pn, 0)
+          possibles << pn if sig or pn.ar_sig_at?(0)
         end
       }
       possibles
@@ -292,7 +253,7 @@ module Homebrew
     requested.each do |keg|
       max_arch_count = 0; arch_reports = {}; alien_reports = []
       scour(keg.to_s).each do |pn|
-        offset, rvsd = ar_sigseek_from(pn, 0)
+        offset, rvsd = pn.ar_sigseek_from(0)
         if offset  # ‘ar’ archive’s first Mach-O signature.
           key, alien_report = report_1_arch_at(pn, offset, rvsd)
           alien_reports << alien_report if alien_report
@@ -341,7 +302,7 @@ module Homebrew
           elsif sig == :MH_MAGIC and pn.size > 12
             cpu_t = [second].pack('N').unpack('H8').first
             # Of the seven uint32 in a Mach header, third is the CPU subtype.
-            cpu_st = sprintf('%8x', pn.binread(4, 8).unpack(rvsd ? 'V' : 'N') & 0x00ffffff)  # High‐order octet:  Irrelevant flags.
+            cpu_st = pn.binread(4, 8).unpack(rvsd ? 'V' : 'N').pack('N').unpack('H8').first
             if arch = cpu_valid(cpu_t, cpu_st) then key = [in_br_cyan(arch)]; alien_report = nil
             else
               ct = (CPU_TYPES[cpu_t] or sprintf '0x%s', cpu_t); key = [in_cyan("#{ct}:#{cpu_st}")]

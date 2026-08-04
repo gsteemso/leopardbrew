@@ -59,7 +59,7 @@ HOMEBREW_TAP_ARGS_REGEX           = %r{^([\w-]+)/(homebrew-)?([\w-]+)$}
                                     # Match taps given as arguments, e.g. someuser/sometap
 HOMEBREW_TAP_DIR_REGEX            = %r{#{Regexp.escape(HOMEBREW_LIBRARY.to_s)}/Taps/([\w-]+)/([\w-]+)}
                                     # Match taps’ directory paths, e.g. HOMEBREW_LIBRARY/Taps/someuser/sometap
-  HOMEBREW_TAP_PATH_REGEX         =   Regexp.new(HOMEBREW_TAP_DIR_REGEX.source + %r{/(.*)}.source)
+  HOMEBREW_TAP_PATH_REGEX         =   Regexp.new(HOMEBREW_TAP_DIR_REGEX.source + '/(.*)')
                                       # Match taps’ formula paths, e.g. HOMEBREW_LIBRARY/Taps/someuser/sometap/someformula
 HOMEBREW_TAP_FORMULA_REGEX        = %r{^([\w-]+)/([\w-]+)/([\w+-.@]+)$}
                                     # Match taps’ formulæ, e.g. someuser/sometap/someformula
@@ -72,6 +72,7 @@ VERSIONED_NAME_REGEX              = %r{^([^-=][^=]*)=([^=]+)$}      # Matches a 
 # CompilerConstants::COMPILERS      # Lists the known compilers.
 # CompilerConstants::LANG_DEFAULT   # Lists the default language versions for a given compiler version.
 # CompilerConstants::LANG_SUPPORT   # Lists the greatest supported language versions for a given compiler version.
+CORE_OWNERS              = %w[Homebrew/homebrew mistydemeo/tigerbrew gsteemso/Leopardbrew].freeze
 HOMEBREW_CURL_ARGS       = '-f#LA'
 HOMEBREW_INTERNAL_COMMAND_ALIASES = { 'ls'          => 'list',
                                       'homepage'    => 'home',
@@ -96,9 +97,10 @@ HOMEBREW_WWW             = 'https://github.com/gsteemso/leopardbrew'
     ISSUES_URL           =   HOMEBREW_WWW
 LEOPARDBREW_VERSION      = ENV['LEOPARDBREW_VERSION']
 MACOS_FULL_VERSION       = ENV['HOMEBREW_OS_VERSION'].chomp
-  MACOS_VERSION          =   MACOS_FULL_VERSION[/\d\d\.\d+/]
+  MACOS_VERSION          =   MACOS_FULL_VERSION[/\d+\.\d+/]
     MACOS_VERSION        =     MACOS_VERSION.slice(0, 2) if MACOS_VERSION.to_f >= 11
 # MacOS::MAX_SUPPORTED_VERSION # see `macos/version.rb`
+# MacOS::STANDARD_COMPILERS    # see `macos.rb`
 # Tab::FILENAME                # see `tab.rb`
 
 # Optionally user‐defined values:

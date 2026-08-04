@@ -1,28 +1,65 @@
 # This file is loaded before `global.rb`, so must eschew most Homebrew‐isms at eval time.
 
 require 'cpu'
-require "macos/version"
-require "macos/xcode"
-require "macos/xquartz"
+require 'macos/version'
+require 'macos/xcode'
+require 'macos/xquartz'
 
 module MacOS
   extend self
+
+  STANDARD_COMPILERS = {
+    '2.0'   => { :gcc_4_0_build => 4061 },
+    '2.5'   => { :gcc_4_0_build => 5370 },
+    '3.1.2' => { :gcc_4_0_build => 5490, :gcc_4_2_build => 5566 },
+    '3.1.4' => { :gcc_4_0_build => 5493, :gcc_4_2_build => 5577 },
+    '3.2.6' => { :gcc_4_0_build => 5494, :gcc_4_2_build => 5666, :llvm_build => 2335, :clang => '1.7', :clang_build => 77 },
+    '4.0'   => { :gcc_4_0_build => 5494, :gcc_4_2_build => 5666, :llvm_build => 2335, :clang => '2.0', :clang_build => 137 },
+    '4.0.1' => { :gcc_4_0_build => 5494, :gcc_4_2_build => 5666, :llvm_build => 2335, :clang => '2.0', :clang_build => 137 },
+    '4.0.2' => { :gcc_4_0_build => 5494, :gcc_4_2_build => 5666, :llvm_build => 2335, :clang => '2.0', :clang_build => 137 },
+    '4.2'   => { :llvm_build => 2336, :clang => '3.0', :clang_build => 211 },
+    '4.3'   => { :llvm_build => 2336, :clang => '3.1', :clang_build => 318 },
+    '4.3.1' => { :llvm_build => 2336, :clang => '3.1', :clang_build => 318 },
+    '4.3.2' => { :llvm_build => 2336, :clang => '3.1', :clang_build => 318 },
+    '4.3.3' => { :llvm_build => 2336, :clang => '3.1', :clang_build => 318 },
+    '4.4'   => { :llvm_build => 2336, :clang => '4.0', :clang_build => 421 },
+    '4.4.1' => { :llvm_build => 2336, :clang => '4.0', :clang_build => 421 },
+    '4.5'   => { :llvm_build => 2336, :clang => '4.1', :clang_build => 421 },
+    '4.5.1' => { :llvm_build => 2336, :clang => '4.1', :clang_build => 421 },
+    '4.5.2' => { :llvm_build => 2336, :clang => '4.1', :clang_build => 421 },
+    '4.6'   => { :llvm_build => 2336, :clang => '4.2', :clang_build => 425 },
+    '4.6.1' => { :llvm_build => 2336, :clang => '4.2', :clang_build => 425 },
+    '4.6.2' => { :llvm_build => 2336, :clang => '4.2', :clang_build => 425 },
+    '4.6.3' => { :llvm_build => 2336, :clang => '4.2', :clang_build => 425 },
+    '5.0'   => { :clang =>  '5.0', :clang_build =>  500 },
+    '5.0.1' => { :clang =>  '5.0', :clang_build =>  500 },
+    '5.0.2' => { :clang =>  '5.0', :clang_build =>  500 },
+    '5.1'   => { :clang =>  '5.1', :clang_build =>  503 },
+    '5.1.1' => { :clang =>  '5.1', :clang_build =>  503 },
+    '6.0'   => { :clang =>  '6.0', :clang_build =>  600 },
+    '6.0.1' => { :clang =>  '6.0', :clang_build =>  600 },
+    '6.1'   => { :clang =>  '6.0', :clang_build =>  600 },
+    '6.1.1' => { :clang =>  '6.0', :clang_build =>  600 },
+    '6.2'   => { :clang =>  '6.0', :clang_build =>  600 },
+    '6.3'   => { :clang =>  '6.1', :clang_build =>  602 },
+    '6.3.1' => { :clang =>  '6.1', :clang_build =>  602 },
+    '6.3.2' => { :clang =>  '6.1', :clang_build =>  602 },
+    '6.4'   => { :clang =>  '6.1', :clang_build =>  602 },
+    '7.0'   => { :clang =>  '7.0', :clang_build =>  700 },
+    '16.0'  => { :clang => '17.0', :clang_build => 1700 }
+  }.freeze
 
   def locate(tool)
     # Don't call tools (cc, make, strip, etc.) directly!  Give the name of the binary you want as a
     # string to this method in order to get the full path back as a Pathname.
     (@locate ||= {}).fetch(tool) do |key|
-      @locate[key] = if File.executable?(path = "/usr/bin/#{tool}")
-          Pathname(path)
-        # Homebrew GCCs most frequently; much faster to check this before xcrun
-        elsif (path = HOMEBREW_PREFIX/"bin/#{tool}").executable?
-          path
-        # xcrun was introduced in Xcode 3 on Leopard
-        elsif version >= :leopard
-          path = Utils.popen_read("/usr/bin/xcrun", "-no-cache", "-find", tool).chomp
-          Pathname(path) if File.executable?(path)
-        end
-    end
+      @locate[key] = if File.executable?(path = "/usr/bin/#{tool}") then Pathname(path)
+                     elsif (path = HOMEBREW_PREFIX/"bin/#{tool}").executable? then path
+                     elsif version >= :leopard  # xcrun was introduced in Xcode 3 on Leopard
+                       path = Utils.popen_read('/usr/bin/xcrun', '-no-cache', '-find', tool).chomp
+                       Pathname(path) if File.executable?(path)
+                     end
+    end # do |key|
   end # locate(tool)
 
   # Locates a (working) copy of each tool, guaranteed to function whether the
@@ -55,7 +92,7 @@ module MacOS
     (@sdk_path ||= {}).fetch(v.to_s) do |key|
       opts = []
       # First query Xcode itself
-      opts << Utils.popen_read(locate("xcodebuild"), "-version", "-sdk", "macosx#{v}", "Path").chomp
+      opts << Utils.popen_read(locate('xcodebuild'), '-version', '-sdk', "macosx#{v}", 'Path').chomp
       # Xcode.prefix is pretty smart, so let’s look inside to find the sdk
       opts << "#{Xcode.prefix}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX#{v}.sdk" \
            << "#{Xcode.prefix}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk"
@@ -75,8 +112,8 @@ module MacOS
       when %r{^llvm}    then :llvm
       when %r{^clang}   then :clang
       else  # Make assumptions and then blindly guess.
-        Xcode.version >= "4.3" ? :clang : \
-        Xcode.version >= "4.2" ? :llvm  : gcc_4_2_build_version ? :gcc_4_2 : :gcc_4_0
+        Xcode.version >= '4.3' ? :clang : \
+        Xcode.version >= '4.2' ? :llvm  : gcc_4_2_build_version ? :gcc_4_2 : :gcc_4_0
     end
   end # default_compiler
 
@@ -85,7 +122,7 @@ module MacOS
   end
 
   def gcc_4_2_build_version
-    @gcc_4_2_build_version ||= if (gcc = locate("gcc-4.2") || OPTDIR/'apple-gcc42/bin/gcc-4.2') \
+    @gcc_4_2_build_version ||= if (gcc = locate('gcc-4.2') || OPTDIR/'apple-gcc42/bin/gcc-4.2') \
                                    and gcc.exists? and gcc.realpath.basename.to_s !~ /^llvm/
                                  ::Version.new(`#{gcc} --version`[/build (\d{4,})/, 1])
   end;                         end
@@ -140,47 +177,6 @@ module MacOS
     paths.uniq
   end # macports_or_fink
 
-  STANDARD_COMPILERS = {
-    "2.0"   => { :gcc_4_0_build => 4061 },
-    "2.5"   => { :gcc_4_0_build => 5370 },
-    "3.1.2" => { :gcc_4_0_build => 5490, :gcc_4_2_build => 5566 },
-    "3.1.4" => { :gcc_4_0_build => 5493, :gcc_4_2_build => 5577 },
-    "3.2.6" => { :gcc_4_0_build => 5494, :gcc_4_2_build => 5666, :llvm_build => 2335, :clang => "1.7", :clang_build => 77 },
-    "4.0"   => { :gcc_4_0_build => 5494, :gcc_4_2_build => 5666, :llvm_build => 2335, :clang => "2.0", :clang_build => 137 },
-    "4.0.1" => { :gcc_4_0_build => 5494, :gcc_4_2_build => 5666, :llvm_build => 2335, :clang => "2.0", :clang_build => 137 },
-    "4.0.2" => { :gcc_4_0_build => 5494, :gcc_4_2_build => 5666, :llvm_build => 2335, :clang => "2.0", :clang_build => 137 },
-    "4.2"   => { :llvm_build => 2336, :clang => "3.0", :clang_build => 211 },
-    "4.3"   => { :llvm_build => 2336, :clang => "3.1", :clang_build => 318 },
-    "4.3.1" => { :llvm_build => 2336, :clang => "3.1", :clang_build => 318 },
-    "4.3.2" => { :llvm_build => 2336, :clang => "3.1", :clang_build => 318 },
-    "4.3.3" => { :llvm_build => 2336, :clang => "3.1", :clang_build => 318 },
-    "4.4"   => { :llvm_build => 2336, :clang => "4.0", :clang_build => 421 },
-    "4.4.1" => { :llvm_build => 2336, :clang => "4.0", :clang_build => 421 },
-    "4.5"   => { :llvm_build => 2336, :clang => "4.1", :clang_build => 421 },
-    "4.5.1" => { :llvm_build => 2336, :clang => "4.1", :clang_build => 421 },
-    "4.5.2" => { :llvm_build => 2336, :clang => "4.1", :clang_build => 421 },
-    "4.6"   => { :llvm_build => 2336, :clang => "4.2", :clang_build => 425 },
-    "4.6.1" => { :llvm_build => 2336, :clang => "4.2", :clang_build => 425 },
-    "4.6.2" => { :llvm_build => 2336, :clang => "4.2", :clang_build => 425 },
-    "4.6.3" => { :llvm_build => 2336, :clang => "4.2", :clang_build => 425 },
-    "5.0"   => { :clang =>  "5.0", :clang_build =>  500 },
-    "5.0.1" => { :clang =>  "5.0", :clang_build =>  500 },
-    "5.0.2" => { :clang =>  "5.0", :clang_build =>  500 },
-    "5.1"   => { :clang =>  "5.1", :clang_build =>  503 },
-    "5.1.1" => { :clang =>  "5.1", :clang_build =>  503 },
-    "6.0"   => { :clang =>  "6.0", :clang_build =>  600 },
-    "6.0.1" => { :clang =>  "6.0", :clang_build =>  600 },
-    "6.1"   => { :clang =>  "6.0", :clang_build =>  600 },
-    "6.1.1" => { :clang =>  "6.0", :clang_build =>  600 },
-    "6.2"   => { :clang =>  "6.0", :clang_build =>  600 },
-    "6.3"   => { :clang =>  "6.1", :clang_build =>  602 },
-    "6.3.1" => { :clang =>  "6.1", :clang_build =>  602 },
-    "6.3.2" => { :clang =>  "6.1", :clang_build =>  602 },
-    "6.4"   => { :clang =>  "6.1", :clang_build =>  602 },
-    "7.0"   => { :clang =>  "7.0", :clang_build =>  700 },
-    '16.0'  => { :clang => '17.0', :clang_build => 1700 }
-  }.freeze
-
   def compilers_standard?
     STANDARD_COMPILERS.fetch(Xcode.version.to_s).all? do |method, build|
       send(:"#{method}_version") == build
@@ -207,15 +203,15 @@ module MacOS
 
   def mdfind(*ids)
     (@mdfind ||= {}).fetch(ids) do
-      @mdfind[ids] = Utils.popen_read("/usr/bin/mdfind", mdfind_query(*ids)).split("\n")
+      @mdfind[ids] = Utils.popen_read('/usr/bin/mdfind', mdfind_query(*ids)).split("\n")
     end
   end # mdfind
 
   def pkgutil_info(id)
     (@pkginfo ||= {}).fetch(id) do |key|
-      @pkginfo[key] = Utils.popen_read("/usr/sbin/pkgutil", "--pkg-info", key).strip
+      @pkginfo[key] = Utils.popen_read('/usr/sbin/pkgutil', '--pkg-info', key).strip
     end
   end
 
-  def mdfind_query(*ids); ids.map! { |id| "kMDItemCFBundleIdentifier == #{id}" }.join(" || "); end
+  def mdfind_query(*ids); ids.map! { |id| "kMDItemCFBundleIdentifier == #{id}" }.join(' || '); end
 end # MacOS

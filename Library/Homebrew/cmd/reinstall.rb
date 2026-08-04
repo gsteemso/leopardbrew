@@ -42,6 +42,9 @@ module Homebrew
     f.set_active_spec s if s  # Otherwise, use the default.
     tab = Tab.for_formula(f)  # This gets the tab for the correct installed keg.
     options = tab.used_options
+    if (build_mode = tab.build_mode) and build_mode != :bottle and build_mode != ARGV.build_mode
+      ARGV << "--#{build_mode}"; ARGV.empty_caches; ARGV.build_mode
+    end
     puts "Original spec = #{tab.spec.to_s.choke or '[none]'}" if DEBUG
     case tab.spec
       when :head then options += Option.new('HEAD'); s ||= :head
@@ -108,41 +111,28 @@ module Homebrew
   end # reinstall_formula
 
   def blenderize_options(use_opts, formula)
-    d_o_list = formula.deprecated_options
-    anti_opts = Options.new
+    d_o_list = formula.deprecated_options; anti_opts = Options.new
     use_opts.each do |o|
-      if (ix = d_o_list.find_index { |d_o| d_o.old == o.name })
-        o = Option.new(d_o_list[ix].current)
-      elsif not formula.option_defined?(o)
-        anti_opts << o
-      end
+      if (ix = d_o_list.find_index { |d_o| d_o.old == o.name }) then o = Option.new(d_o_list[ix].current)
+      elsif not formula.option_defined?(o) then anti_opts << o; end
     end
     ARGV.effective_formula_flags.each do |flag|
-      o = Option.new(flag)
-      unrecognized = false
-      if formula.option_defined?(o)
-        use_opts << o
+      o = Option.new(flag); unrecognized = false
+      if formula.option_defined?(o) then use_opts << o
       else
         case o.flag
           when /^--with-(.+)$/
             if formula.option_defined?(inverse = "without-#{$1}") or use_opts.include? inverse
               anti_opts << Option.new(inverse)
-            else
-              unrecognized = true
-            end # --with-xxxx?
+            else unrecognized = true; end
           when /^--without-(.+)$/
             if formula.option_defined?(inverse = "with-#{$1}") or use_opts.include? inverse
               anti_opts << Option.new(inverse)
-            else
-              unrecognized = true
-            end # --without-xxxx?
+            else unrecognized = true; end
           when '--single-arch'
             anti_opts << Option.new('universal') << Option.new('cross') << Option.new('local') << Option.new('native')
             ENV.delete 'HOMEBREW_BUILD_UNIVERSAL'
-          when '--cross', '--local', '--native', '--universal'
-            # the formula doesn’t have any of these options; ignore it
-          when '--stable'
-            anti_opts += [Option.new('HEAD'), Option.new('devel')]
+          when '--stable' then anti_opts += [Option.new('HEAD'), Option.new('devel')]
           when '--devel'
             use_opts << o
             anti_opts << Option.new('HEAD')
@@ -157,11 +147,8 @@ module Homebrew
         end # case
         if unrecognized
           puts "Ignoring unrecognized option:  #{flag}"
-          if flag[-1] == '='
-            alt = flag.chop
-            puts "did you mean “#{alt}”?" if formula.option_defined?(alt)
-          end
-        end # whinge re: unrecognized
+          if flag[-1] == '=' then alt = flag.chop; puts "did you mean “#{alt}”?" if formula.option_defined?(alt); end
+        end
       end # option is defined?
     end # each ARGV flag
     use_opts - anti_opts

@@ -66,9 +66,7 @@ module HomebrewArgvExtension
   def force_universal_mode
     return if build_mode != :plain  # Either it’s already universal & we’ve finished, or it’s :bottle & we can’t in the first place.
     # Ensure there is a fallback, but only alter the environment if we’re attached to ARGV rather than to a formula’s BuildOptions.
-    if self == ARGV and not ENV['HOMEBREW_UNIVERSAL_MODE'].choke
-      ENV['HOMEBREW_UNIVERSAL_MODE'] = Target.default_universal_mode.to_s
-    end
+    if self == ARGV and not ENV['HOMEBREW_UNIVERSAL_MODE'].choke then ENV['HOMEBREW_UNIVERSAL_MODE'] = build_mode.to_s; end
     empty_caches
     temp = build_mode.to_s  # Repopulate the build‐mode cache.
     # Only alter the environment if we are attached to ARGV rather than to a formula’s BuildOptions.
@@ -156,6 +154,10 @@ module HomebrewArgvExtension
 
   def sandbox?; includes? '--sandbox' or ENV['HOMEBREW_SANDBOX'].choke; end
 
+  def valid_build_mode?(m); if %w[bottle cross local native plain].include?(m_ = m.to_s.downcase) then m_.to_sym; end; end
+
+  def valid_universal_mode?(m); if %w[cross local native].include?(m_ = m.to_s.downcase) then m_.to_sym; end; end
+
   def verbose?; flag? '--verbose' or ENV['VERBOSE'].choke or ENV['HOMEBREW_VERBOSE'].choke; end
 
 
@@ -174,8 +176,8 @@ module HomebrewArgvExtension
               (includes?('--universal') or
                 value('mode') or
                 intersects? U_MODE_OPTS.keys)            ? universal_mode_with_priority : \
-              (m = ENV['HOMEBREW_UNIVERSAL_MODE'].choke) ? validate_universal_mode(m)   : \
-              (m = ENV['HOMEBREW_BUILD_MODE'].choke)     ? validate_build_mode(m)       : :plain
+              (m = ENV['HOMEBREW_BUILD_MODE'].choke)     ? validate_build_mode(m)       : \
+              (m = ENV['HOMEBREW_UNIVERSAL_MODE'].choke) ? validate_universal_mode(m)   : :plain
   end # build_mode
 
   def build_spec; build_head? ? :head : build_devel? ? :devel : :stable; end
@@ -191,10 +193,9 @@ module HomebrewArgvExtension
   def env; value 'env'; end
 
   def forced_install_type
-    bfs = build_from_source? || -2; fb = force_bottle? || -2
-    # These can only be equal if they’re both absent (i.e. nil → -2) – and if --build-from-source is only indicated via environment
-    # variable (-1), --force-bottle being present in any position will override it.
-    (bfs > fb) ? :source : (fb > bfs) ? :bottle : false
+    # These are only equal if both are absent, i.e., nil (-2); & if --build-from-source is only passed by environment variable (-1),
+    # --force-bottle being present in any position will override it.
+    bfs = build_from_source? || -2; fb = force_bottle? || -2; (bfs > fb) ? :source : (fb > bfs) ? :bottle : false
   end
 
   def json; value 'json'; end
@@ -264,8 +265,8 @@ module HomebrewArgvExtension
             raise NoSuchKegError, name unless keg_path.directory?
             Keg.new(keg_path)
           elsif (f, ss = attempt_factory name) != nil
-            if (pn = f.opt_prefix).symlink? and pn.directory? then Keg.new(pn.resolved_path)
-            elsif (pn = f.linked_keg).symlink? and pn.directory? then Keg.new(pn.resolved_path)
+            if (pn = f.opt_prefix).indirect_ory? then Keg.new(pn.resolved_path)
+            elsif (pn = f.linked_keg).indirect_ory? then Keg.new(pn.resolved_path)
             elsif (pn = f.spec_prefix(ss)) and pn.directory? then Keg.new(pn)
             elsif (rack = f.rack).directory?
               case (dirs = rack.subdirs).length
@@ -324,8 +325,7 @@ module HomebrewArgvExtension
       n = n - 1
       next unless arg.starts_with?('-')
       case arg
-        when '--universal', '-u'  then if (m = ENV['HOMEBREW_UNIVERSAL_MODE'].choke)
-                                         @n = nil; return validate_universal_mode m
+        when '--universal', '-u'  then if (m = ENV['HOMEBREW_UNIVERSAL_MODE'].choke) then @n = nil; return validate_universal_mode m
                                        else @n = n; return Target.default_universal_mode; end
         when *U_MODE_OPTS.keys    then @n = n; return U_MODE_OPTS[arg]
         when %r{^--mode(?:=.+)?$} then return validate_build_mode(value 'mode')
@@ -335,12 +335,10 @@ module HomebrewArgvExtension
   end # universal_mode_with_priority
 
   def validate_build_mode(m)
-    if %w[bottle cross local native plain].include?(m_ = m.to_s.downcase) then m_.to_sym
-    else raise ArgumentError, "build mode “#{m.inspect}” not recognized"; end
+    if (m_ = valid_build_mode? m) then m_; else raise ArgumentError, "build mode “#{m.inspect}” not recognized"; end
   end
 
   def validate_universal_mode(m)
-    if %w[cross local native].include?(m_ = m.to_s.downcase) then m_.to_sym
-    else raise ArgumentError, "universal (multi‐architecture) build mode “#{m.inspect}” not recognized"; end
+    if (m_ = valid_universal_mode? m) then m_; else raise ArgumentError, "universal build mode “#{m.inspect}” not recognized"; end
   end
 end # HomebrewArgvExtension

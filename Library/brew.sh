@@ -1,6 +1,6 @@
 #!/bin/sh
 
-LEOPARDBREW_VERSION='0.6.4.2'  # Fix yet more very stupid typos and regressions.
+LEOPARDBREW_VERSION='0.6.5pre'  # First cut at partitioned builds & actually USING cross builds, plus numerous bugfixes.
 
 ###### Convenience functions ######
 

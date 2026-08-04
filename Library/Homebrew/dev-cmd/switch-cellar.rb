@@ -28,7 +28,7 @@ module Homebrew
   def switch_cellar
     def get_linked_keg(name)
       link = LINKDIR/name
-      Keg.for(link.resolved_path) rescue nil if link.exists? and link.directory? and link.symlink?
+      Keg.for(link.resolved_path) rescue nil if link.indirect_ory?
     end
 
     def sever_racklist(_cellar, mode)
@@ -93,7 +93,7 @@ module Homebrew
       _cellar.subdirs.each do |rack|
         if (rack/'.DS_Store').exists? then rm rack/'.DS_Store'; end
         pin_candidate = PINDIR/rack.basename; keg = nil
-        if (pin_candidate.exists? and pin_candidate.symlink? and pin_candidate.directory?)
+        if pin_candidate.indirect_ory?
           keg = Keg.new(pin_candidate.realpath, _cellar)   # Meant to pick up the target, not the symlink.
         else
           kegs = rack.subdirs.sort.reverse
@@ -146,19 +146,27 @@ module Homebrew
           raise RuntimeError, 'A name must be supplied with the “--save-as” flag'; end
         use_new = ARGV.value('use-new').choke
           # use_new being undefined is an expected use case, so no error for that
+        got_checkpts = CHECKPOINTS.exists?
         got_pins = PINDIR.exists?
         cellar_stash = Pathname("#{save_as}-Cellar").realdirpath
-        pin_stash = cellar_stash/'PinnedKegs'
+        checkpt_stash = cellar_stash/(CHECKPOINTS.basename)
+        pin_stash = cellar_stash/(PINDIR.basename)
         raise FileExistsError, cellar_stash if cellar_stash.exists?
         sever_racklist(HOMEBREW_CELLAR, mode)
         if mode.dry_run
           puts "Would move #{HOMEBREW_CELLAR} to #{cellar_stash}"
+          puts "Would move #{CHECKPOINTS} to #{checkpt_stash}" if got_checkpts
           puts "Would move #{PINDIR} to #{pin_stash}" if got_pins
         else
           problem = :none
           begin
             problem = :cellar
             HOMEBREW_CELLAR.rename cellar_stash
+            if got_checkpts
+              problem = :checkpt
+              checkpt_stash.rmtree if checkpt_stash.exists?
+              CHECKPOINTS.rename checkpt_stash
+            end
             if got_pins
               problem = :pindir
               pin_stash.rmtree if pin_stash.exists?
@@ -166,26 +174,31 @@ module Homebrew
             end
           rescue
             cellar_stash.rename HOMEBREW_CELLAR if cellar_stash.exists?
-            (HOMEBREW_CELLAR/'PinnedKegs').rename PINDIR if (HOMEBREW_CELLAR/'PinnedKegs').exists?
+            (HOMEBREW_CELLAR/(CHECKPOINTS.basename)).rename CHECKPOINTS if (HOMEBREW_CELLAR/(CHECKPOINTS.basename)).exists?
+            (HOMEBREW_CELLAR/(PINDIR.basename)).rename PINDIR if (HOMEBREW_CELLAR/(PINDIR.basename)).exists?
             unsever_racklist(HOMEBREW_CELLAR, mode)
             raise RuntimeError, case problem
                                   when :cellar  then 'Couldn’t move the old Cellar'
+                                  when :checkpt then "Couldn’t move #{CHECKPOINTS}"
                                   when :pindir  then "Couldn’t move #{PINDIR}"
                                 end
           end
         end # dry run?
         if use_new
-          new_cellar = Pathname("#{use_new}-Cellar").realpath rescue nil
+          new_cellar = Pathname(use_new.ends_with?('-Cellar') ? use_new : "#{use_new}-Cellar").realpath rescue nil
           unless new_cellar and new_cellar.exists?
             # Create an empty Cellar as a placeholder, because if we don’t, future invocations of
             # Homebrew will switch to the default location regardless of where the current one is.
             HOMEBREW_CELLAR.mkdir unless mode.dry_run
             raise RuntimeError, "#{new_cellar}:  The specified replacement Cellar does not exist"
           end
-          new_pin = new_cellar/'PinnedKegs'
+          new_checkpt = new_cellar/(CHECKPOINTS.basename)
+          got_checkpts = new_checkpt.exists?
+          new_pin = new_cellar/(PINDIR.basename)
           got_pins = new_pin.exists?
           cellar_to_unsever = if mode.dry_run
               puts "Would move #{new_cellar} to #{HOMEBREW_CELLAR}"
+              puts "Would move #{new_checkpt} to #{CHECKPOINTS}" if got_checkpts
               puts "Would move #{new_pin} to #{PINDIR}" if got_pins
               new_cellar
             else # not a dry run
@@ -193,15 +206,21 @@ module Homebrew
               begin
                 problem = :cellar
                 new_cellar.rename HOMEBREW_CELLAR
+                if got_checkpts
+                  problem = :checkpt
+                  CHECKPOINTS.rmtree if CHECKPOINTS.exists?
+                  (HOMEBREW_CELLAR/(CHECKPOINTS.basename)).rename CHECKPOINTS
+                end
                 if got_pins
                   problem = :pindir
                   PINDIR.rmtree if PINDIR.exists?
-                  (HOMEBREW_CELLAR/'PinnedKegs').rename PINDIR
+                  (HOMEBREW_CELLAR/(PINDIR.basename)).rename PINDIR
                 end
               rescue
                 HOMEBREW_CELLAR.mkdir unless HOMEBREW_CELLAR.exists?
                 raise RuntimeError, case problem
                                       when :cellar  then 'Couldn’t move the new Cellar'
+                                      when :checkpt then "Couldn’t move #{new_checkpt}"
                                       when :pindir  then "Couldn’t move #{new_pin}"
                                     end
               end

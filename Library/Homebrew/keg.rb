@@ -147,9 +147,7 @@ class Keg
 
   private
 
-  def reinstall_nameflip
-    (path.extname == REINSTALL_SUFFIX) ? installed_prefix.to_s : "#{path.to_s}#{REINSTALL_SUFFIX}"
-  end
+  def reinstall_nameflip; (path.extname == REINSTALL_SUFFIX) ? installed_prefix.to_s : "#{path.to_s}#{REINSTALL_SUFFIX}"; end
 
   public
 
@@ -161,14 +159,9 @@ class Keg
     link if was_linked
   end # rename
 
-  def linked?
-    linked_keg_record.symlink? and linked_keg_record.directory? and path == linked_keg_record.resolved_path
-  end
+  def linked?; linked_keg_record.indirect_ory? and path == linked_keg_record.resolved_path; end
 
-  def remove_linked_keg_record
-    linked_keg_record.unlink
-    linked_keg_record.parent.rmdir_if_possible
-  end
+  def remove_linked_keg_record; linked_keg_record.unlink; linked_keg_record.parent.rmdir_if_possible; end
 
   def optlinked?; opt_record.symlink? and path == opt_record.resolved_path; end
 
@@ -353,7 +346,7 @@ class Keg
   private
 
   def resolve_any_conflicts(lnk, linkage_type, mode)
-    return true if lnk.directory? and not lnk.symlink?  # Means a conflict has _already been_ resolved & we need to skip over it.
+    return true if lnk.real_directory?  # Means a conflict has _already been_ resolved & we need to skip over it.
     return false unless lnk.symlink?
     tgt = lnk.resolved_path
     # Check lstat to be sure we have a directory, and not a symlink pointing at one (which would need to be treated as a file).  In
@@ -443,11 +436,11 @@ class Keg
               Find.prune
             end
           when :link_tree
-            unless lnk.directory? and not lnk.symlink?
+            unless lnk.real_directory?
               resolve_any_conflicts(lnk, :link_tree, mode) or make_path(lnk, mode)
             end
           when :mkdir
-            unless lnk.directory? and not lnk.symlink?
+            unless lnk.real_directory?
               resolve_any_conflicts(lnk, :link, mode) or make_path(lnk, mode)
             end
           when :skip_dirs, :skip_this, nil then Find.prune

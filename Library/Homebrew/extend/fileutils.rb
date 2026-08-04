@@ -1,11 +1,22 @@
 # This file is loaded before 'global.rb', so must eschew many Homebrew‐isms at eval time.
 require 'fileutils'
-require 'tmpdir'
+#require 'tmpdir'
 
 # Leopardbrew extends Ruby's `File` and `FileUtils` to make our code more readable.
 # @see Ruby's FileUtils API at http://docs.ruby-lang.org/
 
-class File; class << self; alias_method :exists?, :exist? unless method_defined? :exists?; end; end
+class File; class << self
+    alias_method :exists?, :exist? unless method_defined? :exists?
+
+    def indirect_ory?(fn); directory?(fn) and symlink?(fn); end
+
+    def real_directory?(fn); directory?(fn) and not symlink?(fn); end
+
+    def real_file?(fn); file?(fn) and not symlink?(fn); end
+
+    def really_exists?(fn); exists?(fn) and not symlink?(fn); end
+    alias_method :really_exist?, :really_exists?
+end; end
 
 module FileUtils
   # The various File::⟨CONSTANT⟩s do not necessarily exist.  These File::O_⟨CONSTANT⟩ substitutes allow their use without having to
@@ -43,6 +54,8 @@ module FileUtils
     end # class Entry_
   end # old Ruby?
 
+  def cp_p(*args); cp *args, :preserve => true; end unless method_defined?(:cp_p)
+
   # Run `make` 3.81 or newer.  Under stdenv uses brewed make if available, or system make from Leopard onward; under superenv, just
   # defers to the wrapper script (required for superenv argument refurbishment).  Note that when stdenv goes away permanently, this
   # method will add no functionality and may likewise be removed.
@@ -56,19 +69,20 @@ module FileUtils
   # @private
   alias_method :old_mkdir, :mkdir
   # A version of mkdir that also changes to that folder in a block.
-  def mkdir(name, &_block); old_mkdir(name); if block_given? then chdir name do yield; end; end; end
+  def mkdir(name, &block); old_mkdir(name); if block_given? then chdir name do yield; end; end; end
   module_function :mkdir
 
-  # Create a temporary directory then yield. When the block returns,
-  # recursively delete the temporary directory.
+  # Create a temporary directory, then yield. When the block returns, recursively delete the temporary directory.
+  # On July 30, 2026, this was modified to employ a reproducible temporary‐directory name.
   def mktemp(prefix = name)
-    prev = pwd; tmp = Dir.mktmpdir(prefix, HOMEBREW_TEMP)
-    begin cd(tmp); begin yield; ensure cd(prev); end
-    ensure ignore_interrupts { rm_rf(tmp) }; end
+    if (new_temp = HOMEBREW_TEMP/prefix).exists? then odie("The temporary directory #{new_temp} already exists!"); end
+    mkdir(new_temp) { yield }
+  ensure
+    ignore_interrupts { rm_rf(new_temp) }
   end
   module_function :mktemp
 
-  def pathwd; Pathname(text_pwd); end
+  def pathwd; Pathname(pwd); end
 
   # Run the `rake` from the `ruby` Homebrew is using rather than whatever is in the `PATH`.
   def rake(*args); system CONFIG_RUBY_BIN/'rake', *args; end

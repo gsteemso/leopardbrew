@@ -1,4 +1,4 @@
-# stable release 2023-07-30; checked 2025-08-04.
+# stable release 2023-07-30; checked 2026-07-30.
 require 'merge'
 
 class Gmp < Formula
@@ -14,8 +14,8 @@ class Gmp < Formula
     sha256 'fe8558bf7580c9c8a3775016eccf61249b8d637b1b2970942dba22444c48da7d' => :tiger_altivec
   end
 
+  option :tests, 'Run the build-time unit tests (strongly recommended for the first install, but a bit slow)'
   option :universal
-  option 'with-tests', 'Run the build-time unit tests (strongly recommended for the first install, but a bit slow)'
 
   def install
     # Map Leopardbrew’s CPU‐model symbols to those for configuring a GMP build.
@@ -34,58 +34,56 @@ class Gmp < Formula
 
     if build.universal?
       Target.allow_universal_binary
-      the_binaries = %w[
-        lib/libgmp.10.dylib
-        lib/libgmp.a
-        lib/libgmpxx.4.dylib
-        lib/libgmpxx.a
-      ]
-      the_headers = %w[
-        include/gmp.h
-      ]
+      the_binaries = %w[lib/libgmp.10.dylib
+                        lib/libgmp.a
+                        lib/libgmpxx.4.dylib
+                        lib/libgmpxx.a
+                      ]
+      the_headers = %w[include/gmp.h]
+      ENV['CC_FOR_BUILD'] = "#{which ENV.homebrew_cc, ENV['PATH'], true} -arch #{Target.preferred_arch} -std=c99"
     end # universal build?
     archs = Target.archset
-
-    build_sym = CPU.model
-    tuple_tail = "apple-darwin#{`uname -r`[/^\d+/]}"
-
-    args = [
-      "--prefix=#{prefix}",
-      '--disable-silent-rules',
-      '--enable-cxx',
-      "--build=#{found_build = lookup(build_sym)}-#{tuple_tail}",
-    ]
-
-    found_host = lookup(host_sym = Target.model)
-    args << "--host=#{found_host}-#{tuple_tail}" if found_host != found_build
-
+    mkdir 'build'; mkdir stashroot
+    _build_ = lookup(CPU.model); gnuple = Target.gnuple
+    args = ["--prefix=#{prefix}",
+            '--disable-silent-rules',
+            '--enable-cxx',
+            "--build=#{_build_}#{gnuple}",
+          ]
     archs.each do |arch|
       ENV.set_build_archs(arch) if build.universal?
-
-      arch_args = case arch
-          when :arm64, :x86_64 then ['ABI=64']
-          when :i386 then ['ABI=32']
-          when :ppc then host_sym == :g5 ? ['ABI=mode32'] : ['ABI=32']
-          when :ppc64 then ['ABI=mode64']
+      arch_args = []
+      _host_ = lookup(host_sym = Target.model_for_arch(arch))
+      arch_args << "--host=#{_host_}#{gnuple}" if _host_ != _build_
+      arch_args << case arch
+          when :arm64, :x86_64 then 'ABI=64'
+          when :i386 then 'ABI=32'
+          when :ppc then (host_sym == :g5 and not ARGV.build_mode == :cross) ? 'ABI=mode32' : 'ABI=32'
+          when :ppc64 then 'ABI=mode64'
+        end # case arch
+      arch_args << '--disable-assembly' if Target._32b?(arch)
+      cd 'build' do
+        checkpoint "#{arch}-main-run" do
+          system '../configure', *args, *arch_args
+          system 'make'
+          system 'make', 'check' if build.with? 'tests' and CPU.can_run?(arch)
         end
-      arch_args << '--disable-assembly' if Target.bits(arch) == 32
-
-      system './configure', *args, *arch_args
-      system 'make'
-      system 'make', 'check' if build.with? 'tests'
-      ENV.deparallelize { system 'make', 'install' }
-
-      if build.universal?
-        system 'make', 'distclean'
-        merge_prep(:binary, arch, the_binaries)
-        merge_prep(:header, arch, the_headers)
-      end # universal build?
+        ENV.deparallelize { system 'make', 'install' }
+        if build.universal?
+          system 'make', 'distclean'
+          cd stashroot do
+            checkpoint "#{arch}-stashes" do
+              merge_prep(:binary, arch, the_binaries)
+              merge_prep(:header, arch, the_headers)
+            end
+          end # cd stashroot
+        end # universal build?
+      end # cd build
     end # each |arch|
-
     if build.universal?
       ENV.set_build_archs(archs)
       merge_binaries(archs)
-      merge_c_headers(archs)
+      merge_C_headers(archs)
     end # universal build?
   end # install
 

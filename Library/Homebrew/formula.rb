@@ -529,7 +529,7 @@ class Formula
   def pour_bottle?; true; end
 
   def checkpoint_prefix
-    @checkpt_pfx ||= CHECKPOINTS/name/(([pkg_version.to_s] + build.used_options.as_names.sort + [ARGV.build_mode.to_s]) * '_')
+    @checkpt_pfx ||= CHECKPOINTS/name/([pkg_version.to_s, *build.used_options.as_names.sort, ARGV.build_mode.to_s] * '_')
   end
 
   def checkpoint_entry(checkpoint_name); checkpoint_prefix/"checkpoint-#{checkpoint_name}-entry.timestamp"; end
@@ -559,11 +559,12 @@ class Formula
       oh1 "Packing up the checkpoint “#{checkpoint_name}”" if VERBOSE
       checkpoint_prefix.mkpath
       entry_file.atomic_write(entry_timestamp.to_i.to_s)
-      # Find every item in the current directory newer than ⟨entry_timestamp⟩.  This won’t see dotfiles, but ought to snag anything
-      #   else created and/or modified in the block.  It does require that all such creations and modifications be visible from the
-      #   initial working directory; and switching directories mid‐block is likely ill‐advised.
-      files_etc = []; Dir['*'].each{ |f| files_etc << f if File.stat(f).mtime - entry_timestamp >= 0 }
-      this_checkpoint.pack *files_etc
+      # Find every item in the current directory newer than ⟨entry_timestamp⟩.  This ought to snag anything created and/or modified
+      #   within the block.  It does require that all such creations / modifications be visible from the initial working directory;
+      #   and switching directories mid‐block without switching back is likely ill‐advised.
+      files_etc = []
+      Dir['{*,.*}'].reject{ |f| f == '.' or f == '..' }.each{ |f| files_etc << f if (File.stat(f).mtime - entry_timestamp) >= 0 }
+      this_checkpoint.pack files_etc
       exit_timestamp = Time.now
       exit_file.atomic_write(exit_timestamp.to_i.to_s)
       oh1 "This checkpoint was created between #{entry_timestamp} and #{exit_timestamp}" if VERBOSE and not QUIETER
@@ -585,11 +586,11 @@ class Formula
   # Get a list of saved checkpoints, in the form of an array of checkpoint names.  With those, the timestamp & archive files’ names
   #   can be fetched using the utility routines above.
   def checkpoint_names
-    results = []
+    names = []
     cd checkpoint_prefix do
-      results = Dir['checkpoint-*'].reject{ |f| f.ends_with? '.timestamp' }.map{ |f| f.sub(/^checkpoint-/, '').sub(/\.[^.]$/, '') }
+      names = Dir['checkpoint-*'].reject{ |f| f.ends_with? '.timestamp' }.map{ |f| f.sub(/^checkpoint-/, '').sub(/\.[^.]+$/, '') }
     end if checkpoint_prefix.directory?
-    results
+    names
   end
 
   # Can be overridden to run commands on both source and bottle installation.
@@ -944,8 +945,8 @@ class Formula
   # @private
   def run_test
     old_home = ENV['HOME']
-    mktemp do
-      @testpath = Pathname.pwd
+    mktemp "#{full_name}-#{pkg_version}".sub('/', '__') do
+      @testpath = pathwd
       setup_test_home(ENV['HOME'] = @testpath)
       if (result = test) == :does_not_apply
         puts 'This formula cannot meaningfully be tested.'; true

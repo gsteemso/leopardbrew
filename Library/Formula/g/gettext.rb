@@ -13,11 +13,10 @@ class Gettext < Formula
   sha256 'd6342cbe1411a2fe7d139bfed80c2d63b1babc92acfedc72501cc105184f61ee'
 
   # Neither gettext nor libintl have ever been present on any version of Mac OS.  The Homebrew (& Tigerbrew) maintainers presumably
-  # made this package keg‐only because Mac OS /does/ include its counterpart, libiconv – but the quantity and magnitude of problems
-  # caused by {gettext}’s invisibility to other packages warrant reversing that decision for Leopardbrew.  The brew mechanisms that
-  # make keg‐only packages work are meant for library linkage, and can’t make up for the concealment of directly‐executable files –
-  # in other words, to use gettext without jumping through hoops requires that its bin/ be visible, which in turn requires that its
-  # keg be linked.
+  # made this package keg‐only because Mac OS DOES include its counterpart, libiconv, which is thus rightly keg‐only; but the range
+  # & extent of problems caused by {gettext}’s invisibility to other packages justify reversing that here.  The mechanisms that let
+  # keg‐only packages work are meant for library linkage and can’t easily make up for executables being hidden.  In other words, to
+  # use gettext without jumping through hoops requires that its bin/ be visible, which in turn requires that its keg be linked.
 
   option :tests, 'Run the build-time unit tests (fails on older systems)'
   option :universal
@@ -34,7 +33,7 @@ class Gettext < Formula
                         gettextsrc-1.0.dylib intl.8.dylib intl.a textstyle.0.dylib textstyle.a].map{ |f| "lib/lib#{f}" } \
                    + %w[cldr-plurals hostname urlget].map{ |f| "libexec/gettext/#{f}" }
     end # build universal?
-    archs = Target.archset
+    archs = Target.partitioned_archset(:word_size)
 
     args = [
         "--prefix=#{prefix}",
@@ -50,22 +49,22 @@ class Gettext < Formula
       ]
     args << "--with-libiconv-prefix=#{Formula['libiconv'].opt_prefix}" if active_enhancements.include? 'libiconv'
 
-    archs.each do |arch|
-      ENV.set_build_archs(arch) if build.universal?
+    archs.each do |partition|
+      ENV.set_build_archs(partition) if build.universal?
 
       arch_args = []
-      arch_args << '--enable-year2038' if Target._64b?(arch)
+      arch_args << '--enable-year2038' if Target._64b?(partition)
 
       system './configure', *args, *arch_args
       system 'make'
-      system 'make', 'check' if build.with? 'tests'
+      system 'make', 'check' if build.with? 'tests' and Target.build_will_run?(partition)
       system 'make', 'install'
 
       if build.universal?
         ENV.deparallelize { system 'make', 'distclean' }
-        merge_prep(:binary, arch, the_binaries)
+        merge_prep(:binary, partition, the_binaries)
       end # build universal?
-    end # each |arch|
+    end # each |partition|
 
     if build.universal?
       ENV.set_build_archs(archs)

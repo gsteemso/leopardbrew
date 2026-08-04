@@ -41,6 +41,8 @@ end # ALE
 
 module MachO  # only useable when included in Pathname
   # @private
+  AR_MAGIC = "!<arch>\n".freeze
+  AR_MEMBER_HDR_SIZE = 60.freeze
   FILE_SIGNATURES = {
       0xcafebabe => :FAT_MAGIC,
       0xbebafeca => :FAT_CIGAM,
@@ -116,33 +118,68 @@ module MachO  # only useable when included in Pathname
   def intel?; archs.intel?; end
   def arm?; archs.arm?; end
 
-  # @private
-  def dylib?; mach_data.any?{ |m| m.fetch(:ftype) == :MH_DYLIB }; end
+  # @private (debugging use)
+  def machO_filetype; @ftype ||= mach_data.map{ |m| m.fetch(:ftype) }.compact.uniq; end
 
   # @private
-  def mach_o_executable?; mach_data.any?{ |m| m.fetch(:ftype) == :MH_EXECUTE }; end
+  def dylib?; machO_filetype.includes? :MH_DYLIB; end
 
   # @private
-  def mach_o_bundle?; mach_data.any?{ |m| m.fetch(:ftype) == :MH_BUNDLE }; end
+  def mach_o_executable?; machO_filetype.includes? :MH_EXECUTE; end
 
-  def tracked_mach_o?
-    mach_data.any?{ |m| ft = m.fetch(:ftype); ft and [:MH_EXECUTE, :MH_DYLIB, :MH_BUNDLE].include?(ft) }
-  end
+  # @private
+  def mach_o_bundle?; machO_filetype.includes? :MH_BUNDLE; end
 
-  # Tests data at the indicated offset for a Mach-O or fat‐container signature.  Returns a 3‐tuple giving the signature (if one was
-  # found), whether it was stored byte‐reversed (many older files, or slices thereof, are stored in this incorrect manner), and the
-  # second uint32 at that location (the number of slices if it was a fat container, or the CPU type if it was a Mach-O slice).  The
-  # universal‐binary file signature is the same as a Java file’s, so we must do extra sanity‐checking for that case.  If the number
-  # of architectures is large, it is probably not real; Java files, for example, will yield a figure well over 60 thousand.  Assume
-  # a limit of MAX_N_FAT architectures; at present, we only expect members of the set {:ppc, :i386, :ppc64, :x86_64, :arm64}.
+  def tracked_mach_o?; machO_filetype.intersects? [:MH_EXECUTE, :MH_DYLIB, :MH_BUNDLE]; end
+
+  # Tests data at the indictated offset for an `ar` archive signature.
+  def ar_sig_at?(offset); real_file? and size >= (offset + 8) and (binread(8, offset).unpack('a8').first == AR_MAGIC); end
+
+  # Returns either [(offset to next valid Mach-O `ar` member), (whether it has byte-reversed headers)], or {nil} if there isn’t one.
+  def ar_sigseek_from(offset)
+    return nil unless ar_sig_at?(offset)
+    offset += 8
+    while offset
+      candidate, offset = ar_walk_from(offset)
+      break unless candidate
+      next if ar_sig_at?(candidate)            # Skip malformed data.
+      sig, rvsd, _ = machO_sig_at?(candidate)
+      break if sig and sig != :FAT_MAGIC       # Stop at the first good signature, skipping malformed data.
+      candidate = nil
+    end
+    [candidate, (candidate ? rvsd : nil)] if candidate
+  end # ar_sigseek_from()
+
+  # In an `ar` archive, given the offset of an archive member’s headers, finds the start of that member’s sub‐file and walks to the
+  # next member.  Returns a list:  [offset of current member’s payload, offset of next member’s header].  The next‐header offset is
+  # {nil} for the last member; both are {nil} if the current member is too short.
+  # @private
+  def ar_walk_from(initial_offset)
+    return [nil, nil] if size <= (body_offset = initial_offset + AR_MEMBER_HDR_SIZE)
+    header = binread(AR_MEMBER_HDR_SIZE, initial_offset)
+    extent = (header.b[0, 16] =~ %r{^#1/(\d+)} ? $1.to_i : 0)         # Does an extended name follow the header block?
+    startpoint = body_offset + extent                                 # Now extent contains its size.
+    return [nil, nil] if size < (startpoint + 8)
+    extent = (header.b[48, 10] =~ %r{^(\d+)} ? $1.to_i : 0) - extent  # Now extent equals the payload size.
+    return [nil, nil] if extent < 0
+    next_at = body_offset + extent + (extent & 1)                     # Pad to an even number of bytes.
+    [startpoint, (size >= next_at ? next_at : nil)]
+  end # ar_walk_from()
+
+  # Tests data at the indicated offset for a Mach-O or fat‐container signature.  Returns {nil}, or else a 3‐tuple of [the signature,
+  # whether it was stored byte‐reversed (many older files – or slices – are thus malformed), and the second uint32 at that location
+  # (the number of slices in a fat container, or the CPU type in a Mach-O slice)].  A universal binary’s file signature is the same
+  # as a Java file’s, so we must do extra sanity‐checking for that case – a Java file will appear to claim an absurdly large number
+  # of slices (well over 60 thousand), so we enforce a limit of MAX_N_FAT for that field.  A correctly‐formed fat binary holds only
+  # one slice per architecture; and at present we only expect architectures in the set {:ppc, :i386, :ppc64, :x86_64, :arm64}.  (An
+  # iOS universal binary can contain one slice per arm32 subarchitecture, but that exception does not affect us here.)
   def machO_sig_at?(offset)
-    sig, _2nd = binread(8, offset).unpack('NN') if file? and size >= (offset + 8)
-    case FILE_SIGNATURES[sig]
+    sig, _2nd = binread(8, offset).unpack('NN') if real_file? and size >= (offset + 8)
+    case FILE_SIGNATURES.fetch(sig)
       when :FAT_MAGIC              then                        (_2nd <= MAX_N_FAT) ? [:FAT_MAGIC, false, _2nd] : [nil, nil, nil]
       when :FAT_CIGAM              then _2nd = _2nd.byteswap4; (_2nd <= MAX_N_FAT) ? [:FAT_MAGIC, true,  _2nd] : [nil, nil, nil]
       when :MH_CIGAM, :MH_CIGAM_64 then _2nd = _2nd.byteswap4;                       [:MH_MAGIC,  true,  _2nd]
       when :MH_MAGIC, :MH_MAGIC_64 then                                              [:MH_MAGIC,  false, _2nd]
-                                   else                                              [ nil,       nil,    nil]
     end
   end # machO_sig_at?()
 

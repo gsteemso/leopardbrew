@@ -82,10 +82,10 @@ class FormulaInstaller
   end # pour_bottle?
 
   # “dep” is a depended-upon {Formula}‐subclass instance.
-  # “build” is a {BuildOptions} instance.
-  def install_bottle_for?(dep, build)
+  # “b_opt” is a {BuildOptions} instance.
+  def install_bottle_for?(dep, b_opt)
     return pour_bottle? if dep == formula
-    !force_source? && dep.bottle && dep.pour_bottle? && build.used_options.empty? && dep.bottle.compatible_cellar?
+    (not force_source?) and dep.bottle and dep.pour_bottle? and b_opt.used_options.empty? and dep.bottle.compatible_cellar?
   end
 
   def prelude; verify_deps_exist unless skip_deps_check?; lock; check_install_sanity; end
@@ -121,7 +121,7 @@ class FormulaInstaller
   def build_bottle_postinstall
     @etc_var_postinstall = Dir[@etc_var_glob]
     (@etc_var_postinstall - @etc_var_preinstall).each do |file|
-      Pathname.new(file).cp_path_sub(HOMEBREW_PREFIX, formula.bottle_prefix)
+      Pathname(file).cp_path_sub(HOMEBREW_PREFIX, formula.bottle_prefix)
     end
   end # build_bottle_postinstall
 
@@ -135,6 +135,10 @@ class FormulaInstaller
       EOS
     raise BuildToolsError.new([formula]) unless pour_bottle? or MacOS.has_apple_developer_tools?
     check_conflicts
+    if formula.could_build_universal?  # Must check this before dependencies are computed, else we can’t know whether they have the
+      Target.allow_universal_binary    # correct built architectures.
+      ENV.initialize_build_mode
+    end
     unless skip_deps_check?
       deps = compute_dependencies
       check_dependencies_bottled(deps) if pour_bottle? and not MacOS.has_apple_developer_tools?
@@ -175,10 +179,6 @@ class FormulaInstaller
     # Build from source:
     unless poured_bottle_done?
       install_dependencies(compute_dependencies) if poured_bottle_fail? and not skip_deps_check?
-      if formula.could_build_universal?
-        Target.allow_universal_binary
-        ENV.initialize_build_mode
-      end
       build
       clean
     end
@@ -228,13 +228,13 @@ class FormulaInstaller
 
   # “req” is a {Requirement} instance.
   # “dependent” is a {Formula}‐subclass instance.
-  # “build” is a {BuildOptions} instance.
+  # “b_opt” is a {BuildOptions} instance.
   # Returns a Boolean value.
-  def install_requirement_default_formula?(req, dependent, build)
+  def install_requirement_default_formula?(req, dependent, b_opt)
     return false unless req.default_formula?
     return true unless req.satisfied?
     return false if req.tags.include?(:run)
-    install_bottle_for?(dependent, build) or build_bottle?
+    install_bottle_for?(dependent, b_opt) or build_bottle?
   end # install_requirement_default_formula
 
   # Returns a two‐element Array.  The first element is a Hash whose keys are Formula‐subclass instances and values are Requirement
@@ -245,12 +245,10 @@ class FormulaInstaller
     formulae = [formula]
     while f = formulae.pop
       f.recursive_requirements do |dependent, req|
-        build = effective_build_options_for(dependent)
-        if (req.optional? or req.recommended?) and build.without?(req)
+        eff_b_opt = effective_build_options_for(dependent)
+        if (req.discretionary? and eff_b_opt.without? req) or (req.build? and install_bottle_for? dependent, eff_b_opt)
           Requirement.prune
-        elsif req.build? and install_bottle_for?(dependent, build)
-          Requirement.prune
-        elsif install_requirement_default_formula?(req, dependent, build)
+        elsif install_requirement_default_formula?(req, dependent, eff_b_opt)
           dep = req.to_dependency
           deps.unshift(dep)
           formulae.unshift(dep.to_formula)
@@ -268,8 +266,9 @@ class FormulaInstaller
   # “deps” is a {Dependencies} instance.
   def expand_dependencies(deps)
     Dependency.expand(formula, deps) do |dependent, dep|
-      build = effective_build_options_for(dependent)
-      if (dep.discretionary? and build.without? dep) or (dep.build? and install_bottle_for? dependent, build) then Dependency.prune
+      eff_b_opt = effective_build_options_for(dependent)
+      if (dep.discretionary? and eff_b_opt.without? dep) or (dep.build? and install_bottle_for? dependent, eff_b_opt)
+        Dependency.prune
       elsif dep.satisfied? then Dependency.skip; end
     end
   end # expand_dependencies
@@ -337,6 +336,8 @@ class FormulaInstaller
     previously_linked.link if previously_linked
     raise
   else
+    ignore_interrupts { previously_installed.path.rmtree } if previously_installed.path.exists? \
+                                                              and previously_installed.path != df.prefix
     if df.insinuation_defined?
       # Uninsinuate silently immediately before insinuation (do not emit conflicting messages).
       df.uninsinuate(DEBUG.nil?) rescue nil if previously_installed
@@ -392,9 +393,9 @@ class FormulaInstaller
     sum = 0
     formula.checkpoint_names.each do |name|
       entry_stamp = formula.checkpoint_entry(name); exit_stamp = formula.checkpoint_exit(name)
-      next unless entry_stamp.exists? and exit_stamp.exists?
+      next unless entry_stamp.file? and exit_stamp.file?
       entry_stamp = entry_stamp.binread.to_i.nope; exit_stamp = exit_stamp.binread.to_i.nope
-      sum += exit_stamp - entry_stamp if entry_stamp and exit_stamp and entry_stamp < exit_stamp and exit_stamp < @start_time
+      sum += exit_stamp - entry_stamp if entry_stamp and exit_stamp and entry_stamp < exit_stamp and exit_stamp < @start_time.to_i
     end
     sum
   end # checkpoint_times
@@ -468,7 +469,7 @@ class FormulaInstaller
       Process.wait(pid)
       raise Marshal.load(data) unless data.nil? or data.empty?
       raise Interrupt, 'User interrupted build' if $?.exitstatus == 130
-      raise "Suspicious installation failure (build process silently exited, with status “#{$?}”)" unless $?.success?
+      raise "Suspicious installation failure (build process silently exited, with status “#{$?.exitstatus}”)" unless $?.success?
     end # quietly ignore interrupts
 
     raise 'Empty installation' if Dir["#{formula.prefix}/*"].empty?

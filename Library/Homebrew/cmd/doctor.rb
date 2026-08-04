@@ -98,8 +98,8 @@ class Checks
     return unless File.directory?(dir)
 
     files = Dir.chdir(dir) do
-      Dir[pattern].select { |f| File.file?(f) and not File.symlink?(f) } - Dir.glob(white_list)
-    end.map { |file| File.join(dir, file) }
+      Dir[pattern].select{ |f| File.real_file?(f) } - Dir.glob(white_list)
+    end.map{ |file| File.join(dir, file) }
 
     inject_file_list(files, message) unless files.empty?
   end # __check_stray_files

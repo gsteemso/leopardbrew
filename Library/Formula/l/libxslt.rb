@@ -52,7 +52,7 @@ class Libxslt < Formula
         ENV.delete 'PYTHONPATH'
         mktemp do
           system "#{buildpath}/configure", *args
-          _here = Pathname.new(pwd)
+          _here = pathwd
           (_here/'libxslt').install_symlink_to "#{maintemp}/libxslt/libxslt.la", "#{maintemp}/libxslt/.libs"
           (_here/'libexslt').install_symlink_to "#{maintemp}/libexslt/libexslt.la", "#{maintemp}/libexslt/.libs"
           system 'make', '-C', 'python'

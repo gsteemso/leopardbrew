@@ -16,7 +16,7 @@ class CheckpointTarball
               :gzip  => 'tgz',
               :lzip  => 'tlz',
               :xz    => 'txz',
-              :zstd  => 'zst',  }
+              :zstd  => 'tzst',  }
 
   # tar -j:  (filter through bzip2.)
   #     -z:  (filter through gzip.)
@@ -40,7 +40,7 @@ class CheckpointTarball
   def initialize(prefix, name)
     @prefix = prefix; @name = name
     files = Dir["#{prefix}/checkpoint-#{name}.*"]
-    if (@exists = !(files.empty?))
+    if (@exists = !files.empty?)
       @file = Pathname(files.first)
       @format = file.compression_type
     else
@@ -51,7 +51,7 @@ class CheckpointTarball
 
   def exists?; @exists; end
 
-  def pack(*these_items); return if exists?; eval PACK[format]; end
+  def pack(*these_items); return if exists?; these_items.flatten!; eval PACK[format]; end
 
   def unpack; return unless exists?; eval UNPACK[format]; end  # into the current directory
 

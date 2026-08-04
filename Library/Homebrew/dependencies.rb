@@ -15,7 +15,7 @@ class Dependencies
   def ==(other); deps == other.deps; end
   alias_method :eql?, :==
 
-  def <<(other); @deps << other unless not other.is_a?(Dependency) or other.is_group_dep? or @deps.include?(other); self; end
+  def <<(other); @deps << other unless not other.is_a?(Dependency) or other.group_dep? or @deps.include?(other); self; end
 
   def each(*args, &block); @deps.each(*args, &block); end
 

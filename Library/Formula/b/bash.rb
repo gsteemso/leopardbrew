@@ -60,8 +60,8 @@ class Bash < Formula
   end # stable
 
   STANDARD_BASH = (MacOS.version < :leopard ? '2.05b' : '3.2')  # true even on Mac OS 10.3 and Mac OS 15
-  SYSTEM_BASH = Pathname.new '/bin/bash'
-  MOVED_BASH = Pathname.new "/bin/bash-#{STANDARD_BASH}"
+  SYSTEM_BASH = Pathname('/bin/bash')
+  MOVED_BASH = Pathname("/bin/bash-#{STANDARD_BASH}")
   TO = HOMEBREW_PREFIX/'bin/to-brewed-bash'
   FRO = HOMEBREW_PREFIX/'bin/to-stock-bash'
 

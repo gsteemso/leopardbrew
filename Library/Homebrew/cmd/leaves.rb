@@ -1,6 +1,6 @@
-require "formula"
-require "tab"
-require "set"
+require 'formula'
+require 'tab'
+require 'set'
 
 module Homebrew
   def leaves
@@ -10,20 +10,12 @@ module Homebrew
     installed.each do |f|
       deps = []
       tab = Tab.for_formula(f)
-
-      f.deps.each do |dep|
-        if dep.optional? || dep.recommended?
-          deps << dep.to_formula.full_name if tab.with?(dep)
-        else
-          deps << dep.to_formula.full_name
-        end
-      end
-
+      f.deps.each{ |dep| deps << dep.to_formula.full_name if not dep.discretionary? or tab.with?(dep) }
       deps_of_installed.merge(deps)
-    end
+    end # each |f|
 
     installed.each do |f|
       puts f.full_name unless deps_of_installed.include? f.full_name
     end
-  end
-end
+  end # leaves
+end # Homebrew

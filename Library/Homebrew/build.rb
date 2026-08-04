@@ -129,9 +129,9 @@ class Build
   end # detect_stdlibs
 
   def fixopt(f)
-    path = if f.linked_keg.directory? and f.linked_keg.symlink? then f.linked_keg.resolved_path
-      elsif f.prefix.directory?                                 then f.prefix
-      elsif (gik = f.greatest_installed_keg)                    then gik.path
+    path = if f.linked_keg.indirect_ory?     then f.linked_keg.resolved_path
+      elsif f.prefix.directory?              then f.prefix
+      elsif (gik = f.greatest_installed_keg) then gik.path
       else raise RuntimeError, 'can’t make opt/ link:  none of the usual directories are valid'
       end
     Keg.new(path).optlink

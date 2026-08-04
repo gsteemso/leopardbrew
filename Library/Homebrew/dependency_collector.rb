@@ -32,7 +32,7 @@ class DependencyCollector
   end # add
 
   def build(dspec)
-    dspec, tags = Hash === dspec ? dspec.first : dspec
+    dspec, tags = dspec.is_a?(Hash) ? dspec.first : dspec
     parse_spec(dspec, Array(tags))
   end
 

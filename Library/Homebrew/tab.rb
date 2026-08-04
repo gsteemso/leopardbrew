@@ -64,12 +64,12 @@ class Tab < OpenStruct
         if (p = f.spec_prefix :stable) and p.directory? then paths << p; end
         if (p = f.spec_prefix :devel) and p.directory? then paths << p; end
         if (p = f.spec_prefix :head) and p.directory? then paths << p; end
-        if (p = f.opt_prefix).symlink? and p.directory? then paths << p.resolved_path; end
-        if (p = f.linked_keg).symlink? and p.directory? then paths << p.resolved_path; end
+        if (p = f.opt_prefix).indirect_ory? then paths << p.resolved_path; end
+        if (p = f.linked_keg).indirect_ory? then paths << p.resolved_path; end
         if (p = f.rack).directory? and (d = p.subdirs).length == 1 then paths << d.first; end
       else
-        if (p = f.opt_prefix).symlink? and p.directory? then paths << p.resolved_path; end
-        if (p = f.linked_keg).symlink? and p.directory? then paths << p.resolved_path; end
+        if (p = f.opt_prefix).indirect_ory? then paths << p.resolved_path; end
+        if (p = f.linked_keg).indirect_ory? then paths << p.resolved_path; end
         if (p = f.rack).directory? and (d = p.subdirs).length == 1 then paths << d.first; end
         if (p = f.spec_prefix :stable) and p.directory? then paths << p; end
         if (p = f.spec_prefix :devel) and p.directory? then paths << p; end
@@ -98,9 +98,9 @@ class Tab < OpenStruct
     def for_rack?(rack)
       return unless rack.directory?
       rackname = rack.basename; paths = []
-      if (p = OPTDIR/rackname).symlink? and p.directory? then paths << p.resolved_path; end
-      if (p = LINKDIR/rackname).symlink? and p.directory? then paths << p.resolved_path; end
-      if (p = PINDIR/rackname).symlink? and p.directory? then paths << p.resolved_path; end
+      if (p = OPTDIR/rackname).indirect_ory? then paths << p.resolved_path; end
+      if (p = LINKDIR/rackname).indirect_ory? then paths << p.resolved_path; end
+      if (p = PINDIR/rackname).indirect_ory? then paths << p.resolved_path; end
       if (p = rack.subdirs).length == 1 then paths << p.first; end
       from_file(p) if p = paths.map{ |pn| pn/FILENAME }.find(&:file?)
     end # Tab::for_rack?

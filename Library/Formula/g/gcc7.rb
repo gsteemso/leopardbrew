@@ -228,10 +228,10 @@ class Gcc7 < Formula
         ln 'gcc', "#{_build_}#{gnuple}-gcc"
         ENV.prepend_path 'PATH', pwd
       end # Add the native compiler to $PATH.
-      ENV.delete_multiple(%w[CC CXX OBJC OBJCXX])
+      ENV.delete_at %w[CC CXX OBJC OBJCXX]
 
       # We don’t need these any more, as we are preparing substitutes.
-      ENV.delete_multiple %w[AS AS_FOR_TARGET] if MacOS.version < :leopard
+      ENV.delete_at %w[AS AS_FOR_TARGET] if MacOS.version < :leopard
 
       # Set up specially-named utility programs (actually wrapper shims).  “The cross‐tools’ build process expects to find specific
       # programs under names like ‘i686-apple-darwin#{darwin_major}-ar’ – so make them.  Annoyingly, `ranlib` changes its behaviour
@@ -425,7 +425,7 @@ class Gcc7 < Formula
     # Apple’s build_gcc script from their version of GCC 4.2.
     Dir["#{src_dir}/more-hdrs/*.h"].each do |hdr|
       h = hdr.basename
-      sys_hdr = Pathname.new "/usr/include/#{h}"
+      sys_hdr = Pathname("/usr/include/#{h}")
       if not sys_hdr.exists? or sys_hdr.symlink?
         cp_r hdr, hdr_dir/h
         _unique_.each do |t|

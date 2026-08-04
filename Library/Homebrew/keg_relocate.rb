@@ -163,7 +163,7 @@ class Keg
   def mach_o_files
     mach_o_files = []
     path.find do |pn|
-      next if pn.symlink? or pn.directory?
+      next unless pn.real_file?
       mach_o_files << pn if pn.tracked_mach_o?
     end
 
@@ -173,7 +173,7 @@ class Keg
   def text_files
     text_files = []
     path.find do |pn|
-      next if pn.symlink? or pn.directory?
+      next unless pn.real_file?
       next if Metafiles::EXTENSIONS.include? pn.extname
       text_files << pn \
         if Utils.popen_read("/usr/bin/file", "--brief", pn).include?("text") or pn.text_executable?
@@ -186,7 +186,7 @@ class Keg
     libtool_files = []
     # find .la files, which are stored in lib/
     lib.find do |pn|
-      next if pn.symlink? or pn.directory? or pn.extname != ".la"
+      next unless pn.real_file? and pn.extname == ".la"
       libtool_files << pn
     end if lib.directory?
 

@@ -1,7 +1,7 @@
 require 'formula'  # pulls in almost two dozen other library files
 
 # Homebrew extends Ruby’s ENV to make our code more readable.  Implemented in {SharedEnvExtension}, & either {Superenv} or {Stdenv},
-# per the build mode.
+# per the specified build environment.
 # @see Superenv, Stdenv, Ruby's ENV API
 module SharedEnvExtension
   include CompilerConstants
@@ -40,6 +40,8 @@ module SharedEnvExtension
 
   # @private
   def reset; SANITIZED_VARS.each{ |k| delete(k) }; end
+
+  def delete_at(key, &block); h = {}; Array(key).each{ |k| h[k] = delete(k, &block) }; h; end unless method_defined? :delete_at
 
   def remove_cc_etc; delete_at(COMPILER_VARS + CC_FLAG_VARS + FC_FLAG_VARS + %w[CPP CPPFLAGS LD LDFLAGS]); end
 
@@ -109,6 +111,10 @@ module SharedEnvExtension
   def cxxflags; self['CXXFLAGS']; end
 
   def cppflags; self['CPPFLAGS']; end
+
+  def homebrew_cc; self['HOMEBREW_CC']; end
+
+  def homebrew_cxx; self['HOMEBREW_CXX']; end
 
   def ldflags; self['LDFLAGS']; end
 
@@ -305,6 +311,7 @@ module SharedEnvExtension
   end
 
   def set_build_archs(archset)
+    archset = archset.values.first if archset.is_a?(Hash)  # Accommodate partitioned archsets.
     archset = Array(archset).extend ALE unless archset.responds_to?(:fat?)
     clear_compiler_archflags unless @without_archflags
     @build_archs = archset
@@ -392,10 +399,6 @@ module SharedEnvExtension
   end
 
   def cpp=(val); self['CPP'] = self['CXXCPP'] = val ? val.to_s : ''; end
-
-  def homebrew_cc; self['HOMEBREW_CC']; end
-
-  def homebrew_cxx; self['HOMEBREW_CXX']; end
 
   def fetch_compiler(name, source)
     COMPILER_SYMBOL_MAP.fetch(name) do |other|

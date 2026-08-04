@@ -205,8 +205,7 @@ class Formulary
     end
   end # Formulary::from_keg
 
-  # Return a Formula instance for the given rack.
-  # It will auto resolve formula's spec when requested spec is nil
+  # Return a Formula instance for the given rack.  Auto‐resolves the formula’s spec when the requested spec is nil.
   def self.from_rack(rack, spec = nil)
     kegs = rack.directory? ? rack.subdirs.map { |d| Keg.new(d) } : []
 
@@ -217,7 +216,7 @@ class Formulary
     tap = tab.tap if tab
     spec ||= tab.spec if tab
 
-    if [nil, "mistydemeo/tigerbrew", "gsteemso/leopardbrew"].include? tap
+    if not tap or CORE_OWNERS.include? tap
       factory(rack.basename.to_s, spec)
     else
       factory("#{tap.sub("homebrew-", "")}/#{rack.basename}", spec)

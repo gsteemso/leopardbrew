@@ -77,6 +77,9 @@ module Homebrew
     end
     tab = Tab.for_keg(f.greatest_installed_keg)
     options = tab.used_options
+    if (build_mode = tab.build_mode) and build_mode != :bottle and build_mode != ARGV.build_mode
+      ARGV << "--#{build_mode}"; ARGV.empty_caches; ARGV.build_mode
+    end
     puts "Original spec = #{tab.spec.to_s or '[none]'}" if DEBUG
     case tab.spec
       when :head then options |= Option.new('HEAD')

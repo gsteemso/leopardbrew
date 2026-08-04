@@ -258,8 +258,9 @@ class CPU
     def _32b?; not _64b?; end
 
     # Can the current CPU and Mac OS combination can run an executable of “this” architecture?  Note that this question is distinct
-    # from whether it _will_ run it for policy reasons; see Target::will_run?() for that answer.
+    # from whether it _will_ run it for policy reasons; see Target::build_will_run?() for that answer.
     def can_run?(this)
+      return this.values.first.all?{ |arch| can_run?(arch) } if this.is_a?(Hash)  # Accommodate partitioned archsets.
       case type
         when :arm     then arm_can_run? this
         when :intel   then intel_can_run? this
