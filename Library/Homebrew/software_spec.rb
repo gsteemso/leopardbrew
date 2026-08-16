@@ -207,7 +207,7 @@ class SoftwareSpec
     aids = Array(aid).map{ |a_name| Formula[a_name == :nls ? 'gettext' : a_name] rescue nil }.compact
     return if aids.empty?
     @named_enhancements << aids.sort{ |a, b| a.full_name <=> b.full_name }
-    @named_enhancements = named_enhancements.sort do |a, b|
+    @named_enhancements.sort! do |a, b|
         # The named enhancements are an array of sorted arrays of formulæ.  Sort based on the elements’ full formula names, shorter
         # arrays sorting first if otherwise equal.
         a.compact!; b.compact!
@@ -215,7 +215,7 @@ class SoftwareSpec
         (i < a.length) ? (i < b.length ? a[i].full_name <=> b[i].full_name : 1) : (i < b.length ? -1 : 0)
       end # sort named enhancements
     @active_enhancements = active_enhancements.concat(aids).uniq.sort{ |a, b| a.full_name <=> b.full_name } \
-                                                                                             if aids.all?{ |f| f and f.installed? }
+                 if aids.all?{ |f| f and f.installed? and (t = Tab.for_formula f) and t.built_archs.include_all?(Target.archset) }
   end # SoftwareSpec#enhanced_by
 
   def deps; dependency_collector.deps; end
