@@ -42,9 +42,7 @@ module Homebrew
     f.set_active_spec s if s  # Otherwise, use the default.
     tab = Tab.for_formula(f)  # This gets the tab for the correct installed keg.
     options = tab.used_options
-    if (build_mode = tab.build_mode) and build_mode != :bottle and build_mode != ARGV.build_mode
-      ARGV << "--#{build_mode}"; ARGV.empty_caches; ARGV.build_mode
-    end
+    if (tab_mode = tab.build_mode) and tab_mode != :bottle then @prior_mode = tab_mode; end
     puts "Original spec = #{tab.spec.to_s.choke or '[none]'}" if DEBUG
     case tab.spec
       when :head then options += Option.new('HEAD'); s ||= :head
@@ -62,6 +60,9 @@ module Homebrew
       when :devel then raise "No development version is defined for #{f.full_name}" if f.devel.nil?
     end
     options = blenderize_options(options, f)
+    if ARGV.explicit_build_mode? or (@prior_mode and @prior_mode != ARGV.build_mode)
+      ARGV << "--#{@prior_mode}" unless ARGV.explicit_build_mode?; ARGV.empty_caches; ARGV.build_mode  # Regenerate the caches.
+    end
     new_spec = (options.include?('HEAD') ? :head : (options.include?('devel') ? :devel : :stable) )
     puts "New spec = #{new_spec}" if DEBUG
     f.set_active_spec new_spec # now install to this spec; we don’t care about the Tab any more
@@ -132,6 +133,7 @@ module Homebrew
           when '--single-arch'
             anti_opts << Option.new('universal') << Option.new('cross') << Option.new('local') << Option.new('native')
             ENV.delete 'HOMEBREW_BUILD_UNIVERSAL'
+            Target.no_universal_binary
           when '--stable' then anti_opts += [Option.new('HEAD'), Option.new('devel')]
           when '--devel'
             use_opts << o
@@ -141,7 +143,7 @@ module Homebrew
             anti_opts << Option.new('devel')
           when /^--un-([^=]+=?)(.+)?$/, /^--no-([^=]+=?)(.+)?$/
             anti_opts << Option.new($1) if formula.option_defined?($1) or use_opts.include? $1
-            ENV.delete 'HOMEBREW_UNIVERSAL_MODE' if $1 == 'cross' or $1 == 'universal'
+            ENV.delete 'HOMEBREW_UNIVERSAL_MODE' if ARGV.valid_universal_mode?($1)
           else
             unrecognized = true
         end # case

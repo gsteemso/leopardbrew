@@ -85,6 +85,9 @@ module HomebrewArgvExtension
   def includes?(arg); @n = find_rindex arg; end
   alias_method :include?, :includes?
 
+  def intersects?(arg_list); @n = find_rindex{ |arg| arg_list.includes?(arg) }; end
+  alias_method :intersect?, :intersects?
+
   def n_after(method, *args); send(method, *args); @n; end
 
   def next1; @n and (at(@n + 1) or raise ArgvSyntaxError, 'Missing datum at end of command line'); end
@@ -131,6 +134,8 @@ module HomebrewArgvExtension
   def debug?; flag? '--debug' or ENV['HOMEBREW_DEBUG'].choke; end
 
   def dry_run?; flag? '--dry-run', 'n'; end
+
+  def explicit_build_mode?; flags_only.intersect?(U_MODE_FLAGS) or switch?('x'); end
 
   def force?; flag? '--force'; end
 
@@ -265,15 +270,22 @@ module HomebrewArgvExtension
             raise NoSuchKegError, name unless keg_path.directory?
             Keg.new(keg_path)
           elsif (f, ss = attempt_factory name) != nil
-            if (pn = f.opt_prefix).indirect_ory? then Keg.new(pn.resolved_path)
+            if name == f.oldname and (rack = HOMEBREW_CELLAR/name).directory?
+              case (dirs = rack.subdirs).length
+                when 0 then raise NoSuchKegError, name   # not necessarily “name”
+                when 1 then Keg.new(dirs.first)
+                       else raise MultipleVersionsInstalledError, name
+              end
+            elsif (pn = f.opt_prefix).indirect_ory? then Keg.new(pn.resolved_path)
             elsif (pn = f.linked_keg).indirect_ory? then Keg.new(pn.resolved_path)
             elsif (pn = f.spec_prefix(ss)) and pn.directory? then Keg.new(pn)
             elsif (rack = f.rack).directory?
               case (dirs = rack.subdirs).length
                 when 0 then raise FormulaNotInstalledError, rack.basename   # not necessarily “name”
                 when 1 then Keg.new(dirs.first)
-                else # Note that Formula#greatest_installed_keg can fail if there are no install receipts.
-                  (k = f.greatest_installed_keg) ? k : raise(MultipleVersionsInstalledError, rack.basename)  # not always “name”
+                       else # Note that Formula#greatest_installed_keg can fail if there are no install receipts.
+                         (k = f.greatest_installed_keg) ? k \
+                                                        : raise(MultipleVersionsInstalledError, rack.basename)  # Not always “name”.
               end
             end
           else # no formula
