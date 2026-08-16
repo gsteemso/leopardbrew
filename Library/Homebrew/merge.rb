@@ -7,6 +7,7 @@ module Merge
   # type is either :binary or :header; arch is anything implicitly coërced to a {String} by interpolation.
   # @private
   def stashdir(type, arch)
+    arch = arch.keys.first if arch.is_a? Hash  # Accommodate partitioned archsets.
     subdir_basename = case type
                         when :binary then "bin-#{arch}"
                         when :header then "h-#{arch}"
@@ -18,7 +19,7 @@ module Merge
   # type is either :binary or :header; the list members are {String}s; arch is anything implicitly coërced to one by interpolation.
   # Note that this method is unaffected by the current working directory.
   def merge_prep(type, arch, list)
-    arch = arch.keys.first if arch.is_a?(Hash)  # Accommodate partitioned archsets.
+    arch = arch.keys.first if arch.is_a? Hash  # Accommodate partitioned archsets.
     list.each do |rel_path|
       dest = stashdir(type, arch)/rel_path
       mkdir_p dest.parent unless dest.parent.directory?
@@ -28,7 +29,7 @@ module Merge
 
   # sub_path is a {String}; arch is anything implicitly coërced to one by interpolation.
   def scour_keg(arch, sub_path = nil)
-    arch = arch.keys.first if arch.is_a?(Hash)  # Accommodate partitioned archsets.
+    arch = arch.keys.first if arch.is_a? Hash  # Accommodate partitioned archsets.
     stash_root = stashdir(:binary, arch)
     stash_path = (sub_path ? stash_root/sub_path : stash_root)
     mkdir_p stash_path unless stash_path.directory?
@@ -42,7 +43,7 @@ module Merge
 
   # sub_path is a {String}; the members of archs are coërcible to {String}s via #to_s.
   def merge_binaries(archs, sub_path = nil)
-    archs = archs.keys if archs.first.is_a?(Hash)  # Accommodate partitioned archsets.
+    archs = archs.map{ |arch| arch.is_a?(Hash) ? arch.keys.first : arch }  # Accommodate partitioned archsets.
     # Generate a full list of files, even when some are not present on all architectures; bear in mind that the current _directory_
     # may not even exist on all archs.
     basename_list = []
@@ -58,8 +59,8 @@ module Merge
         exploded_names = []                                        # In practice, some or all of them may already be fat binaries.
         slice_names.each do |slice_name|
           if (pn = Pathname slice_name).fat_container?
-            pn.archs.each{ |arch|
-              system MacOS.lipo, '-thin', arch.to_s, '-output', (temp_fn = "#{pn}_#{arch}")
+            pn.lipo_archs.each{ |l_arch|
+              system MacOS.lipo, '-thin', l_arch.to_s, '-output', (temp_fn = "#{slice_name}_#{l_arch}"), slice_name
               exploded_names << temp_fn
             }
           else exploded_names << slice_name; end
@@ -70,37 +71,41 @@ module Merge
   end # merge_binaries
 
   # sub_path is a {String}; the members of archs are implicitly coërcible to {String}s by interpolation.
-  def merge_C_headers(archs, sub_path = nil)
-    raise ArgumentError.new('Leopardbrew:  Merge::merge_C_headers() only knows about real CPU architectures' +
-      "\n    (the set given was {#{archs.keys * ', '}})") if archs.first.is_a?(Hash)  # (Fail to) accommodate partitioned archsets.
-    return if archs.length < 2  # We don’t need to do anything unless at least two different architectures are present.
+  def merge_C_headers(arch_parts, sub_path = nil)
+    return if arch_parts.length < 2  # We needn’t do anything unless at least two different architectures or partitions are present.
+    # Accommodate partitioned archsets.  We differentiate between the architecture/partition name, as used when we stashed affected
+    # headers, and the actual architectures represented by each such name, used when we fuse the stashed files through preprocessor
+    # conditionals.
+    a_p_names = []; archsets = {}
+    arch_parts.each{ |a_p|
+      if a_p.is_a?(Hash) then a_p_names << a_p.keys.first; archsets[a_p.keys.first] = a_p.values.first
+      else                    a_p_names << a_p;            archsets[a_p]            = [a_p]           ; end
+    }
     # One or more architecture-specific header files need to be surgically combined, and were stashed for the purpose.  Differences
     # are relatively minor and can be “#ifdef”d together.  With full control of the stashdir, we can simplify by assuming each file
     # exists for all architectures.
-probably_the_formula_name = Dir.pwd.xlchomp("#{HOMEBREW_TEMP}/")[%r{^[^/]+}]
-progress_log = File.new(HOMEBREW_LOGS/"#{probably_the_formula_name}/Merge-merge_C_headers.log", 'w')
     s_p = (sub_path ? sub_path + '/' : '')  # Don’t suffer a double slash when sub_path is null.
-    Dir["#{stashdir(:header, archs[0])}/#{s_p}*"].each do |basis_file|
+    Dir["#{stashdir(:header, a_p_names[0])}/#{s_p}*"].each do |basis_file|
       spb = s_p + File.basename(basis_file)
-      if File.directory?(basis_file) then merge_C_headers(archs, spb)
+      if File.directory?(basis_file) then merge_C_headers(arch_parts, spb)
       else
         diffpoints = {}  # Keyed by line number in the basis file.  Each value is itself a {Hash}, keyed on the architecture & with
                          # two‐element {Hash} values.  Each such value has the textual displacement (the number of basis‐file lines
                          # replaced) and an {Array} of the displacing chunk’s lines.
         identicals = []  # Identifies any architectures for which this file is identical to the basis file.
-        archs[1..-1].each do |a|
+        a_p_names[1..-1].each do |a|
           # Take diffs, with zero context.  Context means uninvolved lines get included between diffs, which can be catastrophic if
           # the diffs in question are intertwined with preprocessor conditionals.  We do not use -N / --new-file; if our assumption
           # that the file is present on all architectures is false, it’s best to expose that fact loudly.
-          raw_diffs = Utils.popen_read('diff', '--minimal', '--unified=1', basis_file, (stashdir(:header, a)/spb).to_s)
-          raise "Leopardbrew Merge module:  Problem `diff`ing C‐family header file:  #{spb}" if $?.exitstatus > 1
+          raw_diffs = Utils.popen_read('diff', '--minimal', '--unified=0', basis_file, (stashdir(:header, a)/spb).to_s)
+          raise "Leopardbrew Merge module:  Problem `diff`ing C‐family header file:  #{spb} (exit status #{$?.exitstatus})" \
+                                                                                                               if $?.exitstatus > 1
           if raw_diffs.chomp.empty? then identicals << a; next; end  # Don’t need to do anything else if the diff was empty.
-progress_log.puts "Merge#merge_C_headers:  diff #{archs[0]} #{a}"
           # The unified diff output begins with two lines identifying the source files, followed by a series of chunk records, each
           # describing one difference that was found.  Each chunk record begins with a line like this one:
-          #     @@ -old_line_number,length_in_lines +new_line_number,length_in_lines @@
-          # Since we record everything relative to the basis file, we ignore new_line_number.  If length_in_lines is 1, the “,1” is
-          # omitted, and vexingly, if it is zero, *_line_number will be too low by one (at least with Apple’s `diff`).
+          #     @@ -old_line_number,old_length_in_lines +new_line_number,new_length_in_lines @@
+          # Since we record everything relative to the basis file, we ignore new_line_number.  If *_length_in_lines is 1, the “,1”
+          # is omitted, and vexingly, if it is zero, *_line_number will be too low by one (at least with Apple’s `diff`).
           diff_chunks = raw_diffs.lines[2..-1].join('').split(%r{(?=^@@)})
           diff_chunks.each do |d|
             base_linenumber = d.match(%r{\A@@ -(\d+)})[1].to_i
@@ -111,25 +116,23 @@ progress_log.puts "Merge#merge_C_headers:  diff #{archs[0]} #{a}"
             # have a leading ‘+’ or ‘ ’.  Shave that off as we read it.
             line_group = []; d.lines{ |line| line_group << line.lchop if line =~ %r{^[+ ]} }
             diffpoints[base_linenumber][a] = {:displacement => displacement, :lines => line_group}
-progress_log.puts "    chunk at line #{base_linenumber} with displacement #{displacement} and length #{line_group.length}"
           end # each diff chunk |d|
-        end # each arch |a|
-        identicals.unshift archs[0]
-        archs_ = archs - identicals
+        end # each a_p |a|
+        identicals.unshift a_p_names[0]
+        a_p_ = a_p_names - identicals
         dfpt_keys = diffpoints.keys.sort
         # Identify how much of the basis file each diffpoint covers.
-        max_disp = {}; diffpoints.each_pair{ |i, dfpt| max_disp[i] = dfpt.keys.map{ |arch| dfpt[arch][:displacement] }.max }
-        basis_lines = ['']; File.open(basis_file, 'r') { |text| basis_lines += text.read.lines }  # Pad so indices == line numbers.
-        if archs_.length > 1  # Handle overlapping / different-displacement chunks by harmonizing chunk lengths.  As everything not
-                              # explicitly saved is, by definition, the same as in the basis file, we can fill out short records by
-                              # copying it.  However, a longer diff in one architecture could displace a basis‐file span coïncident
-                              # with 2+ shorter diffs in another arch.  Blindly padding each shorter diff to match the longer would
-                              # yield multiple differing chunks for the shorter diffs’ arch; coalescence must precede harmonization.
-                              # This may conflict with preprocessor conditionals, but that’s unavoidable; any intersecting the span
-                              # affected are likely to have already been messed up by the differing basis‐file displacements.
+        max_disp = {}; diffpoints.each_pair{ |i, dfpt| max_disp[i] = dfpt.keys.map{ |a_p| dfpt[a_p][:displacement] }.max }
+        basis_lines = ['']; File.open(basis_file, 'r') { |text| basis_lines += text.read.lines }  # Pad so indices == line nºs.
+        if a_p_.length > 1  # We have more than one set of diffs to reconcile with the basis file.
+          # Handle overlapping and/or different-displacement chunks by harmonizing chunk lengths.  As every line not in a diff will,
+          # by definition, match the basis file, we can fix short records by copying it.  However, a long diff in one architecture/
+          # partition could displace a basis‐file range coïncident with two or more shorter diffs in another arch or partition.  To
+          # blindly pad every shorter diff to full length would produce conflicting chunks for the shorter diffs’ arch or partition
+          # – coalescence must precede harmonization.  This could conflict with preprocessor conditionals, but that is unavoidable;
+          # any which intersect the span affected are likely already damaged by the differing basis‐file displacements.
           # First, identify any overlaps.
           overlaps = {}; prior_overlap = nil
-progress_log.puts 'Merge#merge_C_headers:  Checking for overlaps'
           dfpt_keys.each do |i|
             (overlaps[prior_overlap][:indices].include?(i) ? next : (prior_overlap = nil)) if prior_overlap
             overlap = []  # This is for the initial basis‐file line numbers of any overlapping chunks, and their net displacement.
@@ -138,27 +141,24 @@ progress_log.puts 'Merge#merge_C_headers:  Checking for overlaps'
               if diffpoints.key?(j)  # We have an overlap.
                 if (new_end = j + max_disp[j]) > i_end then i_end = new_end; end  # If the overlap is bigger, grow our test window.
                 overlap << i if overlap.empty?; overlap << j
-progress_log.puts "    Chunk at basis line #{i} overlaps with chunk at basis line {j}"
               end
               j += 1
             end # while not yet at the end of the chunk
             if not overlap.empty? then overlaps[i] = {:displacement => i_end - i, :indices => overlap}; prior_overlap = i; end
           end  # each diffpoint key |i|
           # Secondly, coalesce any chunks in each overlap that belong to the same architecture.
-progress_log.puts 'Merge#merge_C_headers:  Coalescing overlaps' if DEBUG
           overlaps.each_pair do |i, overlap|
-            archs_.each do |arch|
+            a_p_.each do |a_p|
               # Within this overlap, gather the chunks/fragments for each architecture.
               chunks = {}; coalesced = {}
               overlap[:indices].each do |j|
                 next if diffpoints[j].nil?  # If we already deleted this while processing a previous architecture, skip it.
-                dfpt = diffpoints[j].fetch(arch, nil)
+                dfpt = diffpoints[j].fetch(a_p, nil)
                 chunks[j] = dfpt if dfpt
               end
               ch_keys = chunks.keys.sort
-              unless ch_keys.empty?  # Coalesce the chunk fragments for this architecture.  Prep it so if the first one starts late,
-                                     # the loop will fill in the missing preamble.
-progress_log.puts "    Overlap chunks for #{arch} at basis line(s) #{ch_keys * ', '}"
+              unless ch_keys.empty?
+                # Coalesce this arch’s chunk fragments.  If the first fragment starts late, fill in its missing preamble.
                 coalesced = { :displacement => 0, :lines => [] }
                 ch_keys.each do |j|
                   interstice_start = i + coalesced[:displacement]
@@ -172,9 +172,9 @@ progress_log.puts "    Overlap chunks for #{arch} at basis line(s) #{ch_keys * '
                 end
               end # chunk‐fragment array not empty
               # Replace the fragmented chunks with the coalesced chunk.
-              diffpoints[i][arch] = coalesced
-              ch_keys.each{ |j| diffpoints[j].delete(arch) }
-            end # each non‐basis architecture |arch|
+              ch_keys.each{ |j| diffpoints[j].delete(a_p) }
+              diffpoints[i][a_p] = coalesced
+            end # each non‐basis architecture |a_p|
             # Clean out any newly‐emptied, formerly‐overlapping diffpoints.
             overlap[:indices].each{ |j| if diffpoints[j].keys.empty? then diffpoints.delete(j); max_disp.delete(j); end }
           end # each pair |i, overlap|
@@ -182,36 +182,38 @@ progress_log.puts "    Overlap chunks for #{arch} at basis line(s) #{ch_keys * '
         end # More than 2 diff sets to merge?
         # Insert conditional-compilation blocks gated on the architecture.  This doesn’t test for potential conflicts with existing
         # conditional-compilation blocks, because what to do if there _is_ one is far from obvious.  Walk the diffpoints in reverse
-        # order, so the insertions don’t screw up our line numbering.
+        # order so the insertions don’t screw up our line numbering.
         dfpt_keys.reverse_each do |i|
-          include_identicals = max_disp[i].nope
-          chunk_archs = diffpoints[i].keys
-          if include_identicals
-            diffpoints[i][identicals[0]] = {:displacement => max_disp[i], :lines => basis_lines[i, max_disp[i]]}
-            partitions = [identicals]
-          else
-            partitions = [ [chunk_archs.shift] ]
-          end
+          # Include the basis‐file chunk in the diffpoint so it gets conditionalized properly.
+          d = max_disp[i]; diffpoints[i][a_p_names[0]] = {:displacement => d, :lines => basis_lines[i, d]}
+          chunk_archparts = diffpoints[i].keys.sort; metapartitions = [ [chunk_archparts.shift] ]
           # Minimize the number of conditional cases.  If two architectures have identical diff‐line sets, combine their handling.
-          while not chunk_archs.empty? do
-            ch_a = chunk_archs.shift
-            failure = true
-            partitions.each do |partition|
-              if diffpoints[i][ch_a][:lines] == diffpoints[i][partition[0]][:lines]
-                partition << ch_a; failure = false; break
-              end
-            end
-            partitions << [ch_a] if failure
-          end
+          while not chunk_archparts.empty? do
+            ch_a_p = chunk_archparts.shift
+            lines_differ = true
+            metapartitions.each{ |mp| if diffpoints[i][ch_a_p][:lines] == diffpoints[i][mp[0]][:lines]
+                                        mp << ch_a_p; lines_differ = false; break
+                                      end }
+            metapartitions << [ch_a_p] if lines_differ
+          end # while chunk_archparts is not empty
+          # Drop any meta‐partition with null contents.  We don’t need a preprocessor conditional for that when we can simply leave
+          # it out entirely.
+          metapartitions.reject!{ |mp| diffpoints[i][mp.first][:lines].length == 0 }
+          # A {metapartitions} entry is an {Array} of architecture and/or partition names.  These are not useable directly; we must
+          # first convert each one to an archset (an {Array} strictly of architecture names).
+          archset_groups = metapartitions.map{ |mp| mp.collect{ |a_p| archsets[a_p] }.flatten }
           combiner = '__) || defined(__'
-          adjusted_lines = [
-              "\#if defined(__#{(first_part = partitions.shift) * combiner}__)\n", diffpoints[i][first_part[0]][:lines],
-              partitions.map{ |part| ["\#elif defined(__#{part * combiner}__)\n"] + diffpoints[i][part[0]][:lines] },
-              "\#endif\n"
-            ].flatten
+          adjusted_lines = ["\#if defined(__#{archset_groups[0] * combiner}__)\n"]
+          adjusted_lines.concat(diffpoints[i][metapartitions[0][0]][:lines])
+          metapartitions.each_with_index{ |m_p, j|
+            next if j == 0  # We already did the first batch.
+            adjusted_lines << "\#elif defined(__#{archset_groups[j] * combiner}__)\n"
+            adjusted_lines.concat(diffpoints[i][m_p[0]][:lines])
+          }
+          adjusted_lines << "\#endif\n"
           basis_lines = basis_lines[0..(i - 1)] + adjusted_lines + basis_lines[(i + max_disp[i])..-1]
         end # each diffpoint |i|
-        File.new("#{prefix}/#{spb}", 'w').syswrite(basis_lines.join(''))
+        File.new("#{prefix}/#{spb}", 'w').syswrite(basis_lines * '')
       end # if not a directory
     end # each |basis_file|
   end # merge_C_headers

@@ -41,6 +41,36 @@ end # ALE
 
 module MachO  # only useable when included in Pathname
   # @private
+  class Metadata
+    OTOOL_RX = %r{\t(.*) \(compatibility version (?:\d+\.)*\d+, current version (?:\d+\.)*\d+\)}
+
+    attr_reader :path, :dylib_id, :dylibs, :lipo_archs
+
+    def initialize(path)
+      @path = path
+      ENV['HOMEBREW_MACH_O_FILE'] = path.expand_path.to_s
+      @dylib_id, @dylibs = parse_otool_L_output
+      @lipo_archs = parse_lipo_info_output
+    ensure
+      ENV.delete 'HOMEBREW_MACH_O_FILE'
+    end
+
+    def parse_otool_L_output
+      libs = `#{MacOS.otool} -L "$HOMEBREW_MACH_O_FILE"`.split("\n")
+      raise ErrorDuringExecution.new(MacOS.otool, ['-L', ENV['HOMEBREW_MACH_O_FILE']]) unless $?.success?
+      libs.shift  # First line is the filename.
+      id = libs.shift[OTOOL_RX, 1] if path.dylib?
+      return id, libs.map{ |lib| lib[OTOOL_RX, 1] }.compact
+    end # Mach::Metadata#parse_otool_L_output
+
+    def parse_lipo_info_output
+      raw_lipo_line = `#{MacOS.lipo} -info "$HOMEBREW_MACH_O_FILE"`
+      raise ErrorDuringExecution.new(MacOS.lipo, ['-info', ENV['HOMEBREW_MACH_O_FILE']]) unless $?.success?
+      return raw_lipo_line.sub(%r{^.+: .+: }, '').split(' ').compact.map(&:to_sym)
+    end # Mach::Metadata#parse_lipo_info_output
+  end # Mach::Metadata
+
+  # @private
   AR_MAGIC = "!<arch>\n".freeze
   AR_MEMBER_HDR_SIZE = 60.freeze
   FILE_SIGNATURES = {
@@ -74,7 +104,7 @@ module MachO  # only useable when included in Pathname
       begin
         offsets = []
         data = []
-        sig, rvsd, n_fat = machO_sig_at?(0)
+        if (sig_array = machO_sig_at? 0) then sig, rvsd, n_fat = *sig_array; end
         if (@fat_container = (sig == :FAT_MAGIC))
           # Each `struct fat_arch` takes up five uint32 (net 20 octets).  `offset` is the third of them (eight octets in, & further
           # offset by the eight octets of the initial `struct fat_header`).
@@ -142,9 +172,9 @@ module MachO  # only useable when included in Pathname
     while offset
       candidate, offset = ar_walk_from(offset)
       break unless candidate
-      next if ar_sig_at?(candidate)            # Skip malformed data.
-      sig, rvsd, _ = machO_sig_at?(candidate)
-      break if sig and sig != :FAT_MAGIC       # Stop at the first good signature, skipping malformed data.
+      next if ar_sig_at?(candidate)             # Skip malformed data.
+      if (sig_array = machO_sig_at? candidate) then sig, rvsd, _ = *sig_array; end
+      break if sig_array and sig != :FAT_MAGIC  # Stop at the first good signature, skipping malformed data.
       candidate = nil
     end
     [candidate, (candidate ? rvsd : nil)] if candidate
@@ -175,41 +205,13 @@ module MachO  # only useable when included in Pathname
   # iOS universal binary can contain one slice per arm32 subarchitecture, but that exception does not affect us here.)
   def machO_sig_at?(offset)
     sig, _2nd = binread(8, offset).unpack('NN') if real_file? and size >= (offset + 8)
-    case FILE_SIGNATURES.fetch(sig)
-      when :FAT_MAGIC              then                        (_2nd <= MAX_N_FAT) ? [:FAT_MAGIC, false, _2nd] : [nil, nil, nil]
-      when :FAT_CIGAM              then _2nd = _2nd.byteswap4; (_2nd <= MAX_N_FAT) ? [:FAT_MAGIC, true,  _2nd] : [nil, nil, nil]
+    case FILE_SIGNATURES.fetch(sig, nil)
+      when :FAT_MAGIC              then                        (_2nd <= MAX_N_FAT) ? [:FAT_MAGIC, false, _2nd] : nil
+      when :FAT_CIGAM              then _2nd = _2nd.byteswap4; (_2nd <= MAX_N_FAT) ? [:FAT_MAGIC, true,  _2nd] : nil
       when :MH_CIGAM, :MH_CIGAM_64 then _2nd = _2nd.byteswap4;                       [:MH_MAGIC,  true,  _2nd]
       when :MH_MAGIC, :MH_MAGIC_64 then                                              [:MH_MAGIC,  false, _2nd]
     end
   end # machO_sig_at?()
-
-  # @private
-  class Metadata
-    OTOOL_RX = /\t(.*) \(compatibility version (?:\d+\.)*\d+, current version (?:\d+\.)*\d+\)/
-
-    attr_reader :path, :dylib_id, :dylibs
-
-    def initialize(path)
-      @path = path
-      @dylib_id, @dylibs = parse_otool_L_output
-    end
-
-    def parse_otool_L_output
-      ENV['HOMEBREW_MACH_O_FILE'] = path.expand_path.to_s
-      libs = `#{MacOS.otool} -L "$HOMEBREW_MACH_O_FILE"`.split("\n")
-      unless $?.success?
-        raise ErrorDuringExecution.new(MacOS.otool,
-          ['-L', ENV['HOMEBREW_MACH_O_FILE']])
-      end
-      libs.shift # first line is the filename
-      id = libs.shift[OTOOL_RX, 1] if path.dylib?
-      libs.map! { |lib| lib[OTOOL_RX, 1] }.compact!
-
-      return id, libs
-    ensure
-      ENV.delete 'HOMEBREW_MACH_O_FILE'
-    end # parse_otool_L_output
-  end # Mach::Metadata
 
   # @private
   def mach_metadata; @mach_metadata ||= Metadata.new(self); end
@@ -222,4 +224,7 @@ module MachO  # only useable when included in Pathname
 
   # @private
   def dylib_id; mach_metadata.dylib_id; end
+
+  # @private
+  def lipo_archs; mach_metadata.lipo_archs; end
 end # MachO

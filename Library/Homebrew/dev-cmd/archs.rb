@@ -17,7 +17,7 @@ CPU_TYPES = {
   '00000003' => 'secret3',   # ????
   '00000004' => 'NS32032',   # NatSemi 32k (market failure; obsolete)
   '00000005' => 'NS32332',   # NatSemi 32k (market failure; obsolete)
-  '00000006' => 'M68k',      # Motorola 680x0 (widely adopted; current)
+  '00000006' => 'M68k',      # Motorola 680x0 (widely adopted; technically current, but not for workstations)
   '00000007' => 'x86',       # Intel x86 (widely adopted; obsolete)
   '01000007' => 'x86-64',    # AMD64 (widely adopted; current)
   '00000008' => 'MIPS',      # MIPS (niche; current?; obsolete width)
@@ -26,7 +26,7 @@ CPU_TYPES = {
   '0000000a' => 'M98k',      # Motorola 98601 (very early PowerPC; obsolete)
   '0000000b' => 'PA',        # HP PA-RISC (out of production; obsolete)
   '0100000b' => 'PA64',      # HP PA-RISC (out of production; obsolete)
-  '0000000c' => 'ARM',       # ARM (“arm/armel”; widely adopted; current; obsolete width)
+  '0000000c' => 'ARM',       # ARM (“armel”; widely adopted; current; obsolete width)
   '0100000c' => 'ARM64',     # ARM (“aarch64”; widely adopted; current)
   '0200000c' => 'ARM64/32',  # ARM (32b code on 64b hardware; obsolete)
   '0000000d' => 'M88k',      # Motorola 881x0 (e.g. Data General Aviion; market failure; obsolete)
@@ -47,7 +47,7 @@ CPU_TYPES = {
 }.freeze
 
 ARM_SUBTYPES = {
-  '00000000' => 'arm‐*',
+  '00000000' => 'arm*',
   '00000005' => 'armv4t',
   '00000006' => 'armv6',
   '00000007' => 'armv5',
@@ -64,18 +64,18 @@ ARM_SUBTYPES = {
 }.freeze
 
 ARM64_32_SUBTYPES = {
-  '00000000' => 'arm64/32‐*',
+  '00000000' => 'arm64/32*',
   '00000001' => 'arm64/32v8',
 }.freeze
 
 ARM64_SUBTYPES = {
-  '00000000' => 'arm64‐*',
+  '00000000' => 'arm64*',
   '00000001' => 'arm64v8',
   '00000002' => 'arm64e',
 }.freeze
 
 PPC_SUBTYPES = {
-  '00000000' => 'ppc‐*',
+  '00000000' => 'ppc*',
   '00000001' => 'ppc601',
   '00000002' => 'ppc602',
   '00000003' => 'ppc603',
@@ -91,7 +91,7 @@ PPC_SUBTYPES = {
 }.freeze
 
 X86_SUBTYPES = {
-  '00000003' => 'x86‐*',
+  '00000003' => 'x86*',
   '00000004' => '486',
   '00000084' => '486sx',
   '00000005' => 'pentium',
@@ -113,8 +113,8 @@ X86_SUBTYPES = {
 }.freeze
 
 X86_64_SUBTYPES = {
-  '00000003' => 'x86-64-*',
-  '00000004' => 'x86-64_',
+  '00000003' => 'x86-64*',
+  '00000004' => 'x86-64',
   '00000008' => 'x86-64h',
 }.freeze
 
@@ -238,8 +238,8 @@ module Homebrew
         next if pn.symlink?
         if pn.directory? then possibles += scour(pn)
         else
-          sig, _, _ = pn.machO_sig_at?(0)
-          possibles << pn if sig or pn.ar_sig_at?(0)
+          sig_array = pn.machO_sig_at?(0)
+          possibles << pn if sig_array or pn.ar_sig_at?(0)
         end
       }
       possibles
