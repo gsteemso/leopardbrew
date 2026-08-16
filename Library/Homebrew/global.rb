@@ -48,25 +48,6 @@ OPEN_PATH               = Pathname('/usr/bin/open')                 # Only used 
 SYSTEM_RUBY_PATH        = Pathname('/usr/bin/ruby')                 # The system Ruby binary
 TAR_PATH                = (gtar = OPTDIR/'gnu-tar/bin/gtar').executable? ? gtar : Pathname('/usr/bin/tar')
 
-# Predefined regular expressions:
-# CompilerConstants::GNU_GCC_REGEXP # For recognizing brewed, non-Apple GCCs.
-HOMEBREW_CASK_TAP_FORMULA_REGEX   = %r{^(Caskroom)/(cask)/([\w+-.]+)$}
-                                    # Match formulæ in the default brew‐cask tap, e.g. Caskroom/cask/someformula
-HOMEBREW_CORE_FORMULA_REGEX       = %r{^homebrew/homebrew/([\w+-.]+)$}i
-                                    # Match core formulæ, e.g. homebrew/homebrew/someformula
-HOMEBREW_PULL_OR_COMMIT_URL_REGEX = %r{https://github\.com/([\w-]+)/(?:tiger|leopard)brew(-[\w-]+)?/(?:pull/(\d+)|commit/[0-9a-fA-F]{4,40})}
-HOMEBREW_TAP_ARGS_REGEX           = %r{^([\w-]+)/(homebrew-)?([\w-]+)$}
-                                    # Match taps given as arguments, e.g. someuser/sometap
-HOMEBREW_TAP_DIR_REGEX            = %r{#{Regexp.escape(HOMEBREW_LIBRARY.to_s)}/Taps/([\w-]+)/([\w-]+)}
-                                    # Match taps’ directory paths, e.g. HOMEBREW_LIBRARY/Taps/someuser/sometap
-  HOMEBREW_TAP_PATH_REGEX         =   Regexp.new(HOMEBREW_TAP_DIR_REGEX.source + '/(.*)')
-                                      # Match taps’ formula paths, e.g. HOMEBREW_LIBRARY/Taps/someuser/sometap/someformula
-HOMEBREW_TAP_FORMULA_REGEX        = %r{^([\w-]+)/([\w-]+)/([\w+-.@]+)$}
-                                    # Match taps’ formulæ, e.g. someuser/sometap/someformula
-# OPTION_RX                         # see `options.rb`
-# Pathname::BOTTLE_EXTNAME_RX       # see `extend/pathname.rb`
-VERSIONED_NAME_REGEX              = %r{^([^-=][^=]*)=([^=]+)$}      # Matches a formula‐name‐including‐version specification.
-
 # Other predefined values:
 # CompilerConstants::ARCH_MINIMUM   # Lists the minimum compiler to target a given architecture.
 # CompilerConstants::COMPILERS      # Lists the known compilers.
@@ -102,6 +83,25 @@ MACOS_FULL_VERSION       = ENV['HOMEBREW_OS_VERSION'].chomp
 # MacOS::MAX_SUPPORTED_VERSION # see `macos/version.rb`
 # MacOS::STANDARD_COMPILERS    # see `macos.rb`
 # Tab::FILENAME                # see `tab.rb`
+
+# Predefined regular expressions:
+# CompilerConstants::GNU_GCC_REGEXP # For recognizing brewed, non-Apple GCCs.
+HOMEBREW_CASK_TAP_FORMULA_REGEX   = %r{^(Caskroom)/(cask)/([\w+-.]+)$}
+                                    # Match formulæ in the default brew‐cask tap, e.g. Caskroom/cask/someformula
+HOMEBREW_CORE_FORMULA_REGEX       = %r{^(?:#{CORE_OWNERS * '|'})/([\w+-.]+)$}i
+                                    # Match core formulæ, e.g. homebrew/homebrew/someformula
+HOMEBREW_PULL_OR_COMMIT_URL_REGEX = %r{https://github\.com/([\w-]+)/(?:tiger|leopard)brew(-[\w-]+)?/(?:pull/(\d+)|commit/[0-9a-fA-F]{4,40})}
+HOMEBREW_TAP_ARGS_REGEX           = %r{^([\w-]+)/(homebrew-)?([\w-]+)$}
+                                    # Match taps given as arguments, e.g. someuser/sometap
+HOMEBREW_TAP_DIR_REGEX            = %r{#{Regexp.escape(HOMEBREW_LIBRARY.to_s)}/Taps/([\w-]+)/([\w-]+)}
+                                    # Match taps’ directory paths, e.g. HOMEBREW_LIBRARY/Taps/someuser/sometap
+  HOMEBREW_TAP_PATH_REGEX         =   Regexp.new(HOMEBREW_TAP_DIR_REGEX.source + '/(.*)')
+                                      # Match taps’ formula paths, e.g. HOMEBREW_LIBRARY/Taps/someuser/sometap/someformula
+HOMEBREW_TAP_FORMULA_REGEX        = %r{^([\w-]+)/([\w-]+)/([\w+-.@]+)$}
+                                    # Match taps’ formulæ, e.g. someuser/sometap/someformula
+# OPTION_RX                         # see `options.rb`
+# Pathname::BOTTLE_EXTNAME_RX       # see `extend/pathname.rb`
+VERSIONED_NAME_REGEX              = %r{^([^-=][^=]*)=([^=]+)$}      # Matches a formula‐name‐including‐version specification.
 
 # Optionally user‐defined values:
 BREW_NICE_LEVEL = ENV['HOMEBREW_NICE_LEVEL'].choke  # Do we `nice` our build process?
