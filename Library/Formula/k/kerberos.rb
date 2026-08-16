@@ -83,7 +83,7 @@ class Kerberos < Formula
           sbin/uuserver
         ]
     end # universal?
-    archs = Target.archset
+    archs = Target.partitioned_archset(:word_size)
 
     (buildpath/'src/lib/krb5/ccache').install_symlink_to ENV.compiler_path => 'cc'
 
@@ -101,9 +101,12 @@ class Kerberos < Formula
       archs.each do |arch|
         ENV.set_build_archs(arch) if build.universal?
 
-        system './configure', *args
+        arch_args = []
+#        arch_args << "--build=#{Target.build_gnuple}" << "--host=#{Target.gnuple(arch)}" unless Target.build_will_run?(arch)
+
+        system './configure', *args, *arch_args
         system 'make'
-        system 'make', 'check' if @do_unit_tests
+        system 'make', 'check' if @do_unit_tests # and Target.build_will_run?(arch)
         system 'make', 'install'
 
         if build.universal?
