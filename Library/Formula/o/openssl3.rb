@@ -36,6 +36,8 @@ class Openssl3 < Formula
     end
   end
 
+  def openssldir; etc/'openssl@3'; end
+
   def install
     if build.universal?
       Target.allow_universal_binary
@@ -82,27 +84,22 @@ class Openssl3 < Formula
     end
     args << 'sctp'       if MacOS.version >  :leopard  # Pre‐Snow Leopard lacks these system headers.
     args << 'enable-tfo' if MacOS.version >= :mojave   # Pre-Mojave doesn’t support TCP Fast Open.
-    if active_enhancements.include? 'brotli'
+    if active_enhancement_names.include? 'brotli'
       brotli = Formula['brotli']
-      args += ['enable-brotli-dynamic',
-               "--with-brotli-include=#{brotli.opt_include}",
-               "--with-brotli-lib=#{brotli.opt_lib}"
-        ]
+      args << 'enable-brotli-dynamic' << "--with-brotli-include=#{brotli.opt_include}" << "--with-brotli-lib=#{brotli.opt_lib}"
     end
-    if active_enhancements.include? 'zlib'
+    if active_enhancement_names.include? 'zlib'
       zlib = Formula['zlib']
-      args += ["--with-zlib-include=#{zlib.opt_include}", "--with-zlib-lib=#{zlib.opt_lib}"]
+      args << "--with-zlib-include=#{zlib.opt_include}" << "--with-zlib-lib=#{zlib.opt_lib}"
     else
-      args += ['--with-zlib-include=/usr/include', '--with-zlib-lib=/usr/lib']
+      args << '--with-zlib-include=/usr/include' << '--with-zlib-lib=/usr/lib'
     end
-    if active_enhancements.include? 'zstd'
+    if active_enhancement_names.include? 'zstd'
       zstd = Formula['zstd']
-      args += ['enable-zstd-dynamic',
-               "--with-zstd-include=#{zstd.opt_include}",
-               "--with-zstd-lib=#{zstd.opt_lib}"
-        ]
+      args << 'enable-zstd-dynamic' << "--with-zstd-include=#{zstd.opt_include}" << "--with-zstd-lib=#{zstd.opt_lib}"
     end
 
+    mkdir 'build'
     archs.each do |arch|
       ENV.set_build_archs(arch) if build.universal?
 
@@ -115,18 +112,22 @@ class Openssl3 < Formula
                                                                             # that being implemented using nanosleep(), adds enough
                                                                             # latency to hide the problem.
 
-      # “perl Configure”, instead of “./Configure”, because the Configure script’s shebang line may well name the wrong Perl binary.
-      # (If we have an outdated stock Perl, we really do not want to use that when we meant to use brewed Perl.)
-      system 'perl', 'Configure', *args, *arch_args
-      system 'make'
-      system 'make', 'test' if build.with? 'tests' or build.bottle?
-      system 'make', 'install'
+      cd 'build' do
+        checkpoint arch do
+          # “perl Configure”, instead of “./Configure”, because the Configure script’s shebang line may very well name the wrong Perl
+          # binary.  (If we have an outdated stock Perl, we really do not want to use that when we meant to use brewed Perl.)
+          system 'perl', '../Configure', *args, *arch_args
+          system 'make'
+          system 'make', 'test' if (build.with? 'tests' or build.bottle?) and Target.build_will_run?(arch)
+        end
+        system 'make', 'install'
 
-      if build.universal?
-        system 'make', 'clean'
-        merge_prep(:binary, arch, the_binaries)
-        merge_prep(:header, arch, the_headers)
-      end
+        if build.universal?
+          system 'make', 'clean'
+          merge_prep(:binary, arch, the_binaries)
+          merge_prep(:header, arch, the_headers)
+        end
+      end # cd build
     end # each |arch|
 
     if build.universal?
@@ -136,10 +137,7 @@ class Openssl3 < Formula
     end
   end # install
 
-  def openssldir
-    etc/'openssl@3'
-  end
-
+  # Use our certificate bundle.  Consistency in this regard eliminates a potential source of bizarre, hard‐to‐trace bugs.
   def post_install
     rm_f openssldir/'cert.pem'
     openssldir.install_symlink Formula['curl-ca-bundle'].opt_share/'ca-bundle.crt' => 'cert.pem'
@@ -157,18 +155,13 @@ class Openssl3 < Formula
 
   test do
     # Make sure the necessary .cnf file exists, otherwise OpenSSL gets moody.
-    assert_predicate openssldir/'openssl.cnf', :exist?,
-            'OpenSSL requires the .cnf file for some functionality'
-
+    assert_predicate openssldir/'openssl.cnf', :exist?, 'OpenSSL requires the .cnf file for some functionality'
     # Check OpenSSL itself functions as expected.
     (testpath/'testfile.txt').write('This is a test file')
     expected_checksum = 'e2d0fe1585a63ec6009c8016ff8dda8b17719a637405a4e23c0ff81339148249'
     for_archs bin/'openssl' do |_, cmd|
       system *cmd, 'dgst', '-sha256', '-out', 'checksum.txt', 'testfile.txt'
-      open('checksum.txt') do |f|
-        checksum = f.read(100).split('=').last.strip
-        assert_equal checksum, expected_checksum
-      end
-    end # for_archs |openssl|
+      open('checksum.txt') { |f| assert_equal f.read(100).split('=').last.strip, expected_checksum }
+    end
   end # test
 end # Openssl3

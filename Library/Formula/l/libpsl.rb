@@ -25,7 +25,7 @@ class Libpsl < Formula
     ]
     args << '--disable-nls' if build.without? 'nls'
     # The purported “--with-libiconv-prefix=” configure option does not work, so work around it using environment variables.
-    if active_enhancements.include? 'libiconv'
+    if active_enhancement_names.include? 'libiconv'
       libiconv = Formula['libiconv']
       ENV.append 'CPPFLAGS', "-I#{libiconv.opt_include}"
       ENV.append 'LDFLAGS',  "-L#{libiconv.opt_lib}"

@@ -38,7 +38,7 @@ class Libnghttp2 < Formula
         --disable-silent-rules
         --enable-lib-only
       ]
-    ENV['PYTHON'] = "#{Formula['python3'].bin}/python3" if active_enhancements.include? 'python3'
+    ENV['PYTHON'] = "#{Formula['python3'].bin}/python3" if active_enhancement_names.include? 'python3'
     system './configure', *args
     cd 'lib' do
       system 'make'

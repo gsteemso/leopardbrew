@@ -14,6 +14,7 @@ class Tab < OpenStruct
       attributes = {
         'active_aids'        => formula.active_enhancements,
         'brew_sys_version'   => LEOPARDBREW_VERSION,
+        'build_duration'     => nil,
         'build_mode'         => formula.build.mode.to_s,
         'built_archs'        => archs,
         'built_as_bottle'    => formula.build.bottle?,
@@ -38,6 +39,7 @@ class Tab < OpenStruct
       attributes = {
         'active_aids'        => [],
         'brew_sys_version'   => LEOPARDBREW_VERSION,
+        'build_duration'     => nil,
         'build_mode'         => 'plain',
         'built_archs'        => [],
         'built_as_bottle'    => false,
@@ -204,7 +206,7 @@ class Tab < OpenStruct
 
   def to_json
     attributes = {
-      'active_aids'        => active_aids.compact.map{ |f| [f.full_name, f.pkg_version.to_s] },
+      'active_aids'        => active_aids.compact.map{ |f| [f.name, f.pkg_version.to_s] },
       'brew_sys_version'   => brew_sys_version,
       'build_mode'         => build_mode.to_s.choke,
       'built_archs'        => built_archs.map(&:to_s),
@@ -223,12 +225,12 @@ class Tab < OpenStruct
 
   def to_s
     s = []
-    src = case poured_from_bottle
+    s << case poured_from_bottle
             when true  then 'Poured from bottle'
-            when false then 'Built from source'
+            when false then "Built from source#{" in #{pretty_duration build_duration}" if build_duration}"
             else 'Installed'
           end
-    s << "#{src} by Leopardbrew #{brew_sys_version}"
+    s << "by Leopardbrew #{brew_sys_version}"
     bm = case build_mode
            when :cross  then ' [cross-build mode]'
            when :local  then ' [local build mode]'

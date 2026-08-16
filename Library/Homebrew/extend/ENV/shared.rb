@@ -69,26 +69,25 @@ module SharedEnvExtension
 
   def append_if_set(keys, value, separator = ' '); append(Array(keys).select{ |k| self[k].choke }, value, separator); end
 
-  def not_already_in?(key, query)
-    old = self[key]
-    old.nil? or old.empty? or old.index(query.to_s).nil?
+  def not_already_in?(key, query); old = self[key]; old.nil? or old.empty? or old.index(query.to_s).nil?; end
+
+  # Append one or more directories to a path.
+  def append_path(key, dirlist)
+    Array(dirlist).each do |dirname|
+      append key, dirname, File::PATH_SEPARATOR if File.directory?(dirname) and not_already_in?(key, dirname)
+    end
   end
 
-  def append_path(key, dirname)
-    append key, dirname, File::PATH_SEPARATOR if File.directory?(dirname) and not_already_in?(key, dirname)
+  # Prepend one or more directories to a path.  Formula can’t find the pkgconfig file?  Point it to it!  This is done automatically
+  # for {keg_only} formulæ.  Example:
+  #     ENV.prepend_path 'PKG_CONFIG_PATH', "#{Formula['glib'].opt_lib}/pkgconfig"
+  def prepend_path(key, dirlist)
+    Array(dirlist).each do |dirname|
+      prepend key, dirname, File::PATH_SEPARATOR if File.directory?(dirname) and not_already_in?(key, dirname)
+    end
   end
 
-  # Prepends a directory to a path.  Formula can’t find the pkgconfig file?  Point it to it!  Automatic for keg_only formulæ.
-  # Example:  ENV.prepend_path 'PKG_CONFIG_PATH', "#{Formula['glib'].opt_lib}/pkgconfig"
-  def prepend_path(key, dirname)
-    prepend key, dirname, File::PATH_SEPARATOR if File.directory?(dirname) and not_already_in?(key, dirname)
-  end
-
-  def prepend_create_path(key, path)
-    path = Pathname(path)
-    path.mkpath
-    prepend_path key, path
-  end
+  def prepend_create_path(key, path); path = Pathname(path); path.mkpath; prepend_path key, path; end
 
   def remove(keys, value, sep = ' ')
     sep_ = Regexp.escape sep
@@ -311,8 +310,11 @@ module SharedEnvExtension
   end
 
   def set_build_archs(archset)
-    archset = archset.values.first if archset.is_a?(Hash)  # Accommodate partitioned archsets.
-    archset = Array(archset).extend ALE unless archset.responds_to?(:fat?)
+    case archset  # Accommodate partitioned archsets.
+      when Hash  then archset = archset.values.first
+      when Array then if archset.any?{ |a| a.is_a?(Hash) } then archset = Target.net_archset(archset); end
+                 else unless archset.responds_to?(:fat?) then archset = Array(archset).extend ALE; end
+    end
     clear_compiler_archflags unless @without_archflags
     @build_archs = archset
     hba = homebrew_built_archs

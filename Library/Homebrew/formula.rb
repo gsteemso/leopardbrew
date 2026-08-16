@@ -251,6 +251,10 @@ class Formula
   # @private
   def requirements; active_spec.requirements; end
 
+  # The list of names of formulæ that are known to be installed and could therefore enhance the active {SoftwareSpec}.
+  # @private
+  def active_enhancement_names; active_spec.active_enhancements.map(&:name); end
+
   # The list of formulæ that are known to be installed and could therefore enhance the active {SoftwareSpec}.
   # @private
   def active_enhancements; active_spec.active_enhancements; end
@@ -558,23 +562,23 @@ class Formula
       yield
       oh1 "Packing up the checkpoint “#{checkpoint_name}”" if VERBOSE
       checkpoint_prefix.mkpath
-      entry_file.atomic_write(entry_timestamp.to_i.to_s)
+      entry_file.atomic_write(entry_timestamp.to_JSON)
       # Find every item in the current directory newer than ⟨entry_timestamp⟩.  This ought to snag anything created and/or modified
-      #   within the block.  It does require that all such creations / modifications be visible from the initial working directory;
-      #   and switching directories mid‐block without switching back is likely ill‐advised.
+      #   within the block.  It does require that all such creations or modifications be visible from the initial working directory,
+      #   and to switch directories mid‐block without switching back would make a terrible mess.
       files_etc = []
-      Dir['{*,.*}'].reject{ |f| f == '.' or f == '..' }.each{ |f| files_etc << f if (File.stat(f).mtime - entry_timestamp) >= 0 }
+      (Dir['{,.}*'] - %w[. ..]).each{ |f| files_etc << f if (File.lstat(f).mtime - entry_timestamp) >= 0 }
       this_checkpoint.pack files_etc
       exit_timestamp = Time.now
-      exit_file.atomic_write(exit_timestamp.to_i.to_s)
+      exit_file.atomic_write(exit_timestamp.to_JSON)
       oh1 "This checkpoint was created between #{entry_timestamp} and #{exit_timestamp}" if VERBOSE and not QUIETER
       @in_a_checkpoint = false
     else # checkpoint already exists
       oh1 "Unpacking the checkpoint “#{checkpoint_name}”" if VERBOSE
       this_checkpoint.unpack
       if VERBOSE and not QUIETER
-        entry_time = Time.at(entry_file.binread.to_i) if entry_file.exists?
-        exit_time = Time.at(exit_file.binread.to_i) if exit_file.exists?
+        entry_time = Time.from_JSON(entry_file.read).nope || Time.at(entry_file.binread.to_i) if entry_file.exists?
+        exit_time  = Time.from_JSON( exit_file.read).nope || Time.at( exit_file.binread.to_i) if  exit_file.exists?
         oh1((entry_time and exit_time) ? "This checkpoint was created between #{entry_time} and #{exit_time}" \
                                        : 'This checkpoint isn’t properly timestamped.')
       end
@@ -591,7 +595,7 @@ class Formula
       names = Dir['checkpoint-*'].reject{ |f| f.ends_with? '.timestamp' }.map{ |f| f.sub(/^checkpoint-/, '').sub(/\.[^.]+$/, '') }
     end if checkpoint_prefix.directory?
     names
-  end
+  end # checkpoint_names
 
   # Can be overridden to run commands on both source and bottle installation.
   def post_install; end
@@ -947,10 +951,8 @@ class Formula
     old_home = ENV['HOME']
     mktemp "#{full_name}-#{pkg_version}".sub('/', '__') do
       @testpath = pathwd
-      setup_test_home(ENV['HOME'] = @testpath)
-      if (result = test) == :does_not_apply
-        puts 'This formula cannot meaningfully be tested.'; true
-      else result; end
+      setup_test_home(ENV['HOME'] = testpath)
+      return test
     end
   ensure
     @testpath = nil

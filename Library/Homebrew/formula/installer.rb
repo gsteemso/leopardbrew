@@ -2,7 +2,7 @@ require 'cxxstdlib'
 require 'exceptions'
 require 'formula'
 require 'keg'
-require 'tab'
+require 'tab'  # pulls in `utils/json`
 require 'bottles'
 require 'caveats'
 require 'cleaner'
@@ -370,6 +370,9 @@ class FormulaInstaller
       else post_install; end
     end
     caveats
+    t = Tab.from_file formula.prefix/Tab::FILENAME
+    t.build_duration = build_times ? build_times[0] + build_times[1] : nil
+    t.write
     ohai 'Summary' if verbosity? or show_summary_heading?
     puts summary
     # let's reset Utils.git_available? if we just installed git
@@ -382,20 +385,24 @@ class FormulaInstaller
     s = ''
     s << "#{HOMEBREW_INSTALL_BADGE}  " if MacOS.version >= :lion and not NO_EMOJI
     s << "#{formula.prefix}:  #{formula.prefix.abv}"
-    s << ", built in #{pretty_duration build_time}" if build_time
+    if build_times
+      s << ", built in #{pretty_duration build_times[0]}"
+      s << " (plus #{pretty_duration build_times[1]} in archived checkpoints)" if build_times[1] > 0
+    end
     s
   end # summary
 
-  def build_time; if @start_time and not interactive? then @build_time ||= Time.now - @start_time + checkpoint_times; end; end
+  def build_times; if @start_time and not interactive? then @build_times ||= [Time.now - @start_time, checkpoint_times]; end; end
 
-  # Returns a raw count of seconds, as logged when the checkpoints were saved.
+  # Returns a raw count of seconds and microseconds, as logged when the checkpoints were saved.
   def checkpoint_times
-    sum = 0
+    sum = 0.0
     formula.checkpoint_names.each do |name|
       entry_stamp = formula.checkpoint_entry(name); exit_stamp = formula.checkpoint_exit(name)
       next unless entry_stamp.file? and exit_stamp.file?
-      entry_stamp = entry_stamp.binread.to_i.nope; exit_stamp = exit_stamp.binread.to_i.nope
-      sum += exit_stamp - entry_stamp if entry_stamp and exit_stamp and entry_stamp < exit_stamp and exit_stamp < @start_time.to_i
+      entry_stamp = Time.from_JSON(entry_stamp.read)
+      exit_stamp  = Time.from_JSON( exit_stamp.read)
+      sum += exit_stamp - entry_stamp if entry_stamp < exit_stamp and exit_stamp < @start_time
     end
     sum
   end # checkpoint_times
@@ -440,7 +447,11 @@ class FormulaInstaller
       #{formula.path}
     ]).concat(build_argv)
     args.unshift('nice', BREW_NICE_LEVEL) if BREW_NICE_LEVEL
-    $stderr.puts "Build command line:  “#{args * ' '}”\n    $HOMEBREW_BUILD_MODE:  “#{ENV['HOMEBREW_BUILD_MODE']}”" if DEBUG
+    if DEBUG
+      $stderr.puts "Build command line:  “#{args * ' '}”"
+      $stderr.puts "    Active enhancements:   #{formula.active_enhancement_names.list}" unless formula.active_enhancements.empty?
+      $stderr.puts "    $HOMEBREW_BUILD_MODE:  “#{ENV['HOMEBREW_BUILD_MODE']}”"
+    end
 
     # Ruby 2.0 et seq set close-on-exec by default on all file descriptors besides 0–2, so we must tell it we want the pipe to stay
     # open in the child process.  This argument is silently removed when `exec` interprets it; the system does not see it.

@@ -34,7 +34,6 @@ class Gettext < Formula
                    + %w[cldr-plurals hostname urlget].map{ |f| "libexec/gettext/#{f}" }
     end # build universal?
     archs = Target.partitioned_archset(:word_size)
-
     args = [
         "--prefix=#{prefix}",
         '--disable-debug',
@@ -47,23 +46,26 @@ class Gettext < Formula
         '--without-git', # Don't use a VCS to create the infrastructure archive.
         '--without-xz'   # Avoid a dependency loop.
       ]
-    args << "--with-libiconv-prefix=#{Formula['libiconv'].opt_prefix}" if active_enhancements.include? 'libiconv'
-
+    args << "--with-libiconv-prefix=#{Formula['libiconv'].opt_prefix}" if active_enhancement_names.include? 'libiconv'
+    mkdir 'build'
     archs.each do |partition|
       ENV.set_build_archs(partition) if build.universal?
-
       arch_args = []
       arch_args << '--enable-year2038' if Target._64b?(partition)
 
-      system './configure', *args, *arch_args
-      system 'make'
-      system 'make', 'check' if build.with? 'tests' and Target.build_will_run?(partition)
-      system 'make', 'install'
+      cd 'build' do
+        checkpoint (partition.is_a?(Hash) ? partition.keys.first : partition) do
+          system '../configure', *args, *arch_args
+          system 'make'
+          system 'make', 'check' if build.with? 'tests' and Target.build_will_run?(partition)
+        end
+        system 'make', 'install'
 
-      if build.universal?
-        ENV.deparallelize { system 'make', 'distclean' }
-        merge_prep(:binary, partition, the_binaries)
-      end # build universal?
+        if build.universal?
+          ENV.deparallelize { system 'make', 'distclean' }
+          merge_prep(:binary, partition, the_binaries)
+        end # build universal?
+      end # cd build/
     end # each |partition|
 
     if build.universal?

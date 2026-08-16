@@ -22,6 +22,7 @@ begin
   f = ARGV.formulae.first
   f.set_active_spec(ARGV.build_spec)
   t = Tab.from_file(f.prefix/Tab::FILENAME)
+  Target.allow_universal_binary if t.built_archs.length > 1 or ARGV.valid_universal_mode?(t.build_mode)
   f.build = BuildOptions.new(t.used_options + Options.create(ARGV.effective_formula_flags), f.options)
   f.extend(Homebrew::Assertions)
   ENV.set_active_formula(f)
@@ -34,16 +35,16 @@ begin
   # and optimization flags; otherwise, 64‐bit, universal, & cross builds fail.
   ENV.refurbish_args if superenv?
 
-  if DEBUG  # can’t use a timeout and run a debugging shell at the same time
-    f.extend(Debrew::Formula)
-    raise 'test returned false' if f.run_test == false
-  else
-    # tests can either buggily time out, or explicitly return false to indicate failure
-    Timeout.timeout TEST_TIMEOUT_SECONDS do
-      raise 'test returned false' if f.run_test == false
-    end # timeout?
-  end # debug?
-  oh1 'Test passed'
+  f.extend(Debrew::Formula) if DEBUG
+
+  # Tests can return :does_not_apply; or any true value on success; or buggily time out / explicitly return false on failure.  (Use
+  # of a timeout precludes use of a debugging shell.)
+  case (DEBUG ? f.run_test : Timeout.timeout(TEST_TIMEOUT_SECONDS) { f.run_test })
+    when false           then opoo 'Test failed'
+    when nil             then onoe 'The test returned `nil` instead of `true` or `false`.  This is a bug.'
+    when :does_not_apply then ohai 'This formula cannot meaningfully be tested.'
+                         else ohai 'Test passed'
+  end
 rescue Exception => e
   Marshal.dump(e, error_pipe)
   error_pipe.close

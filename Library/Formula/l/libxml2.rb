@@ -45,7 +45,7 @@ class Libxml2 < Formula
         --enable-static
       ]
     args << '--with-docs' if build.with? 'docs'
-    args << "--with-iconv=#{Formula['libiconv'].opt_prefix}" if active_enhancements.include? 'libiconv'
+    args << "--with-iconv=#{Formula['libiconv'].opt_prefix}" if active_enhancement_names.include? 'libiconv'
     system './configure', *args
     system 'make'
     resource('conformance_test_suite').stage('xmlconf')

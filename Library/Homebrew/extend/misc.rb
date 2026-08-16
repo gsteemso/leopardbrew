@@ -2,7 +2,7 @@ class Array
   def choke; self unless flatten.compact.empty?; end
 
   def list(connective = 'and')
-    _self = map{ |item| Symbol === item ? item.inspect : item.to_s }
+    _self = map{ |item| item.is_a?(Symbol) ? item.inspect : item.to_s }
     case length
       when 0 then ''
       when 1 then _self[0]
@@ -16,7 +16,7 @@ end # Array
 
 module Enumerable
   def find_rindex(val = nil)
-    raise ArgumentError, 'Enumerable#find_rindex() may be given a value or a block, but not both at once' if val and block_given?
+    raise ArgumentError, 'Enumerable#find_rindex() must be given exactly one of a value or a block' unless block_given? ^ val
     n = length
     reverse_each{ |item|
       n = n - 1
@@ -24,6 +24,9 @@ module Enumerable
     }
     nil
   end # Enumerable#find_rindex()
+
+  def includes_all?(*enum); enum.all?{ |e| includes? e }; end
+  alias_method :include_all?, :includes_all?
 
   alias_method :includes?, :include? unless method_defined? :includes?
 
@@ -103,3 +106,19 @@ class Object
 end # class Object
 
 class Set; alias_method :includes?, :include? unless method_defined? :includes?; end
+
+class Time
+  # The standard JSON methods for Time objects do not appear to be present in Ruby 1.8.6 or earlier.  Strangely, we still can’t use
+  # them with the internal Ruby 2.3.3 we inherited from Tigerbrew, because Time#as_json seems to be missing (a detail we shall have
+  # to address when we finally get around to updating that).  Until then, this very basic JSON serialization suits our low‐end JSON
+  # reader/writer.
+  require 'utils/json'
+
+  def self.from_JSON(json_string); from_JSONable(Utils::JSON.load json_string); end
+
+  def self.from_JSONable(object); object.is_a?(Hash) ? at(object['s'], object['mu']) : at(object); end
+
+  def to_JSON; Utils::JSON.dump(to_JSONable); end
+
+  def to_JSONable; {'s' => tv_sec, 'mu' => tv_usec}; end
+end # Time
