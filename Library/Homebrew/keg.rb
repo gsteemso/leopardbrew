@@ -216,7 +216,8 @@ class Keg
     dir and dir.directory? and dir.children.any?
   end # completion_installed?
 
-  # This tests the enhancement state of an already‐installed {Keg}.  For current affairs, examine Formula#active_enhancements.
+  # This tests the enhancement state of an already‐installed {Keg}.  For current affairs, look to Formula#active_enhancements or to
+  # Formula#active_enhancement_names.
   def enhanced_by?(aid); tab and tab.active_aids.include?(aid); end
 
   def plist_installed?; Dir["#{path}/*.plist"].any?; end
@@ -385,7 +386,7 @@ class Keg
       puts "#{lnk} -> #{tgt}"
       return
     end
-    lnk.rmtree if stats and mode.overwrite
+    (lnk.symlink? ? lnk.unlink : lnk.rmtree) if stats and mode.overwrite  # Only comment on it if it wasn’t already a symlink.
     lnk.make_relative_symlink_to(tgt)
   rescue Errno::EEXIST => e
     if lnk.exists? then raise ConflictError.new(self, tgt.relative_path_from(path), lnk, e)
