@@ -297,7 +297,7 @@ class Formulary
 
     if possible_tap_newname_formulae.size > 1
       raise TapFormulaWithOldnameAmbiguityError.new(ref, possible_tap_newname_formulae)
-    elsif !possible_tap_newname_formulae.empty?
+    elsif not possible_tap_newname_formulae.empty?
       return TapLoader.new(possible_tap_newname_formulae.first)
     end
 
