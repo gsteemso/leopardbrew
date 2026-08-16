@@ -39,7 +39,9 @@ class Dependency
 
   def installed_archs_are_a_superset?; keg = to_keg and Target.archset.all?{ |ta| keg.built_archs.any?{ |ba| ba == ta } }; end
 
-  def dylinkable?; (l = to_formula.lib) and l.directory? and l.detect{ |o| o.real_file? and (o.dylib? or o.mach_o_bundle?) }; end
+  def dylinkable?
+    (l = to_formula.lib) and l.directory? and l.find{ |o| return true if o.real_file? and (o.dylib? or o.mach_o_bundle?) }
+  end
 
   def group_dep?; false; end
 
