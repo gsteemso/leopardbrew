@@ -1,7 +1,7 @@
-# stable release 2019-07-13; checked 2025-08-04
+# stable release 2019-07-13; discontinued
 class Bzip2 < Formula
   desc 'Freely available high-quality data compressor'
-  homepage 'https://sourceware.org/bzip2/'
+  homepage 'https://gitlab.com/bzip2/bzip2-archived/'
   url 'https://sourceware.org/pub/bzip2/bzip2-1.0.8.tar.gz'
   sha256 'ab5a03176ee106d3f0fa90e381da478ddae405918153cca248e682cd0c4a2269'
   license 'bzip2-1.0.6'
@@ -14,7 +14,7 @@ class Bzip2 < Formula
 
   option :universal
 
-  # Need to generate a library
+  # Need to generate a (properly versioned) Mac OS library, not a Linux shared object.
   patch :DATA
 
   def install
@@ -32,12 +32,11 @@ class Bzip2 < Formula
 
     lib.install 'libbz2.1.0.8.dylib', 'libbz2.1.0.dylib'
     lib.install_symlink "libbz2.#{version}.dylib" => 'libbz2.dylib'
-    cp 'bzip2-shared', "#{bin}/bzip2"
-    cp 'bzip2-shared', "#{bin}/bunzip2"
-    cp 'bzip2-shared', "#{bin}/bzcat"
+    cp_p 'bzip2-shared', "#{bin}/bzip2"
+    ln "#{bin}/bzip2", "#{bin}/bunzip2"
+    ln "#{bin}/bzip2", "#{bin}/bzcat"
 
-    # Create pkgconfig file based on 1.1.x repository.
-    # https://gitlab.com/bzip2/bzip2/-/blob/master/bzip2.pc.in
+    # Create pkgconfig file based on 1.1.x repository (see https://gitlab.com/bzip2/bzip2/-/blob/master/bzip2.pc.in).
     (lib/'pkgconfig/bzip2.pc').write <<~EOS
       prefix=#{opt_prefix}
       exec_prefix=${prefix}
@@ -54,20 +53,19 @@ class Bzip2 < Formula
   end # install
 
   test do
-    testfilepath = testpath + 'sample_in.txt'
-    zipfilepath = testpath + 'sample_in.txt.bz2'
-
-    testfilepath.write 'TEST CONTENT'
-
-    system "#{bin}/bzip2", testfilepath
-    system "#{bin}/bunzip2", zipfilepath
-
-    assert_equal 'TEST CONTENT', testfilepath.read
+    test_target = testpath/'test_binary'; tested_target = testpath/'test_binary.bz2'
+    cp bin/'bzip2', test_target
+    for_archs "#{bin}/bzip2" do |arch, cmd_array|
+      system *cmd_array, test_target
+      system *cmd_array, '-d', tested_target
+      assert_equal (bin/'bzip2').binread, test_target.binread
+    end
   end # test
 end # Bzip2
+
 __END__
---- old/Makefile-libbz2_so	2019-07-13 18:50:05.000000000 +0100
-+++ new/Makefile-libbz2_so	2023-05-21 02:36:45.000000000 +0100
+--- old/Makefile-libbz2_so	2019-07-13
++++ new/Makefile-libbz2_so	2026-08-06
 @@ -35,13 +35,13 @@
        bzlib.o
  
@@ -76,7 +74,7 @@ __END__
 -	$(CC) $(CFLAGS) -o bzip2-shared bzip2.c libbz2.so.1.0.8
 -	rm -f libbz2.so.1.0
 -	ln -s libbz2.so.1.0.8 libbz2.so.1.0
-+	$(CC) -dynamiclib -o libbz2.1.0.8.dylib $(OBJS)
++	$(CC) -dynamiclib -compatibility_version 1.0.0 -current_version 1.0.8 -o libbz2.1.0.8.dylib $(OBJS)
 +	$(CC) $(CFLAGS) -o bzip2-shared bzip2.c libbz2.1.0.8.dylib
 +	rm -f libbz2.1.0.dylib
 +	ln -s libbz2.1.0.8.dylib libbz2.1.0.dylib
