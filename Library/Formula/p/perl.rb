@@ -39,7 +39,7 @@ class Perl < Formula
 
   def install
     Target.allow_universal_binary if build.universal?
-    archs = Target.archset
+    archs = Target.partitioned_archset(:word_size)
 
     args = %W[
       -des
@@ -65,17 +65,19 @@ class Perl < Formula
     ]
     args << '-Dusedevel' unless build.stable?
     args << '-Dusedtrace' if build.with? 'dtrace'
-
+    mkdir 'build'
     archs.each do |arch|
       ENV.set_build_archs(arch) if build.universal?
 
       arch_args = ["-Dcc=#{ENV.cc}"]
-      if Target._64b_arch?(arch) then arch_args << '-Duse64bitall'
-      elsif Target._64b? then arch_args << '-Duse64bitint'; end
+      if Target.pure_64b?(arch) then arch_args << '-Duse64bitall'
+      elsif Target._64_32? then arch_args << '-Duse64bitint'; end
 
-      system './Configure', *args, *arch_args
-      system 'make'
-      system 'make', 'test' rescue nil if build.with?('tests') or build.bottle?
+      checkpoint arch do
+        system './Configure', *args, *arch_args
+        system 'make'
+        system 'make', 'test' rescue nil if build.with?('tests') or build.bottle?
+      end
       system 'make', 'install'
 
       if build.universal?

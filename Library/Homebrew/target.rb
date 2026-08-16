@@ -64,10 +64,14 @@ class Target
                              lp_64 = select_64b_archs(as)
                              hsh64 = lp_64.empty? ? nil : lp_64.length == 1 ? lp_64[0] : {:lp64  => lp_64}
                              result = [hsh32, hsh64].compact
-                             result.all?{ |element| element.is_a(Symbol) } ? as : result
+                             result.all?{ |element| element.is_a?(Symbol) } ? as : result
                         else as
       end
     end # Target::partitioned_archset()
+
+    # A partitioned archset is not directly useable for things like setting the active build architectures.  #net_archset() reduces
+    # such an archset to its underlying unpartitioned equivalent.
+    def net_archset(parts); parts.collect{ |p| if p.is_a?(Hash) then p.values.first; else p; end }.flatten.extend(ALE); end
 
     # What set of architectures should tools we build be able to run on?  All of our regular universal targets (assuming, of course,
     # that we’re running a universal build in the first place).  If we’re building a bottle, we won’t be building fat; the bottle’s
@@ -140,8 +144,7 @@ class Target
     # progress to enable it for the FSF GCCs as well.  That said, it is not supported by /any/ GCC prior to 4.2.
     def optimization_flagset(as = archset)
       # The possibilities:
-      # 1. There’s only one arch, or multiple archs of one type (which should only be possible if we’re running on it).  (One -mcpu
-      #    or -march flag, potentially with modifiers.)
+      # 1. There’s only one arch, or multiple archs of one type.  (One -mcpu or -march flag, potentially with modifiers.)
       # 2. There are multiple types.  Note that in this case, the sub‐archset associated with any given type is permitted to map to
       #    multiple CPU models.  (Multiple -mcpu and/or -march flags, potentially with modifiers.)
       # 3. The compiler doesn’t support multiple arch-specific flagging.  (In the first case above, this doesn’t affect us.)
@@ -165,11 +168,36 @@ class Target
 
     def preferred_arch; @preferred_arch ||= (prefer_64b? ? _64b_arch : _32b_arch); end
 
-    # For any scenario where you have to be explicit about your build, host, and/or target platform(s).  It’s the invariant part of
-    # a GNU platform tuple, see?
-    def gnuple; "-apple-darwin#{`uname -r`[/^\d+/]}"; end
+  # Methods concerning the GNU platform tuple (useful when you must be explicit about the build, host, and/or target platform[s]; &
+  # sometimes used by non‐GNU software, too).
 
-    # Utility functions:  Refine their sole parameter in a relevant manner.
+    def build_gnuple; gnuple(preferred_arch); end
+
+    def gnuple(this); "#{gnu_translate(this)}-apple-darwin#{`uname -r`[/^\d+/]}"; end
+
+    def gnu_translate(this)
+      raise ArgumentError, "GNU platform tuples cannot be made from groups of build architectures." unless this.is_a?(String)
+      case this
+        when 'arm64'       then 'aarch64'
+        when /^arm(?!64$)/ then 'arm'
+        when 'i386'        then 'i686'
+        when 'ppc'         then 'powerpc'
+        when 'ppc64'       then 'powerpc64'
+                           else this.to_sym
+      end
+    end # Target::gnu_translate()
+
+    def gnu_detranslate(this)
+      case this
+        when 'aarch64'   then :arm64
+        when 'i686'      then :i386
+        when 'powerpc'   then :ppc
+        when 'powerpc64' then :ppc64
+                         else this.to_sym
+      end
+    end # Target::gnu_detranslate()
+
+  # Utility functions:  Refine their sole parameter in a relevant manner.
 
     def preferred_arch_as_list; [preferred_arch].extend(ALE); end
 
@@ -177,7 +205,7 @@ class Target
 
     def select_64b_archs(as); as.reject{ |a| _32b?(a) }.extend(ALE); end
 
-    # Utility functions:  Return either true (i.e. some relevant value) or false, based on their sole parameter.
+  # Utility functions:  Return either true (i.e. some relevant value) or false, based on their sole parameter.
 
     def _32b?(obj = archset)
       case obj
@@ -197,6 +225,9 @@ class Target
     end # Target::_64b?()
     alias_method :_64b_arch?, :_64b?
     alias_method :pure_64b?, :_64b?
+
+    # Do we have 64‐bit registers but not 64‐bit addressing?
+    def _64_32?(obj = archset); obj == [:ppc] and model == :g5; end
 
     def _32b_arch(t = CPU.type)
       case t
@@ -234,10 +265,10 @@ class Target
       CPU.can_run?(this) and _32b_arch?(this) ? (v < :lion) : (v > :tiger or (v == :tiger and prefer_64b?))
     end # Target::build_will_run?()
 
-    # These return arrays extended via ALE (ArchitectureListExtension; see “mach.rb”), which provides such useful helper methods as
-    # #as_arch_flags & #as_cmake_arch_flags.  Note that building for 64-bit is only just possible on Tiger, & unevenly supported on
-    # Leopard.  Don’t even try unless 64‐bit builds are enabled; they generally aren’t, prior to Leopard, although the issue can be
-    # forced on Tiger by case‐insensitively setting the environment variable $HOMEBREW_PREFER_64_BIT to “FORCE”.
+  # These return arrays extended using ALE (ArchitectureListExtension; see “mach.rb”), which provides such useful helper methods as
+  # #as_arch_flags and #as_cmake_arch_flags.  Note that building in 64-bit mode is barely feasible on Tiger, and unevenly supported
+  # on Leopard; we can’t even try it unless our support for it has been enabled (see `::prefer_64_bit?`).
+
     def all_archs; CPU.known_archs.extend ALE; end
 
     def cross_archs
@@ -247,7 +278,7 @@ class Target
       (v <  :tiger)                     ? [:ppc].extend(ALE)    : \
       (not prefer_64b?)                 ? universal_archs_1     : \
       (ENV.responds_to?(:compiler) and
-        ENV.compiler != :clang)         ? quad_fat_archs        : triple_fat_archs
+        ENV.compiler != :clang)         ? quad_fat_archs        : triple_fat_archs  # Revisit this after we fix Clang for ppc64.
     end # Target::cross_archs
 
     def local_archs; @local_archs ||= all_archs.select{ |a| build_will_run?(a) }.extend(ALE); end
