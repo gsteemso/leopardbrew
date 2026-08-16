@@ -43,7 +43,7 @@ class Gmp < Formula
       ENV['CC_FOR_BUILD'] = "#{which ENV.homebrew_cc, ENV['PATH'], true} -arch #{Target.preferred_arch} -std=c99"
     end # universal build?
     archs = Target.archset
-    mkdir 'build'; mkdir stashroot
+    mkdir 'build'
     _build_ = lookup(CPU.model); gnuple = Target.gnuple
     args = ["--prefix=#{prefix}",
             '--disable-silent-rules',
@@ -63,20 +63,16 @@ class Gmp < Formula
         end # case arch
       arch_args << '--disable-assembly' if Target._32b?(arch)
       cd 'build' do
-        checkpoint "#{arch}-main-run" do
+        checkpoint arch.to_s do
           system '../configure', *args, *arch_args
           system 'make'
-          system 'make', 'check' if build.with? 'tests' and CPU.can_run?(arch)
         end
+        system 'make', 'check' if build.with? 'tests' and Target.build_will_run?(arch)
         ENV.deparallelize { system 'make', 'install' }
         if build.universal?
           system 'make', 'distclean'
-          cd stashroot do
-            checkpoint "#{arch}-stashes" do
-              merge_prep(:binary, arch, the_binaries)
-              merge_prep(:header, arch, the_headers)
-            end
-          end # cd stashroot
+          merge_prep(:binary, arch, the_binaries)
+          merge_prep(:header, arch, the_headers)
         end # universal build?
       end # cd build
     end # each |arch|
